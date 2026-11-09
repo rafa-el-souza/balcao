@@ -38,31 +38,32 @@ const NFR09 =
 // alt="" (a decorative image) is not text.
 const LETTER = /[A-Za-zÀ-ÖØ-öø-ÿ]/;
 
-// Attributes and props whose value is shown or read to the visitor.
+// Attributes and props whose value is shown or read to the visitor, compared
+// without hyphens or case (aria-label and ariaLabel alike).
 const TEXT_ATTRIBUTES = new Set([
   "alt",
-  "aria-label",
-  "aria-description",
-  "aria-roledescription",
-  "aria-valuetext",
-  "aria-placeholder",
+  "arialabel",
+  "ariadescription",
+  "ariaroledescription",
+  "ariavaluetext",
+  "ariaplaceholder",
   "placeholder",
   "title",
   "label",
-  "value",
   "caption",
   "heading",
   "text",
   "description",
   "hint",
   "message",
+  "content",
+  "tooltip",
 ]);
 
 function isTextAttribute(attribute) {
-  return (
-    attribute.name.type === "JSXIdentifier" &&
-    TEXT_ATTRIBUTES.has(attribute.name.name)
-  );
+  if (attribute.name.type !== "JSXIdentifier") return false;
+  const name = attribute.name.name.replaceAll("-", "").toLowerCase();
+  return TEXT_ATTRIBUTES.has(name) || name === "value";
 }
 
 // The literals whose value becomes rendered text: the expression itself, the

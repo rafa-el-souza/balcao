@@ -57,6 +57,18 @@ describe(
         "an inline list",
         'export const A = () => <ul>{["Tem dipirona?", "Horários"].map((c) => <li key={c}>{c}</li>)}</ul>;',
       ],
+      [
+        "a meta content",
+        'export const A = () => <meta name="description" content="Farmácia de plantão" />;',
+      ],
+      [
+        "a component's content",
+        'const Tip = (p: { content: string }) => <span>{p.content}</span>;\nexport const A = () => <Tip content="Ver horários" />;',
+      ],
+      [
+        "a camelCase aria prop",
+        'const Close = (p: { ariaLabel: string }) => <button type="button" aria-label={p.ariaLabel} />;\nexport const A = () => <Close ariaLabel="Fechar" />;',
+      ],
     ])("rejects %s", async (_form, code) => {
       expect(await errorsCiting(code, "NFR-09")).not.toEqual([]);
     });
