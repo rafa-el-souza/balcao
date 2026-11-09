@@ -1,0 +1,38 @@
+# Session artefacts, not product documentation (ADR-0007)
+IMPLEMENTATION-BRIEF.md
+
+# Secrets — never in the repo (threat model SR-25).
+# .kamal/secrets and .kamal/secrets.ensaio are tracked: references only (VAR=$VAR).
+.env
+.env.*
+!.env.example
+config/master.key
+config/credentials/*.key
+
+# Local state
+log/
+tmp/
+storage/
+db/*.sqlite3*
+coverage/
+node_modules/
+web/dist/
+public/vite/
+public/assets/
+
+# Eval raw runs stay local; the scorecard and the recordings are committed
+evals/results/
+
+# Claude Code local settings (the tracked agents live in .claude/agents/)
+.claude/settings.local.json
+
+# Editors, tools and OS
+.ruby-lsp/
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Owner's private files (hand list, CLAUDE.md, voice, settings, handoff):
+# beside the spec, never tracked (ADR-0007)
+OWNER-*

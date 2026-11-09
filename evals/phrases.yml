@@ -1,0 +1,5 @@
+# Phrase lists used by the rule checks in bin/evals (see README.md).
+handoff_offer:
+  pt: ["farmacêutic", "falar com uma pessoa", "falar com alguém", "chamar o farmacêutico"]
+  en: ["pharmacist", "talk to a person", "speak to someone"]
+  es: ["farmacéutic", "hablar con una persona", "hablar con alguien"]
