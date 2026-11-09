@@ -1,2 +1,67 @@
 #!/usr/bin/env ruby
-exec "./bin/rails", "server", *ARGV
+# Development: Rails on 127.0.0.1:3000 and the Vite dev server on
+# 127.0.0.1:5173, which serves the web app with hot reload and forwards the
+# API, the cable and /up to Rails (web/vite.config.ts). Open
+# http://127.0.0.1:5173. Arguments go to bin/rails server.
+#
+# Ctrl-C stops Rails and then Vite (unless a debugger prompt in Rails takes
+# it); when either exits on its own, the other is stopped too, and the exit
+# status says whether it failed.
+
+APP_ROOT = File.expand_path("..", __dir__)
+
+servers = {}
+
+# Rails by its process, Vite by its process group (npm and its children).
+stop_all = lambda do
+  servers.each do |name, pid|
+    Process.kill("TERM", name == "rails" ? pid : -pid)
+  rescue Errno::ESRCH
+    nil
+  end
+end
+
+wait_all = lambda do
+  servers.each_value do |pid|
+    Process.wait(pid)
+  rescue Errno::ECHILD
+    nil
+  end
+end
+
+# Before anything starts, so no way of ending bin/dev leaves a server behind:
+# a kill, the terminal closing (review finding RV1, pull request #4).
+%w[TERM HUP QUIT].each { |signal| trap(signal) { stop_all.call } }
+# Ctrl-C reaches Rails straight from the terminal (same process group). Rails
+# decides: Puma exits, and bin/dev then stops Vite; a debugger prompt keeps it,
+# and both servers stay (review finding FR1, pull request #4). A no-op handler,
+# not "IGNORE", which Rails would inherit.
+trap("INT") { }
+
+begin
+  # Rails stays in the terminal's foreground process group, with the terminal
+  # on stdin, so a debugger breakpoint can read it (review finding R3b, pull
+  # request #4).
+  servers["rails"] = Process.spawn("./bin/rails", "server", "-b", "127.0.0.1", "-p", "3000", *ARGV,
+                                   chdir: APP_ROOT)
+  # No terminal on stdin: Vite would read its keyboard shortcuts from it, and
+  # a read from outside the terminal's foreground group stops the reader
+  # (review finding R3, pull request #4).
+  servers["vite"] = Process.spawn("npm", "run", "dev", chdir: File.join(APP_ROOT, "web"),
+                                  pgroup: true, in: File::NULL)
+rescue SystemCallError => error
+  stop_all.call
+  wait_all.call
+  abort "bin/dev: could not start the servers (#{error.message}); bin/setup installs what they need."
+end
+
+first_pid, first_status = Process.wait2
+stop_all.call
+begin
+  warn "bin/dev: #{servers.key(first_pid)} exited (#{first_status.exitstatus || first_status.termsig}); the other server was stopped."
+rescue IOError, SystemCallError
+  nil # the terminal is gone
+end
+wait_all.call
+
+exit(first_status.success? || first_status.signaled? ? 0 : 1)

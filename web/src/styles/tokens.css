@@ -1,0 +1,58 @@
+/*
+ * Design tokens (ADR-0008, docs/design-brief.md). Every colour, face, size and
+ * space a component uses comes from here; components style themselves with
+ * CSS Modules over these names and nothing else.
+ *
+ * These are the placeholder's neutral values: the roles are the design
+ * brief's, the values are provisional until the design session sets them
+ * (self-hosted faces included). Contrast, checked on 2026-11-09 against
+ * --color-paper: ink 15.3, ink-2 6.8, accent 5.8, economy 5.6, paused 6.2,
+ * error 6.5 (text, AA needs 4.5); rule-strong 3.2 (UI, AA needs 3).
+ */
+:root {
+  /* Surfaces and ink: paper, not white; ink, not black. */
+  --color-paper: #f6f1e7;
+  --color-paper-2: #fbf8f1;
+  --color-ink: #1d1b18;
+  --color-ink-2: #5a5249;
+  /* Hairlines: decorative rules, and the stronger one for UI boundaries. */
+  --color-rule: #d6ccba;
+  --color-rule-strong: #8f8573;
+  /* The pharmacy green, used sparingly: links, the online dot, the primary button. */
+  --color-accent: #1e6a43;
+
+  /* Meaning colours carry meaning and nothing else. */
+  --color-normal: #1e6a43;
+  --color-economy: #8a5300;
+  --color-paused: #5f5850;
+  --color-error: #a3271c;
+  --color-success: #1e6a43;
+
+  /* The counter (conversation, landing) and the instrument (glass box, trace, status). */
+  --font-counter: Georgia, "Times New Roman", Times, serif;
+  --font-instrument:
+    ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono",
+    monospace;
+
+  /* Five sizes. */
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9375rem;
+  --text-md: 1.0625rem;
+  --text-lg: 1.375rem;
+  --text-xl: 2rem;
+  --leading-tight: 1.25;
+  --leading-body: 1.55;
+
+  /* A 4 px baseline. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+
+  --rule-hairline: 1px solid var(--color-rule);
+  --measure: 38rem;
+  --page-max: 72rem;
+}

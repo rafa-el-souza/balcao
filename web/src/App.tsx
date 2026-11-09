@@ -1,12 +1,7 @@
-import { useTranslation } from "react-i18next";
+import { Placeholder } from "./placeholder/Placeholder";
 
+// Until the landing and the chat arrive (design §9.1, PR-10), the domain
+// shows the trilingual placeholder.
 export function App() {
-  const { t } = useTranslation();
-
-  return (
-    <main>
-      <h1>{t("app.name")}</h1>
-      <p>{t("app.placeholder")}</p>
-    </main>
-  );
+  return <Placeholder />;
 }

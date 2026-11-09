@@ -1,0 +1,14 @@
+#!/usr/bin/env ruby
+# The container's entrypoint: the generator's shell script, rewritten in Ruby
+# because no shell script lives in the repository (design NFR-08, §6.9). When
+# the command starts the web server (./bin/rails server, directly or behind
+# Thruster), the databases are created or migrated first; any other command,
+# such as the job container's bin/jobs, runs as given.
+
+abort "docker-entrypoint: no command to run" if ARGV.empty?
+
+if ARGV.last(2) == [ "./bin/rails", "server" ]
+  system("./bin/rails", "db:prepare") || abort("docker-entrypoint: bin/rails db:prepare failed; the server was not started.")
+end
+
+exec(*ARGV)

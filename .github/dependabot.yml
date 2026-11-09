@@ -24,6 +24,28 @@ updates:
     groups:
       web-minor-and-patch:
         update-types: [minor, patch]
+    # Held back on purpose (README, "How it is built"): eslint-plugin-jsx-a11y
+    # 6.10 accepts ESLint 9 at most, and typescript-eslint accepts TypeScript
+    # below 6.1, so a newer ESLint or TypeScript breaks the lint step. Lift
+    # these when the plugins' peer ranges move.
+    ignore:
+      - dependency-name: eslint
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@eslint/js"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+
+  # The Dockerfile's base images, pinned by digest: a rebuilt tag (a Debian
+  # security fix) arrives as a new digest. A version change must match
+  # .tool-versions, which spec/deploy/image_spec.rb checks.
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
 
   - package-ecosystem: github-actions
     directory: "/"

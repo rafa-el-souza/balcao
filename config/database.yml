@@ -84,12 +84,16 @@ test:
 # Read https://guides.rubyonrails.org/configuring.html#configuring-a-database
 # for a full overview on how database connection configuration can be specified.
 #
+# Production reaches the Postgres accessory on the Kamal network (DB_HOST,
+# config/deploy.yml) with the password the accessory was booted with; both read
+# POSTGRES_PASSWORD, which the boot check requires (threat model SR-25).
 production:
   primary: &primary_production
     <<: *default
+    host: <%= ENV["DB_HOST"] %>
     database: balcao_production
     username: balcao
-    password: <%= ENV["BALCAO_DATABASE_PASSWORD"] %>
+    password: <%= ENV["POSTGRES_PASSWORD"] %>
   cache:
     <<: *primary_production
     database: balcao_production_cache

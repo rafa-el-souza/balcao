@@ -1,6 +1,13 @@
 {
   "app": {
     "name": "Balcão",
-    "placeholder": "Em construção."
+    "pharmacy": "Farmácia Vida Longa"
+  },
+  "placeholder": {
+    "status": "em construção",
+    "tagline": "Um atendente de IA para uma farmácia de bairro fictícia.",
+    "soon": "A demonstração abre neste endereço em breve: converse pelo navegador ou pelo WhatsApp e veja, ao lado da conversa, cada chamada ao modelo, cada ferramenta e quanto custou.",
+    "meanwhile": "Enquanto isso, o projeto está aberto:",
+    "repository": "design, decisões e modelo de ameaças no GitHub"
   }
 }

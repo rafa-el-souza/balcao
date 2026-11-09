@@ -1,0 +1,99 @@
+# Kamal, base configuration: production (ADR-0006, ADR-0011, design §8).
+#
+# Deployed only by the owner, from the operator account, with the pinned
+# global kamal invoked directly (threat model SR-37, SR-38): this file is part
+# of the deploy-path review before every production deploy. The rehearsal
+# destination, config/deploy.ensaio.yml, is deep-merged over it and replaces
+# every production-specific value; bin/deploy deploys only that destination.
+# Secrets are listed here by name; their values come from .kamal/secrets.
+
+service: balcao
+image: balcao
+
+# One host. Its name is an SSH alias that the operator's own ssh config
+# resolves (M3), so no address of the production host lands in the repository.
+# Every container runs as the image's non-root user (uid 1000) on a read-only
+# root filesystem; Rails writes only its tmp directory and /tmp, both in
+# memory (threat model SR-24). Docker would mount /rails/tmp owned by root.
+servers:
+  web:
+    hosts:
+      - balcao-prod
+    options: &container
+      read-only: true
+      tmpfs:
+        - /rails/tmp:uid=1000,gid=1000,mode=0700
+        - /tmp
+  # Solid Queue in its own container, never inside Puma (design §6.2).
+  job:
+    hosts:
+      - balcao-prod
+    cmd: bin/jobs
+    options: *container
+
+# kamal-proxy terminates TLS with a Let's Encrypt certificate and polls /up
+# while a new container boots.
+proxy:
+  ssl: true
+  host: balcao.rafasouza.dev.br
+  app_port: 80
+  healthcheck:
+    path: /up
+
+# Kamal's local registry: the image is built in the deploying account and
+# reaches the host through an SSH port forward, so no registry account exists.
+# Each account has its own loopback port (5556 here, 5555 for the rehearsal).
+registry:
+  server: localhost:5556
+
+# The Docker engine's own builder, which fetches no BuildKit image (Kamal's
+# default docker-container builder runs moby/buildkit by a mutable tag) and
+# resolves DNS in RUN steps under rootless Docker, where the docker-container
+# builder did not (review finding FV1, pull request #4). The engine's
+# containerd image store exports straight to the local registry.
+builder:
+  arch: amd64
+  driver: docker
+
+# The non-root deploy user of ops/cloud-init.yml, whose docker group makes the
+# deploy key a root credential on that host. The workstation's SSH agent is
+# never forwarded to it (SR-37).
+ssh:
+  user: deploy
+  forward_agent: false
+
+# APP_HOST drives the allowed hosts and, as they arrive, the Origin allow-list,
+# the cable origins and absolute links (design §8). A blank required name
+# stops the app at boot (config/required_environment.rb, SR-25).
+env:
+  clear:
+    APP_HOST: balcao.rafasouza.dev.br
+    DB_HOST: balcao-db
+  secret:
+    - SECRET_KEY_BASE
+    - POSTGRES_PASSWORD
+
+logging:
+  options:
+    max-size: 10m
+    max-file: "5"
+
+accessories:
+  # Postgres on the Kamal Docker network only: no port is published, so the
+  # cloud firewall's 22, 80 and 443 stay the only way in (SR-24). Attached by
+  # role, never by a literal host, so the rehearsal inherits nothing of
+  # production's host. The image pins the major CI tests against (18); from
+  # version 18 the image keeps its data under /var/lib/postgresql/18/docker,
+  # so the volume is /var/lib/postgresql. Accessories are not updated by
+  # kamal deploy: a new image is a deliberate `kamal accessory reboot db`.
+  db:
+    image: postgres:18.6@sha256:e3d24f6906d0760bf4da0dae872415391ededefad23fd471c47dc53b0ddf3c42
+    role: web
+    env:
+      clear:
+        POSTGRES_USER: balcao
+        POSTGRES_DB: balcao_production
+      secret:
+        - POSTGRES_PASSWORD
+    directories:
+      - data:/var/lib/postgresql
