@@ -139,13 +139,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_09_224510) do
   end
 
   create_table "webhook_events", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
-    t.string "external_id", null: false
+    t.string "body_sha256", null: false
     t.jsonb "payload", null: false
     t.string "status", default: "received", null: false
     t.datetime "received_at", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["external_id"], name: "index_webhook_events_on_external_id", unique: true
+    t.index ["body_sha256"], name: "index_webhook_events_on_body_sha256", unique: true
   end
 
   add_foreign_key "conversations", "visitors", on_delete: :cascade

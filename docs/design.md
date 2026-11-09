@@ -511,9 +511,12 @@ Cloudflare line under the widget is absent.
 - Given an inbound webhook, Then the `X-Hub-Signature-256` header is
   validated against the app secret with a constant-time comparison before
   any parsing; failures return 401 and are counted.
-- Given a valid webhook, Then the endpoint persists the raw event with the
-  Meta message id as idempotency key and returns 200 within 2 seconds;
-  processing happens in a background job. A redelivered event is a no-op.
+- Given a valid webhook, Then the endpoint persists the raw event keyed by
+  the SHA-256 of its raw body, and each message it carries by its Meta
+  message id, and returns 200 within 2 seconds; processing happens in a
+  background job. A redelivered event is a no-op. (The sent, delivered and
+  read notifications of one message share its id, so the id cannot key the
+  event.)
 - Given a visitor message, Then the reply is sent through the Cloud API
   inside the 24-hour service window; the system never sends template
   messages.
@@ -900,7 +903,7 @@ erDiagram
   }
   WEBHOOK_EVENT {
     uuid id
-    string external_id
+    string body_sha256
     jsonb payload
     string status
     datetime received_at
@@ -995,7 +998,10 @@ erDiagram
 
 Every primary key is a time-ordered uuid (`uuidv7()`, built into
 PostgreSQL 18), so ids sort by creation. Unique indexes:
-`webhook_event.external_id`, `message.external_id` per channel (dedup;
+`webhook_event.body_sha256` (the raw body's digest: a redelivered POST
+is a no-op, while the sent, delivered and read notifications of one
+message, which share its id, are three events), `message.external_id`
+per channel (dedup;
 `message.channel` copies the visitor's, and web messages carry no id), one
 outbound `message` per `turn_id` (only outbound messages carry one), one
 `turn` per inbound message (`turn.inbound_message_id`),
@@ -1466,7 +1472,7 @@ every pull request.
 | 8 | PR-13 `create_reservation` keyed by the turn and the product (NFR-02), the limits and the prescription refusal (FR-07) · PR-14 `bin/evals` live runner, the suites `greeting`, `language`, `store`, `catalogue`, `reservation`, `boundary`, `memory` on the normal model, the first scorecard | A reservation code in the chat; the boundary measured |
 | 9 | PR-15 boundary prompt iteration to 100 %, the fixed offer line, the decline texts in three locales · PR-16 the budget ledger with the monthly cap's pause (FR-14), the nightly job (FR-15), log masking (SR-30) | Wallet fenced; the demo honest about the boundary |
 | 10 | PR-17 `/privacy` page, the QR placeholder on the landing, README sixty-second tour, design and README status lines made true, the hours table in the handoff | **Web demo showable** |
-| 11 | PR-18 WhatsApp inbound: webhook verification (SR-08), `X-Hub-Signature-256` constant-time check on the raw body (SR-06), raw event persisted with the Meta message id as idempotency key, 200 within 2 s, processing through `ProcessTurnJob` (SR-07, SR-09), identity `sha256(pepper ‖ BSUID)` with the number, when Meta sends it, encrypted at rest (SR-10, FR-19), tests against the payloads recorded from the test number plus a synthetic username-only payload (no `from`, no `wa_id`) | Inbound messages traced on the host |
+| 11 | PR-18 WhatsApp inbound: webhook verification (SR-08), `X-Hub-Signature-256` constant-time check on the raw body (SR-06), raw event persisted keyed by the SHA-256 of its body and each message by its Meta message id, 200 within 2 s, processing through `ProcessTurnJob` (SR-07, SR-09), identity `sha256(pepper ‖ BSUID)` with the number, when Meta sends it, encrypted at rest (SR-10, FR-19), tests against the payloads recorded from the test number plus a synthetic username-only payload (no `from`, no `wa_id`) | Inbound messages traced on the host |
 | 12 | PR-19 WhatsApp outbound: the Graph API client with timeouts, replies inside the 24-hour window addressed to the number when known and to the BSUID (`recipient`) otherwise, status webhooks, the `/trace` reply with the tokenised link, the QR on the landing, the Meta values as Kamal env secrets; the owner creates the system-user token and switches the app to Live mode with `/privacy` as its policy URL; the first real conversation from the test customer's phone · slack | **J2 minus voice, live** |
 
 The slack is one day spread over the plan and is expected to be spent on
@@ -1529,6 +1535,14 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     new month opened without it, releasing the kill switch at midnight on
     the 1st. A new month's row now carries the forced mode of the latest
     month before it; the automatic mode starts over (FR-14).
+  - C3 (`dono`): Meta's sent, delivered and read notifications of one
+    outbound message carry the same message id, so an event keyed by
+    that id kept only the first, and the status never reached "read". The
+    event is now keyed by the SHA-256 of its raw body, and each message
+    by its Meta message id (FR-19, SR-07, §6.5, PR-18's row). If Meta's
+    redelivery of a POST is not byte-identical, the message keys still
+    make it a no-op; PR-19 applies statuses so that one never moves back
+    (a late "delivered" after "read").
 
 - Note 2026-11-09 (pull request #1, review finding C4): `npm audit
   --omit=dev` still audits toolchain packages that a runtime package lists

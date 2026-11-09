@@ -1,6 +1,6 @@
 FactoryBot.define do
   factory :webhook_event do
-    sequence(:external_id) { |n| "wamid.TEST#{n}" }
+    sequence(:body_sha256) { |n| Digest::SHA256.hexdigest("webhook body #{n}") }
     payload { { "object" => "whatsapp_business_account", "entry" => [] } }
     received_at { Time.current }
   end

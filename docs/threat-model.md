@@ -68,7 +68,7 @@ Each mitigation is a requirement (SR-xx) with a test or a verification step.
 | Threat | STRIDE | Mitigation |
 |---|---|---|
 | Forged events (T6) | Spoofing | **SR-06** `X-Hub-Signature-256` HMAC verified against the app secret with constant-time comparison on the raw body, before parsing; failures 401, counted and alerted above 10/min. |
-| Replayed events | Tampering | **SR-07** Meta message id as unique idempotency key; duplicates return 200 and do nothing. |
+| Replayed events | Tampering | **SR-07** The raw event keyed by the SHA-256 of its body and each message by its Meta message id, both unique; duplicates return 200 and do nothing. |
 | Verification endpoint abuse | Spoofing | **SR-08** Verify token compared constant-time; the endpoint does nothing else. |
 | Slow processing blocks Meta retries | DoS | **SR-09** Webhook stores and enqueues only; returns inside 2 s; processing in Solid Queue. |
 | Phone numbers leak (A3) | Information disclosure | **SR-10** Identity is `sha256(pepper ‖ BSUID)` (Meta's business-scoped user id, present on every event; the phone may be absent for users with a username, FR-19); the number, when Meta sends it, is stored encrypted with Active Record Encryption only for the reply path, and replies go by BSUID otherwise; the BSUID is personal data like the phone; log filters mask anything matching a phone pattern or a BSUID field; the pepper lives in secrets. |
