@@ -1564,6 +1564,11 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     with everything under them, and reservations go with the turns that
     made them (C1's fix); `Visitor.unseen_for` is the scope PR-16's
     nightly job uses (SR-31).
+  The fix review of the same pull request found:
+  - R1 (`cliente`): nothing wrote `visitor.last_seen_at`, so the purge
+    would have taken a visitor still writing seven days after first
+    contact. `Visitor.identify!`, which every message and request goes
+    through, now marks the visitor seen.
 
 - Note 2026-11-09 (pull request #1, review finding C4): `npm audit
   --omit=dev` still audits toolchain packages that a runtime package lists
