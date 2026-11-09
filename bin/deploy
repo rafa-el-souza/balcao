@@ -1,0 +1,50 @@
+#!/usr/bin/env ruby
+# Deploys the rehearsal destination, and nothing else (ADR-0011, threat model
+# SR-38). Production is deployed by a human from the operator account, with
+# the pinned global kamal invoked directly after the deploy-path review; this
+# script refuses every other invocation before kamal runs.
+#
+#   bin/deploy -d ensaio
+#
+# The deploying shell exports ENSAIO_HOST, ENSAIO_SSH_KEY and ENSAIO_SSH_CONFIG
+# (read by config/deploy.ensaio.yml) and the secrets that .kamal/secrets.ensaio
+# references. kamal setup runs every time: on a fresh host it boots the
+# accessories, and on a running one it skips them and deploys, as kamal deploy
+# would. The local registry is removed afterwards, whatever happened.
+
+DESTINATION = "ensaio".freeze
+REHEARSAL_VARIABLES = %w[ENSAIO_HOST ENSAIO_SSH_KEY ENSAIO_SSH_CONFIG].freeze
+
+def refuse(message)
+  warn "bin/deploy: #{message}"
+  exit 1
+end
+
+unless ARGV == [ "-d", DESTINATION ]
+  refuse "the only accepted invocation is `bin/deploy -d #{DESTINATION}` (threat model SR-38)."
+end
+
+blank = REHEARSAL_VARIABLES.select { |name| ENV.fetch(name, "").strip.empty? }
+refuse "#{blank.join(", ")} must be set in the deploying shell." if blank.any?
+
+status = IO.popen([ "git", "status", "--porcelain" ], err: File::NULL, &:read)
+refuse "git status failed, so the working tree cannot be checked." unless $?.success?
+unless status.strip.empty?
+  refuse "the working tree has uncommitted changes; kamal builds the committed HEAD, so commit or stash them first."
+end
+
+def kamal(*args)
+  puts "== kamal #{args.join(" ")}"
+  system("kamal", *args)
+end
+
+kamal("version") || refuse("kamal is not installed (the pinned global gem, see the runbook).")
+
+deployed = false
+begin
+  deployed = kamal("setup", "-d", DESTINATION)
+ensure
+  kamal("registry", "remove", "-d", DESTINATION) || warn("bin/deploy: the local registry could not be removed; run `kamal registry remove -d #{DESTINATION}`.")
+end
+
+refuse "kamal setup failed; see its output above." unless deployed
