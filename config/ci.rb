@@ -15,5 +15,6 @@ CI.run do
   step "Tests: Vitest", "npm --prefix web test"
   step "Build: web", "npm --prefix web run build"
 
+  step "Lint: GitHub Actions", "actionlint"
   step "Security: gitleaks", "gitleaks git --redact --no-banner"
 end
