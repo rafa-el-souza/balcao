@@ -232,7 +232,9 @@ prescription is required.
   Then the reservation is refused with the reason and the available
   alternative.
 - Given the same turn run again (same turn and product, NFR-02), Then
-  exactly one reservation exists.
+  exactly one reservation exists. The tool looks up the turn's
+  reservation of the product before any stock or limit check, so its own
+  first reservation never refuses it.
 - Given a visitor with 3 open reservations, When they ask for a fourth, Then
   the attendant refuses and lists the open ones.
 - Given a product that requires a prescription (FR-06), When the visitor
@@ -1599,6 +1601,9 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     stored is not run through the model again, and that its reply, or the
     fallback, carries the reservation's fixed-format line (PR-08, PR-12,
     PR-13).
+  - RN2 (`cliente`): a tool that checked stock or the three-open cap
+    before looking up the key would refuse a turn run again because of its
+    own first reservation. FR-07 now orders the lookup first (PR-13).
 
 - Note 2026-11-09 (pull request #1, review finding C4): `npm audit
   --omit=dev` still audits toolchain packages that a runtime package lists
