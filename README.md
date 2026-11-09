@@ -37,6 +37,14 @@ Ruby on Rails 8 API · React + TypeScript (Vite) · PostgreSQL · Solid Queue
 and Solid Cable (no Redis) · Anthropic Claude via the official Ruby SDK ·
 WhatsApp Cloud API · Kamal 2 on one small VM.
 
+Versions, current stable when the implementation started (2026-11-09):
+Ruby 4.0.9 and Rails 8.1.4.1; PostgreSQL 18; Node.js 26 LTS; React 19.3,
+Vite 8.3 (Rolldown), TypeScript 6.0, Vitest 5.1, i18next 27; RSpec 8.1
+(rspec-rails). Two tools sit one major behind on purpose: TypeScript 6.0,
+because typescript-eslint does not support TypeScript 7 yet, and ESLint 9,
+because `eslint-plugin-jsx-a11y` does not support ESLint 10 yet. The
+`.tool-versions` file pins Ruby and Node for local work and CI.
+
 Read, in this order:
 
 1. [`docs/design.md`](docs/design.md) — goals, numbered requirements with
