@@ -1472,8 +1472,10 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
   against SR-27's own "toolchain advisories do not block unrelated pull
   requests". The command becomes `npm audit --omit=dev --omit=optional
   --audit-level=high` (§9.1, SR-27); `web/test/audit.test.ts` fails if a
-  package that only runtime code needs is ever flagged optional, so the
-  extra omission never hides a package that ships.
+  package outside the dev tree is ever flagged optional. It does not catch
+  a `devOptional` package that runtime code also imports (the bundle would
+  ship it, the audit would skip it); none does today, and the owner's round
+  at the MVP close weighs whether a stronger guard is worth it.
 
 - OD-1 Resolved 2026-11-02: hosted transcription only (ADR-0005).
 - OD-2 Email delivery provider for operator notifications (free tier of a
