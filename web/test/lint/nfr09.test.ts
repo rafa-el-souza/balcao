@@ -88,6 +88,18 @@ describe(
         'export const A = () => <a href="/chat" type="text/html" lang="pt-BR" />;',
       ],
       [
+        "a hidden value",
+        'export const A = () => <input type="hidden" name="locale" value="pt-BR" />;',
+      ],
+      [
+        "a submit button's value",
+        'export const A = () => <button type="submit" name="intent" value="cancel">×</button>;',
+      ],
+      [
+        "an option's value",
+        'export const A = () => <select aria-labelledby="l"><option value="es">{null}</option></select>;',
+      ],
+      [
         "a key built from the translation",
         'import { useTranslation } from "react-i18next";\nexport const A = ({ ok }: { ok: boolean }) => { const { t } = useTranslation(); return <p>{t(ok ? "app.name" : "app.placeholder")}</p>; };',
       ],

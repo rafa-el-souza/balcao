@@ -60,10 +60,24 @@ const TEXT_ATTRIBUTES = new Set([
   "tooltip",
 ]);
 
+// `value` is text only on the buttons an <input> draws; elsewhere (hidden
+// inputs, options, submit buttons' values) it is data.
+const INPUT_BUTTON_TYPES = new Set(["submit", "button", "reset"]);
+
 function isTextAttribute(attribute) {
   if (attribute.name.type !== "JSXIdentifier") return false;
-  const name = attribute.name.name.replaceAll("-", "").toLowerCase();
-  return TEXT_ATTRIBUTES.has(name) || name === "value";
+  const name = attribute.name.name;
+  if (TEXT_ATTRIBUTES.has(name.replaceAll("-", "").toLowerCase())) return true;
+  if (name !== "value") return false;
+  const element = attribute.parent;
+  if (element.name.type !== "JSXIdentifier" || element.name.name !== "input")
+    return false;
+  const type = element.attributes.find(
+    (other) => other.type === "JSXAttribute" && other.name.name === "type",
+  );
+  return (
+    type?.value?.type === "Literal" && INPUT_BUTTON_TYPES.has(type.value.value)
+  );
 }
 
 // The literals whose value becomes rendered text: the expression itself, the
