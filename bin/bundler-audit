@@ -12,7 +12,19 @@ module FailAboveLow
 
   def vulnerable?
     results.any? do |result|
-      !result.is_a?(Bundler::Audit::Results::UnpatchedGem) || !PASSING.include?(result.advisory.criticality)
+      !result.is_a?(Bundler::Audit::Results::UnpatchedGem) || !PASSING.include?(FailAboveLow.criticality(result.advisory))
+    end
+  end
+
+  # bundler-audit 0.9.3 reads only CVSS v2 and v3; an advisory scored only in
+  # v4 is rated here with the same bands (review finding R4, pull request #1).
+  def self.criticality(advisory)
+    advisory.criticality || case YAML.safe_load_file(advisory.path, permitted_classes: [ Date ])["cvss_v4"]
+    when 0.0 then :none
+    when 0.1..3.9 then :low
+    when 4.0..6.9 then :medium
+    when 7.0..8.9 then :high
+    when 9.0..10.0 then :critical
     end
   end
 end
