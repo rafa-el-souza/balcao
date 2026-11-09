@@ -68,14 +68,37 @@ and each pull request's Review section is the record.
 
 Design complete and independently reviewed (2026-11-02, 30 findings;
 2026-11-04, the amended deploy model, the bot gap and the testing strategy;
-2026-11-09, the twelve-day MVP plan, all applied); implementation starting
-with the MVP (design §9.1). See the delivery plan in the design document.
+2026-11-09, the twelve-day MVP plan, all applied). The MVP is being built
+(design §9.1): since day 2 the demo host serves a placeholder page at the
+address above, with TLS; the chat arrives on day 6. See the delivery plan in
+the design document.
 
 ## Running locally
 
-To be written in the MVP's first days: `bin/setup`, `bin/dev`,
-`bin/deploy`, and how to run with the fake model (no API key needed for the
-test suite); `bin/evals` on day 8.
+You need Ruby and Node.js at the versions in `.tool-versions` (mise or asdf
+read that file), PostgreSQL 18 running locally and reachable by your own
+user (no password, no `DATABASE_URL`), and Git. No API key and no secret:
+development and the test suite never call the model or any outside service.
+
+```sh
+bin/setup   # installs gems and npm packages, enables the secret-scan
+            # pre-commit hook, prepares the databases, then starts bin/dev
+bin/dev     # Rails on 127.0.0.1:3000 and the Vite dev server on
+            # 127.0.0.1:5173; open http://127.0.0.1:5173
+bin/ci      # the CI set, locally: RuboCop, bundler-audit, Brakeman,
+            # RSpec, npm audit, ESLint, Prettier, TypeScript, Vitest, the
+            # web build, actionlint and gitleaks
+```
+
+`bin/setup --skip-server` prepares without starting the servers. One suite
+at a time: `bundle exec rspec`, and `npm test` inside `web/`. `bin/ci`
+expects `actionlint` and `gitleaks` on your `PATH`.
+
+`bin/deploy -d ensaio` deploys the demo host and nothing else; it needs that
+destination's env file and SSH key, and production is never deployed from
+here ([`docs/runbook.md`](docs/runbook.md), ADR-0011). `bin/evals`, which
+runs the conversation against the real model with a key of your own,
+arrives on day 8 of the MVP.
 
 ## Licence
 
