@@ -29,20 +29,7 @@ export default defineConfig([
     },
     rules: {
       "balcao/no-html-from-strings": "error",
-      "no-restricted-syntax": [
-        "error",
-        {
-          selector: "JSXText[value=/\\S/]",
-          message:
-            "Design NFR-09: user-facing text comes from the locale files through t().",
-        },
-        {
-          selector:
-            "JSXAttribute[name.name=/^(alt|aria-label|placeholder|title)$/] > Literal",
-          message:
-            "Design NFR-09: user-facing text comes from the locale files through t().",
-        },
-      ],
+      "balcao/no-literal-text": "error",
     },
   },
   prettier,
