@@ -1,0 +1,37 @@
+# Kamal destination ensaio: the rehearsal (ADR-0011), deep-merged by Kamal
+# over config/deploy.yml and deployed only with `bin/deploy -d ensaio` from
+# the development account, with the secrets of .kamal/secrets.ensaio.
+#
+# Until M3 this destination is the MVP host and serves the demo itself at
+# balcao.rafasouza.dev.br (ADR-0011's MVP amendment, design §8). At M3 the
+# production host takes that name and this destination becomes
+# ensaio.rafasouza.dev.br, for throwaway rehearsal hosts.
+#
+# The host's address, the deploy key and the ssh config (which pins host keys
+# in its own known_hosts) are read from the deploying shell, so no address or
+# path lands in the repository; a missing one stops Kamal before it connects.
+
+servers:
+  web:
+    hosts:
+      - <%= ENV.fetch("ENSAIO_HOST") %>
+  job:
+    hosts:
+      - <%= ENV.fetch("ENSAIO_HOST") %>
+
+proxy:
+  host: balcao.rafasouza.dev.br
+
+registry:
+  server: localhost:5555
+
+ssh:
+  keys_only: true
+  keys:
+    - <%= ENV.fetch("ENSAIO_SSH_KEY") %>
+  config:
+    - <%= ENV.fetch("ENSAIO_SSH_CONFIG") %>
+
+env:
+  clear:
+    APP_HOST: balcao.rafasouza.dev.br
