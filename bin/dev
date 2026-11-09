@@ -9,17 +9,7 @@
 
 APP_ROOT = File.expand_path("..", __dir__)
 
-servers = {
-  # Rails stays in the terminal's foreground process group, with the terminal
-  # on stdin, so a debugger breakpoint can read it (review finding R3b, pull
-  # request #4).
-  "rails" => Process.spawn("./bin/rails", "server", "-b", "127.0.0.1", "-p", "3000", *ARGV,
-                           chdir: APP_ROOT),
-  # No terminal on stdin: Vite would read its keyboard shortcuts from it, and
-  # a read from outside the terminal's foreground group stops the reader
-  # (review finding R3, pull request #4).
-  "vite" => Process.spawn("npm", "run", "dev", chdir: File.join(APP_ROOT, "web"), pgroup: true, in: File::NULL)
-}
+servers = {}
 
 # Rails by its process, Vite by its process group (npm and its children).
 stop_all = lambda do
@@ -30,16 +20,42 @@ stop_all = lambda do
   end
 end
 
-%w[INT TERM].each { |signal| trap(signal) { stop_all.call } }
+wait_all = lambda do
+  servers.each_value do |pid|
+    Process.wait(pid)
+  rescue Errno::ECHILD
+    nil
+  end
+end
+
+# Before anything starts, so no way of ending bin/dev leaves a server behind:
+# Ctrl-C, a kill, the terminal closing (review finding V1, pull request #4).
+%w[INT TERM HUP QUIT].each { |signal| trap(signal) { stop_all.call } }
+
+begin
+  # Rails stays in the terminal's foreground process group, with the terminal
+  # on stdin, so a debugger breakpoint can read it (review finding R3b, pull
+  # request #4).
+  servers["rails"] = Process.spawn("./bin/rails", "server", "-b", "127.0.0.1", "-p", "3000", *ARGV,
+                                   chdir: APP_ROOT)
+  # No terminal on stdin: Vite would read its keyboard shortcuts from it, and
+  # a read from outside the terminal's foreground group stops the reader
+  # (review finding R3, pull request #4).
+  servers["vite"] = Process.spawn("npm", "run", "dev", chdir: File.join(APP_ROOT, "web"),
+                                  pgroup: true, in: File::NULL)
+rescue SystemCallError => error
+  stop_all.call
+  wait_all.call
+  abort "bin/dev: could not start the servers (#{error.message}); bin/setup installs what they need."
+end
 
 first_pid, first_status = Process.wait2
-warn "bin/dev: #{servers.key(first_pid)} exited (#{first_status.exitstatus || first_status.termsig}); stopping the other server."
 stop_all.call
-
-servers.each_value do |pid|
-  Process.wait(pid)
-rescue Errno::ECHILD
-  nil
+begin
+  warn "bin/dev: #{servers.key(first_pid)} exited (#{first_status.exitstatus || first_status.termsig}); the other server was stopped."
+rescue IOError, SystemCallError
+  nil # the terminal is gone
 end
+wait_all.call
 
 exit(first_status.success? || first_status.signaled? ? 0 : 1)
