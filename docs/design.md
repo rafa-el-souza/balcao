@@ -664,6 +664,12 @@ per-visitor window, the daily slice) use `travel_to`.
   for it, Then nothing is called, billed or traced.
 - Given `create_reservation` called again in the same turn for the same
   product, with a new `tool_use` id, Then one reservation exists.
+- Given a turn whose reservation is already stored, When `ProcessTurnJob`
+  runs again for it (a model error, a timeout, a deploy), Then the model
+  is not called again: the reply is the fixed-format line of the turn's
+  reservations (code, product, quantity, pickup deadline), as FR-20 keeps
+  tool facts. A model choosing another product on a second run cannot
+  reserve twice, and the visitor always learns the code.
 
 **NFR-03 Resilience.** A model-provider error or timeout produces a
 polite fallback reply (text key `fallback.model_error`) and a trace entry
@@ -675,6 +681,8 @@ wall clock is 60 s (SR-20).
 - Given the model API returns 529 three times, When the turn runs, Then
   the visitor gets the fallback text, the turn is `failed`, the trace
   shows the error, and the job is not retried a fourth time.
+- Given a reservation stored in the turn before the error, Then the
+  fallback text carries the reservation's fixed-format line (NFR-02).
 
 **NFR-04 Availability.** Single VM, best effort; the external monitor and the
 canary (FR-17) turn silence into a notification within 15 minutes. Two
@@ -1584,6 +1592,13 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     creation, would have been deleted under the visitor. FR-15 now deletes
     messages, turns, traces and usage records each by its own age, and a
     conversation once its last message is older than seven days.
+  - RS4 and RN1 (`cliente`): a turn run again could have the model pick
+    another product for the same request (a second reservation behind a
+    code nobody saw), and a fallback after a stored reservation hid its
+    code. NFR-02 and NFR-03 now say that a turn whose reservation is
+    stored is not run through the model again, and that its reply, or the
+    fallback, carries the reservation's fixed-format line (PR-08, PR-12,
+    PR-13).
 
 - Note 2026-11-09 (pull request #1, review finding C4): `npm audit
   --omit=dev` still audits toolchain packages that a runtime package lists
