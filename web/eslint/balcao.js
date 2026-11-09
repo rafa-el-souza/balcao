@@ -25,7 +25,10 @@ const noHtmlFromStrings = {
         report,
       "AssignmentExpression > MemberExpression.left[property.value=/^(innerHTML|outerHTML|srcdoc)$/]":
         report,
-      "CallExpression > MemberExpression.callee[property.name=/^(insertAdjacentHTML|setHTMLUnsafe|createContextualFragment)$/]":
+      "CallExpression > MemberExpression.callee[property.name=/^(insertAdjacentHTML|setHTMLUnsafe|createContextualFragment|parseHTMLUnsafe|parseFromString)$/]":
+        report,
+      // setAttribute("srcdoc", …) and setAttribute("on…", …): markup or code from a string.
+      "CallExpression[callee.property.name='setAttribute'][arguments.0.value=/^(srcdoc|on)/i]":
         report,
     };
   },
