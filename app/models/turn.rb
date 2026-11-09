@@ -3,7 +3,8 @@ class Turn < ApplicationRecord
   belongs_to :conversation
   belongs_to :inbound_message, class_name: "Message"
   has_one :outbound_message, class_name: "Message"
-  # The database deletes the turn's spans, usage and reservations with it (FR-15).
+  # The database deletes the turn's spans and usage with it (FR-15); its
+  # reservations stay, without their turn.
   has_many :trace_events
   has_many :usage_records
   has_many :reservations

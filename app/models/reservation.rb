@@ -6,7 +6,8 @@ class Reservation < ApplicationRecord
   CODE_ATTEMPTS = 5
 
   belongs_to :visitor
-  belongs_to :turn
+  # Emptied when the purge takes the turn's conversation; the reservation stays.
+  belongs_to :turn, optional: true
   belongs_to :product
 
   enum :state, { open: "open", expired: "expired", cancelled: "cancelled" }, validate: true

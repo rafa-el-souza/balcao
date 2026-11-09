@@ -439,9 +439,11 @@ levels (ADR-0003), with a daily slice and per-source limits (ADR-0012).
   generated (existing future bookings kept; this step exists from M2,
   when bookings do). Conversations, turns, traces
   and usage records older than 7 days are deleted without exception
-  (exhibits are committed files, FR-22), and with their turns the
-  reservations those turns made; visitors not seen for 7 days are deleted
-  with everything left under them; daily aggregates are kept.
+  (exhibits are committed files, FR-22); reservations whose pickup
+  deadline passed more than 7 days ago are deleted (an open reservation
+  outlives the purge of its turn's conversation); visitors not seen for 7
+  days are deleted with everything left under them; daily aggregates are
+  kept.
 - Given a reservation made at 18:00 with pickup until the end of the next
   business day, When the 03:00 job runs, Then the reservation is still
   open and its stock still reserved.
@@ -1024,8 +1026,8 @@ on purpose is created insert-first or read-first and, on
 `RecordNotUnique`, returns the row that holds it (NFR-02). Ownership
 cascades in the database: deleting a visitor deletes its conversations
 and reservations, and deleting a conversation deletes its messages, turns,
-trace events, usage records and the reservations its turns made (FR-05,
-FR-15). Check constraints keep
+trace events and usage records, while a reservation outlives its turn
+(FR-05, FR-15). Check constraints keep
 stock and price at or above zero and a reservation's quantity above zero.
 `trace_event.span_attributes` is ADR-0010's `attributes` (a name Active
 Record keeps for itself); `usage_record` carries the model and the cache
@@ -1536,8 +1538,7 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     for the same request, so a reservation keyed by that id was made
     twice. A reservation is now keyed by the turn and the product, a
     booking by the turn and the slot (NFR-02, FR-07, §6.5, §6.6, PR-13's
-    row, SR-16). A reservation goes with its turn, so the seven-day purge
-    of conversations takes the reservations their turns made.
+    row, SR-16). A reservation outlives its turn (R3 below).
   - C2 (`dono`): the forced mode lives on the month's budget row, and a
     new month opened without it, releasing the kill switch at midnight on
     the 1st. A new month's row now carries the forced mode of the latest
@@ -1561,14 +1562,19 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     usage records but never visitor rows or reservations, while `/privacy`
     promises seven-day retention and FR-19 leaves an old identity "to the
     seven-day purge". FR-15 now deletes visitors not seen for seven days,
-    with everything under them, and reservations go with the turns that
-    made them (C1's fix); `Visitor.unseen_for` is the scope PR-16's
-    nightly job uses (SR-31).
+    with everything under them, and reservations seven days after their
+    pickup deadline; `Visitor.unseen_for` is the scope PR-16's nightly job
+    uses (SR-31).
   The fix review of the same pull request found:
   - R1 (`cliente`): nothing wrote `visitor.last_seen_at`, so the purge
     would have taken a visitor still writing seven days after first
     contact. `Visitor.identify!`, which every message and request goes
     through, now marks the visitor seen.
+  - R3 (`cliente`): C1's fix made a reservation go with its turn, so the
+    purge of a conversation older than seven days but still in use would
+    have taken an open reservation inside its pickup window. A reservation
+    now outlives its turn (the key's turn is emptied), and FR-15 deletes
+    reservations seven days after their pickup deadline.
 
 - Note 2026-11-09 (pull request #1, review finding C4): `npm audit
   --omit=dev` still audits toolchain packages that a runtime package lists

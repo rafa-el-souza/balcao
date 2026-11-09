@@ -37,13 +37,17 @@ RSpec.describe "FR-05 FR-15 deleting a visitor or a conversation takes everythin
     expect(product.reload).to be_persisted
   end
 
-  it "deletes a conversation's messages, turns, trace events, usage records and the reservations its turns made" do
+  # Review finding R3 of pull request #7: a reservation that went with its
+  # turn was lost, inside its pickup window, when the purge took an old
+  # conversation that was still in use.
+  it "deletes a conversation's messages, turns, trace events and usage records, and keeps its reservations without their turn" do
     conversation.destroy!
 
     expect(counts).to eq(
       "Visitor" => 1, "Conversation" => 0, "Message" => 0, "Turn" => 0,
-      "TraceEvent" => 0, "UsageRecord" => 0, "Reservation" => 0
+      "TraceEvent" => 0, "UsageRecord" => 0, "Reservation" => 1
     )
+    expect(Reservation.sole).to have_attributes(turn_id: nil, state: "open")
   end
 
   it "keeps a product that a reservation holds" do

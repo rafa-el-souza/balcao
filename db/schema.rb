@@ -73,7 +73,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_09_224510) do
 
   create_table "reservations", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
     t.uuid "visitor_id", null: false
-    t.uuid "turn_id", null: false
+    t.uuid "turn_id"
     t.uuid "product_id", null: false
     t.string "code", null: false
     t.integer "quantity", null: false
@@ -153,7 +153,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_09_224510) do
   add_foreign_key "messages", "turns", on_delete: :cascade
   add_foreign_key "messages", "webhook_events", on_delete: :nullify
   add_foreign_key "reservations", "products"
-  add_foreign_key "reservations", "turns", on_delete: :cascade
+  add_foreign_key "reservations", "turns", on_delete: :nullify
   add_foreign_key "reservations", "visitors", on_delete: :cascade
   add_foreign_key "trace_events", "turns", on_delete: :cascade
   add_foreign_key "turns", "conversations", on_delete: :cascade
