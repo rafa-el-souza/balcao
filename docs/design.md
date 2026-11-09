@@ -231,8 +231,8 @@ prescription is required.
 - When the quantity exceeds the per-reservation limit (10 units) or stock,
   Then the reservation is refused with the reason and the available
   alternative.
-- Given the same tool call replayed (same idempotency key), Then exactly one
-  reservation exists.
+- Given the same turn run again (same turn and product, NFR-02), Then
+  exactly one reservation exists.
 - Given a visitor with 3 open reservations, When they ask for a fourth, Then
   the attendant refuses and lists the open ones.
 - Given a product that requires a prescription (FR-06), When the visitor
@@ -632,8 +632,11 @@ receipt to outbound send, measured on the trace. Voice turns: p95 under
 **NFR-02 Idempotency.** Every side effect is keyed so that retries and
 redeliveries never duplicate it: inbound message by channel message id;
 turn by inbound message (one turn per inbound message); outbound message
-by turn id; reservation and booking by the SDK `tool_use` id of the call
-that created them, injected by the runner. The test suite proves it for
+by turn id; reservation by the turn that asked and the product, booking
+by the turn and the slot, the turn injected by the runner. Not by the SDK
+`tool_use` id: a turn run again after a model error, a timeout or a
+deploy calls the model again, which sends a new id for the same request
+(review finding C1 of pull request #7). The test suite proves it for
 each tool, for the webhook and for `ProcessTurnJob`. Every key is a unique
 index in the database; its spec inserts the duplicate and asserts that
 the application rescues `RecordNotUnique` and returns the existing row.
@@ -644,8 +647,8 @@ clock (bookings, Saturday hours, the nightly purge, FR-14's rolling 24 h
 per-visitor window, the daily slice) use `travel_to`.
 - Given a turn with an outbound message, When `ProcessTurnJob` runs again
   for it, Then nothing is called, billed or traced.
-- Given `create_reservation` replayed with the same `tool_use` id, Then
-  one reservation exists.
+- Given `create_reservation` called again in the same turn for the same
+  product, with a new `tool_use` id, Then one reservation exists.
 
 **NFR-03 Resilience.** A model-provider error or timeout produces a
 polite fallback reply (text key `fallback.model_error`) and a trace entry
@@ -956,9 +959,9 @@ erDiagram
   }
   RESERVATION {
     uuid id
+    uuid turn_id
     string code
     integer quantity
-    string idempotency_key
     datetime pickup_until
     string state
   }
@@ -975,8 +978,8 @@ erDiagram
   }
   BOOKING {
     uuid id
+    uuid turn_id
     string code
-    string idempotency_key
     string state
   }
   HANDOFF {
@@ -996,8 +999,9 @@ PostgreSQL 18), so ids sort by creation. Unique indexes:
 `message.channel` copies the visitor's, and web messages carry no id), one
 outbound `message` per `turn_id` (only outbound messages carry one), one
 `turn` per inbound message (`turn.inbound_message_id`),
-`reservation.idempotency_key` and `booking.idempotency_key` (the SDK
-`tool_use` id), `slot` per service and start, `conversation.trace_token`,
+`reservation` per turn and product and `booking` per turn and slot (NFR-02;
+not the SDK `tool_use` id, which a turn run again does not repeat), `slot`
+per service and start, `conversation.trace_token`,
 `daily_aggregate` per day/kind/key, `budget_state.month` (the calendar
 month in São Paulo); added in PR-04 so that concurrent first messages
 share their rows: `visitor` per channel and identity hash, one open
@@ -1007,7 +1011,8 @@ on purpose is created insert-first or read-first and, on
 `RecordNotUnique`, returns the row that holds it (NFR-02). Ownership
 cascades in the database: deleting a visitor deletes its conversations
 and reservations, and deleting a conversation deletes its messages, turns,
-trace events and usage records (FR-05, FR-15). Check constraints keep
+trace events, usage records and the reservations its turns made (FR-05,
+FR-15). Check constraints keep
 stock and price at or above zero and a reservation's quantity above zero.
 `trace_event.span_attributes` is ADR-0010's `attributes` (a name Active
 Record keeps for itself); `usage_record` carries the model and the cache
@@ -1045,8 +1050,8 @@ the holder of the visitor cookie), `trace:<token>` (read-only trace page),
 `get_store_info(topic)`, `search_products(query, limit)`,
 `create_reservation(product_id, quantity)`, `list_slots(service, days)`,
 `book_appointment(slot_id, service)`, `request_human(reason)`. Every tool
-receives the visitor, the conversation and the SDK `tool_use` id (used as
-idempotency key) from the runner, never from the model. Data deletion is a
+receives the visitor, the conversation and the turn from the runner,
+never from the model; the turn keys the tool's side effect (NFR-02). Data deletion is a
 command (FR-05), not a tool.
 
 ### 6.7 Public web app
@@ -1458,7 +1463,7 @@ every pull request.
 | 5 | PR-08 `ProcessTurnJob` with the advisory lock and the one concurrent spec, the commands (`/reiniciar`, `/apagar`, `/trace`), `TraceRecorder` (ADR-0010) · PR-09 the API: session cookie, `POST /api/messages`, polling endpoint, Rack::Attack per-IP and per-visitor limits, CSP and Origin, Action Cable streams | A conversation works over HTTP |
 | 6 | PR-10 React: app shell, i18n in the three locales, landing with the chips and `say` allow-list (FR-21, SR-34), the chat | Chat in the browser on the host |
 | 7 | PR-11 React: the glass box panel, `/trace/:token`, the cable client with the polling fallback, TanStack Query · PR-12 NFR-03: fallback text, "pensando…" state, dead-letter visibility in logs | **J1 minus the reservation, live** |
-| 8 | PR-13 `create_reservation` with the `tool_use` idempotency key, the limits and the prescription refusal (FR-07) · PR-14 `bin/evals` live runner, the suites `greeting`, `language`, `store`, `catalogue`, `reservation`, `boundary`, `memory` on the normal model, the first scorecard | A reservation code in the chat; the boundary measured |
+| 8 | PR-13 `create_reservation` keyed by the turn and the product (NFR-02), the limits and the prescription refusal (FR-07) · PR-14 `bin/evals` live runner, the suites `greeting`, `language`, `store`, `catalogue`, `reservation`, `boundary`, `memory` on the normal model, the first scorecard | A reservation code in the chat; the boundary measured |
 | 9 | PR-15 boundary prompt iteration to 100 %, the fixed offer line, the decline texts in three locales · PR-16 the budget ledger with the monthly cap's pause (FR-14), the nightly job (FR-15), log masking (SR-30) | Wallet fenced; the demo honest about the boundary |
 | 10 | PR-17 `/privacy` page, the QR placeholder on the landing, README sixty-second tour, design and README status lines made true, the hours table in the handoff | **Web demo showable** |
 | 11 | PR-18 WhatsApp inbound: webhook verification (SR-08), `X-Hub-Signature-256` constant-time check on the raw body (SR-06), raw event persisted with the Meta message id as idempotency key, 200 within 2 s, processing through `ProcessTurnJob` (SR-07, SR-09), identity `sha256(pepper ‖ BSUID)` with the number, when Meta sends it, encrypted at rest (SR-10, FR-19), tests against the payloads recorded from the test number plus a synthetic username-only payload (no `from`, no `wa_id`) | Inbound messages traced on the host |
@@ -1512,6 +1517,14 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
   development and test and read "Translation missing" in production.
   PR-04 adds `rails-i18n`, as that finding recommended, loaded for the
   three available locales only.
+  The review of pull request #7 changed keys of NFR-02:
+  - C1 (`cliente`): a turn run again after a model error, a timeout or a
+    deploy calls the model again, and the API sends a new `tool_use` id
+    for the same request, so a reservation keyed by that id was made
+    twice. A reservation is now keyed by the turn and the product, a
+    booking by the turn and the slot (NFR-02, FR-07, §6.5, §6.6, PR-13's
+    row, SR-16). A reservation goes with its turn, so the seven-day purge
+    of conversations takes the reservations their turns made.
 
 - Note 2026-11-09 (pull request #1, review finding C4): `npm audit
   --omit=dev` still audits toolchain packages that a runtime package lists

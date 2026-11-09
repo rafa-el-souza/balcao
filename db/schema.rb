@@ -73,17 +73,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_09_224510) do
 
   create_table "reservations", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
     t.uuid "visitor_id", null: false
+    t.uuid "turn_id", null: false
     t.uuid "product_id", null: false
     t.string "code", null: false
     t.integer "quantity", null: false
-    t.string "idempotency_key", null: false
     t.datetime "pickup_until", null: false
     t.string "state", default: "open", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["code"], name: "index_reservations_on_code", unique: true
-    t.index ["idempotency_key"], name: "index_reservations_on_idempotency_key", unique: true
     t.index ["product_id"], name: "index_reservations_on_product_id"
+    t.index ["turn_id", "product_id"], name: "index_reservations_on_turn_id_and_product_id", unique: true
     t.index ["visitor_id", "state"], name: "index_reservations_on_visitor_id_and_state"
     t.check_constraint "quantity > 0", name: "reservations_quantity_positive"
   end
@@ -153,6 +153,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_09_224510) do
   add_foreign_key "messages", "turns", on_delete: :cascade
   add_foreign_key "messages", "webhook_events", on_delete: :nullify
   add_foreign_key "reservations", "products"
+  add_foreign_key "reservations", "turns", on_delete: :cascade
   add_foreign_key "reservations", "visitors", on_delete: :cascade
   add_foreign_key "trace_events", "turns", on_delete: :cascade
   add_foreign_key "turns", "conversations", on_delete: :cascade

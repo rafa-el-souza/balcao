@@ -23,7 +23,7 @@ RSpec.describe "FR-05 FR-15 deleting a visitor or a conversation takes everythin
     create(:outbound_message, turn:)
     create(:trace_event, turn:)
     create(:usage_record, turn:)
-    create(:reservation, visitor:, product:)
+    create(:reservation, turn:, product:)
   end
 
   def counts
@@ -37,12 +37,12 @@ RSpec.describe "FR-05 FR-15 deleting a visitor or a conversation takes everythin
     expect(product.reload).to be_persisted
   end
 
-  it "deletes a conversation's messages, turns, trace events and usage records, and keeps the visitor's reservations" do
+  it "deletes a conversation's messages, turns, trace events, usage records and the reservations its turns made" do
     conversation.destroy!
 
     expect(counts).to eq(
       "Visitor" => 1, "Conversation" => 0, "Message" => 0, "Turn" => 0,
-      "TraceEvent" => 0, "UsageRecord" => 0, "Reservation" => 1
+      "TraceEvent" => 0, "UsageRecord" => 0, "Reservation" => 0
     )
   end
 
