@@ -27,6 +27,37 @@ RSpec.describe "NFR-02 SR-07 inbound message, keyed by the channel's message id"
     expect(conversation.messages.count).to eq(2)
   end
 
+  # Review finding N2 of pull request #7: a web message carried no id, so a
+  # request sent again after its response was lost stored a second message,
+  # a second turn and a second model call.
+  it "takes no inbound message without its channel's id" do
+    expect { Message.record_inbound!(conversation:, external_id: nil, body: "oi") }.to raise_error(ArgumentError)
+    expect { Message.record_inbound!(conversation:, external_id: " ", body: "oi") }.to raise_error(ArgumentError)
+  end
+
+  context "on the web, keyed by the id the client generates for each message" do
+    let(:web_visitor) { create(:visitor, channel: "web") }
+    let(:web_conversation) { create(:conversation, visitor: web_visitor) }
+    let(:client_id) { "0b8f6f0e-4a8e-4c38-9f61-2b7f6d1f2c11" }
+
+    it "stores a request sent twice once" do
+      first = Message.record_inbound!(conversation: web_conversation, external_id: client_id, body: "tem dipirona?")
+      again = Message.record_inbound!(conversation: web_conversation, external_id: client_id, body: "tem dipirona?")
+
+      expect(again).to eq(first)
+      expect(again).not_to be_previously_new_record
+    end
+
+    it "refuses an id that another visitor's message holds, rather than return that message (SR-05)" do
+      Message.record_inbound!(conversation: web_conversation, external_id: client_id, body: "tem dipirona?")
+      other = create(:conversation, visitor: create(:visitor, channel: "web"))
+
+      expect { Message.record_inbound!(conversation: other, external_id: client_id, body: "oi") }
+        .to raise_error(ActiveRecord::RecordNotUnique, /another visitor/)
+      expect(other.messages).to be_empty
+    end
+  end
+
   it_behaves_like "an idempotency key", index: "index_messages_on_channel_and_external_id" do
     let(:existing) { create(:message, conversation:, external_id: "wamid.REDELIVERED") }
     let(:duplicate) { build(:message, conversation:, external_id: "wamid.REDELIVERED") }

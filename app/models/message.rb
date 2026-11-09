@@ -19,15 +19,24 @@ class Message < ApplicationRecord
   validates :channel, inclusion: { in: Visitor::CHANNELS.values }
   validates :body, presence: true
 
-  # Stores an inbound message keyed by its channel's message id. A
-  # redelivered message meets the unique index and returns the message already
-  # stored, even if its conversation has closed since (SR-07, NFR-02).
+  # Stores an inbound message keyed by its channel's message id: Meta's on
+  # WhatsApp, and on the web the id the client generates for each message, so
+  # a request sent again after its response was lost is stored once (review
+  # finding N2 of pull request #7). A redelivered message meets the unique
+  # index and returns the message already stored, even if its conversation
+  # has closed since (SR-07, NFR-02). A web client chooses its ids, so an id
+  # that another visitor's message holds is refused, never returned (SR-05).
   def self.record_inbound!(conversation:, external_id:, body:, source: "text", webhook_event: nil)
-    channel = conversation.visitor.channel
-    create_or_find_by!(channel:, external_id:) do |message|
-      message.assign_attributes(conversation:, direction: "inbound", author: "visitor",
-                                source:, body:, webhook_event:)
+    raise ArgumentError, "an inbound message needs its channel's id (NFR-02)" if external_id.blank?
+
+    visitor = conversation.visitor
+    message = create_or_find_by!(channel: visitor.channel, external_id:) do |new_message|
+      new_message.assign_attributes(conversation:, direction: "inbound", author: "visitor",
+                                    source:, body:, webhook_event:)
     end
+    return message if message.conversation.visitor_id == visitor.id
+
+    raise ActiveRecord::RecordNotUnique, "the message id is held by another visitor's message"
   end
 
   # Stores the one reply of a turn. A retried job meets the unique index and
