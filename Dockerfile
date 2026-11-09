@@ -1,5 +1,9 @@
-# syntax=docker/dockerfile:1
 # check=error=true
+
+# No `# syntax=` line: it would hand the build to a frontend image fetched by
+# tag on every build, outside the digest pins below; the builder's own
+# frontend reads this file and the check directive above (review finding R2,
+# pull request #4).
 
 # The production image (design §6.2, ADR-0006): the Rails API with the web
 # app's static build, served by Puma behind Thruster. Kamal builds it from a

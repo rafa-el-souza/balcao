@@ -60,6 +60,14 @@ RSpec.describe "SR-24 the image runs as a non-root user on the pinned toolchain"
     expect(dockerfile).to match(%r{^FROM docker\.io/library/node:#{Regexp.escape(tool_versions.fetch("nodejs"))}-slim@})
   end
 
+  # Review finding R2 on pull request #4: a `# syntax=` line hands the build
+  # to a frontend image fetched by tag on every build, outside the digest pins.
+  it "runs no Dockerfile frontend by a mutable tag" do
+    syntax = dockerfile[/\A#\s*syntax\s*=\s*(\S+)/, 1]
+
+    expect(syntax.nil? || syntax.match?(/@sha256:[0-9a-f]{64}\z/)).to be(true), "the syntax directive fetches #{syntax} by tag"
+  end
+
   it "pins every base image by digest" do
     expect(dockerfile.scan(/^FROM\s+(\S+)/).flatten.reject { |image| image.match?(/\A[a-z]+\z/) })
       .to all(match(/@sha256:[0-9a-f]{64}\z/))
