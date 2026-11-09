@@ -1,0 +1,4 @@
+# Audit all gems listed in the Gemfile for known security problems by running bin/bundler-audit.
+# An advisory that does not apply is listed here with a one-line reason (threat model SR-27).
+
+ignore: []

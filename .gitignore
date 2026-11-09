@@ -8,10 +8,19 @@ IMPLEMENTATION-BRIEF.md
 !.env.example
 config/master.key
 config/credentials/*.key
+/config/*.key
 
-# Local state
-log/
-tmp/
+# Bundler config
+/.bundle
+
+# Local state (Rails keeps the directories through their .keep files)
+/log/*
+/tmp/*
+!/log/.keep
+!/tmp/.keep
+/tmp/pids/*
+!/tmp/pids/
+!/tmp/pids/.keep
 storage/
 db/*.sqlite3*
 coverage/
