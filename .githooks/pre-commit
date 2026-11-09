@@ -1,0 +1,10 @@
+#!/usr/bin/env ruby
+# Secret scan of the staged changes before every commit (threat model SR-25);
+# CI scans the whole history again. bin/setup points git at this directory
+# (git config core.hooksPath .githooks). Without gitleaks the commit is refused.
+
+unless system("gitleaks", "version", out: File::NULL, err: File::NULL)
+  abort "pre-commit: gitleaks is not installed, so the commit cannot be scanned (threat model SR-25)."
+end
+
+exec "gitleaks", "git", "--pre-commit", "--staged", "--redact", "--no-banner", "--verbose"
