@@ -1539,8 +1539,11 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
   of the same date record the additions. Open for PR-18: a webhook event's
   raw payload holds the message body, the BSUID and possibly the phone, so
   it falls under the seven-day purge (FR-15, SR-31) and the deletion
-  command (FR-05) like the messages it yields; PR-18 either deletes events
-  with them or stores the payload stripped of those fields.
+  command (FR-05) like the messages it yields. Status notifications yield
+  no message and still carry the BSUID (`recipient_user_id`), so deleting
+  events with their messages misses them: PR-18 stores the payload
+  stripped of the body, the BSUID and the phone (review finding RN3 of
+  pull request #7).
   Review finding F4 of pull request #1 (`teorico` then) became real with
   the first validations: a validation message in pt-BR raised in
   development and test and read "Translation missing" in production.
