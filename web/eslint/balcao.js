@@ -36,28 +36,84 @@ const NFR09 =
 
 // Text has at least one letter; a glyph such as × or ·, a digit or an empty
 // alt="" (a decorative image) is not text.
-const LETTER = "/[A-Za-zÀ-ÖØ-öø-ÿ]/";
-const TEXT_ATTRIBUTE =
-  "JSXAttribute[name.name=/^(alt|aria-label|aria-description|aria-roledescription|aria-valuetext|aria-placeholder|placeholder|title|label|value|caption|heading|text|description|hint|message)$/]";
+const LETTER = /[A-Za-zÀ-ÖØ-öø-ÿ]/;
 
-// Where literal text can sit: an element's child in braces, or a text
-// attribute's value, bare or in braces; directly or as a branch of ?: or &&.
-const HOLDERS = [
-  ":matches(JSXElement, JSXFragment) > JSXExpressionContainer",
-  TEXT_ATTRIBUTE,
-  `${TEXT_ATTRIBUTE} > JSXExpressionContainer`,
-];
-const BRANCHES = ["", " > ConditionalExpression", " > LogicalExpression"];
+// Attributes and props whose value is shown or read to the visitor.
+const TEXT_ATTRIBUTES = new Set([
+  "alt",
+  "aria-label",
+  "aria-description",
+  "aria-roledescription",
+  "aria-valuetext",
+  "aria-placeholder",
+  "placeholder",
+  "title",
+  "label",
+  "value",
+  "caption",
+  "heading",
+  "text",
+  "description",
+  "hint",
+  "message",
+]);
 
-const LITERAL_TEXT = [
-  `JSXText[value=${LETTER}]`,
-  ...HOLDERS.flatMap((holder) =>
-    BRANCHES.flatMap((branch) => [
-      `${holder}${branch} > Literal[value=${LETTER}]`,
-      `${holder}${branch} > TemplateLiteral > TemplateElement[value.raw=${LETTER}]`,
-    ]),
-  ),
-];
+function isTextAttribute(attribute) {
+  return (
+    attribute.name.type === "JSXIdentifier" &&
+    TEXT_ATTRIBUTES.has(attribute.name.name)
+  );
+}
+
+// The literals whose value becomes rendered text: the expression itself, the
+// branches of ?:, && and ??, both sides of a string +, the parts of a
+// template, the elements of an array, and the object of a method call on one
+// (["a", "b"].map(...)). A call's arguments are never text: t("key") is not.
+function textLiterals(node, found = []) {
+  if (!node) return found;
+  switch (node.type) {
+    case "Literal":
+      if (typeof node.value === "string" && LETTER.test(node.value))
+        found.push(node);
+      break;
+    case "TemplateLiteral":
+      for (const quasi of node.quasis)
+        if (LETTER.test(quasi.value.raw)) found.push(quasi);
+      for (const expression of node.expressions)
+        textLiterals(expression, found);
+      break;
+    case "ConditionalExpression":
+      textLiterals(node.consequent, found);
+      textLiterals(node.alternate, found);
+      break;
+    case "LogicalExpression":
+      textLiterals(node.left, found);
+      textLiterals(node.right, found);
+      break;
+    case "BinaryExpression":
+      if (node.operator === "+") {
+        textLiterals(node.left, found);
+        textLiterals(node.right, found);
+      }
+      break;
+    case "ArrayExpression":
+      for (const element of node.elements) textLiterals(element, found);
+      break;
+    case "CallExpression":
+      if (node.callee.type === "MemberExpression")
+        textLiterals(node.callee.object, found);
+      break;
+    case "SequenceExpression":
+      textLiterals(node.expressions.at(-1), found);
+      break;
+    case "TSAsExpression":
+    case "TSSatisfiesExpression":
+    case "TSNonNullExpression":
+      textLiterals(node.expression, found);
+      break;
+  }
+  return found;
+}
 
 const noLiteralText = {
   meta: {
@@ -67,9 +123,24 @@ const noLiteralText = {
   },
   create(context) {
     const report = (node) => context.report({ node, message: NFR09 });
-    return Object.fromEntries(
-      LITERAL_TEXT.map((selector) => [selector, report]),
-    );
+    return {
+      JSXText(node) {
+        if (LETTER.test(node.value)) report(node);
+      },
+      JSXExpressionContainer(node) {
+        const parent = node.parent;
+        const isChild =
+          parent.type === "JSXElement" || parent.type === "JSXFragment";
+        const isText =
+          parent.type === "JSXAttribute" && isTextAttribute(parent);
+        if (isChild || isText) textLiterals(node.expression).forEach(report);
+      },
+      JSXAttribute(node) {
+        if (node.value?.type === "Literal" && isTextAttribute(node)) {
+          textLiterals(node.value).forEach(report);
+        }
+      },
+    };
   },
 };
 

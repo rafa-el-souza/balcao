@@ -41,6 +41,22 @@ describe(
         "a component's label",
         'const Chip = (p: { label: string }) => <span>{p.label}</span>;\nexport const A = () => <Chip label="Ver horários" />;',
       ],
+      [
+        "a concatenation",
+        'export const A = ({ name }: { name: string }) => <p>{"Olá, " + name}</p>;',
+      ],
+      [
+        "a nested conditional",
+        'export const A = ({ s }: { s: number }) => <p>{s > 0 ? (s > 1 ? "Muitos" : "Um") : null}</p>;',
+      ],
+      [
+        "a chained conditional",
+        'export const A = ({ s }: { s: number }) => <p>{s > 1 ? s : s > 0 ? "Um" : "Nenhum"}</p>;',
+      ],
+      [
+        "an inline list",
+        'export const A = () => <ul>{["Tem dipirona?", "Horários"].map((c) => <li key={c}>{c}</li>)}</ul>;',
+      ],
     ])("rejects %s", async (_form, code) => {
       expect(await errorsCiting(code, "NFR-09")).not.toEqual([]);
     });
@@ -58,6 +74,10 @@ describe(
       [
         "a route and a type",
         'export const A = () => <a href="/chat" type="text/html" lang="pt-BR" />;',
+      ],
+      [
+        "a key built from the translation",
+        'import { useTranslation } from "react-i18next";\nexport const A = ({ ok }: { ok: boolean }) => { const { t } = useTranslation(); return <p>{t(ok ? "app.name" : "app.placeholder")}</p>; };',
       ],
     ])("accepts %s", async (_form, code) => {
       expect(await errorsCiting(code, "NFR-09")).toEqual([]);
