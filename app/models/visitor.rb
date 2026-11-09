@@ -11,6 +11,11 @@ class Visitor < ApplicationRecord
 
   validates :identity_hash, presence: true
 
+  # Visitors not seen for the retention period, or created and never seen
+  # since, which the nightly job deletes with everything under them (FR-15,
+  # SR-31; review finding N9 of pull request #7).
+  scope :unseen_for, ->(period) { where("COALESCE(last_seen_at, created_at) < ?", period.ago) }
+
   # The visitor with this identity on this channel, created on first contact.
   # Read first, since nearly every message comes from someone already known;
   # when two first messages race, the unique index lets one row in and the

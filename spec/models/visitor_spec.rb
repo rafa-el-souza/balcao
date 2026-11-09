@@ -37,3 +37,22 @@ RSpec.describe "NFR-02 FR-19 visitor, one row per identity and channel" do
     end
   end
 end
+
+# Review finding N9 of pull request #7: the seven-day purge named
+# conversations, turns, traces and usage records, never the visitor rows,
+# so identities outlived the retention that /privacy promises.
+RSpec.describe "FR-15 SR-31 visitors not seen for seven days, for the nightly purge" do
+  it "picks the visitors last seen, or created and never seen, before the cutoff" do
+    now = Time.zone.local(2026, 11, 20, 3, 0)
+    gone = create(:visitor, last_seen_at: now - 8.days)
+    never_seen = travel_to(now - 8.days) { create(:visitor, last_seen_at: nil) }
+    recent = create(:visitor, last_seen_at: now - 6.days)
+    created_old_seen_recently = travel_to(now - 30.days) { create(:visitor) }
+    created_old_seen_recently.update!(last_seen_at: now - 1.day)
+
+    travel_to(now) do
+      expect(Visitor.unseen_for(7.days)).to contain_exactly(gone, never_seen)
+    end
+    expect(recent).to be_persisted
+  end
+end

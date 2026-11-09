@@ -130,7 +130,7 @@ Each mitigation is a requirement (SR-xx) with a test or a verification step.
 | Threat | STRIDE | Mitigation |
 |---|---|---|
 | PII in logs | Information disclosure | **SR-30** Structured logs with parameter filtering for phone, BSUID (`user_id`, `from_user_id`, `recipient_user_id`), body, token and secret-like keys; a test sends a message containing a phone number and asserts the log line masks it. |
-| Retention | — | **SR-31** Messages and traces deleted after 7 days (FR-15); backups rotate at 7 days; aggregates carry no identity; no exemption: the exhibits (FR-22) are committed files outside the database, exported with identities stripped (test: the export of a conversation with a phone and a cookie yields neither). |
+| Retention | — | **SR-31** Messages, traces and the reservations of their turns deleted after 7 days, and visitors not seen for 7 days with everything under them (FR-15); backups rotate at 7 days; aggregates carry no identity; no exemption: the exhibits (FR-22) are committed files outside the database, exported with identities stripped (test: the export of a conversation with a phone and a cookie yields neither). |
 | Visitor's right to deletion | — | **SR-32** FR-05 deletion is a deterministic command matched before any model call (no tool, so no injection path); synchronous and complete, releasing stock and slots; the rate counter lives outside the deleted rows; a test deletes and asserts zero rows for that identity. |
 
 ### S10 Repository

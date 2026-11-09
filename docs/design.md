@@ -439,12 +439,16 @@ levels (ADR-0003), with a daily slice and per-source limits (ADR-0012).
   generated (existing future bookings kept; this step exists from M2,
   when bookings do). Conversations, turns, traces
   and usage records older than 7 days are deleted without exception
-  (exhibits are committed files, FR-22); daily aggregates are kept.
+  (exhibits are committed files, FR-22), and with their turns the
+  reservations those turns made; visitors not seen for 7 days are deleted
+  with everything left under them; daily aggregates are kept.
 - Given a reservation made at 18:00 with pickup until the end of the next
   business day, When the 03:00 job runs, Then the reservation is still
   open and its stock still reserved.
 - Given the job fails midway, When it is retried, Then the result is the
   same as one clean run (each step is idempotent).
+- Given a visitor last seen 8 days ago, When the 03:00 job runs, Then the
+  visitor row and everything under it are gone (SR-31, `/privacy`).
 
 **FR-16 Operator console.** A minimal authenticated UI: conversations list
 (last 7 days), handoff queue with reply box, presence toggle (FR-10),
@@ -1553,6 +1557,13 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     endpoint takes it. Since a web client chooses its ids, an id another
     visitor's message holds is refused rather than returned (S2 of the
     same review, SR-05).
+  - N9 (`cliente`): FR-15's purge named conversations, turns, traces and
+    usage records but never visitor rows or reservations, while `/privacy`
+    promises seven-day retention and FR-19 leaves an old identity "to the
+    seven-day purge". FR-15 now deletes visitors not seen for seven days,
+    with everything under them, and reservations go with the turns that
+    made them (C1's fix); `Visitor.unseen_for` is the scope PR-16's
+    nightly job uses (SR-31).
 
 - Note 2026-11-09 (pull request #1, review finding C4): `npm audit
   --omit=dev` still audits toolchain packages that a runtime package lists
