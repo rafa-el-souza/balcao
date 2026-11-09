@@ -4,8 +4,10 @@ import { describe, expect, it } from "vitest";
 import { errorsCiting } from "./lint";
 
 // Review finding C1 on pull request #1: the rule caught only bare JSX text and
-// a bare string on four attributes. A string constant in a .ts file is out of
-// lint's reach; the interface review's grep of web/src covers it.
+// a bare string on four attributes. A string constant declared outside JSX (in
+// a .ts or .tsx file) is out of lint's reach, and no check runs on it per pull
+// request: only item 2 of docs/reviews/interface-checklist.md asks for a grep
+// of web/src, at the MVP and milestone closes (finding V3, pull request #1).
 describe(
   "NFR-09 lint keeps user-facing text in the locale files",
   { timeout: 30_000 },
