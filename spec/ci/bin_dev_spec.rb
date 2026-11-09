@@ -87,14 +87,40 @@ RSpec.describe "NFR-08 bin/dev in an interactive terminal" do
     expect(rails["pgrp"]).to eq rails["tpgid"]
   end
 
-  it "stops Rails when bin/dev is interrupted" do
+  # Ctrl-C sends INT to every process of the terminal's foreground group,
+  # here bin/dev and Rails; the fakes exit on it as Puma does.
+  def press_ctrl_c(*pids) = pids.each { |pid| Process.kill("INT", pid) }
+
+  it "stops both servers on Ctrl-C" do
     start_dev
-    rails = report("rails")
-    report("web")
+    rails = report("rails")["pid"]
+    web = report("web")["pid"]
 
-    Process.kill("INT", @dev)
+    press_ctrl_c(@dev, rails)
 
-    Timeout.timeout(10) { sleep 0.05 until gone?(rails["pid"]) }
+    Timeout.timeout(10) { sleep 0.05 until gone?(rails) && gone?(web) }
+  end
+
+  # Review finding FR1 on pull request #4 (fix review): a Ctrl-C at a debugger
+  # prompt in Rails, which the prompt catches, made bin/dev stop both servers.
+  it "leaves both servers running when a debugger prompt in Rails catches Ctrl-C" do
+    File.write(File.join(root, "bin/rails"), <<~RUBY)
+      #!/usr/bin/env ruby
+      require "json"
+      trap("INT") {}
+      trap("TERM") { File.write(#{File.join(root, "rails.term").inspect}, "") }
+      File.write(#{File.join(root, "rails.json").inspect}, JSON.dump(pid: Process.pid))
+      sleep
+    RUBY
+    start_dev
+    rails = report("rails")["pid"]
+    web = report("web")["pid"]
+
+    press_ctrl_c(@dev, rails)
+    sleep 2
+
+    expect(File.exist?(File.join(root, "rails.term"))).to be false
+    expect(gone?(web)).to be false
   end
 
   # Review finding V1 (verifier, pull request #4): when bin/dev died other

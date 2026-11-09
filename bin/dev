@@ -4,8 +4,9 @@
 # API, the cable and /up to Rails (web/vite.config.ts). Open
 # http://127.0.0.1:5173. Arguments go to bin/rails server.
 #
-# Ctrl-C stops both; when either exits on its own, the other is stopped too,
-# and the exit status says whether it failed.
+# Ctrl-C stops Rails and then Vite (unless a debugger prompt in Rails takes
+# it); when either exits on its own, the other is stopped too, and the exit
+# status says whether it failed.
 
 APP_ROOT = File.expand_path("..", __dir__)
 
@@ -29,8 +30,13 @@ wait_all = lambda do
 end
 
 # Before anything starts, so no way of ending bin/dev leaves a server behind:
-# Ctrl-C, a kill, the terminal closing (review finding V1, pull request #4).
-%w[INT TERM HUP QUIT].each { |signal| trap(signal) { stop_all.call } }
+# a kill, the terminal closing (review finding RV1, pull request #4).
+%w[TERM HUP QUIT].each { |signal| trap(signal) { stop_all.call } }
+# Ctrl-C reaches Rails straight from the terminal (same process group). Rails
+# decides: Puma exits, and bin/dev then stops Vite; a debugger prompt keeps it,
+# and both servers stay (review finding FR1, pull request #4). A no-op handler,
+# not "IGNORE", which Rails would inherit.
+trap("INT") { }
 
 begin
   # Rails stays in the terminal's foreground process group, with the terminal
