@@ -4,7 +4,7 @@ CI.run do
   step "Setup", "bin/setup --skip-server"
 
   step "Style: RuboCop", "bin/rubocop"
-  step "Security: bundler-audit", "bin/bundler-audit"
+  step "Security: bundler-audit", "bin/bundler-audit check --update"
   step "Security: Brakeman", "bin/brakeman --quiet --no-pager -w2 --exit-on-warn --exit-on-error"
   step "Tests: RSpec", "bundle exec rspec"
 
