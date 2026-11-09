@@ -13,7 +13,10 @@ APP_ROOT = File.expand_path("..", __dir__)
 servers = {
   "rails" => Process.spawn("./bin/rails", "server", "-b", "127.0.0.1", "-p", "3000", *ARGV,
                            chdir: APP_ROOT, pgroup: true),
-  "vite" => Process.spawn("npm", "run", "dev", chdir: File.join(APP_ROOT, "web"), pgroup: true)
+  # No terminal on stdin: Vite would read its keyboard shortcuts from it, and
+  # a read from outside the terminal's foreground group stops the reader
+  # (review finding R3, pull request #4).
+  "vite" => Process.spawn("npm", "run", "dev", chdir: File.join(APP_ROOT, "web"), pgroup: true, in: File::NULL)
 }
 
 stop_all = lambda do
