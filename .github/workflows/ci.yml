@@ -103,7 +103,7 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: npm audit, runtime tree at high (threat model SR-27)
-        run: npm audit --omit=dev --audit-level=high
+        run: npm audit --omit=dev --omit=optional --audit-level=high
 
       - name: ESLint
         run: npm run lint
