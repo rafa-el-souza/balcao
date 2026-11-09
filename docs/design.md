@@ -887,6 +887,8 @@ erDiagram
   VISITOR ||--o{ RESERVATION : makes
   VISITOR ||--o{ BOOKING : makes
   PRODUCT ||--o{ RESERVATION : of
+  TURN ||--o{ RESERVATION : asks
+  TURN ||--o{ BOOKING : asks
   SERVICE ||--o{ SLOT : offers
   SLOT ||--o| BOOKING : holds
   CONVERSATION ||--o| HANDOFF : may_enter
@@ -1619,6 +1621,8 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     FR-18 now enqueues again while the turn has no reply (PR-09).
   - RN7 (`dono`): FR-14's "normal mode resumes automatically" read against
     C2's carried forced mode; it now says which mode starts over.
+  - RN8 (`dono`): the §6.5 diagram gained `turn_id` on reservations and
+    bookings without the relationship lines; added.
 
 - Note 2026-11-09 (pull request #1, review finding C4): `npm audit
   --omit=dev` still audits toolchain packages that a runtime package lists
