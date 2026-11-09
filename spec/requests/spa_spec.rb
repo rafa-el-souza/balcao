@@ -4,7 +4,7 @@ require "tmpdir"
 # The web app's hashed assets are static files cached for a year; its HTML
 # shell names the current hashes, so it is revalidated on every visit, or a
 # visitor of the placeholder would keep it after the next deploy (design §6.7).
-RSpec.describe "NFR-10 the web app's shell is sent fresh on every visit", type: :request do
+RSpec.describe "Design §6.7 the web app's shell is sent fresh on every visit", type: :request do
   around do |example|
     Dir.mktmpdir("spa") do |dir|
       shell = Pathname(dir).join("index.html")
@@ -28,7 +28,7 @@ RSpec.describe "NFR-10 the web app's shell is sent fresh on every visit", type: 
   end
 end
 
-RSpec.describe "NFR-10 the web app's shell location" do
+RSpec.describe "Design §6.7 the web app's shell location" do
   it "is the build output of the web app, where the image puts it too" do
     expect(Rails.application.config.x.spa_shell).to eq Rails.root.join("web/dist/index.html")
   end
