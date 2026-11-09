@@ -1,2 +1,39 @@
 #!/usr/bin/env ruby
-exec "./bin/rails", "server", *ARGV
+# Development: Rails on 127.0.0.1:3000 and the Vite dev server on
+# 127.0.0.1:5173, which serves the web app with hot reload and forwards the
+# API, the cable and /up to Rails (web/vite.config.ts). Open
+# http://127.0.0.1:5173. Arguments go to bin/rails server.
+#
+# Each server runs in its own process group. Ctrl-C stops both; when either
+# exits on its own, the other is stopped too, and the exit status says
+# whether it failed.
+
+APP_ROOT = File.expand_path("..", __dir__)
+
+servers = {
+  "rails" => Process.spawn("./bin/rails", "server", "-b", "127.0.0.1", "-p", "3000", *ARGV,
+                           chdir: APP_ROOT, pgroup: true),
+  "vite" => Process.spawn("npm", "run", "dev", chdir: File.join(APP_ROOT, "web"), pgroup: true)
+}
+
+stop_all = lambda do
+  servers.each_value do |pid|
+    Process.kill("TERM", -pid)
+  rescue Errno::ESRCH
+    nil
+  end
+end
+
+%w[INT TERM].each { |signal| trap(signal) { stop_all.call } }
+
+first_pid, first_status = Process.wait2
+warn "bin/dev: #{servers.key(first_pid)} exited (#{first_status.exitstatus || first_status.termsig}); stopping the other server."
+stop_all.call
+
+servers.each_value do |pid|
+  Process.wait(pid)
+rescue Errno::ECHILD
+  nil
+end
+
+exit(first_status.success? || first_status.signaled? ? 0 : 1)
