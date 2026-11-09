@@ -35,6 +35,14 @@ describe("SR-03 lint forbids HTML from strings", { timeout: 30_000 }, () => {
       "srcDoc",
       "export const A = ({ h, n }: { h: string; n: string }) => <iframe title={n} srcDoc={h} />;",
     ],
+    [
+      "srcDoc through a spread",
+      "export const A = ({ h, n }: { h: string; n: string }) => <iframe title={n} {...{ srcDoc: h }} />;",
+    ],
+    [
+      "srcDoc through createElement",
+      'import { createElement } from "react"; export const A = ({ h, n }: { h: string; n: string }) => createElement("iframe", { title: n, srcDoc: h });',
+    ],
   ])("rejects %s", async (_form, code) => {
     expect(await errorsCiting(code, "SR-03")).not.toEqual([]);
   });

@@ -17,9 +17,9 @@ const noHtmlFromStrings = {
     return {
       "JSXAttribute[name.name='dangerouslySetInnerHTML']": report,
       "JSXAttribute[name.name=/^srcdoc$/i]": report,
-      "Property[key.name=/^(dangerouslySetInnerHTML|innerHTML|outerHTML|srcdoc)$/]":
+      "Property[key.name=/^(dangerouslySetInnerHTML|innerHTML|outerHTML|[sS]rc[dD]oc)$/]":
         report,
-      "Property[key.value=/^(dangerouslySetInnerHTML|innerHTML|outerHTML|srcdoc)$/]":
+      "Property[key.value=/^(dangerouslySetInnerHTML|innerHTML|outerHTML|[sS]rc[dD]oc)$/]":
         report,
       "AssignmentExpression > MemberExpression.left[property.name=/^(innerHTML|outerHTML|srcdoc)$/]":
         report,
