@@ -437,9 +437,10 @@ levels (ADR-0003), with a daily slice and per-source limits (ADR-0012).
   then stock is reset to the seed; bookings whose slot started before
   today are deleted and the next three business days of slots are
   generated (existing future bookings kept; this step exists from M2,
-  when bookings do). Conversations, turns, traces
-  and usage records older than 7 days are deleted without exception
-  (exhibits are committed files, FR-22); reservations whose pickup
+  when bookings do). Messages, turns, traces and usage records older than
+  7 days are deleted without exception, each by its own age, and a
+  conversation once its last message is older than 7 days (exhibits are
+  committed files, FR-22); reservations whose pickup
   deadline passed more than 7 days ago are deleted (an open reservation
   outlives the purge of its turn's conversation); visitors not seen for 7
   days are deleted with everything left under them; daily aggregates are
@@ -451,6 +452,9 @@ levels (ADR-0003), with a daily slice and per-source limits (ADR-0012).
   same as one clean run (each step is idempotent).
 - Given a visitor last seen 8 days ago, When the 03:00 job runs, Then the
   visitor row and everything under it are gone (SR-31, `/privacy`).
+- Given a conversation opened 8 days ago and written to yesterday, When the
+  03:00 job runs, Then the conversation and yesterday's messages remain and
+  its messages older than 7 days are gone.
 
 **FR-16 Operator console.** A minimal authenticated UI: conversations list
 (last 7 days), handoff queue with reply box, presence toggle (FR-10),
@@ -1575,6 +1579,11 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     have taken an open reservation inside its pickup window. A reservation
     now outlives its turn (the key's turn is emptied), and FR-15 deletes
     reservations seven days after their pickup deadline.
+  - RS2 (`cliente`): FR-15 said "conversations older than 7 days" with no
+    measure of age, so a conversation in daily use, measured by its
+    creation, would have been deleted under the visitor. FR-15 now deletes
+    messages, turns, traces and usage records each by its own age, and a
+    conversation once its last message is older than seven days.
 
 - Note 2026-11-09 (pull request #1, review finding C4): `npm audit
   --omit=dev` still audits toolchain packages that a runtime package lists
