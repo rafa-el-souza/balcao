@@ -427,7 +427,8 @@ levels (ADR-0003), with a daily slice and per-source limits (ADR-0012).
 - Given spend at 100% of the cap, Then the system pauses: inbound messages
   get a fixed "demo pausada até o próximo mês" reply without a model call,
   and the operator is notified once.
-- Given a new calendar month, Then normal mode resumes automatically.
+- Given a new calendar month, Then the automatic mode starts over in
+  normal; a forced mode holds until released.
 - The operator can force any mode from the console (kill switch), and the
   forced mode wins over the automatic one until released.
 - Spend is computed from the API's `usage` fields and a price table in
@@ -1616,6 +1617,8 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     fail after the message and turn are stored; an endpoint enqueuing
     only new turns would leave a resent message unanswered for good.
     FR-18 now enqueues again while the turn has no reply (PR-09).
+  - RN7 (`dono`): FR-14's "normal mode resumes automatically" read against
+    C2's carried forced mode; it now says which mode starts over.
 
 - Note 2026-11-09 (pull request #1, review finding C4): `npm audit
   --omit=dev` still audits toolchain packages that a runtime package lists
