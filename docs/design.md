@@ -875,16 +875,19 @@ erDiagram
   }
   MESSAGE {
     uuid id
+    string channel
     string direction
     string author
     string source
     text body
     string external_id
     uuid turn_id
+    uuid webhook_event_id
     string status
   }
   TURN {
     uuid id
+    uuid inbound_message_id
     string state
     string mode
     string model
@@ -929,19 +932,22 @@ erDiagram
     string span_id
     string parent_span_id
     string name
-    jsonb attributes
+    jsonb span_attributes
     datetime started_at
     datetime finished_at
   }
   USAGE_RECORD {
     uuid id
+    string model
     integer input_tokens
+    integer cache_creation_tokens
     integer cached_tokens
     integer output_tokens
     decimal cost_usd
   }
   PRODUCT {
     uuid id
+    string sku
     string name
     string active_ingredient
     decimal price
@@ -984,12 +990,29 @@ erDiagram
   }
 ```
 
-Unique indexes: `webhook_event.external_id`, `message.external_id` per
-channel (dedup), one outbound `message` per `turn_id`, one `turn` per
-inbound message, `reservation.idempotency_key` and
-`booking.idempotency_key` (the SDK `tool_use` id), `slot` per service and
-start, `conversation.trace_token`, `daily_aggregate` per day/kind/key,
-`budget_state.month`. `message.author` ∈ {visitor, bot, operator, system};
+Every primary key is a time-ordered uuid (`uuidv7()`, built into
+PostgreSQL 18), so ids sort by creation. Unique indexes:
+`webhook_event.external_id`, `message.external_id` per channel (dedup;
+`message.channel` copies the visitor's, and web messages carry no id), one
+outbound `message` per `turn_id` (only outbound messages carry one), one
+`turn` per inbound message (`turn.inbound_message_id`),
+`reservation.idempotency_key` and `booking.idempotency_key` (the SDK
+`tool_use` id), `slot` per service and start, `conversation.trace_token`,
+`daily_aggregate` per day/kind/key, `budget_state.month` (the calendar
+month in São Paulo); added in PR-04 so that concurrent first messages
+share their rows: `visitor` per channel and identity hash, one open
+`conversation` per visitor; and `product.sku` (the seed's key for the
+nightly reset) and `reservation.code`. Each key that the application writes
+on purpose is created insert-first or read-first and, on
+`RecordNotUnique`, returns the row that holds it (NFR-02). Ownership
+cascades in the database: deleting a visitor deletes its conversations
+and reservations, and deleting a conversation deletes its messages, turns,
+trace events and usage records (FR-05, FR-15). Check constraints keep
+stock and price at or above zero and a reservation's quantity above zero.
+`trace_event.span_attributes` is ADR-0010's `attributes` (a name Active
+Record keeps for itself); `usage_record` carries the model and the cache
+writes apart from the reads (`cached_tokens`), since FR-14 prices them
+apart. `message.author` ∈ {visitor, bot, operator, system};
 `message.source` ∈ {text, audio, command, canary}; `daily_aggregate.kind`
 ∈ {messages, referrer, canary}. `trace_events` holds one row per span
 (ADR-0010): 128-bit trace id, 64-bit span id, closed on finish.
@@ -1467,6 +1490,28 @@ MVP from its first day and merges at day 11.
 ## 10. Open decisions
 
 Tracked here until resolved; each resolution becomes an ADR or an edit.
+
+- Note 2026-11-09 (PR-04, the schema). PR-04 creates the tables the MVP
+  writes: visitors, conversations, messages, turns, trace events, usage
+  records, webhook events, products, reservations and the budget state.
+  The rest of §6.5 arrives with the slice that first writes it, with its
+  unique indexes and its NFR-02 specs: operators (the Rails 8
+  authentication generator, M2), handoffs and blocked identities (M2),
+  services, slots and bookings (FR-08, M2 or the MVP's stretch),
+  daily aggregates (M3). Columns no requirement fills yet arrive the same
+  way: `visitor.phone`, encrypted (SR-10), with PR-18;
+  `turn.guardrail_verdict` with FR-20; `turn.outcome`, whose values no
+  requirement defines, with the slice that defines them. The §6.5 edits
+  of the same date record the additions. Open for PR-18: a webhook event's
+  raw payload holds the message body, the BSUID and possibly the phone, so
+  it falls under the seven-day purge (FR-15, SR-31) and the deletion
+  command (FR-05) like the messages it yields; PR-18 either deletes events
+  with them or stores the payload stripped of those fields.
+  Review finding F4 of pull request #1 (`teorico` then) became real with
+  the first validations: a validation message in pt-BR raised in
+  development and test and read "Translation missing" in production.
+  PR-04 adds `rails-i18n`, as that finding recommended, loaded for the
+  three available locales only.
 
 - Note 2026-11-09 (pull request #1, review finding C4): `npm audit
   --omit=dev` still audits toolchain packages that a runtime package lists
