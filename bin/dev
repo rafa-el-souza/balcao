@@ -4,24 +4,27 @@
 # API, the cable and /up to Rails (web/vite.config.ts). Open
 # http://127.0.0.1:5173. Arguments go to bin/rails server.
 #
-# Each server runs in its own process group. Ctrl-C stops both; when either
-# exits on its own, the other is stopped too, and the exit status says
-# whether it failed.
+# Ctrl-C stops both; when either exits on its own, the other is stopped too,
+# and the exit status says whether it failed.
 
 APP_ROOT = File.expand_path("..", __dir__)
 
 servers = {
+  # Rails stays in the terminal's foreground process group, with the terminal
+  # on stdin, so a debugger breakpoint can read it (review finding R3b, pull
+  # request #4).
   "rails" => Process.spawn("./bin/rails", "server", "-b", "127.0.0.1", "-p", "3000", *ARGV,
-                           chdir: APP_ROOT, pgroup: true),
+                           chdir: APP_ROOT),
   # No terminal on stdin: Vite would read its keyboard shortcuts from it, and
   # a read from outside the terminal's foreground group stops the reader
   # (review finding R3, pull request #4).
   "vite" => Process.spawn("npm", "run", "dev", chdir: File.join(APP_ROOT, "web"), pgroup: true, in: File::NULL)
 }
 
+# Rails by its process, Vite by its process group (npm and its children).
 stop_all = lambda do
-  servers.each_value do |pid|
-    Process.kill("TERM", -pid)
+  servers.each do |name, pid|
+    Process.kill("TERM", name == "rails" ? pid : -pid)
   rescue Errno::ESRCH
     nil
   end

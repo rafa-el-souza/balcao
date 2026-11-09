@@ -58,4 +58,31 @@ RSpec.describe "NFR-08 bin/dev in an interactive terminal" do
 
     expect(report("web")["stdin_tty"]).to be false
   end
+
+  # Review finding R3b on pull request #4: Rails in its own process group
+  # froze at a debugger breakpoint, which reads the terminal.
+  it "keeps Rails in the terminal's foreground process group, with the terminal on its stdin" do
+    start_dev
+    rails = report("rails")
+
+    expect(rails["stdin_tty"]).to be true
+    expect(rails["pgrp"]).to eq rails["tpgid"]
+  end
+
+  it "stops Rails when bin/dev is interrupted" do
+    start_dev
+    rails = report("rails")
+    report("web")
+
+    Process.kill("INT", @dev)
+
+    Timeout.timeout(10) { sleep 0.05 until gone?(rails["pid"]) }
+  end
+
+  def gone?(pid)
+    stat = File.read("/proc/#{pid}/stat")
+    stat.split(") ", 2).last.start_with?("Z")
+  rescue Errno::ENOENT
+    true
+  end
 end
