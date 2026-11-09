@@ -1525,6 +1525,10 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     booking by the turn and the slot (NFR-02, FR-07, §6.5, §6.6, PR-13's
     row, SR-16). A reservation goes with its turn, so the seven-day purge
     of conversations takes the reservations their turns made.
+  - C2 (`dono`): the forced mode lives on the month's budget row, and a
+    new month opened without it, releasing the kill switch at midnight on
+    the 1st. A new month's row now carries the forced mode of the latest
+    month before it; the automatic mode starts over (FR-14).
 
 - Note 2026-11-09 (pull request #1, review finding C4): `npm audit
   --omit=dev` still audits toolchain packages that a runtime package lists

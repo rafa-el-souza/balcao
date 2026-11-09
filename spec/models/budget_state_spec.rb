@@ -17,6 +17,38 @@ RSpec.describe "NFR-02 FR-14 budget state, one row per calendar month in São Pa
     end
   end
 
+  # Review finding C2 of pull request #7: the forced mode lives on the month's
+  # row, and the next month's row opened without it.
+  it "keeps a forced mode into the next month until it is released, while the automatic mode starts over" do
+    travel_to(Time.zone.local(2026, 11, 30, 23, 0)) do
+      BudgetState.for_month!.update!(forced_mode: "paused", automatic_mode: "paused")
+    end
+
+    travel_to(Time.zone.local(2026, 12, 1, 0, 1)) do
+      expect(BudgetState.for_month!).to have_attributes(month: "2026-12", forced_mode: "paused", automatic_mode: "normal")
+    end
+  end
+
+  it "carries the latest month's forced mode, across months with no turn, and not an older one" do
+    create(:budget_state, month: "2026-09", forced_mode: "economy")
+    create(:budget_state, month: "2026-10", forced_mode: nil)
+    create(:budget_state, month: "2026-11", forced_mode: "paused")
+
+    travel_to(Time.zone.local(2027, 1, 10, 12, 0)) do
+      expect(BudgetState.for_month!.forced_mode).to eq("paused")
+    end
+    expect(BudgetState.find_by(month: "2026-10").forced_mode).to be_nil
+  end
+
+  it "opens a month after a released one with no forced mode" do
+    create(:budget_state, month: "2026-10", forced_mode: "economy")
+    create(:budget_state, month: "2026-11", forced_mode: nil)
+
+    travel_to(Time.zone.local(2026, 12, 2, 12, 0)) do
+      expect(BudgetState.for_month!.forced_mode).to be_nil
+    end
+  end
+
   it "returns the month already open, by the read alone" do
     open = create(:budget_state, month: "2026-11")
 
