@@ -1,0 +1,5 @@
+# Server-side strings (fixed replies, notices). Same keys in pt-BR.yml and
+# en.yml; spec/i18n/locale_parity_spec.rb holds the three in step (NFR-09).
+es:
+  app:
+    name: "Balcão"
