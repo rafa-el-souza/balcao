@@ -2,5 +2,21 @@
 require_relative "../config/boot"
 require "bundler/audit/cli"
 
+# Threat model SR-27: on the Ruby side CI fails on known vulnerabilities above
+# low. bundler-audit has no threshold option, so only its exit decision is
+# narrowed here: every advisory is still printed, and the run fails on an
+# insecure gem source or on an advisory rated medium or above, or not rated at
+# all. Review finding F3, pull request #1.
+module FailAboveLow
+  PASSING = %i[none low].freeze
+
+  def vulnerable?
+    results.any? do |result|
+      !result.is_a?(Bundler::Audit::Results::UnpatchedGem) || !PASSING.include?(result.advisory.criticality)
+    end
+  end
+end
+Bundler::Audit::Report.prepend(FailAboveLow)
+
 ARGV.concat %w[ --config config/bundler-audit.yml ] if ARGV.empty? || ARGV.include?("check")
 Bundler::Audit::CLI.start
