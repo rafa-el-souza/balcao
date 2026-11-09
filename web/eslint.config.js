@@ -6,6 +6,8 @@ import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
+import balcao from "./eslint/balcao.js";
+
 export default defineConfig([
   globalIgnores(["dist", "coverage", "playwright-report", "test-results"]),
   {
@@ -16,6 +18,7 @@ export default defineConfig([
       reactHooks.configs.flat.recommended,
       jsxA11y.flatConfigs.recommended,
     ],
+    plugins: { balcao },
     languageOptions: {
       ecmaVersion: 2023,
       globals: globals.browser,
@@ -25,13 +28,9 @@ export default defineConfig([
       },
     },
     rules: {
+      "balcao/no-html-from-strings": "error",
       "no-restricted-syntax": [
         "error",
-        {
-          selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
-          message:
-            "Threat model SR-03: render text; HTML from a string is never inserted.",
-        },
         {
           selector: "JSXText[value=/\\S/]",
           message:
