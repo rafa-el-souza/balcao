@@ -1554,7 +1554,7 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
   development and test and read "Translation missing" in production.
   PR-04 adds `rails-i18n`, as that finding recommended, loaded for the
   three available locales only.
-  The review of pull request #7 changed keys of NFR-02:
+  The review of pull request #7 found (reach as its verifier wrote it):
   - C1 (`cliente`): a turn run again after a model error, a timeout or a
     deploy calls the model again, and the API sends a new `tool_use` id
     for the same request, so a reservation keyed by that id was made
