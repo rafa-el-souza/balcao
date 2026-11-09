@@ -1,0 +1,44 @@
+# The Docker build context. Kamal builds from a clean git clone of HEAD; a
+# local `docker build .` reads the working tree, so local state is listed too.
+
+# Secrets: every value-bearing pattern of .gitignore, at the root and at any
+# depth (threat model SR-25; spec/deploy/image_spec.rb keeps the two in step).
+.env
+**/.env
+.env.*
+**/.env.*
+config/master.key
+config/credentials/*.key
+config/*.key
+/.kamal
+
+# Private files of the owner and the session (ADR-0007)
+OWNER-*
+IMPLEMENTATION-BRIEF.md
+/.claude
+
+# Git, CI and deploy configuration
+/.git
+/.gitignore
+/.github
+/.githooks
+/config/deploy*.yml
+/.dockerignore
+/Dockerfile*
+
+# Local state
+/.bundle
+/log/*
+!/log/.keep
+/tmp/*
+!/tmp/.keep
+/storage
+/coverage
+**/node_modules
+/web/dist
+/public/assets
+
+# Not needed at run time
+/docs
+/spec
+/ops
