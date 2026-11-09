@@ -30,5 +30,23 @@ module FailAboveLow
 end
 Bundler::Audit::Report.prepend(FailAboveLow)
 
+# When only low advisories are found, the stock text report lists them and
+# then says "No vulnerabilities found"; say what happened instead (finding
+# V2 of the verifier, pull request #1).
+require "bundler/audit/cli/formats/text"
+module ReportLowAdvisories
+  def print_report(report, output = $stdout)
+    return super if report.vulnerable? || report.results.empty?
+
+    original_stdout = $stdout
+    $stdout = output
+    report.each { |result| print_advisory(result.gem, result.advisory) }
+    say "Low advisories only: listed above; CI fails above low (threat model SR-27).", :yellow
+  ensure
+    $stdout = original_stdout if original_stdout
+  end
+end
+Bundler::Audit::CLI::Formats::Text.prepend(ReportLowAdvisories)
+
 ARGV.concat %w[ --config config/bundler-audit.yml ] if ARGV.empty? || ARGV.include?("check")
 Bundler::Audit::CLI.start

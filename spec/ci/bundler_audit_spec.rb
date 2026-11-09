@@ -23,6 +23,10 @@ RSpec.describe "SR-27 bundler-audit fails CI on advisories above low only" do
 
     expect(output).to include("CVE-2099-0001")
     expect(status).to be_success, output
+    # Finding V2 (verifier, fix review): the run listed the advisory and then
+    # printed "No vulnerabilities found".
+    expect(output).not_to include("No vulnerabilities found")
+    expect(output).to include("Low advisories only")
   end
 
   it "fails on a medium advisory" do
