@@ -32,8 +32,11 @@ from M3.
   the type is never an Arm one.
 - **On the reserved IPv4 and behind the cloud firewall.** The reserved IP
   carries the `A` record, so a new host on it needs no DNS change. The
-  cloud firewall admits TCP 22, 80, 443 and ICMP inbound, nothing else;
-  there is no host firewall (Docker's rules would bypass it).
+  cloud firewall admits TCP 22, 80, 443 and ICMP inbound, nothing else,
+  over IPv4 and IPv6; there is no host firewall (Docker's rules would
+  bypass it). The provider also gives every server an IPv6 /64 of its own
+  as a second primary IP: free, deleted with the server, and with no
+  `AAAA` record pointing at it.
 - **The reserved IP belongs to one location**, and a host can use it only
   in that location. When the type is out of stock there, the owner decides
   between waiting and moving: a reserved IP in another location is a new
@@ -139,8 +142,10 @@ Only a green `main` is deployed to the MVP host.
   build cache is above 4 GB, `docker builder prune --max-used-space 4GB -f`
   (the engine's own builder holds the deploy cache).
 - **Cloud resources:** the rehearsal project holds exactly the MVP host,
-  the reserved IP and the cloud firewall; load balancers, volumes, floating
-  IPs and snapshots are empty. The MVP host is never deleted before M3.
+  the reserved IPv4, the host's own IPv6 and the cloud firewall; load
+  balancers, volumes, floating IPs and snapshots are empty. The provider
+  bills a server until it is deleted, powered off or not; the MVP host is
+  never deleted before M3.
 
 ## Monitoring
 
