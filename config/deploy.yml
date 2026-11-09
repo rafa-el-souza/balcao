@@ -46,8 +46,14 @@ proxy:
 registry:
   server: localhost:5556
 
+# The Docker engine's own builder, which fetches no BuildKit image (Kamal's
+# default docker-container builder runs moby/buildkit by a mutable tag) and
+# resolves DNS in RUN steps under rootless Docker, where the docker-container
+# builder did not (review finding FV1, pull request #4). The engine's
+# containerd image store exports straight to the local registry.
 builder:
   arch: amd64
+  driver: docker
 
 # The non-root deploy user of ops/cloud-init.yml, whose docker group makes the
 # deploy key a root credential on that host. The workstation's SSH agent is

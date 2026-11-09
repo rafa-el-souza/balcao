@@ -69,6 +69,18 @@ RSpec.describe "SR-38 the rehearsal destination inherits nothing production-spec
     expect(rehearsal.dig("registry", "server")).to eq "localhost:5555"
   end
 
+  # Review finding FV1 on pull request #4 (verifier of the fix review):
+  # Kamal's default docker-container builder runs BuildKit from
+  # moby/buildkit:buildx-stable-1, a mutable tag. The Docker engine's own
+  # builder fetches no image; it is also the one whose RUN steps resolve DNS
+  # under rootless Docker (the docker-container builder's did not, 2026-11-09).
+  it "builds with the Docker engine's own builder, so no BuildKit image is fetched by tag" do
+    [ base, rehearsal ].each do |config|
+      expect(config.dig("builder", "driver")).to eq "docker"
+      expect(config.fetch("builder").keys).not_to include("remote", "cache")
+    end
+  end
+
   it "runs no repository hook: no hooks directory and no hooks path" do
     expect(Rails.root.join(".kamal/hooks")).not_to exist
     [ base, rehearsal ].each { |config| expect(config).not_to have_key("hooks_path") }
