@@ -1037,7 +1037,9 @@ seven-day retention, the delete command, the processors named, Meta for
 WhatsApp and, once Turnstile ships, Cloudflare; it is the privacy-policy
 URL the Meta app needs for Live mode, so it exists from the MVP),
 `/calendar`, `/status`. Built with React, TypeScript and Vite; served as static files by
-Rails; no client-side state beyond the current conversation. Every page exists in
+Rails (the hashed assets from `public/assets` with a year's cache; the HTML
+shell through one controller with `Cache-Control: no-cache`, so a deploy is
+visible on the next visit; Thruster compresses both); no client-side state beyond the current conversation. Every page exists in
 the three languages (NFR-09), with the switcher in the header. Visual design
 is a separate brief, `docs/design-brief.md`; the day-1 skeleton ships
 `web/src/styles/tokens.css` and a neutral placeholder look (ADR-0008); the

@@ -1,6 +1,13 @@
 {
   "app": {
     "name": "Balcão",
-    "placeholder": "Under construction."
+    "pharmacy": "Farmácia Vida Longa"
+  },
+  "placeholder": {
+    "status": "under construction",
+    "tagline": "An AI attendant for a fictional neighbourhood pharmacy.",
+    "soon": "The demo opens at this address soon: chat in the browser or on WhatsApp and watch, beside the conversation, every model call, every tool and what it cost.",
+    "meanwhile": "Meanwhile, the project is open:",
+    "repository": "design, decisions and threat model on GitHub"
   }
 }

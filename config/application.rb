@@ -48,5 +48,9 @@ module Balcao
     config.i18n.available_locales = [ :"pt-BR", :en, :es ]
     config.i18n.default_locale = :"pt-BR"
     config.i18n.load_path += Dir[Rails.root.join("config/locales/**/*.yml")]
+
+    # The web app's HTML shell, built by Vite; the image keeps it at the same
+    # path and its hashed assets under public/assets (Dockerfile, design §6.7).
+    config.x.spa_shell = Rails.root.join("web/dist/index.html")
   end
 end
