@@ -525,9 +525,10 @@ Cloudflare line under the widget is absent.
   validated against the app secret with a constant-time comparison before
   any parsing; failures return 401 and are counted.
 - Given a valid webhook, Then the endpoint persists the raw event keyed by
-  the SHA-256 of its raw body, and each message it carries by its Meta
-  message id, and returns 200 within 2 seconds; processing happens in a
-  background job. A redelivered event is a no-op. (The sent, delivered and
+  the SHA-256 of its raw body and returns 200 within 2 seconds; the
+  background job stores each message it carries keyed by its Meta message
+  id (an audio message once transcribed, FR-11). A redelivered event is a
+  no-op. (The sent, delivered and
   read notifications of one message share its id, so the id cannot key the
   event.)
 - Given a visitor message, Then the reply is sent through the Cloud API
@@ -1607,6 +1608,9 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
   - RN2 (`cliente`): a tool that checked stock or the three-open cap
     before looking up the key would refuse a turn run again because of its
     own first reservation. FR-07 now orders the lookup first (PR-13).
+  - RN4 (`dono`): C3's wording of FR-19 read as storing each message at
+    receipt, which an audio message cannot do before transcription (its
+    body is required). The job stores the messages, after transcription.
 
 - Note 2026-11-09 (pull request #1, review finding C4): `npm audit
   --omit=dev` still audits toolchain packages that a runtime package lists
