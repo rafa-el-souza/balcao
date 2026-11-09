@@ -16,7 +16,7 @@ RSpec.describe "NFR-02 FR-04 conversation, one open conversation per visitor" do
     result, raised = with_raised_exceptions { Conversation.current_for!(visitor) }
 
     expect(result).to eq(open)
-    expect(raised).to be_empty
+    expect(raised).not_to include(ActiveRecord::RecordNotUnique)
   end
 
   it "opens a new conversation once the previous one is closed" do

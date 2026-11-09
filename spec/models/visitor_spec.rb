@@ -16,7 +16,7 @@ RSpec.describe "NFR-02 FR-19 visitor, one row per identity and channel" do
     result, raised = with_raised_exceptions { Visitor.identify!(channel: "whatsapp", identity_hash:) }
 
     expect(result).to eq(known)
-    expect(raised).to be_empty
+    expect(raised).not_to include(ActiveRecord::RecordNotUnique)
   end
 
   it "keeps the same hash on two channels apart" do

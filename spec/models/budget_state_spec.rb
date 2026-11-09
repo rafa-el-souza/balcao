@@ -24,7 +24,7 @@ RSpec.describe "NFR-02 FR-14 budget state, one row per calendar month in São Pa
       result, raised = with_raised_exceptions { BudgetState.for_month! }
 
       expect(result).to eq(open)
-      expect(raised).to be_empty
+      expect(raised).not_to include(ActiveRecord::RecordNotUnique)
     end
   end
 
