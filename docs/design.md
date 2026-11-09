@@ -512,7 +512,8 @@ Cloudflare line under the widget is absent.
   widget and the verifier use Turnstile's published test keys.
 - Messages are sent over HTTPS to `POST /api/messages`, each with an id
   the client generates for it, so a request sent again is stored once
-  (NFR-02); replies and trace events arrive over Action Cable; if the socket is unavailable, the
+  (NFR-02), and its turn is enqueued again while it has no reply (the
+  job's run is a no-op once it has one); replies and trace events arrive over Action Cable; if the socket is unavailable, the
   client polls `GET /api/conversations/current` every 3 s.
 - Message length is capped at 1,000 characters; the UI says so.
 - Commands (`/reiniciar`, `/apagar`, `/trace`) are ordinary messages
@@ -1611,6 +1612,10 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
   - RN4 (`dono`): C3's wording of FR-19 read as storing each message at
     receipt, which an audio message cannot do before transcription (its
     body is required). The job stores the messages, after transcription.
+  - RN6 (`cliente`): the queue is its own database, so an enqueue can
+    fail after the message and turn are stored; an endpoint enqueuing
+    only new turns would leave a resent message unanswered for good.
+    FR-18 now enqueues again while the turn has no reply (PR-09).
 
 - Note 2026-11-09 (pull request #1, review finding C4): `npm audit
   --omit=dev` still audits toolchain packages that a runtime package lists
