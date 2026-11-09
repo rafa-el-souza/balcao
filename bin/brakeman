@@ -1,0 +1,9 @@
+#!/usr/bin/env ruby
+require "rubygems"
+require "bundler/setup"
+
+# No --ensure-latest (the generator's default): Dependabot proposes Brakeman
+# bumps after its seven-day cooldown (threat model SR-27), and a scan that
+# refuses to run on release day would block every pull request and push a
+# same-day bump past that cooldown. Review findings F2 and V1, pull request #1.
+load Gem.bin_path("brakeman", "brakeman")

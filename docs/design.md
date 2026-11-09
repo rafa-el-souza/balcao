@@ -1411,7 +1411,7 @@ from `usage`; FR-15 as the reservation expiry, the stock reset and the
 seven-day purge; FR-18 without Turnstile (its MVP note); FR-19 as
 specified; FR-21; FR-26; `/privacy` (§6.7); NFR-02, NFR-03, NFR-05, NFR-09;
 NFR-08 as the CI set of day 1 (RuboCop, ESLint, Brakeman, bundler-audit,
-`npm audit --omit=dev --audit-level=high`, RSpec, Vitest, locale-key parity,
+`npm audit --omit=dev --omit=optional --audit-level=high`, RSpec, Vitest, locale-key parity,
 gitleaks), specs citing their ids, `bin/evals` live with the scorecard run
 locally on the normal model and committed by hand; SR-01, SR-02 (pause
 only), SR-03 (cookie, Origin, CSP without a third party), SR-04, SR-05,
@@ -1463,6 +1463,19 @@ MVP from its first day and merges at day 11.
 ## 10. Open decisions
 
 Tracked here until resolved; each resolution becomes an ADR or an edit.
+
+- Note 2026-11-09 (pull request #1, review finding C4): `npm audit
+  --omit=dev` still audits toolchain packages that a runtime package lists
+  as an optional peer (npm flags them `devOptional` and omits them only
+  when `optional` is omitted too; here `typescript`, `@types/react`,
+  `csstype`), so a toolchain advisory would block every pull request,
+  against SR-27's own "toolchain advisories do not block unrelated pull
+  requests". The command becomes `npm audit --omit=dev --omit=optional
+  --audit-level=high` (§9.1, SR-27); `web/test/audit.test.ts` fails if a
+  package outside the dev tree is ever flagged optional. It does not catch
+  a `devOptional` package that runtime code also imports (the bundle would
+  ship it, the audit would skip it); none does today, and the owner's round
+  at the MVP close weighs whether a stronger guard is worth it.
 
 - OD-1 Resolved 2026-11-02: hosted transcription only (ADR-0005).
 - OD-2 Email delivery provider for operator notifications (free tier of a

@@ -1,0 +1,52 @@
+#!/usr/bin/env ruby
+require_relative "../config/boot"
+require "bundler/audit/cli"
+
+# Threat model SR-27: on the Ruby side CI fails on known vulnerabilities above
+# low. bundler-audit has no threshold option, so only its exit decision is
+# narrowed here: every advisory is still printed, and the run fails on an
+# insecure gem source or on an advisory rated medium or above, or not rated at
+# all. Review finding F3, pull request #1.
+module FailAboveLow
+  PASSING = %i[none low].freeze
+
+  def vulnerable?
+    results.any? do |result|
+      !result.is_a?(Bundler::Audit::Results::UnpatchedGem) || !PASSING.include?(FailAboveLow.criticality(result.advisory))
+    end
+  end
+
+  # bundler-audit 0.9.3 reads only CVSS v2 and v3; an advisory scored only in
+  # v4 is rated here with the same bands (review finding R4, pull request #1).
+  def self.criticality(advisory)
+    advisory.criticality || case YAML.safe_load_file(advisory.path, permitted_classes: [ Date ])["cvss_v4"]
+    when 0.0 then :none
+    when 0.1..3.9 then :low
+    when 4.0..6.9 then :medium
+    when 7.0..8.9 then :high
+    when 9.0..10.0 then :critical
+    end
+  end
+end
+Bundler::Audit::Report.prepend(FailAboveLow)
+
+# When only low advisories are found, the stock text report lists them and
+# then says "No vulnerabilities found"; say what happened instead (finding
+# V2 of the verifier, pull request #1).
+require "bundler/audit/cli/formats/text"
+module ReportLowAdvisories
+  def print_report(report, output = $stdout)
+    return super if report.vulnerable? || report.results.empty?
+
+    original_stdout = $stdout
+    $stdout = output
+    report.each { |result| print_advisory(result.gem, result.advisory) }
+    say "Low advisories only: listed above; CI fails above low (threat model SR-27).", :yellow
+  ensure
+    $stdout = original_stdout if original_stdout
+  end
+end
+Bundler::Audit::CLI::Formats::Text.prepend(ReportLowAdvisories)
+
+ARGV.concat %w[ --config config/bundler-audit.yml ] if ARGV.empty? || ARGV.include?("check")
+Bundler::Audit::CLI.start
