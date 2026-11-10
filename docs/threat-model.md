@@ -68,7 +68,7 @@ Each mitigation is a requirement (SR-xx) with a test or a verification step.
 | Threat | STRIDE | Mitigation |
 |---|---|---|
 | Forged events (T6) | Spoofing | **SR-06** `X-Hub-Signature-256` HMAC verified against the app secret with constant-time comparison on the raw body, before parsing; failures 401, counted and alerted above 10/min. |
-| Replayed events | Tampering | **SR-07** Meta message id as unique idempotency key; duplicates return 200 and do nothing. |
+| Replayed events | Tampering | **SR-07** The raw event keyed by the SHA-256 of its body and each message by its Meta message id, both unique; duplicates return 200 and do nothing. |
 | Verification endpoint abuse | Spoofing | **SR-08** Verify token compared constant-time; the endpoint does nothing else. |
 | Slow processing blocks Meta retries | DoS | **SR-09** Webhook stores and enqueues only; returns inside 2 s; processing in Solid Queue. |
 | Phone numbers leak (A3) | Information disclosure | **SR-10** Identity is `sha256(pepper ‖ BSUID)` (Meta's business-scoped user id, present on every event; the phone may be absent for users with a username, FR-19); the number, when Meta sends it, is stored encrypted with Active Record Encryption only for the reply path, and replies go by BSUID otherwise; the BSUID is personal data like the phone; log filters mask anything matching a phone pattern or a BSUID field; the pepper lives in secrets. |
@@ -92,7 +92,7 @@ Each mitigation is a requirement (SR-xx) with a test or a verification step.
 
 | Threat | STRIDE | Mitigation |
 |---|---|---|
-| Prompt injection makes the model call a tool with harmful arguments (T3) | Elevation of privilege | **SR-16** Tools are the whole privilege surface: typed, strict schemas; every argument re-validated server-side; quantities and counts capped (10 units, 3 open reservations, 1 open booking per service); the visitor, the conversation and the idempotency key are injected by the runner, never taken from the model. No tool can delete data (FR-05 is a pre-model command), read other visitors, change prices or stock, send messages to third parties, fetch URLs, or run code. |
+| Prompt injection makes the model call a tool with harmful arguments (T3) | Elevation of privilege | **SR-16** Tools are the whole privilege surface: typed, strict schemas; every argument re-validated server-side; quantities and counts capped (10 units, 3 open reservations, 1 open booking per service); the visitor, the conversation and the turn, which keys the side effect with the validated product or slot (NFR-02), are injected by the runner, never taken from the model. No tool can delete data (FR-05 is a pre-model command), read other visitors, change prices or stock, send messages to third parties, fetch URLs, or run code. |
 | Prompt extraction | Information disclosure | **SR-17** Nothing secret in the prompt; the prompt is treated as public (it may well be published). Trace summarises it (SR-12). |
 | Clinical advice slips through (A6) | — | **SR-18** FR-09 boundary enforced in the prompt, checked by the eval suite at 100% before any release, and re-checked on every reply by the FR-20 guardrail (economy model, structured verdict). |
 | Toxic or off-brand output | — | **SR-19** Same eval discipline; refusal stop reasons are mapped to the decline text, never shown raw. |
@@ -130,7 +130,7 @@ Each mitigation is a requirement (SR-xx) with a test or a verification step.
 | Threat | STRIDE | Mitigation |
 |---|---|---|
 | PII in logs | Information disclosure | **SR-30** Structured logs with parameter filtering for phone, BSUID (`user_id`, `from_user_id`, `recipient_user_id`), body, token and secret-like keys; a test sends a message containing a phone number and asserts the log line masks it. |
-| Retention | — | **SR-31** Messages and traces deleted after 7 days (FR-15); backups rotate at 7 days; aggregates carry no identity; no exemption: the exhibits (FR-22) are committed files outside the database, exported with identities stripped (test: the export of a conversation with a phone and a cookie yields neither). |
+| Retention | — | **SR-31** Messages and traces deleted after 7 days, reservations 7 days after their pickup deadline, and visitors not seen for 7 days with everything under them (FR-15); backups rotate at 7 days; aggregates carry no identity; no exemption: the exhibits (FR-22) are committed files outside the database, exported with identities stripped (test: the export of a conversation with a phone and a cookie yields neither). |
 | Visitor's right to deletion | — | **SR-32** FR-05 deletion is a deterministic command matched before any model call (no tool, so no injection path); synchronous and complete, releasing stock and slots; the rate counter lives outside the deleted rows; a test deletes and asserts zero rows for that identity. |
 
 ### S10 Repository

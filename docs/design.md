@@ -231,8 +231,10 @@ prescription is required.
 - When the quantity exceeds the per-reservation limit (10 units) or stock,
   Then the reservation is refused with the reason and the available
   alternative.
-- Given the same tool call replayed (same idempotency key), Then exactly one
-  reservation exists.
+- Given the same turn run again (same turn and product, NFR-02), Then
+  exactly one reservation exists. The tool looks up the turn's
+  reservation of the product before any stock or limit check, so its own
+  first reservation never refuses it.
 - Given a visitor with 3 open reservations, When they ask for a fourth, Then
   the attendant refuses and lists the open ones.
 - Given a product that requires a prescription (FR-06), When the visitor
@@ -425,7 +427,8 @@ levels (ADR-0003), with a daily slice and per-source limits (ADR-0012).
 - Given spend at 100% of the cap, Then the system pauses: inbound messages
   get a fixed "demo pausada até o próximo mês" reply without a model call,
   and the operator is notified once.
-- Given a new calendar month, Then normal mode resumes automatically.
+- Given a new calendar month, Then the automatic mode starts over in
+  normal; a forced mode holds until released.
 - The operator can force any mode from the console (kill switch), and the
   forced mode wins over the automatic one until released.
 - Spend is computed from the API's `usage` fields and a price table in
@@ -437,14 +440,24 @@ levels (ADR-0003), with a daily slice and per-source limits (ADR-0012).
   then stock is reset to the seed; bookings whose slot started before
   today are deleted and the next three business days of slots are
   generated (existing future bookings kept; this step exists from M2,
-  when bookings do). Conversations, turns, traces
-  and usage records older than 7 days are deleted without exception
-  (exhibits are committed files, FR-22); daily aggregates are kept.
+  when bookings do). Messages, turns, traces and usage records older than
+  7 days are deleted without exception, each by its own age, and a
+  conversation once its last message is older than 7 days (exhibits are
+  committed files, FR-22); reservations whose pickup
+  deadline passed more than 7 days ago are deleted (an open reservation
+  outlives the purge of its turn's conversation); visitors not seen for 7
+  days are deleted with everything left under them; daily aggregates are
+  kept.
 - Given a reservation made at 18:00 with pickup until the end of the next
   business day, When the 03:00 job runs, Then the reservation is still
   open and its stock still reserved.
 - Given the job fails midway, When it is retried, Then the result is the
   same as one clean run (each step is idempotent).
+- Given a visitor last seen 8 days ago, When the 03:00 job runs, Then the
+  visitor row and everything under it are gone (SR-31, `/privacy`).
+- Given a conversation opened 8 days ago and written to yesterday, When the
+  03:00 job runs, Then the conversation and yesterday's messages remain and
+  its messages older than 7 days are gone.
 
 **FR-16 Operator console.** A minimal authenticated UI: conversations list
 (last 7 days), handoff queue with reply box, presence toggle (FR-10),
@@ -498,8 +511,10 @@ Cloudflare line under the widget is absent.
   runs the check and sees the visitor's IP; it is the only third party in
   the app (ADR-0012). In development, CI and on rehearsal hosts the
   widget and the verifier use Turnstile's published test keys.
-- Messages are sent over HTTPS to `POST /api/messages`; replies and trace
-  events arrive over Action Cable; if the socket is unavailable, the
+- Messages are sent over HTTPS to `POST /api/messages`, each with an id
+  the client generates for it, so a request sent again is stored once
+  (NFR-02), and its turn is enqueued again while it has no reply (the
+  job's run is a no-op once it has one); replies and trace events arrive over Action Cable; if the socket is unavailable, the
   client polls `GET /api/conversations/current` every 3 s.
 - Message length is capped at 1,000 characters; the UI says so.
 - Commands (`/reiniciar`, `/apagar`, `/trace`) are ordinary messages
@@ -511,9 +526,13 @@ Cloudflare line under the widget is absent.
 - Given an inbound webhook, Then the `X-Hub-Signature-256` header is
   validated against the app secret with a constant-time comparison before
   any parsing; failures return 401 and are counted.
-- Given a valid webhook, Then the endpoint persists the raw event with the
-  Meta message id as idempotency key and returns 200 within 2 seconds;
-  processing happens in a background job. A redelivered event is a no-op.
+- Given a valid webhook, Then the endpoint persists the raw event keyed by
+  the SHA-256 of its raw body and returns 200 within 2 seconds; the
+  background job stores each message it carries keyed by its Meta message
+  id (an audio message once transcribed, FR-11). A redelivered event is a
+  no-op. (The sent, delivered and
+  read notifications of one message share its id, so the id cannot key the
+  event.)
 - Given a visitor message, Then the reply is sent through the Cloud API
   inside the 24-hour service window; the system never sends template
   messages.
@@ -630,10 +649,14 @@ receipt to outbound send, measured on the trace. Voice turns: p95 under
 20 s.
 
 **NFR-02 Idempotency.** Every side effect is keyed so that retries and
-redeliveries never duplicate it: inbound message by channel message id;
+redeliveries never duplicate it: inbound message by channel message id
+(Meta's on WhatsApp, the one the client generates on the web);
 turn by inbound message (one turn per inbound message); outbound message
-by turn id; reservation and booking by the SDK `tool_use` id of the call
-that created them, injected by the runner. The test suite proves it for
+by turn id; reservation by the turn that asked and the product, booking
+by the turn and the slot, the turn injected by the runner. Not by the SDK
+`tool_use` id: a turn run again after a model error, a timeout or a
+deploy calls the model again, which sends a new id for the same request
+(review finding C1 of pull request #7). The test suite proves it for
 each tool, for the webhook and for `ProcessTurnJob`. Every key is a unique
 index in the database; its spec inserts the duplicate and asserts that
 the application rescues `RecordNotUnique` and returns the existing row.
@@ -644,8 +667,14 @@ clock (bookings, Saturday hours, the nightly purge, FR-14's rolling 24 h
 per-visitor window, the daily slice) use `travel_to`.
 - Given a turn with an outbound message, When `ProcessTurnJob` runs again
   for it, Then nothing is called, billed or traced.
-- Given `create_reservation` replayed with the same `tool_use` id, Then
-  one reservation exists.
+- Given `create_reservation` called again in the same turn for the same
+  product, with a new `tool_use` id, Then one reservation exists.
+- Given a turn whose reservation is already stored, When `ProcessTurnJob`
+  runs again for it (a model error, a timeout, a deploy), Then the model
+  is not called again: the reply is the fixed-format line of the turn's
+  reservations (code, product, quantity, pickup deadline), as FR-20 keeps
+  tool facts. A model choosing another product on a second run cannot
+  reserve twice, and the visitor always learns the code.
 
 **NFR-03 Resilience.** A model-provider error or timeout produces a
 polite fallback reply (text key `fallback.model_error`) and a trace entry
@@ -657,6 +686,8 @@ wall clock is 60 s (SR-20).
 - Given the model API returns 529 three times, When the turn runs, Then
   the visitor gets the fallback text, the turn is `failed`, the trace
   shows the error, and the job is not retried a fourth time.
+- Given a reservation stored in the turn before the error, Then the
+  fallback text carries the reservation's fixed-format line (NFR-02).
 
 **NFR-04 Availability.** Single VM, best effort; the external monitor and the
 canary (FR-17) turn silence into a notification within 15 minutes. Two
@@ -856,6 +887,8 @@ erDiagram
   VISITOR ||--o{ RESERVATION : makes
   VISITOR ||--o{ BOOKING : makes
   PRODUCT ||--o{ RESERVATION : of
+  TURN ||--o{ RESERVATION : asks
+  TURN ||--o{ BOOKING : asks
   SERVICE ||--o{ SLOT : offers
   SLOT ||--o| BOOKING : holds
   CONVERSATION ||--o| HANDOFF : may_enter
@@ -875,16 +908,19 @@ erDiagram
   }
   MESSAGE {
     uuid id
+    string channel
     string direction
     string author
     string source
     text body
     string external_id
     uuid turn_id
+    uuid webhook_event_id
     string status
   }
   TURN {
     uuid id
+    uuid inbound_message_id
     string state
     string mode
     string model
@@ -894,7 +930,7 @@ erDiagram
   }
   WEBHOOK_EVENT {
     uuid id
-    string external_id
+    string body_sha256
     jsonb payload
     string status
     datetime received_at
@@ -929,19 +965,22 @@ erDiagram
     string span_id
     string parent_span_id
     string name
-    jsonb attributes
+    jsonb span_attributes
     datetime started_at
     datetime finished_at
   }
   USAGE_RECORD {
     uuid id
+    string model
     integer input_tokens
+    integer cache_creation_tokens
     integer cached_tokens
     integer output_tokens
     decimal cost_usd
   }
   PRODUCT {
     uuid id
+    string sku
     string name
     string active_ingredient
     decimal price
@@ -950,9 +989,9 @@ erDiagram
   }
   RESERVATION {
     uuid id
+    uuid turn_id
     string code
     integer quantity
-    string idempotency_key
     datetime pickup_until
     string state
   }
@@ -969,8 +1008,8 @@ erDiagram
   }
   BOOKING {
     uuid id
+    uuid turn_id
     string code
-    string idempotency_key
     string state
   }
   HANDOFF {
@@ -984,12 +1023,35 @@ erDiagram
   }
 ```
 
-Unique indexes: `webhook_event.external_id`, `message.external_id` per
-channel (dedup), one outbound `message` per `turn_id`, one `turn` per
-inbound message, `reservation.idempotency_key` and
-`booking.idempotency_key` (the SDK `tool_use` id), `slot` per service and
-start, `conversation.trace_token`, `daily_aggregate` per day/kind/key,
-`budget_state.month`. `message.author` ∈ {visitor, bot, operator, system};
+Every primary key is a time-ordered uuid (`uuidv7()`, built into
+PostgreSQL 18), so ids sort by creation. Unique indexes:
+`webhook_event.body_sha256` (the raw body's digest: a redelivered POST
+is a no-op, while the sent, delivered and read notifications of one
+message, which share its id, are three events), `message.external_id`
+per channel (dedup;
+`message.channel` copies the visitor's; a web message carries the id its
+client generates, and an id another visitor's message holds is refused), one
+outbound `message` per `turn_id` (only outbound messages carry one), one
+`turn` per inbound message (`turn.inbound_message_id`),
+`reservation` per turn and product and `booking` per turn and slot (NFR-02;
+not the SDK `tool_use` id, which a turn run again does not repeat), `slot`
+per service and start, `conversation.trace_token`,
+`daily_aggregate` per day/kind/key, `budget_state.month` (the calendar
+month in São Paulo); added in PR-04 so that concurrent first messages
+share their rows: `visitor` per channel and identity hash, one open
+`conversation` per visitor; and `product.sku` (the seed's key for the
+nightly reset) and `reservation.code`. Each key that the application writes
+on purpose is created insert-first or read-first and, on
+`RecordNotUnique`, returns the row that holds it (NFR-02). Ownership
+cascades in the database: deleting a visitor deletes its conversations
+and reservations, and deleting a conversation deletes its messages, turns,
+trace events and usage records, while a reservation outlives its turn
+(FR-05, FR-15). Check constraints keep
+stock and price at or above zero and a reservation's quantity above zero.
+`trace_event.span_attributes` is ADR-0010's `attributes` (a name Active
+Record keeps for itself); `usage_record` carries the model and the cache
+writes apart from the reads (`cached_tokens`), since FR-14 prices them
+apart. `message.author` ∈ {visitor, bot, operator, system};
 `message.source` ∈ {text, audio, command, canary}; `daily_aggregate.kind`
 ∈ {messages, referrer, canary}. `trace_events` holds one row per span
 (ADR-0010): 128-bit trace id, 64-bit span id, closed on finish.
@@ -1005,7 +1067,7 @@ committed as `docs/openapi.yaml`):
 | Method | Path | Purpose |
 |---|---|---|
 | POST | `/api/session` | Issue the visitor cookie; requires a Turnstile token (SR-39); returns conversation id, trace token, language (FR-18); records `utm_source` (FR-23) |
-| POST | `/api/messages` | Send a message (`{text}`) or an opener (`{say: key}`); returns the turn id |
+| POST | `/api/messages` | Send a message (`{id, text}`) or an opener (`{id, say: key}`), `id` generated by the client per message (NFR-02); returns the turn id |
 | GET | `/api/conversations/current` | Messages, trace events and state of the current conversation (polling fallback) |
 | GET | `/api/traces/:token` | Trace of a conversation (FR-12) |
 | GET | `/api/calendar` | Public bookings, anonymised (FR-08) |
@@ -1022,8 +1084,8 @@ the holder of the visitor cookie), `trace:<token>` (read-only trace page),
 `get_store_info(topic)`, `search_products(query, limit)`,
 `create_reservation(product_id, quantity)`, `list_slots(service, days)`,
 `book_appointment(slot_id, service)`, `request_human(reason)`. Every tool
-receives the visitor, the conversation and the SDK `tool_use` id (used as
-idempotency key) from the runner, never from the model. Data deletion is a
+receives the visitor, the conversation and the turn from the runner,
+never from the model; the turn keys the tool's side effect (NFR-02). Data deletion is a
 command (FR-05), not a tool.
 
 ### 6.7 Public web app
@@ -1435,10 +1497,10 @@ every pull request.
 | 5 | PR-08 `ProcessTurnJob` with the advisory lock and the one concurrent spec, the commands (`/reiniciar`, `/apagar`, `/trace`), `TraceRecorder` (ADR-0010) · PR-09 the API: session cookie, `POST /api/messages`, polling endpoint, Rack::Attack per-IP and per-visitor limits, CSP and Origin, Action Cable streams | A conversation works over HTTP |
 | 6 | PR-10 React: app shell, i18n in the three locales, landing with the chips and `say` allow-list (FR-21, SR-34), the chat | Chat in the browser on the host |
 | 7 | PR-11 React: the glass box panel, `/trace/:token`, the cable client with the polling fallback, TanStack Query · PR-12 NFR-03: fallback text, "pensando…" state, dead-letter visibility in logs | **J1 minus the reservation, live** |
-| 8 | PR-13 `create_reservation` with the `tool_use` idempotency key, the limits and the prescription refusal (FR-07) · PR-14 `bin/evals` live runner, the suites `greeting`, `language`, `store`, `catalogue`, `reservation`, `boundary`, `memory` on the normal model, the first scorecard | A reservation code in the chat; the boundary measured |
+| 8 | PR-13 `create_reservation` keyed by the turn and the product (NFR-02), the limits and the prescription refusal (FR-07) · PR-14 `bin/evals` live runner, the suites `greeting`, `language`, `store`, `catalogue`, `reservation`, `boundary`, `memory` on the normal model, the first scorecard | A reservation code in the chat; the boundary measured |
 | 9 | PR-15 boundary prompt iteration to 100 %, the fixed offer line, the decline texts in three locales · PR-16 the budget ledger with the monthly cap's pause (FR-14), the nightly job (FR-15), log masking (SR-30) | Wallet fenced; the demo honest about the boundary |
 | 10 | PR-17 `/privacy` page, the QR placeholder on the landing, README sixty-second tour, design and README status lines made true, the hours table in the handoff | **Web demo showable** |
-| 11 | PR-18 WhatsApp inbound: webhook verification (SR-08), `X-Hub-Signature-256` constant-time check on the raw body (SR-06), raw event persisted with the Meta message id as idempotency key, 200 within 2 s, processing through `ProcessTurnJob` (SR-07, SR-09), identity `sha256(pepper ‖ BSUID)` with the number, when Meta sends it, encrypted at rest (SR-10, FR-19), tests against the payloads recorded from the test number plus a synthetic username-only payload (no `from`, no `wa_id`) | Inbound messages traced on the host |
+| 11 | PR-18 WhatsApp inbound: webhook verification (SR-08), `X-Hub-Signature-256` constant-time check on the raw body (SR-06), raw event persisted keyed by the SHA-256 of its body and each message by its Meta message id, 200 within 2 s, processing through `ProcessTurnJob` (SR-07, SR-09), identity `sha256(pepper ‖ BSUID)` with the number, when Meta sends it, encrypted at rest (SR-10, FR-19), tests against the payloads recorded from the test number plus a synthetic username-only payload (no `from`, no `wa_id`) | Inbound messages traced on the host |
 | 12 | PR-19 WhatsApp outbound: the Graph API client with timeouts, replies inside the 24-hour window addressed to the number when known and to the BSUID (`recipient`) otherwise, status webhooks, the `/trace` reply with the tokenised link, the QR on the landing, the Meta values as Kamal env secrets; the owner creates the system-user token and switches the app to Live mode with `/privacy` as its policy URL; the first real conversation from the test customer's phone · slack | **J2 minus voice, live** |
 
 The slack is one day spread over the plan and is expected to be spent on
@@ -1467,6 +1529,100 @@ MVP from its first day and merges at day 11.
 ## 10. Open decisions
 
 Tracked here until resolved; each resolution becomes an ADR or an edit.
+
+- Note 2026-11-09 (PR-04, the schema). PR-04 creates the tables the MVP
+  writes: visitors, conversations, messages, turns, trace events, usage
+  records, webhook events, products, reservations and the budget state.
+  The rest of §6.5 arrives with the slice that first writes it, with its
+  unique indexes and its NFR-02 specs: operators (the Rails 8
+  authentication generator, M2), handoffs and blocked identities (M2),
+  services, slots and bookings (FR-08, M2 or the MVP's stretch),
+  daily aggregates (M3). Columns no requirement fills yet arrive the same
+  way: `visitor.phone`, encrypted (SR-10), with PR-18;
+  `turn.guardrail_verdict` with FR-20; `turn.outcome`, whose values no
+  requirement defines, with the slice that defines them. The §6.5 edits
+  of the same date record the additions. Open for PR-18: a webhook event's
+  raw payload holds the message body, the BSUID and possibly the phone, so
+  it falls under the seven-day purge (FR-15, SR-31) and the deletion
+  command (FR-05) like the messages it yields. Status notifications yield
+  no message and still carry the BSUID (`recipient_user_id`), so deleting
+  events with their messages misses them: PR-18 stores the payload
+  stripped of the body, the BSUID and the phone (review finding RN3 of
+  pull request #7).
+  Review finding F4 of pull request #1 (`teorico` then) became real with
+  the first validations: a validation message in pt-BR raised in
+  development and test and read "Translation missing" in production.
+  PR-04 adds `rails-i18n`, as that finding recommended, loaded for the
+  three available locales only.
+  The review of pull request #7 found (reach as its verifier wrote it):
+  - C1 (`cliente`): a turn run again after a model error, a timeout or a
+    deploy calls the model again, and the API sends a new `tool_use` id
+    for the same request, so a reservation keyed by that id was made
+    twice. A reservation is now keyed by the turn and the product, a
+    booking by the turn and the slot (NFR-02, FR-07, §6.5, §6.6, PR-13's
+    row, SR-16). A reservation outlives its turn (R3 below).
+  - C2 (`dono`): the forced mode lives on the month's budget row, and a
+    new month opened without it, releasing the kill switch at midnight on
+    the 1st. A new month's row now carries the forced mode of the latest
+    month before it; the automatic mode starts over (FR-14).
+  - C3 (`dono`): Meta's sent, delivered and read notifications of one
+    outbound message carry the same message id, so an event keyed by
+    that id kept only the first, and the status never reached "read". The
+    event is now keyed by the SHA-256 of its raw body, and each message
+    by its Meta message id (FR-19, SR-07, §6.5, PR-18's row). If Meta's
+    redelivery of a POST is not byte-identical, the message keys still
+    make it a no-op; PR-19 applies statuses so that one never moves back
+    (a late "delivered" after "read").
+  - N2 (`cliente`): a web message carried no id, so a request sent again
+    after its response was lost stored a second message, turn and model
+    call. Every inbound message now needs its channel's id; on the web the
+    client generates one per message (FR-18, §6.6, NFR-02), and PR-09's
+    endpoint takes it. Since a web client chooses its ids, an id another
+    visitor's message holds is refused rather than returned (S2 of the
+    same review, SR-05).
+  - N9 (`cliente`): FR-15's purge named conversations, turns, traces and
+    usage records but never visitor rows or reservations, while `/privacy`
+    promises seven-day retention and FR-19 leaves an old identity "to the
+    seven-day purge". FR-15 now deletes visitors not seen for seven days,
+    with everything under them, and reservations seven days after their
+    pickup deadline; `Visitor.unseen_for` is the scope PR-16's nightly job
+    uses (SR-31).
+  The fix review of the same pull request found:
+  - R1 (`cliente`): nothing wrote `visitor.last_seen_at`, so the purge
+    would have taken a visitor still writing seven days after first
+    contact. `Visitor.identify!`, which every message and request goes
+    through, now marks the visitor seen.
+  - R3 (`cliente`): C1's fix made a reservation go with its turn, so the
+    purge of a conversation older than seven days but still in use would
+    have taken an open reservation inside its pickup window. A reservation
+    now outlives its turn (the key's turn is emptied), and FR-15 deletes
+    reservations seven days after their pickup deadline.
+  - RS2 (`cliente`): FR-15 said "conversations older than 7 days" with no
+    measure of age, so a conversation in daily use, measured by its
+    creation, would have been deleted under the visitor. FR-15 now deletes
+    messages, turns, traces and usage records each by its own age, and a
+    conversation once its last message is older than seven days.
+  - RS4 and RN1 (`cliente`): a turn run again could have the model pick
+    another product for the same request (a second reservation behind a
+    code nobody saw), and a fallback after a stored reservation hid its
+    code. NFR-02 and NFR-03 now say that a turn whose reservation is
+    stored is not run through the model again, and that its reply, or the
+    fallback, carries the reservation's fixed-format line (PR-08, PR-12,
+    PR-13).
+  - RN2 (`cliente`): a tool that checked stock or the three-open cap
+    before looking up the key would refuse a turn run again because of its
+    own first reservation. FR-07 now orders the lookup first (PR-13).
+  - RN4 (`dono`): C3's wording of FR-19 read as storing each message at
+    receipt, which an audio message cannot do before transcription (its
+    body is required). The job stores the messages, after transcription.
+  - RN6 (`cliente`): the queue is its own database, so an enqueue can
+    fail after the message and turn are stored; an endpoint enqueuing
+    only new turns would leave a resent message unanswered for good.
+    FR-18 now enqueues again while the turn has no reply (PR-09).
+  - RN7 (`dono`): FR-14's "normal mode resumes automatically" read against
+    C2's carried forced mode; it now says which mode starts over.
+  - RN8 (`dono`): the §6.5 diagram gained `turn_id` on reservations and
+    bookings without the relationship lines; added.
 
 - Note 2026-11-09 (pull request #1, review finding C4): `npm audit
   --omit=dev` still audits toolchain packages that a runtime package lists
