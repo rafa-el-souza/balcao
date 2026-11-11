@@ -72,15 +72,18 @@ Design complete and independently reviewed (2026-11-02, 30 findings;
 2026-11-04, the amended deploy model, the bot gap and the testing strategy;
 2026-11-09, the twelve-day MVP plan, all applied). The MVP is being built
 (design §9.1): since day 2 the demo host serves a placeholder page at the
-address above, with TLS; the chat arrives on day 6. See the delivery plan in
-the design document.
+address above, with TLS; since day 5 a conversation runs there over the HTTP
+API; the chat page arrives on day 6. See the delivery plan in the design
+document.
 
 ## Running locally
 
 You need Ruby and Node.js at the versions in `.tool-versions` (mise or asdf
 read that file), PostgreSQL 18 running locally and reachable by your own
-user (no password, no `DATABASE_URL`), and Git. No API key and no secret:
-development and the test suite never call the model or any outside service.
+user (no password, no `DATABASE_URL`), and Git. No secret: the test suite
+never calls the model or any outside service. A conversation in development
+calls the real model, with the `ANTHROPIC_API_KEY` of the shell that starts
+`bin/dev`.
 
 ```sh
 bin/setup   # installs gems and npm packages, enables the secret-scan

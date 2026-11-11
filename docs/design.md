@@ -1548,6 +1548,79 @@ MVP from its first day and merges at day 11.
 
 Tracked here until resolved; each resolution becomes an ADR or an edit.
 
+- Note 2026-11-11 (PR-09, the API). `POST /api/session`, `POST
+  /api/messages` and `GET /api/conversations/current` (app/controllers/api/),
+  the cable's `ConversationChannel` and `TraceChannel`, the limits at the
+  edge (`EdgeLimits`, config/initializers/rack_attack.rb), the CSP and the
+  Origin check. Choices the text left open:
+  - The limits count in rolling windows from the first counted event (§1.4):
+    a counter is a cache entry that expires a period after its first
+    increment, as Rails' `rate_limit` counts. Rack::Attack's throttles count
+    in windows aligned to the clock, which lets a source spend a limit twice
+    across a window's edge, so the rules are Rack::Attack blocklists whose
+    block counts. A "request" of FR-14's 60 per minute is one to `/api/*` or
+    `/cable`, or a cable subscription (each looks a row up, SR-11); `/up`,
+    the shell and the static files are not counted. A "session" of the 20
+    per hour is one minted: a page load that brings its cookie back mints
+    none. A "turn" is a `POST /api/messages`, counted before its body is
+    read, so a message sent again counts again. The refusal is a 429 with
+    `{error: "limit", text}`, the text in the first of the three languages
+    the request's `Accept-Language` names, since the edge reads no
+    conversation; the page (PR-10) sends the language it shows there.
+    WhatsApp (PR-18) counts its visitors with the same `EdgeLimits.over?`.
+  - The visitor cookie holds a random 24-character token, signed with the
+    app's secret so a forged one is never read; the database keeps its
+    SHA-256 as the identity hash. A random token of about 140 bits needs no
+    pepper; the pepper of SR-10 is for the WhatsApp id. The cookie lives
+    seven days (FR-15's retention), renewed by each `POST /api/session`; it
+    is Secure when the request is HTTPS, which production always is. The
+    session endpoint answers 201 for a new and a returning visitor alike,
+    and takes an optional `{language}` for a conversation not yet answered.
+  - `POST /api/messages` answers 202 with `{turn_id, message_id,
+    conversation_id}`; a refusal is `{error: <code>}`: 401 without the
+    cookie, 403 from another origin (an exact match of the public origin,
+    a missing one refused), 411, 413 over 16 KB, 415 not JSON, 400 malformed,
+    422 off the schema (exactly `id`, a UUID, and `text` of 1 to 1,000
+    characters or `say`, an allow-listed key), 409 for an id another
+    visitor's message holds. NUL characters are dropped. The proxy refuses a
+    body over 1 MB before the app's server buffers it.
+  - The intake (`Intake`, app/models/) locks the open conversation's row
+    while it stores the message and its turn, and re-reads it under the
+    lock: a reset closes the conversation by updating that row, so either
+    the reset waits and its move sees the message, or the reset committed
+    first and the message goes to the conversation it opened (review
+    finding C5 of pull request #11). FR-04's 24 hours run from the last
+    inbound message, or from the opening when there is none, and the next
+    conversation keeps the language. The design's `channels/` directory of
+    transport adapters would collide with Action Cable's `app/channels`;
+    the intake is the web adapter's whole inbound side for now, and PR-18
+    names the adapters.
+  - The polling answer is `{conversation: {id, language, state,
+    trace_token}, messages, spans, pending}`, messages and spans in the
+    streams' shape (a web message also carries the `client_id` its page
+    generated), `pending` while a turn has no reply. A cookie whose visitor
+    is gone answers `{deleted: true, text}` with FR-05's confirmation: the
+    visitor deleted its data, or the nightly job purged it, which the same
+    words describe.
+  - The cable connection carries the cookie's identity hash and the source
+    address. `ConversationChannel` streams a conversation of that web
+    visitor, open or closed (the page follows a reset's old stream until
+    its reply names the next one); `TraceChannel` streams a trace to any
+    holder of its token. Neither takes a message from the page.
+    `GET /api/traces/:token` arrives with the trace page (PR-11).
+  - The CSP is Rails' middleware, which API-only apps leave out, so it
+    covers every response; `connect-src` names the cable's `wss:` origin
+    beside `'self'`.
+  - SR-20's timeouts (review finding C5 of pull request #10): every
+    connection has a 5 s statement timeout and a 2 s lock timeout;
+    `ConversationLock` lifts both for its wait, in a short transaction of
+    its own, since waiting for the turn ahead is not a stuck statement.
+  - `ANTHROPIC_API_KEY` and `MODEL_ADAPTER` join the boot check; the key is
+    the one secret an outside console holds. `MODEL_ADAPTER` must be `real`
+    until M3 brings the fake one for rehearsal hosts.
+  - An opener whose text is a command phrase is refused at load (review
+    finding N4 of pull request #8).
+
 - Note 2026-11-11 (PR-08, the turn job). `ProcessTurnJob` (app/jobs/) runs
   a turn under `ConversationLock` and hands it to `TurnProcessor`
   (app/models/), which answers a command, a turn whose reservation is
