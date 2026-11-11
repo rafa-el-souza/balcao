@@ -123,6 +123,31 @@ RSpec.describe "FR-18 POST /api/messages stores the message and enqueues its tur
         expect(response).to have_http_status(:content_too_large)
       end
 
+      # Review finding V1 of pull request #12: a body of up to the proxy's
+      # 1 MB, in any encoding, reached a controller, which parsed and logged
+      # it before any check; 60 a minute rotate the container's log away.
+      [ [ "application/json", ->(pad) { { text: pad }.to_json } ],
+        [ "application/x-www-form-urlencoded", ->(pad) { "text=#{pad}" } ],
+        [ "text/plain", ->(pad) { pad } ] ].each do |type, body|
+        it "refuses a #{type} body over 16 KB before any controller runs, so nothing of it is logged" do
+          started = []
+          callback = ->(*, payload) { started << payload[:path] }
+          ActiveSupport::Notifications.subscribed(callback, "start_processing.action_controller") do
+            post "/api/messages", params: body.call("x" * 20_000), headers: { "Content-Type" => type, "Origin" => origin }
+          end
+
+          expect(response).to have_http_status(:content_too_large)
+          expect(json).to eq("error" => "size")
+          expect(started).to be_empty
+        end
+      end
+
+      it "refuses a body over 16 KB to any API path, sessions included" do
+        api_post "/api/session", { language: "x" * 20_000 }
+
+        expect(response).to have_http_status(:content_too_large)
+      end
+
       it "refuses a body that is not JSON" do
         post "/api/messages", params: "id=1&text=oi", headers: { "Content-Type" => "application/x-www-form-urlencoded", "Origin" => origin }
 

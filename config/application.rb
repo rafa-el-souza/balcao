@@ -12,6 +12,7 @@ require "action_mailer/railtie"
 # require "action_text/engine"
 require "action_view/railtie"
 require "action_cable/engine"
+require_relative "../lib/middleware/api_body_limit"
 # require "rails/test_unit/railtie"
 
 # Require the gems listed in Gemfile, including any gems
@@ -26,7 +27,7 @@ module Balcao
     # Please, add to the `ignore` list any other `lib` subdirectories that do
     # not contain `.rb` files, or that should not be reloaded or eager loaded.
     # Common ones are `templates`, `generators`, or `middleware`, for example.
-    config.autoload_lib(ignore: %w[assets tasks])
+    config.autoload_lib(ignore: %w[assets middleware tasks])
 
     # Configuration for the application, engines, and railties goes here.
     #
@@ -44,6 +45,8 @@ module Balcao
     # config/initializers/content_security_policy.rb, which API-only apps leave out.
     config.middleware.use ActionDispatch::Cookies
     config.middleware.use ActionDispatch::ContentSecurityPolicy::Middleware
+    # The API's 16 KB body limit, before any controller (threat model SR-04).
+    config.middleware.use Balcao::ApiBodyLimit
 
     # Business time is São Paulo's; timestamps are stored in UTC (design §1.4, NFR-02).
     config.time_zone = "America/Sao_Paulo"

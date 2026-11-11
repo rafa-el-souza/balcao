@@ -4,16 +4,16 @@
 # - the visitor is the one the signed cookie names (WebSession), never an id
 #   the request sends, and every query is scoped by it;
 # - a state-changing request must come from the public origin;
-# - a body is JSON, at most 16 KB, refused before it is read as JSON, and
-#   checked against the endpoint's schema.
+# - a body is JSON, read here and nowhere before (Rails reads no JSON body as
+#   parameters, config/initializers/parameter_parsers.rb), and checked against
+#   the endpoint's schema.
 #
-# The per-IP and per-visitor limits run before any of this, at the edge
-# (config/initializers/rack_attack.rb).
+# Before any of this, at the edge: the per-IP and per-visitor limits
+# (config/initializers/rack_attack.rb) and the 16 KB body limit
+# (lib/middleware/api_body_limit.rb).
 module Api
   class BaseController < ApplicationController
     include ActionController::Cookies
-
-    MAX_BODY = 16.kilobytes
 
     class Refused < StandardError
       attr_reader :status, :code
@@ -25,7 +25,7 @@ module Api
       end
     end
 
-    # The body is read here, after its size is checked, not by Rails' wrapper.
+    # The body is read here, not by Rails' wrapper.
     wrap_parameters false
 
     before_action :verify_origin, unless: -> { request.get? || request.head? }
@@ -42,12 +42,9 @@ module Api
 
     def refuse!(status, code) = raise(Refused.new(status, code))
 
-    # The request's JSON object, at most MAX_BODY bytes.
+    # The request's JSON object; the edge has refused a body over 16 KB.
     def json_body
       refuse!(:unsupported_media_type, "content_type") unless request.media_type == "application/json"
-      length = request.content_length
-      refuse!(:length_required, "length") if length.nil?
-      refuse!(:content_too_large, "size") if length > MAX_BODY
 
       body = JSON.parse(request.raw_post.to_s.dup.force_encoding(Encoding::UTF_8).scrub)
       refuse!(:unprocessable_content, "schema") unless body.is_a?(Hash)
