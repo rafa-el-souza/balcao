@@ -1572,10 +1572,11 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     whether `incomplete` turns appear.
   - SR-20: no tool call beyond the sixth runs, even in a batch of parallel
     calls (a gate in `AgentTool` refuses it and the turn ends); each step's
-    request may take only what is left of the sixty seconds, and the clock
-    is checked before every attempt, so a retry never starts after it. A
-    retry that starts before it may run past it by the time the failed
-    attempts of that step took.
+    request may take only what is left of the sixty seconds, the clock is
+    checked before every attempt, so a retry never starts after it, and a
+    retry whose requested wait (`retry-after`) outlasts the turn is not
+    made. A retry that starts before the deadline may run past it by the
+    time the failed attempts of that step took.
   - Usage comes from `usage.iterations` when the API retried on a fallback
     model, one entry per attempt at its own model, since the top-level
     usage covers only the attempt that answered (FR-14, PR-16 prices it).
@@ -1596,6 +1597,17 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     `MODEL_ADAPTER` join the boot check and the Kamal environment with the
     first deploy that runs turns (PR-09), since nothing on the host calls
     the model before then.
+  The review of pull request #9 found (reach as triaged in the pull request):
+  - C1 (`cliente`): the reply and its language were read from the last
+    step only, so text the model wrote before a tool call was lost, and
+    with it the language tag (a Spanish visitor's notice in Portuguese) or
+    the declined part of a mixed clinical question (FR-02, FR-09). The
+    reply is now the text of every step, in order, each without its tag;
+    the first tag names the language.
+  - C2 (`cliente`): the SDK waits as long as a failed attempt's
+    `retry-after` asks, so a 429 asking for 55 s held the turn well past
+    its sixty seconds. A retry whose wait outlasts what is left of the
+    turn is no longer made, and the turn ends with the API's error (SR-20).
 
 - Note 2026-11-11 (PR-05, the seed). The business files of FR-26 arrive
   with a reader each, which refuses a malformed file naming the key:
