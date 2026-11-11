@@ -1,0 +1,6 @@
+# Ibuprofen with no stock, for reservation-out-of-stock-es-01 (evals/README.md,
+# Seeds). An overlay on db/seeds/catalogue.yml: an entry whose sku is in the
+# catalogue changes only the fields it names.
+products:
+  - sku: ibuprofeno-400mg-10caps
+    stock: 0

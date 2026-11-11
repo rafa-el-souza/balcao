@@ -1,0 +1,151 @@
+# The catalogue of Farmácia Vida Longa (design §1.2, FR-06), loaded by
+# `bin/rails db:seed` and, every night, brought back to these stocks and
+# prices (FR-15). CatalogueSeed reads it and refuses a malformed entry
+# (spec/models/catalogue_seed_spec.rb); spec/evals/seed_spec.rb checks that
+# every product an eval case asks about is here.
+#
+# Invented, and generic on purpose (threat model SR-33): each medicine is
+# named by its active ingredient, strength and pack, never by a brand, so no
+# real company's product appears; a visitor who asks for a brand is searched
+# by its active ingredient (design §6.4). Prices are made up in the range a
+# Brazilian pharmacy charges; they are not a price list.
+#
+# Fields, all required:
+#   sku                   the seed key, a lowercase slug, never reused: the
+#                         nightly reset finds the product by it, and an open
+#                         reservation keeps pointing at the same row
+#   name                  as the visitor reads it; unique
+#   active_ingredient     what a search by ingredient matches; null for a
+#                         product that has none
+#   price                 in reais, a string with two decimals ("7.90"), so
+#                         no float rounding reaches the price column
+#   stock                 units on the shelf after the nightly reset
+#   prescription_required sold only against a prescription at the counter,
+#                         never reserved (FR-06, FR-07)
+products:
+  # Over the counter.
+  - sku: dipirona-500mg-10cp
+    name: Dipirona 500 mg, 10 comprimidos
+    active_ingredient: dipirona
+    price: "7.90"
+    stock: 40
+    prescription_required: false
+  - sku: dipirona-gotas-500mg-ml-20ml
+    name: Dipirona gotas 500 mg/ml, 20 ml
+    active_ingredient: dipirona
+    price: "9.50"
+    stock: 25
+    prescription_required: false
+  - sku: paracetamol-750mg-20cp
+    name: Paracetamol 750 mg, 20 comprimidos
+    active_ingredient: paracetamol
+    price: "12.90"
+    stock: 30
+    prescription_required: false
+  - sku: paracetamol-gotas-200mg-ml-15ml
+    name: Paracetamol gotas 200 mg/ml, 15 ml
+    active_ingredient: paracetamol
+    price: "8.40"
+    stock: 15
+    prescription_required: false
+  - sku: ibuprofeno-400mg-10caps
+    name: Ibuprofeno 400 mg, 10 cápsulas
+    active_ingredient: ibuprofeno
+    price: "14.90"
+    stock: 20
+    prescription_required: false
+  - sku: loratadina-10mg-12cp
+    name: Loratadina 10 mg, 12 comprimidos
+    active_ingredient: loratadina
+    price: "11.50"
+    stock: 18
+    prescription_required: false
+  - sku: simeticona-gotas-75mg-ml-10ml
+    name: Simeticona gotas 75 mg/ml, 10 ml
+    active_ingredient: simeticona
+    price: "10.90"
+    stock: 12
+    prescription_required: false
+  - sku: soro-fisiologico-500ml
+    name: Soro fisiológico 0,9%, 500 ml
+    active_ingredient: cloreto de sódio
+    price: "6.90"
+    stock: 30
+    prescription_required: false
+  - sku: vitamina-c-1g-10cp-efervescentes
+    name: Vitamina C 1 g, 10 comprimidos efervescentes
+    active_ingredient: ácido ascórbico
+    price: "15.90"
+    stock: 0
+    prescription_required: false
+
+  # On prescription: listed with the price, sold at the counter against the
+  # prescription, never reserved (FR-07).
+  - sku: amoxicilina-500mg-21caps
+    name: Amoxicilina 500 mg, 21 cápsulas
+    active_ingredient: amoxicilina
+    price: "24.90"
+    stock: 12
+    prescription_required: true
+  - sku: azitromicina-500mg-3cp
+    name: Azitromicina 500 mg, 3 comprimidos
+    active_ingredient: azitromicina
+    price: "19.90"
+    stock: 10
+    prescription_required: true
+  - sku: losartana-50mg-30cp
+    name: Losartana potássica 50 mg, 30 comprimidos
+    active_ingredient: losartana potássica
+    price: "15.90"
+    stock: 35
+    prescription_required: true
+  - sku: enalapril-10mg-30cp
+    name: Maleato de enalapril 10 mg, 30 comprimidos
+    active_ingredient: maleato de enalapril
+    price: "12.50"
+    stock: 20
+    prescription_required: true
+  - sku: metformina-850mg-30cp
+    name: Cloridrato de metformina 850 mg, 30 comprimidos
+    active_ingredient: cloridrato de metformina
+    price: "11.90"
+    stock: 25
+    prescription_required: true
+  - sku: sinvastatina-20mg-30cp
+    name: Sinvastatina 20 mg, 30 comprimidos
+    active_ingredient: sinvastatina
+    price: "16.90"
+    stock: 15
+    prescription_required: true
+  - sku: omeprazol-20mg-28caps
+    name: Omeprazol 20 mg, 28 cápsulas
+    active_ingredient: omeprazol
+    price: "18.90"
+    stock: 22
+    prescription_required: true
+
+  # Not medicines.
+  - sku: alcool-gel-70-500ml
+    name: Álcool em gel 70%, 500 ml
+    active_ingredient: álcool etílico
+    price: "13.90"
+    stock: 24
+    prescription_required: false
+  - sku: protetor-solar-fps50-120ml
+    name: Protetor solar FPS 50, 120 ml
+    active_ingredient: null
+    price: "49.90"
+    stock: 8
+    prescription_required: false
+  - sku: curativo-adesivo-40un
+    name: Curativo adesivo, caixa com 40
+    active_ingredient: null
+    price: "9.90"
+    stock: 30
+    prescription_required: false
+  - sku: termometro-digital
+    name: Termômetro clínico digital
+    active_ingredient: null
+    price: "24.90"
+    stock: 6
+    prescription_required: false
