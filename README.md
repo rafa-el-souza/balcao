@@ -33,7 +33,8 @@ muestra junto al chat todo lo que hizo para responder.
 
 ## How it is built
 
-Ruby on Rails 8 API · React + TypeScript (Vite) · PostgreSQL · Solid Queue
+Ruby on Rails 8 API · React + TypeScript (Vite) · PostgreSQL, whose trigram
+and full-text search find the catalogue's products (no vector store) · Solid Queue
 and Solid Cable (no Redis) · Anthropic Claude via the official Ruby SDK ·
 WhatsApp Cloud API · Kamal 2 on one small VM.
 

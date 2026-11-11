@@ -1547,6 +1547,52 @@ MVP from its first day and merges at day 11.
 
 Tracked here until resolved; each resolution becomes an ADR or an edit.
 
+- Note 2026-11-11 (PR-07, the first two tools). `get_store_info` and
+  `search_products` (app/agent/tools/) are `AgentTool`s, and `AgentRunner`
+  gives a turn both unless told otherwise. Choices the text left open:
+  - The catalogue has no brand (PR-05 names each medicine by its active
+    ingredient, SR-33), so the search, which ADR-0009 runs "on name, brand
+    and active ingredient", runs on the name and the active ingredient. The
+    brand is the model's to normalise, as the tool's description asks,
+    which also asks for the Portuguese name of an English or Spanish one.
+    It does not ask the model to turn a symptom into an ingredient
+    (ADR-0009's "remédio pra dor de cabeça"): choosing a medicine for a
+    symptom is FR-09's to decline.
+  - The search folds the query and the text (lower case, `unaccent`); a
+    product matches on pg_trgm's `word_similarity` from 0.6, pg_trgm's own
+    default, which keeps a one-letter typo and drops a shared word like
+    "comprimidos", or when every word of the query is in it by a Portuguese
+    full-text match. Ranked by the trigram score rounded to two places,
+    then by name. No index: the catalogue is a few hundred rows at most, and
+    a trigram index over `unaccent` needs an immutable wrapper function that
+    `schema.rb` cannot hold, which is ADR-0009's revisit.
+  - The query is the model's, not the visitor's message, and the full-text
+    match needs every word: "tem algum produto novo?" as a query finds
+    nothing, while the queries it leads to ("produto novo", "novo",
+    "lançamentos") reach the hostile product (review finding C3 of pull
+    request #8). The injection suite (M2) measures what the model sends.
+  - A result lists each product's id (create_reservation's, PR-13), name,
+    active ingredient, price as the visitor reads it ("R$ 7,90"), stock (0
+    is out of stock), prescription flag and score; nothing found is an
+    empty list, which the description tells the model to report, offering
+    the pharmacist.
+  - SR-16: the API takes no bounds on an integer (the SDK moves them into
+    the description), so the tool checks them: the limit is held between 1
+    and 5 (5 when absent or not a number), and a query is text of at most
+    100 characters, control characters read as spaces. A topic outside the
+    enum gets FR-03's "no such topic" answer. The tools read the arguments
+    as the model sent them, since the SDK's typed reader raises on a value
+    its type cannot take, which would turn a bad argument into a bug.
+  - Live on the dev/eval key (2026-11-11), seven turns on the normal model,
+    most of them the messages of MVP eval cases, each looked its fact up
+    with a tool ("vcs tem paracetamo?" searched "paracetamol",
+    "amoxicillin" searched "amoxicilina", Santa Tereza's fee came from
+    `get_store_info`), and the two products not carried were reported as
+    such, with the pharmacist offered. The two tool definitions add about
+    850 tokens to the cached prefix, now about 2,300.
+  - The host's `bin/rails db:seed` waits for PR-09's deploy, the first that
+    runs turns: nothing on the host reads products before.
+
 - Note 2026-11-11 (PR-06, the agent runner). `AgentRunner` (app/agent/)
   wraps the SDK's tool runner and stores nothing: it returns the reply, its
   language, an outcome and every model and tool call with its usage, and
@@ -1631,7 +1677,8 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     (evals README).
   - The MVP host's database was initialised on day 2, and `db:prepare`
     seeds only a database it initialises: the deploy that first needs
-    products (PR-07's) runs `bin/rails db:seed` once on the host, and from
+    products (PR-09's, the first that runs turns; see the PR-07 note) runs
+    `bin/rails db:seed` once on the host, and from
     PR-16 the nightly reset brings the catalogue back every night.
   - The owner's seed review (2026-11-11): omeprazol 20 mg is sold over the
     counter; ibuprofen 400 mg stays over the counter; the pharmacy's name
