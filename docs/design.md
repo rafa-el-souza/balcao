@@ -1561,17 +1561,20 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     symptom is FR-09's to decline.
   - The search folds the query and the product's name and active
     ingredient (lower case, `unaccent`) and splits them into Portuguese
-    stems, stop words left out. A product matches exact when it holds every
+    stems, stop words left out, plus the one-letter words the stop words
+    would take ("vitamina e"). A product matches exact when it holds every
     stem of the query; close when its trigrams are near the query's
     (pg_trgm's `word_similarity` from 0.6, pg_trgm's own default) or each
-    stem is within a Levenshtein distance of one of its stems (two edits
-    from seven letters, one from five, `fuzzystrmatch`); partial when it
-    holds some stems, offered only when nothing matches exact or close.
-    Ranked by match, then by the stems held, then by the trigram score
-    rounded to two places, then by name. No index: the catalogue is a few
-    hundred rows at most, and a trigram index over `unaccent` needs an
-    immutable wrapper function that `schema.rb` cannot hold, which is
-    ADR-0009's revisit.
+    stem is alike one of its stems (the same, or from five letters one edit
+    away or the same letters with two swapped, `fuzzystrmatch`); partial
+    when the query names it, holding a stem alike each stem of its active
+    ingredient or of the head of its name (before the first number or
+    comma), offered only when nothing matches exact or close. Ranked by
+    match, then by the stems alike, then by the trigram score rounded to two
+    places, then by name. The SQL is plain text with the query bound
+    (SR-28). No index: the catalogue is a few hundred rows at most, and a
+    trigram index over `unaccent` needs an immutable wrapper function that
+    `schema.rb` cannot hold, which is ADR-0009's revisit.
   - The query is the model's, not the visitor's message: "tem algum produto
     novo?" as a query would match partially at best, while the queries it
     leads to ("produto novo", "novo", "lançamentos") reach the hostile
@@ -1602,7 +1605,10 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     prices and declined the child's question; "dipirona sódica" and
     "paracetamol infantil" listed the products carried, saying the
     catalogue names no such variant; "esomeprazol" was reported as not
-    carried, with no omeprazol offered in its place. The two tool
+    carried, with no omeprazol offered in its place. After the fix
+    review's fixes, "tem aspirina?" searched "ácido acetilsalicílico",
+    found nothing and was reported as not carried, and "tem vitamina E?"
+    got Vitamina C as close and was reported as not carried. The two tool
     definitions bring the cached prefix to about 2,500 tokens.
   - The host's `bin/rails db:seed` waits for PR-09's deploy, the first that
     runs turns: nothing on the host reads products before.
@@ -1623,6 +1629,23 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     trigram threshold. Excluding it would also exclude C3's typos, which
     are as many edits away, so the result marks it close and the
     description forbids offering it as the medicine asked for (FR-09).
+  The fix review over those fixes found (reach as the verifier wrote it):
+  - R1 (`cliente`): the first partial level took any shared stem, so a
+    medicine not carried that shares an acid, a salt or a unit with one
+    carried ("ácido acetilsalicílico", the ingredient the model sends for
+    "aspirina", and Vitamina C's "ácido ascórbico") came back partial
+    instead of empty. A partial match now needs the query to name the
+    product.
+  - R2 (`cliente`): "vitamina e" lost its "e" to the stop words and marked
+    Vitamina C exact; one-letter words count.
+  - R3 (`cliente`): two edits of any kind took "ampicilina" to amoxicilina;
+    two edits count only when they swap two letters.
+  - R4 (`cliente`): a typo beside a word the catalogue lacks ("paracetmaol
+    infantil") found nothing; naming a product takes the typo.
+  Left for the owner's round: "losartana 100 mg" finds nothing, since the
+  salt "potássica" keeps the query from naming the product and its
+  trigram score falls under 0.6, while the other doses tried come back
+  close; PR-14's catalogue cases will show whether the model sends doses.
 
 - Note 2026-11-11 (PR-06, the agent runner). `AgentRunner` (app/agent/)
   wraps the SDK's tool runner and stores nothing: it returns the reply, its
