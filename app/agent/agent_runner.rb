@@ -47,7 +47,7 @@ class AgentRunner
     end
   end
 
-  def initialize(client: nil, tools: [], clock: MONOTONIC, prompt: SystemPrompt.current)
+  def initialize(client: nil, tools: Tools::ALL, clock: MONOTONIC, prompt: SystemPrompt.current)
     @client = client || self.class.default_client
     @tools = tools
     @clock = clock
