@@ -10,9 +10,11 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_09_224510) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_11_170000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+  enable_extension "pg_trgm"
+  enable_extension "unaccent"
 
   create_table "budget_states", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
     t.string "month", null: false
