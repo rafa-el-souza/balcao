@@ -853,9 +853,9 @@ that the turn ends with a polite fallback.
   accepted on these models); the prompt names the tool to use when it
   matters.
 - Prompt caching: `cache_control` after the system prompt and the tool
-  list; nothing volatile before it (the date goes in the first user turn,
-  not the system prompt). The trace shows cached tokens, so a cache miss is
-  visible.
+  list; nothing volatile before it (no date in the system prompt: each
+  visitor message carries the time it was sent, see the PR-06 note in §10).
+  The trace shows cached tokens, so a cache miss is visible.
 - `max_tokens` 1,500 for chat turns; replies are meant to be short.
 - Usage fields from every response feed the budget ledger (FR-14).
 - No retrieval-augmented generation (ADR-0009): identity, hours and policy
@@ -872,6 +872,23 @@ that the turn ends with a polite fallback.
   `refusal`, usage fields, the error classes for 429, 529/overloaded and
   timeout) and asserts that the fake and `AgentRunner` accept them, one
   error fixture per type (NFR-03).
+- Verified on 2026-11-11 (PR-06) against the `anthropic` gem 2.8.0, its
+  source and its examples at the `v2.8.0` tag, and one live turn on the
+  dev/eval key: model ids `claude-opus-5-5` and `claude-haiku-5-5`; the
+  tool runner is `client.beta.messages.tool_runner`, driven one step at a
+  time with `next_message`; tools are `Anthropic::BaseTool` subclasses with
+  `tool_options strict: true` (the SDK writes `additionalProperties:
+  false`); effort is `output_config: {effort: "medium"}`; the refusal
+  fallback is `fallbacks: "default"` with the beta header
+  `server-side-fallback-2026-07-01`, and a call a fallback model served
+  reports each attempt, at its own model, in `usage.iterations`; the
+  system prompt is the `system_:` parameter with `cache_control`, and a
+  top-level `cache_control` caches the conversation's tail; the SDK
+  retries 408, 409, 429, 5xx and timeouts twice by default (three
+  attempts), raising `RateLimitError`, `OverloadedError` (529) and
+  `APITimeoutError`. Live, the system prompt with no tools is about 1,450
+  tokens, above the 512-token minimum these models cache, and a second
+  turn read all of it from the cache.
 
 ### 6.5 Data model
 
@@ -1529,6 +1546,56 @@ MVP from its first day and merges at day 11.
 ## 10. Open decisions
 
 Tracked here until resolved; each resolution becomes an ADR or an edit.
+
+- Note 2026-11-11 (PR-06, the agent runner). `AgentRunner` (app/agent/)
+  wraps the SDK's tool runner and stores nothing: it returns the reply, its
+  language, an outcome and every model and tool call with its usage, and
+  yields each step as it happens, so `ProcessTurnJob` and the
+  `TraceRecorder` of PR-08 do the storing and the broadcasting. Choices the
+  text left open:
+  - The date is not in the first user turn, as §6.4 said before this note:
+    each visitor message carries the time it was sent, in São Paulo time,
+    in a text block of its own, built from the stored time. The model can
+    answer "are you open now?", and a past message reads the same on every
+    turn, so the cached conversation holds.
+  - FR-02 records the conversation's language, and nothing said who
+    detects it. The prompt asks the model to open every reply with a tag
+    (`[pt]`, `[en]`, `[es]`), which the runner strips and returns as the
+    reply's language; a reply without a tag leaves the conversation's
+    language as it is. PR-08 records it and writes the FR-01 notice in it.
+  - Outcomes: `replied`, `refused` (the decline text replaces it, SR-19),
+    `incomplete` (cut off by `max_tokens`, or empty), `tool_limit`,
+    `deadline` and `model_error`; the last four take the NFR-03 fallback in
+    PR-12. A model error is a result carrying the SDK's error, never an
+    exception, so the calls before it keep their usage. The 1,500 output
+    tokens of §6.4 include the adaptive thinking; PR-14's evals will show
+    whether `incomplete` turns appear.
+  - SR-20: no tool call beyond the sixth runs, even in a batch of parallel
+    calls (a gate in `AgentTool` refuses it and the turn ends); each step's
+    request may take only what is left of the sixty seconds, and the clock
+    is checked before every attempt, so a retry never starts after it. A
+    retry that starts before it may run past it by the time the failed
+    attempts of that step took.
+  - Usage comes from `usage.iterations` when the API retried on a fallback
+    model, one entry per attempt at its own model, since the top-level
+    usage covers only the attempt that answered (FR-14, PR-16 prices it).
+  - The tool runner runs with `thread: false`: the history is rebuilt from
+    the database every turn, and a turn's few requests gain nothing from a
+    thread kept by the API.
+  - `AgentTool` is the tools' base: strict schemas, the turn given by the
+    runner (SR-16), JSON results, and a bug's message kept from the model
+    (it is logged and the model reads a fixed failure line).
+  - `FakeModel` sits innermost in the SDK's middleware chain, where its
+    Bedrock and Vertex clients adapt requests (`provider_middleware`, a
+    hook the SDK marks private), so the runner's own request middleware
+    runs above it as in production; if an SDK version moves that hook, the
+    fake reaches for the network, WebMock refuses it, and the suite goes
+    red. Its recording format, `{"responses": [...]}` of status and body,
+    is the one `bin/evals --record` will write. `MODEL_ADAPTER` chooses the
+    fake on rehearsal hosts from M3; `ANTHROPIC_API_KEY` and
+    `MODEL_ADAPTER` join the boot check and the Kamal environment with the
+    first deploy that runs turns (PR-09), since nothing on the host calls
+    the model before then.
 
 - Note 2026-11-11 (PR-05, the seed). The business files of FR-26 arrive
   with a reader each, which refuses a malformed file naming the key:

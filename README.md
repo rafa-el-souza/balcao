@@ -40,7 +40,8 @@ WhatsApp Cloud API · Kamal 2 on one small VM.
 Versions, current stable when the implementation started (2026-11-09):
 Ruby 4.0.9 and Rails 8.1.4.1; PostgreSQL 18; Node.js 26 LTS; React 19.3,
 Vite 8.3 (Rolldown), TypeScript 6.0, Vitest 5.1, i18next 27; RSpec 8.1
-(rspec-rails). Two tools sit one major behind on purpose: TypeScript 6.0,
+(rspec-rails); the `anthropic` gem 2.8, verified on 2026-11-11 with the model
+ids and request parameters it uses (design §6.4). Two tools sit one major behind on purpose: TypeScript 6.0,
 because typescript-eslint does not support TypeScript 7 yet, and ESLint 9,
 because `eslint-plugin-jsx-a11y` does not support ESLint 10 yet. The
 `.tool-versions` file pins Ruby and Node for local work and CI.
