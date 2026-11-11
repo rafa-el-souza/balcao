@@ -55,7 +55,7 @@ one rule key; a rubric alone is not accepted there.
 | `must_not_include` | list | none appears |
 | `max_chars` | int | reply length cap |
 | `handoff_offered` | bool | the reply contains at least one phrase from `phrases.yml › handoff_offer › <lang>` (true) or none (false) |
-| `fact` | key or `{key: selector}` | the reply contains the seed value for that key from `config/store.yml` (e.g. `saturday_hours` → the hours string; `{delivery_areas: "Santa Tereza"}` → that area's fee); exact substring |
+| `fact` | key or `{key: selector}` | the reply contains the seed value for that key from `config/store.yml` (`saturday_hours` → Saturday's closing time, `hours.saturday.closes`; `{delivery_areas: "Santa Tereza"}` → that area's `fee` in `topics.delivery.areas`); exact substring |
 | `reservation_created` | bool | a RESERVATION row exists for the case's visitor after the turn |
 | `booking_created` | bool | same for BOOKING |
 | `conversation_reset` | bool | the case's conversation is closed and a new one is open |
@@ -73,7 +73,11 @@ rubric, never the tools or the trace.
 change one thing: `out_of_stock_ibuprofen` (ibuprofen stock 0),
 `hostile_product_name` (one product named with an instruction-like
 string, threat model SR-21). Seeds live in `evals/seeds/<name>.yml` as
-overrides on `default`.
+overrides on `default`'s catalogue (`db/seeds/catalogue.yml`): an entry
+whose `sku` is in the catalogue changes only the fields it names, any other
+entry is a new product with every field. `spec/evals/seed_spec.rb` checks
+that every seed a case names exists and that the facts the cases ask about
+are in the seed.
 
 ## Running
 

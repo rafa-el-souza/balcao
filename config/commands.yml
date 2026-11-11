@@ -1,0 +1,22 @@
+# The visitor's commands, matched before the model is called (design §6.3):
+# reset starts the conversation over (FR-04), delete erases the visitor's data
+# (FR-05), trace answers with the link to the conversation's trace (FR-12).
+#
+# A message is a command when it is exactly one of these phrases, ignoring
+# case, accents, spaces around and between words, an opening ¿ or ¡ and the
+# final punctuation; never when a phrase is only part of it, so "não quero
+# apagar meus dados" is a message for the attendant, not a deletion. A command
+# is matched in any language, whatever the conversation's; a phrase belongs to
+# one command only. CommandPhrases reads this file once per process.
+reset:
+  pt: [/reiniciar, reiniciar, recomeçar, começar de novo]
+  en: [/reset, reset, restart, start over]
+  es: [/reiniciar, reiniciar, empezar de nuevo]
+delete:
+  pt: [/apagar, apagar meus dados]
+  en: [/delete, delete my data]
+  es: [/borrar, borrar mis datos]
+trace:
+  pt: [/trace, como você funciona?]
+  en: [/trace, how do you work?]
+  es: [/trace, ¿cómo funcionas?]

@@ -1,0 +1,79 @@
+# Farmácia Vida Longa, the fictional pharmacy Balcão attends (design §1.2).
+# The store is this file (FR-26): change the hours, an area or a price here,
+# restart the app, and the attendant answers with the new fact; no code
+# changes. StoreSheet reads it once per process and refuses a malformed one
+# (spec/models/store_sheet_spec.rb); spec/evals/seed_spec.rb checks that the
+# facts the eval cases ask about are still here.
+#
+# Everything is invented (threat model SR-33): the street, the number and the
+# phone, checked against real ones before publication; the neighbourhoods are
+# real places in Belo Horizonte, as a delivery area has to be. Facts are
+# written in Portuguese, as the pharmacy would; the attendant translates them
+# for an English or Spanish visitor (FR-02). Money is written as the visitor
+# reads it ("R$ 7,00").
+
+# In the system prompt, with the hours (FR-03).
+identity:
+  name: Farmácia Vida Longa
+  kind: farmácia de bairro
+  address: Rua dos Boticários, 120 — Floresta
+  city: Belo Horizonte
+
+# Opening hours, São Paulo time (design §1.4), HH:MM on a 24-hour clock. A
+# business day is a day with hours here; the seven days are all named, and a
+# day without hours says `closed`. Also in the system prompt (FR-03).
+hours:
+  monday: { opens: "08:00", closes: "20:00" }
+  tuesday: { opens: "08:00", closes: "20:00" }
+  wednesday: { opens: "08:00", closes: "20:00" }
+  thursday: { opens: "08:00", closes: "20:00" }
+  friday: { opens: "08:00", closes: "20:00" }
+  saturday: { opens: "08:00", closes: "14:00" }
+  sunday: closed
+
+# Reached only through get_store_info(topic), one topic per call (FR-03). The
+# five names are the tool's enum; a topic's mapping is what the tool returns.
+topics:
+  delivery:
+    areas:
+      - { name: Floresta, fee: "R$ 5,00", time: até 40 minutos }
+      - { name: Santa Tereza, fee: "R$ 7,00", time: até 50 minutos }
+      - { name: Sagrada Família, fee: "R$ 8,00", time: até 50 minutos }
+      - { name: Horto, fee: "R$ 9,00", time: até 1 hora }
+    hours: Durante o horário de funcionamento; o último pedido do dia sai 30 minutos antes de fechar.
+    notes:
+      - Fora desses bairros não fazemos entrega.
+      - Medicamentos que exigem receita não vão por entrega; são vendidos no balcão, com a receita.
+
+  payment:
+    methods: [Pix, cartão de débito, cartão de crédito, dinheiro]
+    notes:
+      - No crédito, em até 3 vezes sem juros nas compras a partir de R$ 100,00.
+      - Não aceitamos cheque.
+
+  # The in-store services; bookable from FR-08 (M2), each `key` the one
+  # book_appointment will take.
+  services:
+    list:
+      - key: blood_pressure
+        name: Aferição de pressão arterial
+        price: "R$ 5,00"
+        prescription_required: false
+      - key: glucose
+        name: Teste de glicemia capilar
+        price: "R$ 12,00"
+        prescription_required: false
+      - key: injection
+        name: Aplicação de injetável
+        price: "R$ 15,00"
+        prescription_required: true
+        notes: Traga o medicamento e a receita que o prescreveu.
+    where: Na sala de atendimento da loja, durante o horário de funcionamento.
+
+  # The MVP's fixed handoff line reads the phone and the hours (FR-10 MVP note).
+  contact:
+    phone: "(31) 1234-5678"
+    pharmacist: O farmacêutico responsável atende no balcão durante todo o horário de funcionamento.
+
+  parking:
+    text: Duas vagas de 15 minutos em frente à loja; no resto da rua, estacionamento rotativo.
