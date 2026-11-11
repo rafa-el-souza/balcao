@@ -50,6 +50,18 @@ RSpec.describe "FR-14 SR-01 SR-36 per-IP and per-visitor limits", type: :request
       expect(response).to have_http_status(:unauthorized)
     end
 
+    # The fix review of pull request #12: since review finding C2, the
+    # requests above count apart as anonymous; the web app's own count too.
+    it "refuses the web app's 61st request within a minute, its cookie's polls and its messages together" do
+      session_from("203.0.113.7")
+      5.times { message_from("203.0.113.7") }
+      54.times { poll_from("203.0.113.7") }
+      expect(response).to have_http_status(:ok)
+
+      poll_from("203.0.113.7")
+      expect(limited?("limits.now")).to be true
+    end
+
     it "refuses its 21st new session within an hour, storing nothing" do
       20.times { session_from("203.0.113.7").then { cookies.delete(WebSession::COOKIE.to_s) } }
       expect(response).to have_http_status(:created)
