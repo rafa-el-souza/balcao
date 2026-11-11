@@ -15,6 +15,14 @@
 default: &default
   adapter: postgresql
   encoding: unicode
+  # A statement or a lock wait that runs past these is stuck: it gives up
+  # rather than hold a turn past its sixty seconds (threat model SR-20, review
+  # finding C5 of pull request #10). ConversationLock's wait for the turn
+  # ahead lifts both for its one statement (app/models/conversation_lock.rb).
+  # A migration that needs longer sets its own.
+  variables:
+    statement_timeout: 5s
+    lock_timeout: 2s
   # For details on connection pooling, see Rails configuration guide
   # https://guides.rubyonrails.org/configuring.html#database-pooling
   max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
