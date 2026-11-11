@@ -59,6 +59,33 @@ RSpec.describe "FR-06 FR-15 FR-26 the catalogue seed" do
       expect(Product.find_by!(sku: "dipirona-500mg-10cp").id).to eq id
     end
 
+    describe "on a database with open reservations (FR-15; review finding C4 of pull request #8)" do
+      before { CatalogueSeed.seed! }
+
+      let(:dipirona) { Product.find_by!(sku: "dipirona-500mg-10cp") }
+
+      it "leaves out the units open reservations hold, so db:seed on a live database never sells them twice" do
+        create(:reservation, product: dipirona, quantity: 10)
+        create(:reservation, product: dipirona, quantity: 3)
+        create(:reservation, product: dipirona, quantity: 5, state: "expired")
+        create(:reservation, product: dipirona, quantity: 7, state: "cancelled")
+        dipirona.update!(stock: 1)
+
+        Rails.application.load_seed
+
+        expect(dipirona.reload.stock).to eq 40 - 13
+      end
+
+      it "never writes a negative stock when open reservations hold more than the seed has" do
+        thermometer = Product.find_by!(sku: "termometro-digital")
+        create(:reservation, product: thermometer, quantity: 8)
+
+        CatalogueSeed.seed!
+
+        expect(thermometer.reload.stock).to eq 0
+      end
+    end
+
     describe "a product the seed no longer lists (FR-26; review finding C1 of pull request #8)" do
       let(:without_thermometer) { CatalogueSeed.entries.reject { |entry| entry[:sku] == "termometro-digital" } }
 

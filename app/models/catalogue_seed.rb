@@ -26,15 +26,29 @@ class CatalogueSeed
   # deleted; while a reservation still points at it, it stays with no stock,
   # so no one reserves it, and a later run deletes it once the seven-day
   # purge has taken its reservations (FR-15; review finding C1 of pull
-  # request #8). The stock written is the seed's, whatever is reserved: the
-  # nightly reset subtracts the open reservations (FR-15, PR-16), so on a live
-  # database this is a fresh start.
+  # request #8). The stock written is the seed's less the units that open
+  # reservations hold, never below zero, so a run on a live database, by
+  # hand or by the nightly reset, never offers those units again (FR-15;
+  # finding C4 of the same review).
+  #
+  # The reservations are summed after the upsert, inside its transaction: the
+  # upsert holds the product rows, so a reservation committed before the sum
+  # is counted, and one still in flight takes its units from the stock written
+  # here once this transaction commits, as long as the reservation and its
+  # relative decrement (stock = stock - n) share one transaction (PR-13).
   def self.seed!(entries = self.entries)
     raise Invalid, "no products to seed" if entries.empty?
 
+    skus = entries.map { |entry| entry[:sku] }
     Product.transaction do
       Product.upsert_all(entries, unique_by: :sku)
-      removed = Product.where.not(sku: entries.map { |entry| entry[:sku] })
+      Product.where(sku: skus).update_all(<<~SQL.squish)
+        stock = GREATEST(stock - (
+          SELECT COALESCE(SUM(reservations.quantity), 0) FROM reservations
+          WHERE reservations.product_id = products.id AND reservations.state = 'open'
+        ), 0)
+      SQL
+      removed = Product.where.not(sku: skus)
       removed.where.not(id: Reservation.select(:product_id)).delete_all
       removed.update_all(stock: 0)
     end
