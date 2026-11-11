@@ -27,6 +27,13 @@ RSpec.describe "FR-03 FR-26 the store fact sheet" do
       end
     end
 
+    it "lists the week from Monday, as the system prompt shows it, with the same hours as each date" do
+      monday = Date.new(2026, 11, 9)
+
+      expect(sheet.week.map(&:first)).to eq %w[monday tuesday wednesday thursday friday saturday sunday]
+      expect(sheet.week.map(&:last)).to eq((0..6).map { |offset| sheet.hours_on(monday + offset) })
+    end
+
     it "keeps Saturday shorter than a weekday, the fact the store-hours eval reads" do
       saturday = sheet.hours_on(Date.new(2026, 11, 14))
       monday = sheet.hours_on(Date.new(2026, 11, 9))

@@ -106,7 +106,10 @@ are in the seed.
 - Re-recording is local work: the slice that changes a prompt, a tool
   definition or an opener runs `bin/evals --record --fast` with the
   dev/eval key from the implementer's env file and commits the recordings
-  in the same pull request.
+  in the same pull request. A recording is `evals/recordings/<case id>.json`,
+  the API's responses in order (`{"responses": [{"status": 200, "body":
+  {...}}, ...]}`), which the fake model (`app/agent/fake_model.rb`)
+  replays.
 - The full run is manual: `workflow_dispatch` at each milestone close and
   on the monthly bump day, started by the owner in the Actions tab (the
   implementer's token has no Actions permission), with the dev/eval key
