@@ -1559,24 +1559,32 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     It does not ask the model to turn a symptom into an ingredient
     (ADR-0009's "remédio pra dor de cabeça"): choosing a medicine for a
     symptom is FR-09's to decline.
-  - The search folds the query and the text (lower case, `unaccent`); a
-    product matches on pg_trgm's `word_similarity` from 0.6, pg_trgm's own
-    default, which keeps a one-letter typo and drops a shared word like
-    "comprimidos", or when every word of the query is in it by a Portuguese
-    full-text match. Ranked by the trigram score rounded to two places,
-    then by name. No index: the catalogue is a few hundred rows at most, and
-    a trigram index over `unaccent` needs an immutable wrapper function that
-    `schema.rb` cannot hold, which is ADR-0009's revisit.
-  - The query is the model's, not the visitor's message, and the full-text
-    match needs every word: "tem algum produto novo?" as a query finds
-    nothing, while the queries it leads to ("produto novo", "novo",
-    "lançamentos") reach the hostile product (review finding C3 of pull
-    request #8). The injection suite (M2) measures what the model sends.
+  - The search folds the query and the product's name and active
+    ingredient (lower case, `unaccent`) and splits them into Portuguese
+    stems, stop words left out. A product matches exact when it holds every
+    stem of the query; close when its trigrams are near the query's
+    (pg_trgm's `word_similarity` from 0.6, pg_trgm's own default) or each
+    stem is within a Levenshtein distance of one of its stems (two edits
+    from seven letters, one from five, `fuzzystrmatch`); partial when it
+    holds some stems, offered only when nothing matches exact or close.
+    Ranked by match, then by the stems held, then by the trigram score
+    rounded to two places, then by name. No index: the catalogue is a few
+    hundred rows at most, and a trigram index over `unaccent` needs an
+    immutable wrapper function that `schema.rb` cannot hold, which is
+    ADR-0009's revisit.
+  - The query is the model's, not the visitor's message: "tem algum produto
+    novo?" as a query would match partially at best, while the queries it
+    leads to ("produto novo", "novo", "lançamentos") reach the hostile
+    product exactly (review finding C3 of pull request #8). The injection
+    suite (M2) measures what the model sends.
   - A result lists each product's id (create_reservation's, PR-13), name,
     active ingredient, price as the visitor reads it ("R$ 7,90"), stock (0
-    is out of stock), prescription flag and score; nothing found is an
-    empty list, which the description tells the model to report, offering
-    the pharmacist.
+    is out of stock), prescription flag, match and score; nothing found is
+    an empty list, which the description tells the model to report,
+    offering the pharmacist. The description also tells the model that a
+    close match may be another medicine and that offering a different
+    active ingredient in place of the one asked for is a substitution, the
+    pharmacist's to decide (FR-09).
   - SR-16: the API takes no bounds on an integer (the SDK moves them into
     the description), so the tool checks them: the limit is held between 1
     and 5 (5 when absent or not a number), and a query is text of at most
@@ -1589,10 +1597,32 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     with a tool ("vcs tem paracetamo?" searched "paracetamol",
     "amoxicillin" searched "amoxicilina", Santa Tereza's fee came from
     `get_store_info`), and the two products not carried were reported as
-    such, with the pharmacist offered. The two tool definitions add about
-    850 tokens to the cached prefix, now about 2,300.
+    such, with the pharmacist offered. After the review's fixes, four more:
+    the chip of `boundary-pt-03-mixed` listed both dipironas with their
+    prices and declined the child's question; "dipirona sódica" and
+    "paracetamol infantil" listed the products carried, saying the
+    catalogue names no such variant; "esomeprazol" was reported as not
+    carried, with no omeprazol offered in its place. The two tool
+    definitions bring the cached prefix to about 2,500 tokens.
   - The host's `bin/rails db:seed` waits for PR-09's deploy, the first that
     runs turns: nothing on the host reads products before.
+  The review of pull request #10 found (reach as its verifier wrote it):
+  - C1 (`cliente`): a query with a word no product holds ("paracetamol
+    infantil", "dipirona sódica", a brand beside the ingredient) found
+    nothing, since the full-text match needed every word and the trigram
+    score fell below 0.6, and the description made that "not carried". The
+    partial match lists the products that hold some of its words.
+  - C2 (`cliente`): a product the catalogue file dropped stays in the table
+    while a reservation points at it (PR-05's note, C1 of #8), and the
+    search listed it as out of stock. `product.listed` (§6.5), false for
+    such a row, keeps it out; seeding lists it again if the file does.
+  - C3 (`cliente`): two swapped letters ("dipriona") broke too many
+    trigrams; the stems' edit distance finds it.
+  - V1 (`cliente`, found by the verifier): a similar name of another
+    medicine ("esomeprazol", "eritromicina", "vitamina d") reaches the
+    trigram threshold. Excluding it would also exclude C3's typos, which
+    are as many edits away, so the result marks it close and the
+    description forbids offering it as the medicine asked for (FR-09).
 
 - Note 2026-11-11 (PR-06, the agent runner). `AgentRunner` (app/agent/)
   wraps the SDK's tool runner and stores nothing: it returns the reply, its
