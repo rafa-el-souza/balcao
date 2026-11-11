@@ -1,6 +1,8 @@
 # The landing's openers, config/openers.yml (FR-21): the chat sends a key and
 # the server sends the text that key names. Only a key of the file resolves;
-# any other value, of any type, resolves to nothing (threat model SR-34).
+# any other value, of any type, resolves to nothing (threat model SR-34). A
+# text that is a command phrase is refused, so a shared /chat?say= link can
+# never reset or delete on page load (review finding N4 of pull request #8).
 class Openers
   PATH = Rails.root.join("config/openers.yml")
   LANGUAGES = %w[pt en es].freeze
@@ -18,7 +20,8 @@ class Openers
     raise Invalid, "#{path}: #{e.message}"
   end
 
-  def initialize(data)
+  def initialize(data, commands: CommandPhrases.current)
+    @commands = commands
     raise Invalid, "openers must be a mapping of key to { lang, text }" unless data.is_a?(Hash) && data.any?
 
     @openers = data.to_h { |key, opener| [ key, check(key, opener) ] }.freeze
@@ -36,6 +39,7 @@ class Openers
     raise Invalid, "#{key} must be { lang, text }" unless opener.is_a?(Hash) && opener.keys.sort == %w[lang text]
     raise Invalid, "#{key}.lang must be one of #{LANGUAGES.join(", ")}" unless LANGUAGES.include?(opener["lang"])
     raise Invalid, "#{key}.text must be non-empty text" unless opener["text"].is_a?(String) && opener["text"].strip.present?
+    raise Invalid, "#{key}.text is a command (config/commands.yml)" if @commands.match(opener["text"])
 
     Opener.new(key:, lang: opener["lang"], text: opener["text"].freeze)
   end
