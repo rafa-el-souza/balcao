@@ -73,6 +73,12 @@ RSpec.describe "FR-06 ADR-0009 the catalogue search" do
     expect(names("nimesulida 100 mg")).to be_empty
   end
 
+  it "lists a product partial when the query names it with a typo and adds a word the catalogue lacks (review finding R4 of pull request #10)" do
+    expect(matches("paracetmaol infantil")).to include("Paracetamol gotas 200 mg/ml, 15 ml" => "partial")
+    expect(matches("dipirna infantil")).to include("Dipirona gotas 500 mg/ml, 20 ml" => "partial")
+    expect(names("dipriona 500mg")).to include("Dipirona 500 mg, 10 comprimidos")
+  end
+
   it "lists a product partial when the query names its active ingredient or the head of its name, and adds words" do
     expect(matches("vitamina c infantil")).to eq("Vitamina C 1 g, 10 comprimidos efervescentes" => "partial")
     expect(matches("dipirona sódica 1 g comprimido").keys).to contain_exactly("Dipirona 500 mg, 10 comprimidos", "Dipirona gotas 500 mg/ml, 20 ml")

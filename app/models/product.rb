@@ -61,7 +61,7 @@ class Product < ApplicationRecord
                WHERE part.id = products.id AND part.kind IN ('ingredient', 'head') AND cardinality(part.stems) > 0
                  AND NOT EXISTS (
                    SELECT 1 FROM unnest(part.stems) AS stem
-                   WHERE NOT EXISTS (SELECT 1 FROM pairs WHERE pairs.id = products.id AND found = stem AND asked = found)
+                   WHERE NOT EXISTS (SELECT 1 FROM pairs WHERE pairs.id = products.id AND found = stem AND alike)
                  )
              ) AS named
       FROM products
@@ -101,9 +101,10 @@ class Product < ApplicationRecord
   #   #10), and another product with a similar name, which search_products
   #   tells the model apart; two edits of any kind would reach other
   #   medicines ("ampicilina" is two from amoxicilina; review finding R3);
-  # - partial when the query names it, that is holds every stem of its
-  #   active ingredient or of the head of its name (the words before the
-  #   first number or comma), and adds words the catalogue lacks; offered
+  # - partial when the query names it, that is holds a stem alike each stem
+  #   of its active ingredient or of the head of its name (the words before
+  #   the first number or comma), a typo included (review finding R4 of pull
+  #   request #10), and adds words the catalogue lacks; offered
   #   only when no product matches exact or close. So "paracetamol infantil"
   #   still finds the paracetamol the store carries (review finding C1 of
   #   pull request #10), "dipirona gotas" lists no other drops, and a
