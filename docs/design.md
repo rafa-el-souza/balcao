@@ -1591,7 +1591,9 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     characters or `say`, an allow-listed key), 409 for an id another
     visitor's message holds. NUL characters are dropped. The proxy refuses a
     body over 1 MB before the app's server buffers it, and a middleware
-    refuses one over 16 KB to `/api/*` before any controller runs. Rails
+    refuses one over 16 KB to `/api/*`, on the path as the router reads it,
+    after the edge has counted the request and before any controller runs
+    (review findings R1 and V4 of pull request #12). Rails
     reads no JSON body as parameters, so its instrumentation never logs a
     visitor's message, and each endpoint reads its own body after the
     checks; `text` and `body` are filtered from the log besides (SR-30;
