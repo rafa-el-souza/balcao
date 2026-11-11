@@ -131,6 +131,58 @@ RSpec.describe "FR-14 SR-01 SR-36 per-IP and per-visitor limits", type: :request
     end
   end
 
+  # Review finding C2 of pull request #12: a hostile page can make its
+  # visitors' browsers post here, with its own Origin and without the
+  # SameSite=Strict cookie. The app refuses those requests; the edge must not
+  # let them spend the limits of the address they come from.
+  describe "requests a browser sends from another site" do
+    # As a browser sends it: another site's Origin, and no SameSite=Strict
+    # cookie, which rack-test would otherwise send.
+    def cross_site(path)
+      held = cookies[WebSession::COOKIE.to_s]
+      cookies.delete(WebSession::COOKIE.to_s)
+      post(path, params: "x", headers: { "Content-Type" => "text/plain", "Origin" => "https://evil.example" }, env: from("203.0.113.7"))
+    ensure
+      cookies[WebSession::COOKIE.to_s] = held if held
+    end
+
+    it "do not spend the address's turns" do
+      200.times do |n|
+        travel(61.seconds) if (n % 55).zero?
+        cross_site("/api/messages")
+      end
+      expect(response).to have_http_status(:forbidden)
+
+      travel 61.seconds
+      session_from("203.0.113.7")
+      message_from("203.0.113.7")
+      expect(response).to have_http_status(:accepted)
+    end
+
+    it "do not count as minted sessions" do
+      20.times { cross_site("/api/session") }
+
+      session_from("203.0.113.7")
+      expect(response).to have_http_status(:created)
+    end
+
+    it "do not use up the address's requests of the minute for the visitors who hold a cookie" do
+      session_from("203.0.113.7")
+      70.times { cross_site("/api/messages") }
+
+      poll_from("203.0.113.7")
+      expect(response).to have_http_status(:ok)
+    end
+
+    it "are limited on their own: the 61st anonymous request in a minute is refused" do
+      60.times { cross_site("/api/messages") }
+      expect(response).to have_http_status(:forbidden)
+
+      cross_site("/api/messages")
+      expect(limited?("limits.now")).to be true
+    end
+  end
+
   # Review finding C1 of pull request #12: the routes took a format
   # extension, which the edge did not count as a turn or a session.
   describe "a path with a format extension" do

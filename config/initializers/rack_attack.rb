@@ -6,7 +6,10 @@
 Rack::Attack.cache.store = Rails.cache
 
 Rack::Attack.blocklist("ip/requests") do |request|
-  EdgeLimits.api?(request) && EdgeLimits.over?("ip/requests", EdgeLimits.source_of(request))
+  EdgeLimits.api?(request) && EdgeLimits.from_app?(request) && EdgeLimits.over?("ip/requests", EdgeLimits.source_of(request))
+end
+Rack::Attack.blocklist("ip/anonymous") do |request|
+  EdgeLimits.api?(request) && !EdgeLimits.from_app?(request) && EdgeLimits.over?("ip/anonymous", EdgeLimits.source_of(request))
 end
 Rack::Attack.blocklist("ip/sessions") do |request|
   EdgeLimits.new_session?(request) && EdgeLimits.over?("ip/sessions", EdgeLimits.source_of(request))

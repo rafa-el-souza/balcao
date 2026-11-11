@@ -14,12 +14,19 @@ module EdgeLimits
   Limit = Data.define(:name, :limit, :period, :reply)
 
   LIMITS = [
-    # Every API and cable request of one source, and every cable subscription.
+    # Every API and cable request of one source from the web app (its origin
+    # or its cookie), and every cable subscription.
     Limit.new(name: "ip/requests", limit: 60, period: 1.minute, reply: :now),
-    # Every session minted for one source: a page load that brings back its
-    # cookie mints nothing.
+    # The same for the requests of one source that are neither: refused by the
+    # app, and counted apart, so a hostile page whose visitors' browsers post
+    # here cannot use up the minute of the web app's own pages behind the same
+    # address (review finding C2 of pull request #12).
+    Limit.new(name: "ip/anonymous", limit: 60, period: 1.minute, reply: :now),
+    # Every session minted for one source from the public origin: a page load
+    # that brings back its cookie mints nothing, nor does a request the app
+    # refuses for its origin.
     Limit.new(name: "ip/sessions", limit: 20, period: 1.hour, reply: :now),
-    # Every turn of one source, whoever's.
+    # Every turn of one source from the public origin, whoever's.
     Limit.new(name: "ip/turns", limit: 200, period: 1.day, reply: :today),
     # Every turn of one visitor identity.
     Limit.new(name: "visitor/minute", limit: 10, period: 1.minute, reply: :now),
@@ -47,9 +54,19 @@ module EdgeLimits
 
   def api?(request) = request.path.start_with?("/api/") || request.path == "/cable"
 
-  def new_session?(request) = request.post? && request.path == "/api/session" && visitor(request).nil?
+  # A browser sets Origin itself, so another site's page cannot send ours; a
+  # script can, and is then counted like the web app.
+  def public_origin?(request) = request.get_header("HTTP_ORIGIN") == Rails.configuration.x.public_origin
 
-  def turn?(request) = request.post? && request.path == "/api/messages"
+  # The web app's request: from its origin, or with its cookie, which
+  # SameSite=Strict keeps off another site's requests.
+  def from_app?(request) = public_origin?(request) || !visitor(request).nil?
+
+  def new_session?(request)
+    request.post? && request.path == "/api/session" && public_origin?(request) && visitor(request).nil?
+  end
+
+  def turn?(request) = request.post? && request.path == "/api/messages" && public_origin?(request)
 
   # The hash of the visitor cookie's token, read once per request.
   def visitor(request)
