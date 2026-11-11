@@ -6,7 +6,9 @@ Rails.application.routes.draw do
   get "up" => "rails/health#show", as: :rails_health_check
 
   # The public API (design §6.6); the cable is mounted at /cable by Action Cable.
-  namespace :api, defaults: { format: :json } do
+  # No format extension: each endpoint has one path, the one the edge limits
+  # count (review finding C1 of pull request #12, threat model SR-01).
+  namespace :api, defaults: { format: :json }, format: false do
     resource :session, only: :create
     resources :messages, only: :create
     get "conversations/current", to: "conversations#current"

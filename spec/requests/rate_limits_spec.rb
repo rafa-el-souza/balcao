@@ -131,6 +131,34 @@ RSpec.describe "FR-14 SR-01 SR-36 per-IP and per-visitor limits", type: :request
     end
   end
 
+  # Review finding C1 of pull request #12: the routes took a format
+  # extension, which the edge did not count as a turn or a session.
+  describe "a path with a format extension" do
+    def json_post(path, body) = post(path, params: body.to_json, headers: { "Content-Type" => "application/json", "Origin" => origin },
+                                                             env: from("203.0.113.7"))
+
+    it "is never a turn: /api/messages.json stores nothing and enqueues no job" do
+      session_from("203.0.113.7")
+
+      expect { json_post("/api/messages.json", { id: SecureRandom.uuid, text: "oi" }) }.not_to change(Message, :count)
+      expect(response).to have_http_status(:not_found)
+      expect(enqueued_jobs).to be_empty
+    end
+
+    it "is never a session: /api/session.json mints none" do
+      expect { json_post("/api/session.json", {}) }.not_to change(Visitor, :count)
+      expect(response).to have_http_status(:not_found)
+      expect(response.headers["Set-Cookie"]).to be_nil
+    end
+
+    it "is never a poll: /api/conversations/current.json answers nothing" do
+      session_from("203.0.113.7")
+      get "/api/conversations/current.json", env: from("203.0.113.7")
+
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
   describe "one visitor" do
     before { session_from("203.0.113.7") }
 
