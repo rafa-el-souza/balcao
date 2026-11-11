@@ -110,6 +110,18 @@ class AgentRunner
       raise DeadlineExceeded, "the turn's #{WALL_CLOCK} s are spent" if remaining <= 0
     end
 
+    # The SDK waits as long as a failed attempt's retry-after asks before it
+    # retries, however long; a wait that outlasts what is left of the turn
+    # is not made, and the SDK raises the attempt's error at once (review
+    # finding C2 of pull request #9, SR-20). It reads x-should-retry first.
+    def bound_retry(response)
+      wait = requested_wait(response.headers)
+      return response unless wait && wait >= remaining
+
+      Anthropic::APIResponse.new(status: response.status, headers: response.headers.merge("x-should-retry" => "false"),
+                                 body: response.body, raw: response.raw, request: response.request)
+    end
+
     # The model's answer, as it arrives and before the SDK runs its tools.
     def model_answered(message)
       record(ModelCall.new(model: message.model.to_s, effort: @route.effort, stop_reason: message.stop_reason.to_s,
@@ -159,6 +171,19 @@ class AgentRunner
     end
 
     def remaining = @deadline - @clock.call
+
+    # The wait a response asks for, in seconds, read as the SDK reads it:
+    # retry-after-ms, then retry-after in seconds or as an HTTP date.
+    def requested_wait(headers)
+      if (milliseconds = Float(headers["retry-after-ms"], exception: false))
+        return milliseconds / 1000
+      end
+
+      after = headers["retry-after"] or return
+      Float(after, exception: false) || (Time.httpdate(after) - Time.now)
+    rescue ArgumentError
+      nil
+    end
 
     def result_of(message)
       case message&.stop_reason
@@ -226,13 +251,16 @@ class AgentRunner
   end
 
   # The request middleware around every attempt of a model call, the SDK's
-  # retries included: the wall clock is checked before it, and an answer is
-  # recorded as it arrives (the SDK raises the error of a failed one later).
+  # retries included: the wall clock is checked before it, an answer is
+  # recorded as it arrives, and a failed one's retry is bounded by the clock
+  # (the SDK raises its error later).
   Watch = Struct.new(:run) do
     def call(request, nxt)
       run.check_deadline
       response = nxt.call(request)
-      run.model_answered(response.parse) if response.status < 300
+      return run.bound_retry(response) if response.status >= 300
+
+      run.model_answered(response.parse)
       response
     end
   end

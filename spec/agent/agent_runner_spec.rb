@@ -297,6 +297,57 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
       end
     end
 
+    # Review finding C2 of pull request #9: the SDK sleeps as long as a
+    # response's retry-after asks, so the wait must fit the turn (SR-20).
+    describe "a retry the API asks to wait for" do
+      let(:delays) { [] }
+      let(:client) do
+        fake.client.tap do |client|
+          allow(client).to receive(:sleep) { |seconds| delays << seconds && clock.advance(seconds) }
+        end
+      end
+      let(:runner) { AgentRunner.new(client:, tools: [ SpecTools::Echo ], clock:) }
+
+      context "when the wait outlasts what is left of the turn" do
+        let(:responses) { [ error(:rate_limit).merge(headers: { "retry-after" => "120" }), reply("[pt] tarde") ] }
+
+        it "is not made, and the turn ends with the API's error" do
+          result = runner.run(turn)
+
+          expect(result).to have_attributes(outcome: :model_error, error: an_instance_of(Anthropic::Errors::RateLimitError))
+          expect(delays).to be_empty
+          expect(fake.requests.size).to eq(1)
+        end
+      end
+
+      context "when the wait in milliseconds outlasts it" do
+        let(:responses) { [ error(:overloaded).merge(headers: { "retry-after-ms" => "61000" }), reply("[pt] tarde") ] }
+
+        it "is not made either" do
+          expect(runner.run(turn)).to have_attributes(outcome: :model_error)
+          expect(delays).to be_empty
+        end
+      end
+
+      context "when the wait is an HTTP date past the turn" do
+        let(:responses) { [ error(:rate_limit).merge(headers: { "retry-after" => 2.minutes.from_now.httpdate }), reply("[pt] tarde") ] }
+
+        it "is not made either" do
+          expect(runner.run(turn)).to have_attributes(outcome: :model_error)
+          expect(delays).to be_empty
+        end
+      end
+
+      context "when the wait fits" do
+        let(:responses) { [ error(:rate_limit).merge(headers: { "retry-after" => "2" }), reply("[pt] Pronto.") ] }
+
+        it "is made, as the SDK makes it" do
+          expect(runner.run(turn)).to have_attributes(outcome: :replied, text: "Pronto.")
+          expect(delays).to eq([ 2.0 ])
+        end
+      end
+    end
+
     context "when an error follows a tool call" do
       let(:responses) { [ tool_turn(tool_use("echo", { "text" => "x" })), *Array.new(3) { error(:overloaded) } ] }
 
