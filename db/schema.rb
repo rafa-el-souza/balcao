@@ -10,9 +10,12 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_09_224510) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_11_181000) do
   # These are extensions that must be enabled in order to support this database
+  enable_extension "fuzzystrmatch"
   enable_extension "pg_catalog.plpgsql"
+  enable_extension "pg_trgm"
+  enable_extension "unaccent"
 
   create_table "budget_states", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
     t.string "month", null: false
@@ -66,6 +69,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_09_224510) do
     t.boolean "prescription_required", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "listed", default: true, null: false
     t.index ["sku"], name: "index_products_on_sku", unique: true
     t.check_constraint "price >= 0::numeric", name: "products_price_not_negative"
     t.check_constraint "stock >= 0", name: "products_stock_not_negative"
