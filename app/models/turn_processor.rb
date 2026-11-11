@@ -185,12 +185,7 @@ class TurnProcessor
     Message.record_outbound!(turn: @turn, body:, conversation:)
   end
 
-  def broadcast_reply(message)
-    broadcast(type: "message", message: {
-      id: message.id, conversation_id: message.conversation_id, turn_id: message.turn_id,
-      author: message.author, body: message.body, created_at: message.created_at.iso8601(3)
-    })
-  end
+  def broadcast_reply(message) = broadcast(type: "message", message: message.stream_payload)
 
   # On the stream of the turn's conversation, the one the visitor's page
   # follows; a reset's reply names the conversation it opened. A broadcast

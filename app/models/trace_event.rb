@@ -11,4 +11,8 @@ class TraceEvent < ApplicationRecord
   validates :parent_span_id, format: { with: SPAN_ID }, allow_nil: true
   validates :trace_id, :span_id, :parent_span_id, format: { with: LOWERCASE }, allow_nil: true
   validates :name, :started_at, presence: true
+
+  # The span as the streams carry it (TraceRecorder.payload), for the polling
+  # endpoint (FR-18).
+  def stream_payload = TraceRecorder.payload(attributes.symbolize_keys.merge(attributes: span_attributes))[:span]
 end

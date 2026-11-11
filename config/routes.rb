@@ -5,6 +5,13 @@ Rails.application.routes.draw do
   # Can be used by load balancers and uptime monitors to verify that the app is live.
   get "up" => "rails/health#show", as: :rails_health_check
 
+  # The public API (design §6.6); the cable is mounted at /cable by Action Cable.
+  namespace :api, defaults: { format: :json } do
+    resource :session, only: :create
+    resources :messages, only: :create
+    get "conversations/current", to: "conversations#current"
+  end
+
   # The web app's shell; its own routes join here as its pages arrive (design §6.7).
   root "spa#show"
 end

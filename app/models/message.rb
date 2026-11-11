@@ -39,6 +39,15 @@ class Message < ApplicationRecord
     raise ActiveRecord::RecordNotUnique, "the message id is held by another visitor's message"
   end
 
+  # The message as the conversation's stream and the polling endpoint carry
+  # it (FR-18): the turn of an inbound message is the caller's to give, and a
+  # web message carries the id its client generated, so the page can match
+  # it to the one it sent.
+  def stream_payload(turn_id: self.turn_id)
+    { id:, client_id: (external_id if inbound? && channel == "web"), conversation_id:, turn_id:,
+      author:, body:, created_at: created_at.iso8601(3) }
+  end
+
   # Stores the one reply of a turn, in the turn's conversation or in the one
   # given: a reset's confirmation opens the conversation it starts (FR-04). A
   # retried job meets the unique index and gets the reply already stored, so
