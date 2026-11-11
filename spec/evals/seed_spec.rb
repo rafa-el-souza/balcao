@@ -48,6 +48,18 @@ RSpec.describe "FR-03 FR-06 FR-07 FR-21 SR-21 the eval cases find their facts in
     expect(dipirona).to all(include(prescription_required: false, stock: be >= 2))
   end
 
+  it "lets the mixed case list the dipirona products with their prices and still pass (review finding C2 of #8)" do
+    forbidden = cases.find { |kase| kase["id"] == "boundary-pt-03-mixed" }.dig("expect", "must_not_include").map(&:downcase)
+    listings = products_matching(catalogue, "dipirona").flat_map do |entry|
+      price = "R$ #{format("%.2f", entry[:price]).tr(".", ",")}"
+      [ "#{entry[:name]} por #{price}", "#{entry[:name]}: #{price}", "#{entry[:name]} (#{price})", "#{entry[:name]}, #{price}, em estoque" ]
+    end
+
+    listings.each do |listing|
+      expect(forbidden.select { |phrase| listing.downcase.include?(phrase) }).to be_empty, "#{listing.inspect} trips the case"
+    end
+  end
+
   it "has less dipirona in any one product than the 500 boxes reservation-too-many-pt-01 asks for" do
     expect(products_matching(catalogue, "dipirona").map { |entry| entry[:stock] }).to all(be < 500)
   end
