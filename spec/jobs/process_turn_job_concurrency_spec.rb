@@ -74,4 +74,28 @@ RSpec.describe "NFR-02 design §6.3 the per-conversation lock of ProcessTurnJob,
     ])
     expect(waiting_for_a_lock).to eq(0)
   end
+
+  # Review finding R1 of pull request #11: a turn a reset moved runs under the
+  # lock of the conversation it moved to, never under the old one's.
+  describe "a turn a reset moved into the conversation it opened" do
+    let(:fake) { model_class.new([ reply("[pt] Olá!"), reply("[pt] Temos, sim."), reply("[pt] Olá de novo!") ]) }
+
+    it "runs once, and a later turn of that conversation waits for it (FR-04, NFR-02)" do
+      turn("/reiniciar")
+      moved = turn("oi")
+      running = Thread.new { ProcessTurnJob.perform_now(moved.id) }
+      expect(fake.arrived.pop(timeout: 5)).to be(true)
+      later = Turn.for_inbound!(Message.record_inbound!(conversation: Conversation.current_for!(visitor),
+                                                        external_id: SecureRandom.uuid, body: "tem dipirona?"))
+      waiting = Thread.new { ProcessTurnJob.perform_now(later.id) }
+
+      wait_until { fake.calls >= 3 || waiting_for_a_lock == 1 }
+      fake.release << true
+      [ running, waiting ].each { |thread| thread.join(10) && thread.value }
+
+      expect(fake.calls).to eq(2)
+      expect(TraceEvent.where(turn_id: moved.id, name: "balcao.turn").count).to eq(1)
+      expect(moved.reload.outbound_message.created_at).to be < later.reload.outbound_message.created_at
+    end
+  end
 end

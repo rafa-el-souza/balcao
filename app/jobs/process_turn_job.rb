@@ -16,18 +16,34 @@ class ProcessTurnJob < ApplicationJob
   queue_as :default
 
   def perform(turn_id)
-    turn = Turn.find_by(id: turn_id)
-    return if turn.nil? || Message.exists?(turn_id:)
-
-    ConversationLock.hold(turn.conversation_id) do
-      waiting_before(turn).each { |earlier| run_earlier(earlier) }
-      # An earlier turn may have been a deletion that took this one (FR-05).
+    loop do
       turn = Turn.find_by(id: turn_id)
-      TurnProcessor.new(turn).call if turn
+      return if turn.nil? || Message.exists?(turn_id:)
+      return unless moved_while_waiting?(turn)
     end
   end
 
   private
+
+  # Runs the turn under its conversation's lock and answers false; answers
+  # true when a reset moved the turn into the conversation it opened while
+  # this job waited, so the loop takes that conversation's lock instead. A
+  # turn runs only under the lock of the conversation it belongs to (review
+  # finding R1 of pull request #11).
+  def moved_while_waiting?(turn)
+    conversation_id = turn.conversation_id
+    ConversationLock.hold(conversation_id) do
+      waiting_before(turn).each { |earlier| run_earlier(earlier.id, conversation_id) }
+      # An earlier turn may have been a deletion that took this one (FR-05),
+      # or a reset that moved it.
+      turn = Turn.find_by(id: turn.id)
+      next false if turn.nil?
+      next true if turn.conversation_id != conversation_id
+
+      TurnProcessor.new(turn).call
+      false
+    end
+  end
 
   def waiting_before(turn)
     Turn.where(conversation_id: turn.conversation_id, state: %w[received running])
@@ -37,11 +53,14 @@ class ProcessTurnJob < ApplicationJob
   end
 
   # An earlier turn that breaks is marked failed by TurnProcessor and left to
-  # its own job's retry; this job goes on to its own turn.
-  def run_earlier(turn)
-    turn = Turn.find_by(id: turn.id) or return
+  # its own job's retry; this job goes on to its own turn. One that a reset
+  # among them moved belongs to another lock now.
+  def run_earlier(turn_id, conversation_id)
+    turn = Turn.find_by(id: turn_id)
+    return if turn.nil? || turn.conversation_id != conversation_id
+
     TurnProcessor.new(turn).call
   rescue StandardError => e
-    Rails.logger.error("earlier turn #{turn.id} failed: #{e.class}")
+    Rails.logger.error("earlier turn #{turn_id} failed: #{e.class}")
   end
 end
