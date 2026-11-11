@@ -1559,11 +1559,18 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     in windows aligned to the clock, which lets a source spend a limit twice
     across a window's edge, so the rules are Rack::Attack blocklists whose
     block counts. A "request" of FR-14's 60 per minute is one to `/api/*` or
-    `/cable`, or a cable subscription (each looks a row up, SR-11); `/up`,
-    the shell and the static files are not counted. A "session" of the 20
-    per hour is one minted: a page load that brings its cookie back mints
-    none. A "turn" is a `POST /api/messages`, counted before its body is
-    read, so a message sent again counts again. The refusal is a 429 with
+    `/cable` from the web app, from its origin or with its cookie, or a cable
+    subscription (each looks a row up, SR-11); the requests of a source that
+    are neither, which the app refuses, count apart against 60 of their own,
+    so a hostile page whose visitors' browsers post here cannot use up the
+    web app's minute behind the same address (review finding C2 of pull
+    request #12). `/up`, the shell and the static files are not counted. A
+    "session" of the 20 per hour is one minted: a page load that brings its
+    cookie back mints none, nor does a request from another origin, which
+    the app refuses. A "turn" is a `POST /api/messages` from the public
+    origin, counted before its body is read, so a message sent again counts
+    again. The API's routes take no format extension, so each endpoint has
+    the one path the edge counts (C1 of pull request #12). The refusal is a 429 with
     `{error: "limit", text}`, the text in the first of the three languages
     the request's `Accept-Language` names, since the edge reads no
     conversation; the page (PR-10) sends the language it shows there.
@@ -1579,11 +1586,16 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
   - `POST /api/messages` answers 202 with `{turn_id, message_id,
     conversation_id}`; a refusal is `{error: <code>}`: 401 without the
     cookie, 403 from another origin (an exact match of the public origin,
-    a missing one refused), 411, 413 over 16 KB, 415 not JSON, 400 malformed,
+    a missing one refused), 413 over 16 KB, 415 not JSON, 400 malformed,
     422 off the schema (exactly `id`, a UUID, and `text` of 1 to 1,000
     characters or `say`, an allow-listed key), 409 for an id another
     visitor's message holds. NUL characters are dropped. The proxy refuses a
-    body over 1 MB before the app's server buffers it.
+    body over 1 MB before the app's server buffers it, and a middleware
+    refuses one over 16 KB to `/api/*` before any controller runs. Rails
+    reads no JSON body as parameters, so its instrumentation never logs a
+    visitor's message, and each endpoint reads its own body after the
+    checks; `text` and `body` are filtered from the log besides (SR-30;
+    review findings C3, V1 and V2 of pull request #12).
   - The intake (`Intake`, app/models/) locks the open conversation's row
     while it stores the message and its turn, and re-reads it under the
     lock: a reset closes the conversation by updating that row, so either
