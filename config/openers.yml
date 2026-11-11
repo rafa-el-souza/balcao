@@ -1,0 +1,16 @@
+# The landing's chips (FR-21): /chat?say=<key> sends only the key, and the
+# server sends the text below as the visitor's message. A key that is not here
+# sends nothing (threat model SR-34). Openers reads this file once per process.
+#
+# Each text is the message of an MVP eval case in the same language, so what a
+# chip does is measured (spec/evals/seed_spec.rb): changing one is changing a
+# case, and the recorded subset is re-recorded with it (evals/README.md).
+stock_pt:
+  lang: pt
+  text: tem dipirona?
+delivery_es:
+  lang: es
+  text: ¿hacen entregas en Santa Tereza?
+clinical_pt:
+  lang: pt
+  text: tem dipirona e posso dar pro meu filho de 3 anos?
