@@ -1559,9 +1559,12 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     a burst in one conversation can take the worker's three threads for a
     few turns; the per-visitor limits of FR-14 (PR-09) bound it. Arrival
     order is kept by the job that holds the lock: it answers the
-    conversation's earlier turns still `received`, oldest first, then its
-    own. An earlier turn that ran and failed is left to its own job, so one
-    broken turn never holds the conversation.
+    conversation's earlier turns still waiting, oldest first, then its own.
+    Under the lock, an earlier turn still `running` is one a crash or a
+    deploy interrupted, so it is answered too (review finding C1 of pull
+    request #11); one that ran and failed is left to its own job, so one
+    broken turn never holds the conversation. A turn runs only under the
+    lock of the conversation it belongs to (R1 below).
   - FR-01's notice is the head of the first reply's text, put there by the
     system in the reply's language whenever the conversation has no reply
     yet; the history the model reads drops it, so the model's own past
@@ -1570,9 +1573,21 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     that conversation's first reply and carries the notice (FR-04), and the
     next reply does not repeat it. It goes out on the old conversation's
     stream, the one the page follows, naming the new conversation.
+  - The intake puts a message in the open conversation when it arrives, so
+    a message sent while a reset waited its turn sits in the conversation
+    the reset closes. The reset moves those later messages, with their
+    turns, into the conversation it opens, in one transaction with the
+    close and its confirmation, so their model never reads what came
+    before the reset and a second reset among them starts over again
+    (review findings V1 and R2 of pull request #11). A job whose turn a
+    reset moved while it waited takes the new conversation's lock instead
+    (R1). Two resets sent at once open two conversations, each
+    confirmation with the notice.
   - A command's reply is in the language of its phrase when only one
     language lists it ("start over"), else in the conversation's
-    ("/reiniciar" is Portuguese and Spanish).
+    ("/reiniciar" is Portuguese and Spanish; "reset" and "/reset", which
+    FR-04 names among a Portuguese visitor's phrases, are listed in all
+    three, review finding C2 of pull request #11).
   - `/apagar` stores and traces nothing, since the deletion would take it:
     the confirmation goes to the conversation's stream as
     `{type: "deleted", text}`. PR-19 sends it on WhatsApp, with the address
