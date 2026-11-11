@@ -1,7 +1,8 @@
 module Tools
   # The catalogue lookup (FR-06, ADR-0009): up to five products for a query,
   # each with its id (for create_reservation, PR-13), its price as the visitor
-  # reads it, its stock and its prescription flag. The model normalises the
+  # reads it, its stock, its prescription flag and how it matched
+  # (Product.search). The model normalises the
   # query first, as the description asks: the catalogue is in Portuguese and
   # names medicines by active ingredient, never by brand (SR-33). The schema
   # cannot bound the limit for the model (the SDK moves such constraints into
@@ -26,8 +27,12 @@ module Tools
         "by its active ingredient, never by a brand: write the query in Portuguese, turning a brand into its " \
         "active ingredient and an English or Spanish name into the Portuguese one (amoxicillin is amoxicilina). " \
         "Typos are tolerated. Each product comes with its price, its stock (0 is out of stock) and whether it " \
-        "requires a prescription, which is presented at the counter. An empty list means the pharmacy does not " \
-        "carry it: say so, offer the pharmacist on duty, and never name a product the results do not list."
+        "requires a prescription, which is presented at the counter. Each also comes with its match: exact when " \
+        "every word of the query is in it; close when it only resembles the query; partial when only some words " \
+        "of the query are in it, listed only when nothing matches the whole query. Name a close or partial " \
+        "product by its own name, never as what the visitor asked for unless it plainly is. An empty list means " \
+        "the pharmacy does not carry it: say so, offer the pharmacist on duty, and never name a product the " \
+        "results do not list."
     input_schema Input
 
     # The arguments are read as the model sent them: a typed reader raises on
@@ -52,7 +57,8 @@ module Tools
       {
         "id" => product.id, "name" => product.name, "active_ingredient" => product.active_ingredient,
         "price" => ActiveSupport::NumberHelper.number_to_currency(product.price, locale: :"pt-BR"),
-        "stock" => product.stock, "prescription_required" => product.prescription_required, "score" => product.score
+        "stock" => product.stock, "prescription_required" => product.prescription_required,
+        "match" => product.match, "score" => product.score
       }
     end
   end

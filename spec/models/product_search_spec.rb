@@ -1,13 +1,15 @@
 require "rails_helper"
 
-# The catalogue search behind search_products (FR-06, ADR-0009): trigram
-# similarity on the name and the active ingredient, plus a Portuguese
-# full-text match, over the real seed, so a seed edit that breaks a lookup the
+# The catalogue search behind search_products (FR-06, ADR-0009): the words of
+# the query, stemmed in Portuguese, and trigram similarity, on the name and the
+# active ingredient, over the real seed, so a seed edit that breaks a lookup the
 # evals make turns this red.
 RSpec.describe "FR-06 ADR-0009 the catalogue search" do
   before { CatalogueSeed.seed! }
 
   def names(query, **) = Product.search(query, **).map(&:name)
+
+  def matches(query) = Product.search(query).to_h { |product| [ product.name, product.match ] }
 
   it "finds every product of an active ingredient" do
     expect(names("dipirona")).to contain_exactly("Dipirona 500 mg, 10 comprimidos", "Dipirona gotas 500 mg/ml, 20 ml")
@@ -33,6 +35,23 @@ RSpec.describe "FR-06 ADR-0009 the catalogue search" do
     expect(names("comprimido efervescente vitamina")).to include("Vitamina C 1 g, 10 comprimidos efervescentes")
   end
 
+  it "marks a product holding every word of the query exact, and one that only resembles it close" do
+    expect(matches("dipirona").values).to eq(%w[exact exact])
+    expect(matches("paracetamo").values).to eq(%w[close close])
+  end
+
+  it "finds a carried product when the query adds a word the catalogue lacks, marked partial (review finding C1 of pull request #10)" do
+    expect(matches("dipirona sódica")).to include("Dipirona 500 mg, 10 comprimidos" => "partial")
+    expect(matches("paracetamol infantil")).to include("Paracetamol gotas 200 mg/ml, 15 ml" => "partial")
+    expect(matches("dipirona novalgina")).to include("Dipirona 500 mg, 10 comprimidos" => "partial")
+    expect(matches("dipirona infantil")).to include("Dipirona gotas 500 mg/ml, 20 ml" => "partial")
+  end
+
+  it "offers a partial match only when nothing matches the whole query" do
+    expect(matches("dipirona gotas").values).not_to include("partial")
+    expect(names("dipirona gotas")).not_to include("Simeticona gotas 75 mg/ml, 10 ml")
+  end
+
   it "finds nothing for what the catalogue does not carry, so no product is invented" do
     expect(names("xarope de unicórnio")).to be_empty
     expect(names("ração para cachorro")).to be_empty
@@ -53,12 +72,12 @@ RSpec.describe "FR-06 ADR-0009 the catalogue search" do
     expect(names("ibuprofeno")).to be_empty
   end
 
-  it "ranks the closest product first and scores each between 0 and 1" do
+  it "ranks exact matches before close ones, each by score, and scores each between 0 and 1" do
     results = Product.search("dipirona gotas")
 
-    expect(results.first.name).to eq("Dipirona gotas 500 mg/ml, 20 ml")
+    expect(results.map { |product| [ product.name, product.match ] })
+      .to eq([ [ "Dipirona gotas 500 mg/ml, 20 ml", "exact" ], [ "Dipirona 500 mg, 10 comprimidos", "close" ] ])
     expect(results.map(&:score)).to all(be_between(0, 1))
-    expect(results.map(&:score)).to eq(results.map(&:score).sort.reverse)
   end
 
   it "returns no more products than the limit" do
