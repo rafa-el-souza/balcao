@@ -21,6 +21,11 @@ RSpec.describe "FR-06 ADR-0009 the catalogue search" do
     expect(names("omeprasol")).to eq([ "Omeprazol 20 mg, 28 cápsulas" ])
   end
 
+  it "tolerates two swapped letters, as the tool's description promises (review finding C3 of pull request #10)" do
+    expect(matches("paracetmaol")).to include("Paracetamol 750 mg, 20 comprimidos" => "close")
+    expect(matches("dipriona")).to include("Dipirona 500 mg, 10 comprimidos" => "close")
+  end
+
   it "ignores accents and case" do
     expect(names("ALCOOL EM GEL")).to eq([ "Álcool em gel 70%, 500 ml" ])
     expect(names("termometro")).to eq([ "Termômetro clínico digital" ])
@@ -55,6 +60,10 @@ RSpec.describe "FR-06 ADR-0009 the catalogue search" do
   it "finds nothing for what the catalogue does not carry, so no product is invented" do
     expect(names("xarope de unicórnio")).to be_empty
     expect(names("ração para cachorro")).to be_empty
+    # Within reach of the edit distance, yet other medicines (C3 of pull request #10).
+    expect(names("aspirina")).to be_empty
+    expect(names("insulina")).to be_empty
+    expect(names("xarope para tosse")).to be_empty
   end
 
   it "lists a product out of stock, so the attendant can say so and offer another" do

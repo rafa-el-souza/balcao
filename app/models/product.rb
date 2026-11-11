@@ -11,8 +11,10 @@ class Product < ApplicationRecord
   # "omeprasol") and drops a shared suffix ("comprimidos" alone).
   SIMILARITY = 0.6
 
-  # How well a product matches a query, best first.
-  MATCHES = %w[exact close partial].freeze
+  # The edits a stem of the query may be from a stem of the product and still
+  # match close (Levenshtein distance): two from seven letters, so two swapped
+  # letters ("dipriona") pass; one from five; none below.
+  TOLERANCE = "CASE WHEN length(stem) >= 7 THEN 2 WHEN length(stem) >= 5 THEN 1 ELSE 0 END".freeze
 
   # The catalogue search of search_products (FR-06, ADR-0009), over the
   # products the catalogue file lists (FR-26). The query and the product's
@@ -21,8 +23,10 @@ class Product < ApplicationRecord
   #
   # - exact when it holds every stem of the query, in any order;
   # - close when its trigrams are near the query's (pg_trgm's word
-  #   similarity from SIMILARITY): a typo, or another product with a similar
-  #   name, which search_products tells the model apart;
+  #   similarity from SIMILARITY) or each stem of the query is within
+  #   TOLERANCE of one of its stems: a typo, two swapped letters included
+  #   (review finding C3 of pull request #10), or another product with a
+  #   similar name, which search_products tells the model apart;
   # - partial when it holds some stems of the query, offered only when no
   #   product matches exact or close, so "paracetamol infantil" still finds
   #   the paracetamol the store carries (review finding C1 of pull request
@@ -45,7 +49,10 @@ class Product < ApplicationRecord
         SELECT products.*,
                word_similarity(query.text, folded.text) AS similarity,
                cardinality(query.stems) AS wanted,
-               (SELECT count(*) FROM unnest(query.stems) AS stem WHERE stem = ANY (folded.stems)) AS held
+               (SELECT count(*) FROM unnest(query.stems) AS stem WHERE stem = ANY (folded.stems)) AS held,
+               (SELECT count(*) FROM unnest(query.stems) AS stem
+                WHERE EXISTS (SELECT 1 FROM unnest(folded.stems) AS other
+                              WHERE levenshtein_less_equal(stem, other, #{TOLERANCE}) <= #{TOLERANCE})) AS near
         FROM products
         CROSS JOIN query
         CROSS JOIN LATERAL (
@@ -57,7 +64,7 @@ class Product < ApplicationRecord
       matched AS (
         SELECT candidates.*,
                CASE WHEN wanted > 0 AND held = wanted THEN 'exact'
-                    WHEN similarity >= :similarity THEN 'close'
+                    WHEN similarity >= :similarity OR (wanted > 0 AND near = wanted) THEN 'close'
                     WHEN held > 0 THEN 'partial'
                END AS match
         FROM candidates
