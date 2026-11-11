@@ -22,13 +22,18 @@ class Product < ApplicationRecord
   #   its stems (Product.near): a typo, two swapped letters included (review
   #   finding C3 of pull request #10), or another product with a similar
   #   name, which search_products tells the model apart;
-  # - partial when it holds some stems of the query, offered only when no
-  #   product matches exact or close, so "paracetamol infantil" still finds
-  #   the paracetamol the store carries (review finding C1 of pull request
-  #   #10) and "dipirona gotas" lists no other drops.
+  # - partial when the query names it, that is holds every stem of its
+  #   active ingredient or of the head of its name (the words before the
+  #   first number or comma), and adds words the catalogue lacks; offered
+  #   only when no product matches exact or close. So "paracetamol infantil"
+  #   still finds the paracetamol the store carries (review finding C1 of
+  #   pull request #10), "dipirona gotas" lists no other drops, and a
+  #   medicine not carried that shares only a word with one carried ("ácido
+  #   acetilsalicílico" and "ácido ascórbico", a salt, a unit) finds nothing,
+  #   which the model reports as not carried (review finding R1).
   #
-  # Ranked by match, then by the stems it holds, then by the trigram score
-  # (rounded to two places, carried by each product), then by name.
+  # Ranked by match, then by the stems near the query's, then by the trigram
+  # score (rounded to two places, carried by each product), then by name.
   #
   # No index: the catalogue is a few hundred rows at most (ADR-0009), which
   # the planner reads whole anyway. A catalogue of thousands would want an
@@ -45,12 +50,15 @@ class Product < ApplicationRecord
                cardinality(query.stems) AS wanted,
                (SELECT count(*) FROM unnest(query.stems) AS stem WHERE stem = ANY (folded.stems)) AS held,
                (SELECT count(*) FROM unnest(query.stems) AS stem
-                WHERE EXISTS (SELECT 1 FROM unnest(folded.stems) AS other WHERE #{near("stem", "other")})) AS near
+                WHERE EXISTS (SELECT 1 FROM unnest(folded.stems) AS other WHERE #{near("stem", "other")})) AS near,
+               (#{named("folded.ingredient")} OR #{named("folded.head")}) AS named
         FROM products
         CROSS JOIN query
         CROSS JOIN LATERAL (
-          SELECT text, #{stems("text")} AS stems
-          FROM (SELECT unaccent(lower(products.name || ' ' || coalesce(products.active_ingredient, ''))) AS text) AS product
+          SELECT text, #{stems("text")} AS stems, #{stems("ingredient")} AS ingredient, #{stems("head")} AS head
+          FROM (SELECT unaccent(lower(products.name || ' ' || coalesce(products.active_ingredient, ''))) AS text,
+                       unaccent(lower(coalesce(products.active_ingredient, ''))) AS ingredient,
+                       regexp_replace(unaccent(lower(products.name)), '[0-9,:].*$', '') AS head) AS product
         ) AS folded
         WHERE products.listed
       ),
@@ -58,7 +66,7 @@ class Product < ApplicationRecord
         SELECT candidates.*,
                CASE WHEN wanted > 0 AND held = wanted THEN 'exact'
                     WHEN similarity >= :similarity OR (wanted > 0 AND near = wanted) THEN 'close'
-                    WHEN held > 0 THEN 'partial'
+                    WHEN named THEN 'partial'
                END AS match
         FROM candidates
       )
@@ -66,7 +74,7 @@ class Product < ApplicationRecord
       FROM matched
       WHERE match IS NOT NULL
         AND (match <> 'partial' OR NOT EXISTS (SELECT 1 FROM matched AS better WHERE better.match <> 'partial'))
-      ORDER BY array_position(ARRAY['exact', 'close', 'partial'], match), held DESC, score DESC, name
+      ORDER BY array_position(ARRAY['exact', 'close', 'partial'], match), near DESC, score DESC, name
       LIMIT :limit
     SQL
   end
@@ -80,6 +88,15 @@ class Product < ApplicationRecord
       "ARRAY(SELECT word FROM unnest(tsvector_to_array(to_tsvector('simple', #{text}))) AS word WHERE length(word) = 1)) AS stem)"
   end
   private_class_method :stems
+
+  # Whether the query holds every stem of a product's set (its active
+  # ingredient or the head of its name), as an SQL expression; an empty set
+  # names nothing.
+  def self.named(set)
+    "(cardinality(#{set}) > 0 AND NOT EXISTS (SELECT 1 FROM unnest(#{set}) AS part " \
+      "WHERE NOT (part = ANY (query.stems))))"
+  end
+  private_class_method :named
 
   # Whether a stem of the query is near a stem of the product, as an SQL
   # expression: the same; or, from five letters, one edit away (Levenshtein

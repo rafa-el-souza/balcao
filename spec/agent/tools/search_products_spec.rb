@@ -37,7 +37,7 @@ RSpec.describe "FR-06 SR-16 SR-21 search_products, the catalogue lookup" do
   end
 
   it "tells the model that a partial match holds only some words of the query (review finding C1 of pull request #10)" do
-    expect(search(query: "paracetamol infantil")["products"].pluck("match")).to all(eq("partial"))
+    expect(search(query: "paracetamol infantil")["products"].pluck("match")).to eq(%w[partial partial])
     expect(Tools::SearchProducts.doc_string).to include("partial when only some words of the query are in it")
   end
 

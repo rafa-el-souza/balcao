@@ -64,6 +64,20 @@ RSpec.describe "FR-06 ADR-0009 the catalogue search" do
     expect(matches("vitamina a")).to eq("Vitamina C 1 g, 10 comprimidos efervescentes" => "close")
   end
 
+  it "lists nothing partial for a medicine not carried that shares only a common word with one carried (review finding R1 of pull request #10)" do
+    expect(names("ácido acetilsalicílico")).to be_empty
+    expect(names("ácido fólico")).to be_empty
+    expect(names("maleato de dexclorfeniramina")).to be_empty
+    expect(names("cloridrato de sertralina")).to be_empty
+    expect(names("cloreto de potássio")).to be_empty
+    expect(names("nimesulida 100 mg")).to be_empty
+  end
+
+  it "lists a product partial when the query names its active ingredient or the head of its name, and adds words" do
+    expect(matches("vitamina c infantil")).to eq("Vitamina C 1 g, 10 comprimidos efervescentes" => "partial")
+    expect(matches("dipirona sódica 1 g comprimido").keys).to contain_exactly("Dipirona 500 mg, 10 comprimidos", "Dipirona gotas 500 mg/ml, 20 ml")
+  end
+
   it "offers a partial match only when nothing matches the whole query" do
     expect(matches("dipirona gotas").values).not_to include("partial")
     expect(names("dipirona gotas")).not_to include("Simeticona gotas 75 mg/ml, 10 ml")
