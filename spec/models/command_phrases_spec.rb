@@ -49,7 +49,7 @@ RSpec.describe "FR-04 FR-05 FR-12 command phrases, matched before the model" do
   end
 
   {
-    "reset" => %w[en], "start over" => %w[en], "/reiniciar" => %w[pt es], "recomeçar" => %w[pt],
+    "reset" => %w[pt en es], "/reset" => %w[pt en es], "start over" => %w[en], "/reiniciar" => %w[pt es], "recomeçar" => %w[pt],
     "Borrar mis datos." => %w[es], "/trace" => %w[pt en es], "tem dipirona?" => []
   }.each do |text, languages|
     it "names the languages that list #{text.inspect}: #{languages.inspect}, so a reply can follow the phrase (FR-02)" do

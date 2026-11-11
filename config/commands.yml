@@ -7,11 +7,14 @@
 # final punctuation; never when a phrase is only part of it, so "não quero
 # apagar meus dados" is a message for the attendant, not a deletion. A command
 # is matched in any language, whatever the conversation's; a phrase belongs to
-# one command only. CommandPhrases reads this file once per process.
+# one command only. A reply follows the language of a phrase only one
+# language lists; a phrase several list, such as "reset", which FR-04 names
+# among a Portuguese visitor's phrases, follows the conversation's.
+# CommandPhrases reads this file once per process.
 reset:
-  pt: [/reiniciar, reiniciar, recomeçar, começar de novo]
+  pt: [/reiniciar, reiniciar, recomeçar, começar de novo, /reset, reset]
   en: [/reset, reset, restart, start over]
-  es: [/reiniciar, reiniciar, empezar de nuevo]
+  es: [/reiniciar, reiniciar, empezar de nuevo, /reset, reset]
 delete:
   pt: [/apagar, apagar meus dados]
   en: [/delete, delete my data]

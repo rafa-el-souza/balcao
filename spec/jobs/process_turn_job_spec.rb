@@ -366,6 +366,17 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
         expect(Conversation.current_for!(visitor).language).to eq("en")
       end
 
+      # Review finding C2 of pull request #11: FR-04 names "reset" among a
+      # Portuguese visitor's phrases.
+      it "confirms a Portuguese visitor's \"reset\" in Portuguese, and the new conversation stays pt-BR (FR-01, FR-02, FR-04)" do
+        turn = inbound("reset")
+
+        perform(turn)
+
+        expect(turn.reload.outbound_message.body).to eq(FixedReply.with_notice(FixedReply.command(:reset, "pt-BR"), "pt-BR"))
+        expect(Conversation.current_for!(visitor).language).to eq("pt-BR")
+      end
+
       it "opens no third conversation for a reset sent twice, and gives the notice once" do
         first = inbound("/reiniciar")
         second = inbound("/reiniciar")
