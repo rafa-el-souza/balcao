@@ -69,3 +69,46 @@ RSpec.describe "FR-15 SR-31 visitors not seen for seven days, for the nightly pu
     expect(visitor.reload.last_seen_at).to eq(Time.zone.local(2026, 11, 9, 18, 0))
   end
 end
+
+RSpec.describe "FR-05 a visitor's data deleted on request" do
+  let(:visitor) { create(:visitor) }
+  let(:conversation) { create(:conversation, visitor:) }
+  let(:turn) { create(:turn, inbound_message: create(:message, conversation:)) }
+  let(:product) { create(:product, stock: 10) }
+
+  it "releases the stock of open reservations, then deletes the visitor and everything under it" do
+    create(:reservation, turn:, product:, quantity: 2)
+    create(:reservation, turn:, product: create(:product, stock: 5), quantity: 3, state: "expired")
+    closed = create(:conversation, visitor:, closed_at: 1.day.ago)
+    create(:outbound_message, turn:)
+    create(:trace_event, turn:)
+    create(:usage_record, turn:)
+    create(:message, conversation: closed)
+
+    visitor.erase!
+
+    expect(product.reload.stock).to eq(12)
+    expect(Product.where.not(id: product.id).sole.stock).to eq(5)
+    expect([ Visitor, Conversation, Message, Turn, TraceEvent, UsageRecord, Reservation ].map(&:count)).to all(eq(0))
+  end
+
+  it "leaves another visitor's data alone" do
+    other = create(:reservation, product:, quantity: 1)
+
+    visitor.erase!
+
+    expect(Reservation.all).to eq([ other ])
+    expect(other.visitor.reload).to be_persisted
+    expect(product.reload.stock).to eq(10)
+  end
+
+  it "releases a reservation's stock once when the reservation is already gone, as when two deletions race" do
+    reservation = create(:reservation, turn:, product:, quantity: 2)
+    stale = Visitor.find(visitor.id)
+    stale.erase!
+
+    expect { Visitor.new(id: visitor.id).erase! }.not_to raise_error
+    expect(product.reload.stock).to eq(12)
+    expect(Reservation.exists?(reservation.id)).to be(false)
+  end
+end

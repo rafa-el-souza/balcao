@@ -48,6 +48,15 @@ RSpec.describe "FR-04 FR-05 FR-12 command phrases, matched before the model" do
     end
   end
 
+  {
+    "reset" => %w[en], "start over" => %w[en], "/reiniciar" => %w[pt es], "recomeçar" => %w[pt],
+    "Borrar mis datos." => %w[es], "/trace" => %w[pt en es], "tem dipirona?" => []
+  }.each do |text, languages|
+    it "names the languages that list #{text.inspect}: #{languages.inspect}, so a reply can follow the phrase (FR-02)" do
+      expect(CommandPhrases.current.languages(text)).to eq(languages)
+    end
+  end
+
   it "never gives one phrase to two commands" do
     phrases = commands.names.flat_map { |name| commands.phrases(name).values.flatten.map { |phrase| [ CommandPhrases.normalize(phrase), name ] } }
 

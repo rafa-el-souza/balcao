@@ -80,6 +80,15 @@ RSpec.describe "NFR-02 outbound message, one per turn" do
     )
   end
 
+  it "stores the reply in the conversation it is given, which a reset opened (FR-04)" do
+    turn.conversation.update!(closed_at: Time.current)
+    fresh = create(:conversation, visitor: turn.conversation.visitor)
+
+    message = Message.record_outbound!(turn:, body: "Pronto.", conversation: fresh)
+
+    expect(message).to have_attributes(conversation: fresh, turn:)
+  end
+
   it "refuses a turn on an inbound message (a turn is keyed on the turn table)" do
     message = build(:message, conversation: turn.conversation, turn:)
 

@@ -27,4 +27,19 @@ class Visitor < ApplicationRecord
     visitor.update_column(:last_seen_at, Time.current)
     visitor
   end
+
+  # Deletes the visitor's data on request (FR-05): releases the stock of its
+  # open reservations, then deletes the visitor, and the database deletes its
+  # conversations, messages, turns, trace events, usage records and
+  # reservations with it (design §6.5). One transaction, and the open
+  # reservations are locked first, so a second deletion, or the nightly job
+  # expiring one, cannot release the same stock twice. Bookings join at M2.
+  def erase!
+    self.class.transaction do
+      Reservation.where(visitor_id: id, state: "open").order(:id).lock.each do |reservation|
+        Product.update_counters(reservation.product_id, stock: reservation.quantity)
+      end
+      self.class.where(id:).delete_all
+    end
+  end
 end
