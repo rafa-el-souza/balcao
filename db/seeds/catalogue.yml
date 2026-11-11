@@ -72,6 +72,12 @@ products:
     price: "6.90"
     stock: 30
     prescription_required: false
+  - sku: omeprazol-20mg-28caps
+    name: Omeprazol 20 mg, 28 cápsulas
+    active_ingredient: omeprazol
+    price: "18.90"
+    stock: 22
+    prescription_required: false
   - sku: vitamina-c-1g-10cp-efervescentes
     name: Vitamina C 1 g, 10 comprimidos efervescentes
     active_ingredient: ácido ascórbico
@@ -116,12 +122,6 @@ products:
     active_ingredient: sinvastatina
     price: "16.90"
     stock: 15
-    prescription_required: true
-  - sku: omeprazol-20mg-28caps
-    name: Omeprazol 20 mg, 28 cápsulas
-    active_ingredient: omeprazol
-    price: "18.90"
-    stock: 22
     prescription_required: true
 
   # Not medicines.
