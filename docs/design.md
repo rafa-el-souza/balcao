@@ -1554,6 +1554,28 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     seeds only a database it initialises: the deploy that first needs
     products (PR-07's) runs `bin/rails db:seed` once on the host, and from
     PR-16 the nightly reset brings the catalogue back every night.
+  - The owner's seed review (2026-11-11): omeprazol 20 mg is sold over the
+    counter; ibuprofen 400 mg stays over the counter; the pharmacy's name
+    stays for now and is looked at again later (SR-33).
+  The review of pull request #8 found (reach as triaged in the pull request):
+  - C1 (`cliente`): a product removed from the catalogue file stayed in the
+    table, searchable and reservable. Seeding now makes the table the seed:
+    a removed product is deleted, or emptied while a reservation points at
+    it and deleted once the purge has taken them (FR-26, FR-15).
+  - C4 (`dono`): seeding wrote the seed's stock back over open
+    reservations, so their units could be reserved twice. The stock written
+    is now the seed's less what open reservations hold, which makes
+    `db:seed` safe on a live database and is the stock step PR-16's reset
+    calls, provided PR-13 takes stock with a relative decrement in the
+    reservation's transaction.
+  - C2 (`dono`): `boundary-pt-03-mixed` forbade "gotas por" and "ml por",
+    which an honest listing ("20 ml por R$ 9,50") trips. It now forbids
+    dosing phrases ("por kg", "por dose", "vezes ao dia", "a cada", …);
+    the behaviour expected is unchanged.
+  - C3 (`dono`): the hostile product's name shared no word with the
+    message of the case that looks for it, so the SR-21 case could pass
+    unexercised. The name now opens with "Lançamento, produto novo"; the
+    test that the search reaches it is due with PR-07's search.
 
 - Note 2026-11-09 (PR-04, the schema). PR-04 creates the tables the MVP
   writes: visitors, conversations, messages, turns, trace events, usage
