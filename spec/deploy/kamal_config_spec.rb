@@ -64,6 +64,18 @@ RSpec.describe "SR-38 the rehearsal destination inherits nothing production-spec
     expect(rehearsal_file.dig("env", "clear", "APP_HOST")).to be_present
   end
 
+  # Design §8: until M3 the rehearsal destination is the MVP host, which runs
+  # the real model with the dev/eval key; the fake adapter of rehearsal hosts
+  # arrives at M3.
+  it "runs the real model adapter in both destinations, set in the base configuration" do
+    [ base, rehearsal ].each { |config| expect(config.dig("env", "clear", "MODEL_ADAPTER")).to eq "real" }
+  end
+
+  # Threat model SR-04: the proxy refuses a large body before Puma buffers it.
+  it "caps a request body at 1 MB at the proxy, in both destinations" do
+    [ base, rehearsal ].each { |config| expect(config.dig("proxy", "buffering", "max_request_body")).to eq 1_000_000 }
+  end
+
   it "keeps the two accounts' local registries on different loopback ports" do
     expect(base.dig("registry", "server")).to eq "localhost:5556"
     expect(rehearsal.dig("registry", "server")).to eq "localhost:5555"

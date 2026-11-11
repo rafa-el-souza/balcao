@@ -39,6 +39,12 @@ proxy:
   app_port: 80
   healthcheck:
     path: /up
+  # A body over 1 MB is refused at the proxy, before the app's server buffers
+  # it; the API's own limit is 16 KB (threat model SR-04). With ssl, the proxy
+  # drops a client's X-Forwarded-For and sends the client's address, which
+  # the app trusts from a private address only (SR-36).
+  buffering:
+    max_request_body: 1000000
 
 # Kamal's local registry: the image is built in the deploying account and
 # reaches the host through an SSH port forward, so no registry account exists.
@@ -62,16 +68,20 @@ ssh:
   user: deploy
   forward_agent: false
 
-# APP_HOST drives the allowed hosts and, as they arrive, the Origin allow-list,
-# the cable origins and absolute links (design §8). A blank required name
-# stops the app at boot (config/required_environment.rb, SR-25).
+# APP_HOST drives the allowed hosts, the Origin allow-list, the cable origins
+# and absolute links (design §8, threat model SR-03). MODEL_ADAPTER is the
+# real model in both destinations until M3 brings the fake one for rehearsal
+# hosts. A blank required name stops the app at boot
+# (config/required_environment.rb, SR-25).
 env:
   clear:
     APP_HOST: balcao.rafasouza.dev.br
     DB_HOST: balcao-db
+    MODEL_ADAPTER: real
   secret:
     - SECRET_KEY_BASE
     - POSTGRES_PASSWORD
+    - ANTHROPIC_API_KEY
 
 logging:
   options:

@@ -18,7 +18,7 @@ RSpec.describe "NFR-04 /up answers the proxy and the external monitor" do
       status = ->(host, path) { Rails.application.call(Rack::MockRequest.env_for("http://\#{host}\#{path}", "HTTP_HOST" => host)).first }
       puts [ status.("10.0.1.5", "/up"), status.("10.0.1.5", "/nothing-here"), status.("demo.example", "/nothing-here") ].join(",")
     RUBY
-    env = Balcao::RequiredEnvironment::NAMES.to_h { |name| [ name, "x" ] }
+    env = Balcao::RequiredEnvironment::NAMES.to_h { |name| [ name, "x" ] }.merge("MODEL_ADAPTER" => "real")
       .merge("APP_HOST" => "demo.example", "RAILS_ENV" => "production", "DATABASE_URL" => nil, "RAILS_LOG_LEVEL" => "fatal")
 
     out, err, status = Open3.capture3(env, "bin/rails", "runner", probe, chdir: Rails.root.to_s)
