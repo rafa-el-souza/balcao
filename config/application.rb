@@ -52,5 +52,10 @@ module Balcao
     # The web app's HTML shell, built by Vite; the image keeps it at the same
     # path and its hashed assets under public/assets (Dockerfile, design §6.7).
     config.x.spa_shell = Rails.root.join("web/dist/index.html")
+
+    # Where a visitor opens the web app, for the links the server writes (the
+    # trace link of FR-12): the Vite dev server here, the public name in
+    # production (config/environments/production.rb).
+    config.x.public_origin = "http://127.0.0.1:5173"
   end
 end

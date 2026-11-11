@@ -101,6 +101,7 @@ class TraceRecorder
     @turn = turn
     @conversation = turn.conversation
     @trace_id = self.class.random_id(16)
+    @open = []
   end
 
   def start_span(name, parent: nil, attributes: {}, started_at: nil)
@@ -111,6 +112,7 @@ class TraceRecorder
                                       name:, span_attributes: span.attributes, started_at: span.started_at)
     end
     self.class.broadcast(@conversation, span.payload)
+    @open << span
     span
   end
 
@@ -119,10 +121,16 @@ class TraceRecorder
     attributes = self.class.clean(attributes)
     return if span.finished_at
 
+    @open.delete(span)
     span.attributes = span.attributes.merge(attributes)
     span.finished_at = Time.current
     write(span) { span.event&.update!(span_attributes: span.attributes, finished_at: span.finished_at) }
     self.class.broadcast(@conversation, span.payload)
+  end
+
+  # Finishes the spans still open, the innermost first, when a turn breaks.
+  def abandon(error_type)
+    @open.reverse_each.to_a.each { |span| span.finish(attributes: { "error.type" => error_type }) }
   end
 
   # A savepoint, so that a failed write leaves a caller's transaction usable.

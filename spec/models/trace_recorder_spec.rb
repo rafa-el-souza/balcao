@@ -127,6 +127,21 @@ RSpec.describe "ADR-0010 TraceRecorder, the trace of a turn in the shape of Open
     end
   end
 
+  describe "#abandon" do
+    it "finishes every span still open, the innermost first, with the error" do
+      root = recorder.start_span("balcao.turn")
+      recorder.start_span("anthropic.messages.create", parent: root).finish
+      recorder.start_span("balcao.outbound", parent: root)
+
+      recorder.abandon("ActiveRecord::ConnectionFailed")
+
+      expect(TraceEvent.where(finished_at: nil)).to be_empty
+      expect(TraceEvent.where(name: %w[balcao.turn balcao.outbound]).map(&:span_attributes))
+        .to all(eq("error.type" => "ActiveRecord::ConnectionFailed"))
+      expect(TraceEvent.find_by(name: "anthropic.messages.create").span_attributes).to eq({})
+    end
+  end
+
   describe ".close_interrupted" do
     it "finishes the spans an interrupted run left open, marked as interrupted, and broadcasts them" do
       open_span = create(:trace_event, turn:, name: "anthropic.messages.create", span_attributes: { "gen_ai.request.model" => "claude-opus-5-5" })

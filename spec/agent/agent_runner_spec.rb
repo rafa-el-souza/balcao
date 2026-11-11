@@ -125,6 +125,15 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
       expect(request.body[:messages].size).to eq(1)
       expect(request.body[:messages].first[:content].pluck(:text)).to include("oi", "tem dipirona?")
     end
+    it "leaves out the demo notice the system put before the first reply, which the model never writes (FR-01)" do
+      first = turn_in(conversation, "hola", at: Time.zone.local(2026, 11, 11, 15, 0), reply: FixedReply.with_notice("¡Hola!", "es"))
+      second = turn_in(conversation, "¿tienen dipirona?", at: Time.zone.local(2026, 11, 11, 15, 1))
+
+      runner.run(second)
+
+      expect(first.outbound_message.body).to start_with(FixedReply.notice("es"))
+      expect(request.body[:messages][1]).to eq(role: "assistant", content: [ { type: "text", text: "¡Hola!" } ])
+    end
   end
 
   describe "the reply (FR-02)" do
