@@ -59,6 +59,38 @@ RSpec.describe "FR-06 FR-15 FR-26 the catalogue seed" do
       expect(Product.find_by!(sku: "dipirona-500mg-10cp").id).to eq id
     end
 
+    describe "a product the seed no longer lists (FR-26; review finding C1 of pull request #8)" do
+      let(:without_thermometer) { CatalogueSeed.entries.reject { |entry| entry[:sku] == "termometro-digital" } }
+
+      it "is taken out, so a removal from the file reaches the attendant" do
+        CatalogueSeed.seed!
+        CatalogueSeed.seed!(without_thermometer)
+
+        expect(Product.find_by(sku: "termometro-digital")).to be_nil
+        expect(Product.count).to eq without_thermometer.size
+      end
+
+      it "is emptied while a reservation points at it, so no one reserves it, and taken out once none does" do
+        CatalogueSeed.seed!
+        thermometer = Product.find_by!(sku: "termometro-digital")
+        reservation = create(:reservation, product: thermometer, state: "expired")
+
+        CatalogueSeed.seed!(without_thermometer)
+        expect(thermometer.reload.stock).to eq 0
+
+        reservation.destroy!
+        CatalogueSeed.seed!(without_thermometer)
+        expect(Product.exists?(thermometer.id)).to be false
+      end
+
+      it "includes a product an eval overlay added, which the default seed takes out again" do
+        CatalogueSeed.seed!(CatalogueSeed.entries(overlay: Rails.root.join("evals/seeds/hostile_product_name.yml")))
+        CatalogueSeed.seed!
+
+        expect(Product.pluck(:sku)).to match_array(CatalogueSeed.entries.map { |entry| entry[:sku] })
+      end
+    end
+
     it "is what db:seed runs" do
       Rails.application.load_seed
 
@@ -104,6 +136,12 @@ RSpec.describe "FR-06 FR-15 FR-26 the catalogue seed" do
 
         expect { CatalogueSeed.entries(path) }.to raise_error(CatalogueSeed::Invalid, message)
       end
+    end
+
+    it "refuses an empty catalogue, which would take every product out" do
+      path = write_yaml("products" => [])
+
+      expect { CatalogueSeed.entries(path) }.to raise_error(CatalogueSeed::Invalid, /no products/)
     end
 
     it "refuses two products with one sku, which the seed key would merge" do

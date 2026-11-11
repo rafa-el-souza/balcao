@@ -14,17 +14,30 @@ class CatalogueSeed
   def self.entries(path = PATH, overlay: nil)
     products = read(path)
     products = apply(products, read(overlay)) if overlay
+    raise Invalid, "#{path}: no products" if products.empty?
+
     check_unique(products)
     products.map { |product| check(product) }
   end
 
-  # Creates the missing products and brings every seeded product back to its
-  # seed values, keeping its row, so reservations still point at it.
-  # Products that are no longer in the seed are left alone. The stock written
-  # is the seed's, whatever is reserved: the nightly reset subtracts the open
-  # reservations (FR-15, PR-16), so on a live database this is a fresh start.
+  # Makes the products table the seed (FR-26): creates the missing products
+  # and brings every seeded one back to its seed values, keeping its row, so
+  # reservations still point at it. A product the seed no longer lists is
+  # deleted; while a reservation still points at it, it stays with no stock,
+  # so no one reserves it, and a later run deletes it once the seven-day
+  # purge has taken its reservations (FR-15; review finding C1 of pull
+  # request #8). The stock written is the seed's, whatever is reserved: the
+  # nightly reset subtracts the open reservations (FR-15, PR-16), so on a live
+  # database this is a fresh start.
   def self.seed!(entries = self.entries)
-    Product.upsert_all(entries, unique_by: :sku)
+    raise Invalid, "no products to seed" if entries.empty?
+
+    Product.transaction do
+      Product.upsert_all(entries, unique_by: :sku)
+      removed = Product.where.not(sku: entries.map { |entry| entry[:sku] })
+      removed.where.not(id: Reservation.select(:product_id)).delete_all
+      removed.update_all(stock: 0)
+    end
     entries.size
   end
 
