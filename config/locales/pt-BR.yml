@@ -25,3 +25,8 @@ pt-BR:
   # limit, the tool limit or a reply cut short; SR-20).
   fallback:
     model_error: "Desculpe, não consegui responder agora. Pode tentar de novo daqui a pouco?"
+  # FR-14's fixed replies to a request past a per-IP or per-visitor limit,
+  # sent with no model call and nothing stored (threat model SR-01).
+  limits:
+    now: "Você chegou ao limite da demo por agora. Tente de novo daqui a pouco."
+    today: "Você chegou ao limite da demo por hoje. Volte amanhã."

@@ -14,3 +14,6 @@ es:
     trace: "Mira, paso a paso, cómo funciono en esta conversación: %{url}"
   fallback:
     model_error: "Lo siento, no pude responder ahora. ¿Puedes intentarlo de nuevo en un momento?"
+  limits:
+    now: "Llegaste al límite de la demo por ahora. Intenta de nuevo en un rato."
+    today: "Llegaste al límite de la demo por hoy. Vuelve mañana."
