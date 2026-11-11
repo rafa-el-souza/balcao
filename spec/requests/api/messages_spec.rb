@@ -142,6 +142,21 @@ RSpec.describe "FR-18 POST /api/messages stores the message and enqueues its tur
         end
       end
 
+      # Review finding R1 of pull request #12: the limit read the raw path, and
+      # the router squeezes repeated slashes after it.
+      [ "//api/messages", "/api//messages", "//api//session" ].each do |path|
+        it "refuses a body over 16 KB to #{path}, a path the router reads as the API's, before any controller runs" do
+          started = []
+          callback = ->(*, payload) { started << payload[:path] }
+          ActiveSupport::Notifications.subscribed(callback, "start_processing.action_controller") do
+            post path, params: "text=#{"x" * 20_000}", headers: { "Content-Type" => "application/x-www-form-urlencoded", "Origin" => origin }
+          end
+
+          expect(response).to have_http_status(:content_too_large)
+          expect(started).to be_empty
+        end
+      end
+
       it "refuses a body over 16 KB to any API path, sessions included" do
         api_post "/api/session", { language: "x" * 20_000 }
 
