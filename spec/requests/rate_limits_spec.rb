@@ -118,6 +118,18 @@ RSpec.describe "FR-14 SR-01 SR-36 per-IP and per-visitor limits", type: :request
       expect(response).to have_http_status(:unauthorized)
     end
 
+    # Review finding V4 of pull request #12: the body limit answered before
+    # the edge counted, so oversized bodies were never limited.
+    it "counts a request whose body is refused for its size, and refuses the 61st in a minute" do
+      60.times do
+        post "/api/messages", params: "x" * 20_000, headers: { "Content-Type" => "text/plain" }, env: from("203.0.113.7")
+      end
+      expect(response).to have_http_status(:content_too_large)
+
+      post "/api/messages", params: "x" * 20_000, headers: { "Content-Type" => "text/plain" }, env: from("203.0.113.7")
+      expect(limited?("limits.now")).to be true
+    end
+
     it "answers in the page's language when it names one of the three" do
       61.times { poll_from("203.0.113.7", headers: { "Accept-Language" => "en-US,en;q=0.9" }) }
 

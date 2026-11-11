@@ -45,8 +45,6 @@ module Balcao
     # config/initializers/content_security_policy.rb, which API-only apps leave out.
     config.middleware.use ActionDispatch::Cookies
     config.middleware.use ActionDispatch::ContentSecurityPolicy::Middleware
-    # The API's 16 KB body limit, before any controller (threat model SR-04).
-    config.middleware.use Balcao::ApiBodyLimit
 
     # Business time is São Paulo's; timestamps are stored in UTC (design §1.4, NFR-02).
     config.time_zone = "America/Sao_Paulo"

@@ -5,6 +5,11 @@
 # not counted, nor is the operator console (M2).
 Rack::Attack.cache.store = Rails.cache
 
+# The API's 16 KB body limit runs after the edge has counted the request, so
+# an oversized body counts against its source too (threat model SR-04, SR-01;
+# review finding V4 of pull request #12), and before any controller.
+Rails.application.config.middleware.insert_after Rack::Attack, Balcao::ApiBodyLimit
+
 Rack::Attack.blocklist("ip/requests") do |request|
   EdgeLimits.api?(request) && EdgeLimits.from_app?(request) && EdgeLimits.over?("ip/requests", EdgeLimits.source_of(request))
 end
