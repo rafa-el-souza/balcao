@@ -147,6 +147,22 @@ RSpec.describe "FR-18 POST /api/messages stores the message and enqueues its tur
       end
     end
 
+    # Review finding C3 of pull request #12: Rails' instrumentation logged the
+    # parsed body, the visitor's text with it, before the action ran; the log
+    # outlives the deletion (FR-05) and the seven-day purge.
+    it "SR-30 keeps the visitor's message out of the log: Rails reads no JSON body before the action" do
+      logged = []
+      callback = ->(*, payload) { logged << payload[:params] }
+      ActiveSupport::Notifications.subscribed(callback, "start_processing.action_controller") do
+        send_text("meu telefone é 11 98765-4321")
+      end
+
+      expect(response).to have_http_status(:accepted)
+      expect(Message.sole.body).to eq "meu telefone é 11 98765-4321"
+      expect(logged.sole.keys).not_to include("text", "id")
+      expect(logged.inspect).not_to include("98765")
+    end
+
     it "SR-03 refuses a message from another origin, storing nothing" do
       expect do
         post "/api/messages", params: { id:, text: "oi" }.to_json,
