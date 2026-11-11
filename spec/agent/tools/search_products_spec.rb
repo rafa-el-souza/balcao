@@ -41,6 +41,11 @@ RSpec.describe "FR-06 SR-16 SR-21 search_products, the catalogue lookup" do
     expect(Tools::SearchProducts.doc_string).to include("partial when only some words of the query are in it")
   end
 
+  it "warns the model that a close match may be another medicine, never offered in its place (review finding V1 of pull request #10, FR-09)" do
+    expect(search(query: "esomeprazol")["products"]).to contain_exactly(include("name" => "Omeprazol 20 mg, 28 cápsulas", "match" => "close"))
+    expect(Tools::SearchProducts.doc_string).to include("may be another medicine with a similar name", "substitution")
+  end
+
   it "answers an empty list when nothing matches, so the attendant says it was not found" do
     expect(search(query: "xarope de unicórnio")).to eq("query" => "xarope de unicórnio", "products" => [])
   end

@@ -52,6 +52,12 @@ RSpec.describe "FR-06 ADR-0009 the catalogue search" do
     expect(matches("dipirona infantil")).to include("Dipirona gotas 500 mg/ml, 20 ml" => "partial")
   end
 
+  it "marks another medicine with a similar name close, never exact (review finding V1 of pull request #10, FR-09)" do
+    expect(matches("esomeprazol")).to eq("Omeprazol 20 mg, 28 cápsulas" => "close")
+    expect(matches("eritromicina")).to eq("Azitromicina 500 mg, 3 comprimidos" => "close")
+    expect(matches("vitamina d")).to eq("Vitamina C 1 g, 10 comprimidos efervescentes" => "close")
+  end
+
   it "offers a partial match only when nothing matches the whole query" do
     expect(matches("dipirona gotas").values).not_to include("partial")
     expect(names("dipirona gotas")).not_to include("Simeticona gotas 75 mg/ml, 10 ml")

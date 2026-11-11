@@ -29,10 +29,12 @@ module Tools
         "Typos are tolerated. Each product comes with its price, its stock (0 is out of stock) and whether it " \
         "requires a prescription, which is presented at the counter. Each also comes with its match: exact when " \
         "every word of the query is in it; close when it only resembles the query; partial when only some words " \
-        "of the query are in it, listed only when nothing matches the whole query. Name a close or partial " \
-        "product by its own name, never as what the visitor asked for unless it plainly is. An empty list means " \
-        "the pharmacy does not carry it: say so, offer the pharmacist on duty, and never name a product the " \
-        "results do not list."
+        "of the query are in it, listed only when nothing matches the whole query. A close match may be another " \
+        "medicine with a similar name (omeprazol for esomeprazol). Name a close or partial product by its own " \
+        "name, never as what the visitor asked for unless it plainly is, and never offer a different active " \
+        "ingredient in place of the one asked for: that is a substitution, which only the pharmacist decides. " \
+        "An empty list means the pharmacy does not carry it: say so, offer the pharmacist on duty, and never " \
+        "name a product the results do not list."
     input_schema Input
 
     # The arguments are read as the model sent them: a typed reader raises on
