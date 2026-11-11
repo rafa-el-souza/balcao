@@ -58,6 +58,11 @@ RSpec.describe "FR-06 ADR-0009 the catalogue search" do
     expect(matches("vitamina d")).to eq("Vitamina C 1 g, 10 comprimidos efervescentes" => "close")
   end
 
+  it "keeps a one-letter word the stop words would drop, so vitamin E is not Vitamina C (review finding R2 of pull request #10)" do
+    expect(matches("vitamina e")).to eq("Vitamina C 1 g, 10 comprimidos efervescentes" => "close")
+    expect(matches("vitamina a")).to eq("Vitamina C 1 g, 10 comprimidos efervescentes" => "close")
+  end
+
   it "offers a partial match only when nothing matches the whole query" do
     expect(matches("dipirona gotas").values).not_to include("partial")
     expect(names("dipirona gotas")).not_to include("Simeticona gotas 75 mg/ml, 10 ml")

@@ -19,7 +19,7 @@ class Product < ApplicationRecord
   # The catalogue search of search_products (FR-06, ADR-0009), over the
   # products the catalogue file lists (FR-26). The query and the product's
   # name and active ingredient are folded (lower case, no accents) and split
-  # into Portuguese stems, stop words left out. A product matches
+  # into stems (Product.stems). A product matches
   #
   # - exact when it holds every stem of the query, in any order;
   # - close when its trigrams are near the query's (pg_trgm's word
@@ -42,8 +42,7 @@ class Product < ApplicationRecord
   def self.search(query, limit: 5)
     find_by_sql([ <<~SQL.squish, { query:, similarity: SIMILARITY, limit: } ])
       WITH query AS (
-        SELECT unaccent(lower(:query)) AS text,
-               tsvector_to_array(to_tsvector('portuguese', unaccent(lower(:query)))) AS stems
+        SELECT text, #{stems("text")} AS stems FROM (SELECT unaccent(lower(:query)) AS text) AS typed
       ),
       candidates AS (
         SELECT products.*,
@@ -56,7 +55,7 @@ class Product < ApplicationRecord
         FROM products
         CROSS JOIN query
         CROSS JOIN LATERAL (
-          SELECT text, tsvector_to_array(to_tsvector('portuguese', text)) AS stems
+          SELECT text, #{stems("text")} AS stems
           FROM (SELECT unaccent(lower(products.name || ' ' || coalesce(products.active_ingredient, ''))) AS text) AS product
         ) AS folded
         WHERE products.listed
@@ -77,4 +76,14 @@ class Product < ApplicationRecord
       LIMIT :limit
     SQL
   end
+
+  # The stems of a folded text, as an SQL expression: its Portuguese stems,
+  # stop words left out, and its one-letter words, which the stop words would
+  # take with them ("vitamina e" is not "vitamina"; review finding R2 of pull
+  # request #10).
+  def self.stems(text)
+    "ARRAY(SELECT DISTINCT stem FROM unnest(tsvector_to_array(to_tsvector('portuguese', #{text})) || " \
+      "ARRAY(SELECT word FROM unnest(tsvector_to_array(to_tsvector('simple', #{text}))) AS word WHERE length(word) = 1)) AS stem)"
+  end
+  private_class_method :stems
 end
