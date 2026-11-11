@@ -11,11 +11,6 @@ class Product < ApplicationRecord
   # "omeprasol") and drops a shared suffix ("comprimidos" alone).
   SIMILARITY = 0.6
 
-  # The edits a stem of the query may be from a stem of the product and still
-  # match close (Levenshtein distance): two from seven letters, so two swapped
-  # letters ("dipriona") pass; one from five; none below.
-  TOLERANCE = "CASE WHEN length(stem) >= 7 THEN 2 WHEN length(stem) >= 5 THEN 1 ELSE 0 END".freeze
-
   # The catalogue search of search_products (FR-06, ADR-0009), over the
   # products the catalogue file lists (FR-26). The query and the product's
   # name and active ingredient are folded (lower case, no accents) and split
@@ -23,10 +18,10 @@ class Product < ApplicationRecord
   #
   # - exact when it holds every stem of the query, in any order;
   # - close when its trigrams are near the query's (pg_trgm's word
-  #   similarity from SIMILARITY) or each stem of the query is within
-  #   TOLERANCE of one of its stems: a typo, two swapped letters included
-  #   (review finding C3 of pull request #10), or another product with a
-  #   similar name, which search_products tells the model apart;
+  #   similarity from SIMILARITY) or each stem of the query is near one of
+  #   its stems (Product.near): a typo, two swapped letters included (review
+  #   finding C3 of pull request #10), or another product with a similar
+  #   name, which search_products tells the model apart;
   # - partial when it holds some stems of the query, offered only when no
   #   product matches exact or close, so "paracetamol infantil" still finds
   #   the paracetamol the store carries (review finding C1 of pull request
@@ -50,8 +45,7 @@ class Product < ApplicationRecord
                cardinality(query.stems) AS wanted,
                (SELECT count(*) FROM unnest(query.stems) AS stem WHERE stem = ANY (folded.stems)) AS held,
                (SELECT count(*) FROM unnest(query.stems) AS stem
-                WHERE EXISTS (SELECT 1 FROM unnest(folded.stems) AS other
-                              WHERE levenshtein_less_equal(stem, other, #{TOLERANCE}) <= #{TOLERANCE})) AS near
+                WHERE EXISTS (SELECT 1 FROM unnest(folded.stems) AS other WHERE #{near("stem", "other")})) AS near
         FROM products
         CROSS JOIN query
         CROSS JOIN LATERAL (
@@ -86,4 +80,19 @@ class Product < ApplicationRecord
       "ARRAY(SELECT word FROM unnest(tsvector_to_array(to_tsvector('simple', #{text}))) AS word WHERE length(word) = 1)) AS stem)"
   end
   private_class_method :stems
+
+  # Whether a stem of the query is near a stem of the product, as an SQL
+  # expression: the same; or, from five letters, one edit away (Levenshtein
+  # distance), or the same letters with two swapped ("dipriona", "alocol";
+  # review finding C3 of pull request #10). Two edits of any kind would reach
+  # other medicines ("ampicilina" is two from amoxicilina; review finding R3).
+  def self.near(stem, other)
+    "(#{stem} = #{other} OR (length(#{stem}) >= 5 AND (levenshtein_less_equal(#{stem}, #{other}, 1) <= 1 OR " \
+      "(length(#{stem}) = length(#{other}) AND levenshtein_less_equal(#{stem}, #{other}, 2) <= 2 AND " \
+      "#{letters(stem)} = #{letters(other)}))))"
+  end
+  private_class_method :near
+
+  def self.letters(stem) = "(SELECT string_agg(letter, '' ORDER BY letter) FROM regexp_split_to_table(#{stem}, '') AS letter)"
+  private_class_method :letters
 end
