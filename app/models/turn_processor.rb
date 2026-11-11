@@ -31,9 +31,11 @@ class TurnProcessor
   def call
     return if Message.exists?(turn_id: @turn.id)
 
+    command = @commands.match(@inbound.body)
+    follow_reset unless command == :reset
     TraceRecorder.close_interrupted(@turn)
     @recorder = TraceRecorder.new(@turn)
-    case @commands.match(@inbound.body)
+    case command
     when :delete then delete
     when :reset then reset
     when :trace then trace
@@ -42,6 +44,29 @@ class TurnProcessor
   end
 
   private
+
+  # The intake picks a message's conversation when the message arrives, so a
+  # message sent while a reset waited its turn sits in the conversation the
+  # reset then closed. It was sent after the reset: it moves, with its turn,
+  # to the conversation the reset opened, and the model never reads what came
+  # before the reset (review finding V1 of pull request #11, FR-04). A reset
+  # itself stays, so a second reset sent at once opens nothing more.
+  def follow_reset
+    return if @conversation.closed_at.nil? || !reset_before?
+
+    current = Conversation.current_for!(@conversation.visitor)
+    ApplicationRecord.transaction do
+      @inbound.update!(conversation: current)
+      @turn.update!(conversation: current)
+    end
+    @conversation = current
+  end
+
+  def reset_before?
+    Turn.where(conversation_id: @conversation.id).where("(turns.created_at, turns.id) < (?, ?)", @turn.created_at, @turn.id)
+        .joins(:inbound_message).where(messages: { source: "command" }).includes(:inbound_message)
+        .any? { |earlier| @commands.match(earlier.inbound_message.body) == :reset }
+  end
 
   # --- Commands -------------------------------------------------------------
 

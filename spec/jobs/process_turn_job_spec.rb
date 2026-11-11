@@ -377,6 +377,35 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
         expect(Conversation.current_for!(visitor).language).to eq("pt-BR")
       end
 
+      # Review finding V1 of pull request #11: the intake picks a message's
+      # conversation at receipt, before a reset waiting ahead of it has run.
+      it "answers a message stored before its reset ran in the conversation the reset opened, without what came before (FR-04)" do
+        responses.replace([ reply("[pt] Temos dipirona."), reply("[pt] De qual produto?") ])
+        perform(inbound("tem dipirona?", at: 3.seconds.ago))
+        inbound("/reiniciar", at: 2.seconds.ago)
+        later = inbound("e quanto custa?", at: 1.second.ago)
+
+        perform(later)
+
+        current = Conversation.current_for!(visitor)
+        expect(current).not_to eq(conversation)
+        expect(later.reload).to have_attributes(conversation: current, outbound_message: have_attributes(conversation: current))
+        expect(later.inbound_message.conversation).to eq(current)
+        texts = fake.requests.last.body[:messages].flat_map { |message| message[:content] }.pluck(:text)
+        expect(texts).to include("e quanto custa?")
+        expect(texts).not_to include("tem dipirona?")
+      end
+
+      it "links a trace command stored before its reset ran to the conversation the reset opened (FR-04, FR-12)" do
+        inbound("/reiniciar", at: 2.seconds.ago)
+        trace = inbound("/trace", at: 1.second.ago)
+
+        perform(trace)
+
+        current = Conversation.current_for!(visitor)
+        expect(trace.reload.outbound_message.body).to end_with("/trace/#{current.trace_token}")
+      end
+
       it "opens no third conversation for a reset sent twice, and gives the notice once" do
         first = inbound("/reiniciar")
         second = inbound("/reiniciar")
