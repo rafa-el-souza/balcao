@@ -1577,7 +1577,7 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     the confirmation goes to the conversation's stream as
     `{type: "deleted", text}`. PR-19 sends it on WhatsApp, with the address
     read before the deletion.
-  - NFR-03's fallback text (`turn.fallback`) arrives here rather than with
+  - NFR-03's fallback text (`fallback.model_error`) arrives here rather than with
     PR-12, because a turn ends in this job and a turn without a reply would
     leave the page waiting; a refusal gets `turn.declined` until PR-15
     writes FR-09's decline texts with the fixed offer line. Both carry the

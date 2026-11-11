@@ -7,9 +7,6 @@ pt-BR:
     # Before the first reply of a conversation (FR-01). It names the delete
     # command of its language (config/commands.yml).
     notice: "Aviso: esta é uma demonstração de portfólio, com uma farmácia fictícia. As mensagens ficam guardadas por 7 dias, e você pode apagá-las enviando /apagar."
-    # A turn the model could not answer: an error, the time limit, the tool
-    # limit or a reply cut short (NFR-03, SR-20).
-    fallback: "Desculpe, não consegui responder agora. Pode tentar de novo daqui a pouco?"
     # A turn the model refused (threat model SR-19); the decline texts of
     # FR-09 arrive with PR-15.
     declined: "Isso eu não posso responder por aqui. O farmacêutico de plantão atende no balcão."
@@ -24,3 +21,7 @@ pt-BR:
     delete: "Seus dados foram apagados: as mensagens, as reservas abertas e o histórico das conversas. Se escrever de novo, começamos do zero."
     # FR-12.
     trace: "Veja, passo a passo, como eu funciono nesta conversa: %{url}"
+  # NFR-03's fallback: a turn the model could not answer (an error, the time
+  # limit, the tool limit or a reply cut short; SR-20).
+  fallback:
+    model_error: "Desculpe, não consegui responder agora. Pode tentar de novo daqui a pouco?"

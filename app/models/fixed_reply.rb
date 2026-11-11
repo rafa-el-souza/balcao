@@ -22,7 +22,7 @@ module FixedReply
     body
   end
 
-  def fallback(locale) = I18n.t("turn.fallback", locale:)
+  def fallback(locale) = I18n.t("fallback.model_error", locale:)
 
   def declined(locale) = I18n.t("turn.declined", locale:)
 
