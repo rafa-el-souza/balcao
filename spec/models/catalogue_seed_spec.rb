@@ -103,11 +103,21 @@ RSpec.describe "FR-06 FR-15 FR-26 the catalogue seed" do
         reservation = create(:reservation, product: thermometer, state: "expired")
 
         CatalogueSeed.seed!(without_thermometer)
-        expect(thermometer.reload.stock).to eq 0
+        expect(thermometer.reload).to have_attributes(stock: 0, listed: false)
 
         reservation.destroy!
         CatalogueSeed.seed!(without_thermometer)
         expect(Product.exists?(thermometer.id)).to be false
+      end
+
+      it "is listed again when the file lists it again (review finding C2 of pull request #10)" do
+        CatalogueSeed.seed!
+        thermometer = Product.find_by!(sku: "termometro-digital")
+        create(:reservation, product: thermometer, state: "expired")
+        CatalogueSeed.seed!(without_thermometer)
+
+        CatalogueSeed.seed!
+        expect(thermometer.reload).to have_attributes(listed: true, stock: CatalogueSeed.entries.find { |entry| entry[:sku] == "termometro-digital" }[:stock])
       end
 
       it "includes a product an eval overlay added, which the default seed takes out again" do

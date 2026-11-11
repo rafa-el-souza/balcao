@@ -1003,6 +1003,7 @@ erDiagram
     decimal price
     integer stock
     boolean prescription_required
+    boolean listed
   }
   RESERVATION {
     uuid id

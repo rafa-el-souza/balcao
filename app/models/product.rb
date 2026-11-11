@@ -12,7 +12,8 @@ class Product < ApplicationRecord
   # ("comprimidos" alone).
   SIMILARITY = 0.6
 
-  # The catalogue search of search_products (FR-06, ADR-0009). The query is
+  # The catalogue search of search_products (FR-06, ADR-0009), over the
+  # products the catalogue file lists (FR-26). The query is
   # folded like the product's name and active ingredient (lower case, no
   # accents) and a product matches when the query's trigrams are close to a
   # stretch of that text (typos) or when every word of the query, stemmed in
@@ -30,6 +31,7 @@ class Product < ApplicationRecord
     words = "to_tsvector('portuguese', #{text}) @@ plainto_tsquery('portuguese', #{folded})"
 
     select("products.*", sanitize_sql_array([ "round(#{score}::numeric, 2)::float AS score", { query: } ]))
+      .where(listed: true)
       .where(sanitize_sql_array([ "#{score} >= :similarity OR #{words}", { query:, similarity: SIMILARITY } ]))
       .order(Arel.sql("score DESC, products.name"))
       .limit(limit)

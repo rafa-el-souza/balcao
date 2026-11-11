@@ -44,6 +44,15 @@ RSpec.describe "FR-06 ADR-0009 the catalogue search" do
     expect(Product.search("ibuprofeno").map(&:stock)).to eq([ 0 ])
   end
 
+  it "does not list a product the catalogue file dropped while a reservation keeps its row (review finding C2 of pull request #10, FR-26)" do
+    ibuprofeno = Product.find_by!(sku: "ibuprofeno-400mg-10caps")
+    create(:reservation, product: ibuprofeno, state: "expired")
+    CatalogueSeed.seed!(CatalogueSeed.entries.reject { |entry| entry[:sku] == "ibuprofeno-400mg-10caps" })
+
+    expect(Product.exists?(ibuprofeno.id)).to be true
+    expect(names("ibuprofeno")).to be_empty
+  end
+
   it "ranks the closest product first and scores each between 0 and 1" do
     results = Product.search("dipirona gotas")
 
