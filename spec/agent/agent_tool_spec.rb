@@ -44,3 +44,39 @@ RSpec.describe "SR-16 AgentTool, the base of the attendant's tools (design §6.3
     expect(Rails.logger).to have_received(:error).with(/crash.*RuntimeError/)
   end
 end
+
+RSpec.describe "SR-16 AgentTool reports outside the rescue of a tool's bugs (review finding C3 of pull request #9)" do
+  let(:turn) { create(:turn) }
+  let(:input) { SpecTools::EchoInput.new(text: "dipirona") }
+
+  before { allow(Rails.logger).to receive(:error) }
+
+  it "answers the model with the tool's result, reported once, when the handler raises after a successful call" do
+    reports = []
+    handler = lambda do |call|
+      reports << call
+      raise ActiveRecord::StatementInvalid, "PG::Error: secret host 10.0.0.5"
+    end
+
+    output = SpecTools::Echo.new(turn:, on_call: handler).call(input)
+
+    expect(JSON.parse(output)).to eq("echo" => "dipirona", "turn_id" => turn.id)
+    expect(reports.size).to eq(1)
+    expect(Rails.logger).to have_received(:error).with(/echo.*not reported.*ActiveRecord::StatementInvalid/)
+    expect(Rails.logger).not_to have_received(:error).with(/secret host/)
+  end
+
+  it "keeps a refusal's own message for the model when the handler raises" do
+    handler = ->(_call) { raise "handler bug" }
+
+    expect { SpecTools::Refuse.new(turn:, on_call: handler).call(input) }
+      .to raise_error(AgentTool::Error, "no such topic")
+  end
+
+  it "never sends the handler's message to the model when a buggy tool's report raises" do
+    handler = ->(_call) { raise "handler bug: secret" }
+
+    expect { SpecTools::Crash.new(turn:, on_call: handler).call(input) }
+      .to raise_error(AgentTool::Error, AgentTool::FAILED)
+  end
+end
