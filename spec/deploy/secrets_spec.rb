@@ -68,7 +68,8 @@ RSpec.describe "SR-25 secrets are references in the repository and values in the
     end
 
     it "generates every required secret that is not held by an outside console" do
-      expect(generated_names).to include(*Balcao::RequiredEnvironment::SECRETS)
+      expect(generated_names).to include(*(Balcao::RequiredEnvironment::SECRETS - Balcao::RequiredEnvironment::HELD))
+      expect(generated_names).not_to include(*Balcao::RequiredEnvironment::HELD)
     end
 
     it "skips a secret already set, so appending its output never rotates a key in use" do

@@ -29,6 +29,9 @@ gem "bootsnap", require: false
 # Add HTTP asset caching/compression and X-Sendfile acceleration to Puma [https://github.com/basecamp/thruster/]
 gem "thruster", require: false
 
+# Per-IP and per-visitor limits at the edge (design FR-14, threat model SR-01, SR-36)
+gem "rack-attack", "~> 6.8"
+
 # Use Rack CORS for handling Cross-Origin Resource Sharing (CORS), making cross-origin Ajax possible
 # gem "rack-cors"
 

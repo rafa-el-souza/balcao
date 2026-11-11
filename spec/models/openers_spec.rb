@@ -47,5 +47,14 @@ RSpec.describe "FR-21 SR-34 the landing's openers, resolved on the server" do
     it "refuses a key that could not travel in a query string as is" do
       expect { load_with("stock pt" => { "lang" => "pt", "text" => "tem?" }) }.to raise_error(Openers::Invalid, /key "stock pt"/)
     end
+
+    # Review finding N4 of pull request #8: a shared /chat?say= link must not
+    # reset or delete a conversation on page load (FR-04, FR-05).
+    [ "/apagar", "Apagar meus dados!", "/reiniciar", "/trace" ].each do |phrase|
+      it "refuses a text that is a command phrase (#{phrase})" do
+        expect { load_with("trap_pt" => { "lang" => "pt", "text" => phrase }) }
+          .to raise_error(Openers::Invalid, /trap_pt\.text is a command/)
+      end
+    end
   end
 end

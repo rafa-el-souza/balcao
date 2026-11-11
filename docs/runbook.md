@@ -128,11 +128,23 @@ Only a green `main` is deployed to the MVP host.
    - `curl -s -o /dev/null -w '%{http_code}\n' http://balcao.rafasouza.dev.br/up`
      answers `301` (to HTTPS);
    - `kamal app details -d ensaio` lists one `web` and one `job` container
-     at the deployed SHA.
-5. If it fails: `kamal app logs -d ensaio`, `kamal proxy logs -d ensaio`,
+     at the deployed SHA;
+   - a conversation runs over the API (since PR-09): with a cookie jar,
+     `POST /api/session` with the header
+     `Origin: https://balcao.rafasouza.dev.br` and the body `{}` answers
+     `201`; `POST /api/messages` with the same origin and
+     `{"id": "<a new UUID>", "say": "stock_pt"}` answers `202`; within a
+     minute `GET /api/conversations/current` shows the reply and
+     `"pending":false`. Each such turn spends a cent or so of the dev/eval
+     key.
+5. The catalogue: after the first deploy that runs turns (PR-09) and after
+   any change to `db/seeds/catalogue.yml`,
+   `kamal app exec -d ensaio --roles=web --reuse 'bin/rails db:seed'`. It
+   is safe to run again on the live database (`db/seeds.rb`).
+6. If it fails: `kamal app logs -d ensaio`, `kamal proxy logs -d ensaio`,
    `kamal accessory logs db -d ensaio`. The registry was removed anyway; a
    new deploy of a fixed `main` is the way forward on the MVP host.
-6. Say in the slice's handoff what the demo shows now. `kamal audit -d
+7. Say in the slice's handoff what the demo shows now. `kamal audit -d
    ensaio` on the host is the deploy record.
 
 ## End of a deploy session

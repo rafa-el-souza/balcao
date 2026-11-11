@@ -12,6 +12,7 @@ require "action_mailer/railtie"
 # require "action_text/engine"
 require "action_view/railtie"
 require "action_cable/engine"
+require_relative "../lib/middleware/api_body_limit"
 # require "rails/test_unit/railtie"
 
 # Require the gems listed in Gemfile, including any gems
@@ -26,7 +27,7 @@ module Balcao
     # Please, add to the `ignore` list any other `lib` subdirectories that do
     # not contain `.rb` files, or that should not be reloaded or eager loaded.
     # Common ones are `templates`, `generators`, or `middleware`, for example.
-    config.autoload_lib(ignore: %w[assets tasks])
+    config.autoload_lib(ignore: %w[assets middleware tasks])
 
     # Configuration for the application, engines, and railties goes here.
     #
@@ -40,6 +41,10 @@ module Balcao
     # Middleware like session, flash, cookies can be added back manually.
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
+    # The visitor cookie (design FR-18, threat model SR-03) and the policy of
+    # config/initializers/content_security_policy.rb, which API-only apps leave out.
+    config.middleware.use ActionDispatch::Cookies
+    config.middleware.use ActionDispatch::ContentSecurityPolicy::Middleware
 
     # Business time is São Paulo's; timestamps are stored in UTC (design §1.4, NFR-02).
     config.time_zone = "America/Sao_Paulo"
@@ -54,8 +59,9 @@ module Balcao
     config.x.spa_shell = Rails.root.join("web/dist/index.html")
 
     # Where a visitor opens the web app, for the links the server writes (the
-    # trace link of FR-12): the Vite dev server here, the public name in
-    # production (config/environments/production.rb).
+    # trace link of FR-12), the Origin the API accepts and the cable's allowed
+    # origin (SR-03): the Vite dev server here, the public name in production
+    # (config/environments/production.rb).
     config.x.public_origin = "http://127.0.0.1:5173"
   end
 end
