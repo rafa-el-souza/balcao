@@ -20,6 +20,9 @@ gem "solid_cache"
 gem "solid_queue"
 gem "solid_cable"
 
+# The official Anthropic SDK: the model client and its tool runner (design §6.4, §6.9)
+gem "anthropic", "~> 2.8"
+
 # Reduces boot times through caching; required in config/boot.rb
 gem "bootsnap", require: false
 
