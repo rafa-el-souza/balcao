@@ -269,6 +269,22 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       expect { perform(first) }.not_to(change { fake.requests.size })
     end
 
+    # Review finding C1 of pull request #11: under the lock, a running turn is
+    # one a crash or a deploy interrupted.
+    it "answers an earlier turn a crash left running before its own" do
+      responses.replace([ reply("[pt] Temos, sim."), reply("[pt] Custa R$ 8,90.") ])
+      first = inbound("tem dipirona?", at: 2.seconds.ago)
+      first.update!(state: "running")
+      second = inbound("e quanto custa?", at: 1.second.ago)
+
+      perform(second)
+
+      expect(first.reload).to have_attributes(state: "replied", outbound_message: be_present)
+      expect(first.outbound_message.created_at).to be < second.reload.outbound_message.created_at
+      expect(fake.requests.last.body[:messages].map { |message| message[:role] }).to eq(%w[user assistant user])
+      expect { perform(first) }.not_to(change { fake.requests.size })
+    end
+
     it "leaves an earlier turn that failed to its own job" do
       first = inbound("oi", at: 2.seconds.ago)
       first.update!(state: "failed")

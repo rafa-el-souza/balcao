@@ -3,9 +3,11 @@
 # ConversationLock, and turns run in arrival order: a job that gets the lock
 # first answers the conversation's earlier turns still waiting, oldest first,
 # and then its own, so the model always reads the earlier replies (bursts of
-# short messages are answered one by one). An earlier turn that already ran
-# and failed is left to its own job, so one broken turn never holds the
-# conversation.
+# short messages are answered one by one). An earlier turn still running is
+# one a crash or a deploy interrupted, since no other job can run it while
+# this one holds the lock, so it is answered too (review finding C1 of pull
+# request #11). An earlier turn that already ran and failed is left to its
+# own job, so one broken turn never holds the conversation.
 #
 # A job run again for a turn that has its reply calls, bills and traces
 # nothing (NFR-02). The retries with backoff and the dead letter of NFR-03
@@ -28,7 +30,7 @@ class ProcessTurnJob < ApplicationJob
   private
 
   def waiting_before(turn)
-    Turn.where(conversation_id: turn.conversation_id, state: "received")
+    Turn.where(conversation_id: turn.conversation_id, state: %w[received running])
         .where("(turns.created_at, turns.id) < (?, ?)", turn.created_at, turn.id)
         .where.missing(:outbound_message)
         .order(:created_at, :id)
