@@ -33,6 +33,9 @@ RSpec.describe "NFR-03 model contract: the fake and AgentRunner accept the SDK's
       when :tool_use then tool_turn(tool_use("echo", { "text" => "x" }))
       when :refusal then refusal
       when :end_turn, :stop_sequence then reply("[pt] Pronto.", stop_reason:)
+      # A paused or compacted step is resumed by the SDK's runner; Balcão has
+      # no server tools, so here it is a step with no output yet.
+      when :pause_turn, :compaction then message(content: [ thinking ], stop_reason:)
       else message(content: [ thinking, text("[pt] Pront") ], stop_reason:)
       end
     end

@@ -149,6 +149,33 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
         expect(runner.run(turn)).to have_attributes(outcome: :replied, text: "Temos, sim.", language: nil)
       end
     end
+
+    # Review finding C1 of pull request #9: text the model writes in a step
+    # that also calls a tool is part of the reply, and may carry the tag or
+    # the declined clinical part (FR-09).
+    context "when the model writes text before calling a tool" do
+      let(:responses) do
+        [ message(content: [ thinking, text("[es] Déjame ver."), tool_use("echo", { "text" => "x" }) ], stop_reason: :tool_use),
+          reply("Sí, hacemos entregas.") ]
+      end
+
+      it "keeps that text in the reply, in order, and reads the language from its tag" do
+        expect(runner.run(turn)).to have_attributes(outcome: :replied, text: "Déjame ver.\n\nSí, hacemos entregas.",
+                                                    language: "es")
+      end
+    end
+
+    context "when a later step repeats the tag" do
+      let(:responses) do
+        [ message(content: [ text("[pt] Não posso indicar dose; o farmacêutico responde no balcão."),
+                             tool_use("echo", { "text" => "dipirona" }) ], stop_reason: :tool_use),
+          reply("[pt] Temos dipirona.") ]
+      end
+
+      it "shows no tag and keeps the declined part (FR-09)" do
+        expect(runner.run(turn).text).to eq("Não posso indicar dose; o farmacêutico responde no balcão.\n\nTemos dipirona.")
+      end
+    end
   end
 
   describe "the tool loop (design §6.3)" do

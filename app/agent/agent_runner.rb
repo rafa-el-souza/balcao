@@ -78,6 +78,7 @@ class AgentRunner
       @tool_calls = []
       @tool_uses = 0
       @tool_runs = 0
+      @messages = []
       @tools = tools.map { |tool| tool.new(turn:, on_call: method(:tool_called), gate: method(:permit_tool_call)) }
     end
 
@@ -93,6 +94,7 @@ class AgentRunner
         start_model_call
         message = runner.next_message or break
         last = message
+        @messages << message
         @tool_uses += message.content.count { |block| block.type == :tool_use }
       end
       result_of(last)
@@ -160,17 +162,22 @@ class AgentRunner
 
     def result_of(message)
       case message&.stop_reason
-      when :end_turn, :stop_sequence then reply_of(message)
+      when :end_turn, :stop_sequence then reply
       when :refusal then result(:refused)
       when :tool_use then result(:tool_limit)
       else result(:incomplete)
       end
     end
 
-    def reply_of(message)
-      text = message.content.select { |block| block.type == :text }.map(&:text).join("\n\n")
-      tag = text[LANGUAGE_TAG, 1]
-      text = text.sub(LANGUAGE_TAG, "").strip
+    # The reply is the text of every step of the turn, in order: what the
+    # model writes before a tool call is shown too, and may carry the tag or
+    # the declined clinical part of a mixed question (review finding C1 of
+    # pull request #9). Each block's leading tag is removed; the first names
+    # the language.
+    def reply
+      blocks = @messages.flat_map { |message| message.content.select { |block| block.type == :text }.map(&:text) }
+      tag = blocks.filter_map { |block| block[LANGUAGE_TAG, 1] }.first
+      text = blocks.map { |block| block.sub(LANGUAGE_TAG, "").strip }.reject(&:empty?).join("\n\n")
       return result(:incomplete) if text.empty?
 
       result(:replied, text:, language: LANGUAGES[tag])
