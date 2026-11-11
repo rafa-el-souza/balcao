@@ -406,15 +406,33 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
         expect(trace.reload.outbound_message.body).to end_with("/trace/#{current.trace_token}")
       end
 
-      it "opens no third conversation for a reset sent twice, and gives the notice once" do
-        first = inbound("/reiniciar")
-        second = inbound("/reiniciar")
+      # Review finding R2 of pull request #11: a reset moves the messages sent
+      # after it, a second reset among them, so each reset starts over.
+      it "starts over again for a second reset sent after a message the first reset moved (FR-04)" do
+        responses.replace([ reply("[pt] Temos dipirona."), reply("[pt] Em que posso ajudar?") ])
+        inbound("/reiniciar", at: 4.seconds.ago)
+        inbound("tem dipirona?", at: 3.seconds.ago)
+        second_reset = inbound("/reiniciar", at: 2.seconds.ago)
 
-        perform(first)
+        perform(second_reset)
+        later = inbound("e quanto custa?", conversation: Conversation.current_for!(visitor))
+        perform(later)
+
+        expect(visitor.conversations.count).to eq(3)
+        expect(fake.requests.last.body[:messages].flat_map { |message| message[:content] }.pluck(:text)).not_to include("tem dipirona?")
+      end
+
+      it "starts over for each of two resets sent at once, each confirmation with the notice (FR-01, FR-04)" do
+        first = inbound("/reiniciar", at: 2.seconds.ago)
+        second = inbound("/reiniciar", at: 1.second.ago)
+
         perform(second)
 
-        expect(visitor.conversations.count).to eq(2)
-        expect(second.reload.outbound_message.body).to eq(FixedReply.command(:reset, "pt-BR"))
+        expect(visitor.conversations.count).to eq(3)
+        expect([ first, second ].map { |turn| turn.reload.outbound_message.body })
+          .to all(eq(FixedReply.with_notice(FixedReply.command(:reset, "pt-BR"), "pt-BR")))
+        expect(second.conversation).to eq(first.outbound_message.conversation)
+        expect(second.outbound_message.conversation).to eq(Conversation.current_for!(visitor))
       end
     end
 

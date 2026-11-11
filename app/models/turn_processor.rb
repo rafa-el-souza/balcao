@@ -32,7 +32,6 @@ class TurnProcessor
     return if Message.exists?(turn_id: @turn.id)
 
     command = @commands.match(@inbound.body)
-    follow_reset unless command == :reset
     TraceRecorder.close_interrupted(@turn)
     @recorder = TraceRecorder.new(@turn)
     case command
@@ -44,29 +43,6 @@ class TurnProcessor
   end
 
   private
-
-  # The intake picks a message's conversation when the message arrives, so a
-  # message sent while a reset waited its turn sits in the conversation the
-  # reset then closed. It was sent after the reset: it moves, with its turn,
-  # to the conversation the reset opened, and the model never reads what came
-  # before the reset (review finding V1 of pull request #11, FR-04). A reset
-  # itself stays, so a second reset sent at once opens nothing more.
-  def follow_reset
-    return if @conversation.closed_at.nil? || !reset_before?
-
-    current = Conversation.current_for!(@conversation.visitor)
-    ApplicationRecord.transaction do
-      @inbound.update!(conversation: current)
-      @turn.update!(conversation: current)
-    end
-    @conversation = current
-  end
-
-  def reset_before?
-    Turn.where(conversation_id: @conversation.id).where("(turns.created_at, turns.id) < (?, ?)", @turn.created_at, @turn.id)
-        .joins(:inbound_message).where(messages: { source: "command" }).includes(:inbound_message)
-        .any? { |earlier| @commands.match(earlier.inbound_message.body) == :reset }
-  end
 
   # --- Commands -------------------------------------------------------------
 
@@ -80,16 +56,42 @@ class TurnProcessor
   end
 
   # FR-04: the conversation closes and the reply opens the next one, so its
-  # confirmation carries the notice. A reset whose conversation another
-  # reset closed already opens nothing more.
+  # confirmation carries the notice.
+  #
+  # The intake puts a message in the open conversation when it arrives, so a
+  # message sent while this reset waited its turn sits in the conversation
+  # the reset closes. It was sent after the reset: it moves, with its turn, to
+  # the conversation the reset opens, and its model never reads what came
+  # before (review findings V1 and R2 of pull request #11); a second reset
+  # among those messages starts over again in its turn. One transaction
+  # closes, opens, moves and confirms, so a moved turn's job, which runs it
+  # under the new conversation's lock (ProcessTurnJob), finds the
+  # confirmation already there and gives no second notice.
   def reset
     language = command_language
     command(:reset) do
-      @conversation.update!(closed_at: Time.current) if @conversation.closed_at.nil?
-      current = Conversation.current_for!(@conversation.visitor)
-      current.update!(language:) unless current.messages.outbound.exists?
-      store_reply(FixedReply.command(:reset, language), conversation: current, language:)
+      message = ApplicationRecord.transaction do
+        @conversation.update!(closed_at: Time.current) if @conversation.closed_at.nil?
+        current = Conversation.current_for!(@conversation.visitor)
+        current.update!(language:) unless current.messages.outbound.exists?
+        move_later_turns(current)
+        record_reply(FixedReply.command(:reset, language), conversation: current, language:)
+      end
+      broadcast_reply(message)
     end
+  end
+
+  # The turns after this one with no reply yet, and their messages. They have
+  # not run: turns run in arrival order under this conversation's lock, which
+  # this run holds. update_all writes conversation_id alone, on purpose.
+  def move_later_turns(current)
+    later = Turn.where(conversation_id: @conversation.id)
+                .where("(turns.created_at, turns.id) > (?, ?)", @turn.created_at, @turn.id)
+                .where.missing(:outbound_message).pluck(:id, :inbound_message_id)
+    return if later.empty?
+
+    Turn.where(id: later.map(&:first)).update_all(conversation_id: current.id, updated_at: Time.current)
+    Message.where(id: later.map(&:last)).update_all(conversation_id: current.id, updated_at: Time.current)
   end
 
   # FR-12: the link to this conversation's trace page.
@@ -173,13 +175,21 @@ class TurnProcessor
   # --- The reply --------------------------------------------------------------
 
   def store_reply(text, language:, conversation: @conversation)
+    message = record_reply(text, conversation:, language:)
+    broadcast_reply(message)
+    message
+  end
+
+  def record_reply(text, conversation:, language:)
     body = conversation.messages.outbound.exists? ? text : FixedReply.with_notice(text, language)
-    message = Message.record_outbound!(turn: @turn, body:, conversation:)
+    Message.record_outbound!(turn: @turn, body:, conversation:)
+  end
+
+  def broadcast_reply(message)
     broadcast(type: "message", message: {
       id: message.id, conversation_id: message.conversation_id, turn_id: message.turn_id,
       author: message.author, body: message.body, created_at: message.created_at.iso8601(3)
     })
-    message
   end
 
   # On the stream of the turn's conversation, the one the visitor's page
