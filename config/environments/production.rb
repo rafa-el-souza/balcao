@@ -57,6 +57,7 @@ Rails.application.configure do
 
   # Set host to be used by links generated in mailer templates (APP_HOST, design §8).
   config.action_mailer.default_url_options = { host: ENV.fetch("APP_HOST") }
+  config.x.public_origin = "https://#{ENV.fetch("APP_HOST")}"
 
   # Specify outgoing SMTP server. Remember to add smtp/* credentials via bin/rails credentials:edit.
   # config.action_mailer.smtp_settings = {

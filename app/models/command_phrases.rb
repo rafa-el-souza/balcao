@@ -32,6 +32,7 @@ class CommandPhrases
 
     @phrases = NAMES.to_h { |name| [ name.to_sym, check_languages(data[name], name) ] }
     @commands = index(@phrases)
+    @languages = languages_index(@phrases)
   end
 
   def names = @phrases.keys
@@ -40,6 +41,12 @@ class CommandPhrases
 
   # :reset, :delete, :trace, or nil when the message is not a command.
   def match(text) = @commands[self.class.normalize(text)]
+
+  # The languages whose list holds the phrase ("reset" is English only,
+  # "/reiniciar" Portuguese and Spanish), so a confirmation can follow the
+  # language the visitor wrote in (FR-02); empty for a message that is not a
+  # command.
+  def languages(text) = @languages.fetch(self.class.normalize(text), [])
 
   private
 
@@ -51,6 +58,15 @@ class CommandPhrases
       raise Invalid, "#{name}.#{language} has a blank phrase" if phrases.any? { |phrase| !phrase.is_a?(String) || self.class.normalize(phrase).empty? }
     end
     languages.transform_values { |phrases| phrases.map(&:freeze).freeze }.freeze
+  end
+
+  def languages_index(phrases)
+    phrases.values.flat_map(&:to_a).each_with_object(Hash.new { |hash, key| hash[key] = [] }) do |(language, list), index|
+      list.each do |phrase|
+        key = self.class.normalize(phrase)
+        index[key] << language unless index[key].include?(language)
+      end
+    end.transform_values { |languages| LANGUAGES & languages }.to_h.freeze
   end
 
   def index(phrases)

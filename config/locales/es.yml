@@ -3,3 +3,14 @@
 es:
   app:
     name: "Balcão"
+  turn:
+    notice: "Aviso: esta es una demostración de portafolio, con una farmacia ficticia. Los mensajes se guardan 7 días, y puedes borrarlos enviando /borrar."
+    declined: "Eso no lo puedo responder por aquí. El farmacéutico de turno te atiende en el mostrador."
+    reservation: "Reserva %{code}: %{quantity} × %{product}, retiro hasta el %{pickup_until}."
+    pickup_format: "%d/%m a las %H:%M"
+  commands:
+    reset: "Listo, empezamos de nuevo. ¿En qué puedo ayudarte?"
+    delete: "Tus datos fueron borrados: los mensajes, las reservas abiertas y el historial de las conversaciones. Si escribes de nuevo, empezamos desde cero."
+    trace: "Mira, paso a paso, cómo funciono en esta conversación: %{url}"
+  fallback:
+    model_error: "Lo siento, no pude responder ahora. ¿Puedes intentarlo de nuevo en un momento?"

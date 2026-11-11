@@ -39,12 +39,13 @@ class Message < ApplicationRecord
     raise ActiveRecord::RecordNotUnique, "the message id is held by another visitor's message"
   end
 
-  # Stores the one reply of a turn. A retried job meets the unique index and
-  # gets the reply already stored, so it neither stores nor sends a second
-  # one (NFR-02).
-  def self.record_outbound!(turn:, body:, author: "bot")
+  # Stores the one reply of a turn, in the turn's conversation or in the one
+  # given: a reset's confirmation opens the conversation it starts (FR-04). A
+  # retried job meets the unique index and gets the reply already stored, so
+  # it neither stores nor sends a second one (NFR-02).
+  def self.record_outbound!(turn:, body:, author: "bot", conversation: nil)
     create_or_find_by!(turn_id: turn.id) do |message|
-      message.assign_attributes(conversation_id: turn.conversation_id, direction: "outbound",
+      message.assign_attributes(conversation_id: conversation&.id || turn.conversation_id, direction: "outbound",
                                 author:, source: "text", body:, status: "pending")
     end
   end

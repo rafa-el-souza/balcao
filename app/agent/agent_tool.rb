@@ -29,36 +29,46 @@ class AgentTool < Anthropic::BaseTool
 
   def name = self.class.name.demodulize.underscore
 
+  # The report runs after the call and outside the rescue of its bugs: a
+  # handler that raises (the trace's insert failing after a reservation was
+  # stored) neither turns a stored result into a failure for the model nor
+  # reports the call twice, and its message never reaches the model (review
+  # finding C3 of pull request #9). A report that fails is logged and skipped.
   def call(input)
     @gate&.call
-    measure(input)
+    started = monotonic
+    output, error = run(input)
+    report(input, error ? error.message : output, !error.nil?, started)
+    raise error if error
+
+    output
   end
 
   def perform(input) = raise(NotImplementedError, "#{self.class} must implement perform")
 
   private
 
-  def measure(input)
-    started = monotonic
-    output = encode(perform(input))
-    report(input, output, false, started)
-    output
+  # The output, or the error the model reads: a refusal's own, FAILED for a bug.
+  def run(input)
+    [ encode(perform(input)), nil ]
   rescue Error => e
-    report(input, e.message, true, started)
-    raise
+    [ nil, e ]
   rescue StandardError => e
     Rails.logger.error("tool #{name} failed: #{e.class}: #{e.message}")
-    report(input, FAILED, true, started)
-    raise Error, FAILED
+    [ nil, Error.new(FAILED) ]
   end
 
   def encode(output) = output.is_a?(String) ? output : JSON.generate(output)
 
   def report(input, output, is_error, started)
-    @on_call&.call(AgentRunner::ToolCall.new(
+    return unless @on_call
+
+    @on_call.call(AgentRunner::ToolCall.new(
       name:, input: JSON.parse(JSON.generate(input.to_h)), output:, is_error:,
       latency_ms: ((monotonic - started) * 1000).round
     ))
+  rescue StandardError => e
+    Rails.logger.error("tool #{name}: the call was not reported: #{e.class}")
   end
 
   def monotonic = Process.clock_gettime(Process::CLOCK_MONOTONIC)

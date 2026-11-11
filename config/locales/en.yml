@@ -3,3 +3,14 @@
 en:
   app:
     name: "Balcão"
+  turn:
+    notice: "Notice: this is a portfolio demo of a fictional pharmacy. Messages are kept for 7 days, and you can delete them by sending /delete."
+    declined: "I can't answer that here. The pharmacist on duty can help you at the counter."
+    reservation: "Reservation %{code}: %{quantity} × %{product}, pick up by %{pickup_until}."
+    pickup_format: "%b %-d at %H:%M"
+  commands:
+    reset: "Done, we're starting over. How can I help?"
+    delete: "Your data has been deleted: the messages, the open reservations and the history of the conversations. If you write again, we start from scratch."
+    trace: "Here is how I work in this conversation, step by step: %{url}"
+  fallback:
+    model_error: "Sorry, I couldn't answer just now. Could you try again in a moment?"

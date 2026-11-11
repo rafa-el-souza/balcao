@@ -1548,6 +1548,88 @@ MVP from its first day and merges at day 11.
 
 Tracked here until resolved; each resolution becomes an ADR or an edit.
 
+- Note 2026-11-11 (PR-08, the turn job). `ProcessTurnJob` (app/jobs/) runs
+  a turn under `ConversationLock` and hands it to `TurnProcessor`
+  (app/models/), which answers a command, a turn whose reservation is
+  stored, or runs `AgentRunner`; `TraceRecorder` and `TurnTrace` write the
+  spans. Choices the text left open:
+  - The lock is PostgreSQL's session advisory lock on the conversation,
+    held on one connection for the turn, released by the database if the
+    process dies. A waiting job holds its worker thread while it waits, so
+    a burst in one conversation can take the worker's three threads for a
+    few turns; the per-visitor limits of FR-14 (PR-09) bound it. Arrival
+    order is kept by the job that holds the lock: it answers the
+    conversation's earlier turns still waiting, oldest first, then its own.
+    Under the lock, an earlier turn still `running` is one a crash or a
+    deploy interrupted, so it is answered too (review finding C1 of pull
+    request #11); one that ran and failed is left to its own job, so one
+    broken turn never holds the conversation. A turn runs only under the
+    lock of the conversation it belongs to (R1 below).
+  - FR-01's notice is the head of the first reply's text, put there by the
+    system in the reply's language whenever the conversation has no reply
+    yet; the history the model reads drops it, so the model's own past
+    reply never shows a notice the prompt forbids it to write. A reset's
+    confirmation is stored in the conversation the reset opens, so it is
+    that conversation's first reply and carries the notice (FR-04), and the
+    next reply does not repeat it. It goes out on the old conversation's
+    stream, the one the page follows, naming the new conversation.
+  - The intake puts a message in the open conversation when it arrives, so
+    a message sent while a reset waited its turn sits in the conversation
+    the reset closes. The reset moves those later messages, with their
+    turns, into the conversation it opens, in one transaction with the
+    close and its confirmation, so their model never reads what came
+    before the reset and a second reset among them starts over again
+    (review findings V1 and R2 of pull request #11). A job whose turn a
+    reset moved while it waited takes the new conversation's lock instead
+    (R1). Two resets sent at once open two conversations, each
+    confirmation with the notice.
+  - A command's reply is in the language of its phrase when only one
+    language lists it ("start over"), else in the conversation's
+    ("/reiniciar" is Portuguese and Spanish; "reset" and "/reset", which
+    FR-04 names among a Portuguese visitor's phrases, are listed in all
+    three, review finding C2 of pull request #11).
+  - `/apagar` stores and traces nothing, since the deletion would take it:
+    the confirmation goes to the conversation's stream as
+    `{type: "deleted", text}`. PR-19 sends it on WhatsApp, with the address
+    read before the deletion.
+  - NFR-03's fallback text (`fallback.model_error`) arrives here rather than with
+    PR-12, because a turn ends in this job and a turn without a reply would
+    leave the page waiting; a refusal gets `turn.declined` until PR-15
+    writes FR-09's decline texts with the fixed offer line. Both carry the
+    line of any reservation the turn stored. PR-12 keeps the retries with
+    backoff, the dead letter and the page's states.
+  - The trace uses the span and attribute names the Anthropic SDK gives its
+    own spans (`anthropic.messages.create`, `anthropic.custom_tool_use
+    <tool>`, `gen_ai.*`, `anthropic.*`), so its tracer can replace the
+    recorder later (ADR-0010); ours are `balcao.turn`, the root, which
+    starts at the message's receipt, so its length is NFR-01's latency,
+    `balcao.outbound` and `balcao.command`. A tool's span is written when
+    the call returns, dated back by its latency. Each run of a turn is a
+    trace of its own; spans a broken run left open are closed as
+    `interrupted` before the next run. The turn's outcome is an attribute
+    of the root span, not a column, since nothing outside the trace reads
+    it yet.
+  - SR-12 asks for the system prompt as "system prompt (N tokens, cached)",
+    and no request reports the prompt's own token count (the cache figures
+    cover the tools and the conversation's tail too). The model call's span
+    carries the prompt's length in characters and the first 16 hex digits
+    of its SHA-256, with the call's cache read and write; the panel (PR-11)
+    writes the summary from those.
+  - A span that cannot be stored or broadcast is logged by name and error
+    class and never fails the turn, and a tool reports its call outside
+    the rescue of its bugs (review finding C3 of pull request #9). Text in
+    a span loses any NUL and any byte that is not UTF-8 (C4 of pull request
+    #10).
+  - Usage records are not written here: PR-16 writes them, priced, from the
+    same model-call events, and adds the cost attributes of FR-12 to the
+    model call's span with the price table.
+  - The streams carry `{type: "message", message: {id, conversation_id,
+    turn_id, author, body, created_at}}` and `{type: "span", span: {...}}`;
+    PR-09 adds the channels that subscribe a page to them. The trace link
+    is built from `config.x.public_origin`, the public name in production.
+  - FR-04's 24-hour rule belongs to the intake (PR-09), where a message
+    picks its conversation.
+
 - Note 2026-11-11 (PR-07, the first two tools). `get_store_info` and
   `search_products` (app/agent/tools/) are `AgentTool`s, and `AgentRunner`
   gives a turn both unless told otherwise. Choices the text left open:

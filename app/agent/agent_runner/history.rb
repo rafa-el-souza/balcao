@@ -5,8 +5,10 @@ class AgentRunner
   # carries the time it was sent, in São Paulo time (design §1.4), in a text
   # block of its own: the model reads "today" and "now" from it, and since the
   # line is built from the stored time, a past message reads the same on every
-  # turn and the cached conversation holds. Visitor messages that got no reply
-  # join into one user message, as the API expects the roles to alternate.
+  # turn and the cached conversation holds. A reply reads as the model wrote
+  # it, without the demo notice the system put before it (FR-01). Visitor
+  # messages that got no reply join into one user message, as the API expects
+  # the roles to alternate.
   module History
     TURNS = 30
 
@@ -29,7 +31,7 @@ class AgentRunner
       { role: "user", content: [ text(sent), text(message.body) ] }
     end
 
-    def reply(message) = { role: "assistant", content: [ text(message.body) ] }
+    def reply(message) = { role: "assistant", content: [ text(FixedReply.without_notice(message.body)) ] }
 
     def text(text) = { type: "text", text: }
   end

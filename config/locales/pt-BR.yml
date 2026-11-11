@@ -3,3 +3,25 @@
 pt-BR:
   app:
     name: "Balcão"
+  turn:
+    # Before the first reply of a conversation (FR-01). It names the delete
+    # command of its language (config/commands.yml).
+    notice: "Aviso: esta é uma demonstração de portfólio, com uma farmácia fictícia. As mensagens ficam guardadas por 7 dias, e você pode apagá-las enviando /apagar."
+    # A turn the model refused (threat model SR-19); the decline texts of
+    # FR-09 arrive with PR-15.
+    declined: "Isso eu não posso responder por aqui. O farmacêutico de plantão atende no balcão."
+    # One line per reservation the turn stored, for a turn answered without
+    # the model (NFR-02, NFR-03).
+    reservation: "Reserva %{code}: %{quantity} × %{product}, retirada até %{pickup_until}."
+    pickup_format: "%d/%m às %H:%M"
+  commands:
+    # FR-04: the notice comes before it.
+    reset: "Pronto, começamos de novo. Em que posso ajudar?"
+    # FR-05.
+    delete: "Seus dados foram apagados: as mensagens, as reservas abertas e o histórico das conversas. Se escrever de novo, começamos do zero."
+    # FR-12.
+    trace: "Veja, passo a passo, como eu funciono nesta conversa: %{url}"
+  # NFR-03's fallback: a turn the model could not answer (an error, the time
+  # limit, the tool limit or a reply cut short; SR-20).
+  fallback:
+    model_error: "Desculpe, não consegui responder agora. Pode tentar de novo daqui a pouco?"
