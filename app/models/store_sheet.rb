@@ -39,6 +39,9 @@ class StoreSheet
   # with hours (design §1.4).
   def hours_on(date) = @hours.fetch(date.wday)
 
+  # The week from Monday, as the system prompt lists it: [day, Hours or nil].
+  def week = WEEKDAYS.each_index.map { |wday| [ WEEKDAYS[wday], @hours[wday] ] }.rotate(1)
+
   # What get_store_info returns for a topic, or nil for one that is not among
   # the five (FR-03).
   def topic(name) = @topics[name]
