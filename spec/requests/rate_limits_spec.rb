@@ -275,6 +275,12 @@ RSpec.describe "FR-14 SR-01 SR-36 per-IP and per-visitor limits", type: :request
       expect { expect(raw("POST", "//api/session", body: "{}").first).to eq(429) }.not_to change(Visitor, :count)
     end
 
+    # Review finding V4 of pull request #17: the edge's checks hold only
+    # because Rack::Attack reads the path through the router's normalizer.
+    it "reads the path through the router's own normalizer" do
+      expect(Rack::Attack::PathNormalizer).to be(ActionDispatch::Journey::Router::Utils)
+    end
+
     it "counts a request to the API or the cable on a path with a repeated slash" do
       paths = [ "//api/conversations/current", "//api/traces/#{SecureRandom.base58(24)}", "//cable" ]
       60.times { |index| raw("GET", paths[index % paths.size]) }

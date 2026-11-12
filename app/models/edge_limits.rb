@@ -53,6 +53,12 @@ module EdgeLimits
   end
 
   # --- Which requests count (Rack::Attack's request, a Rack::Request) --------
+  #
+  # Rack::Attack normalizes PATH_INFO with the router's own normalize_path
+  # before these run (rack-attack 6.8.0), so a path with a repeated or a
+  # trailing slash is read as the router reads it, and counted
+  # (spec/requests/rate_limits_spec.rb; review findings C1 and V4 of pull
+  # request #17).
 
   def api?(request) = request.path.start_with?("/api/") || request.path == "/cable"
 
