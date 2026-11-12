@@ -45,6 +45,14 @@ function type(text: string) {
   fireEvent.change(field(), { target: { value: text } });
 }
 
+// React applies the updates made inside one act() when it ends, so a timer
+// the page re-arms after an answer needs time to pass in steps.
+async function elapse(ms: number) {
+  for (let passed = 0; passed < ms; passed += 500) {
+    await act(() => vi.advanceTimersByTimeAsync(500));
+  }
+}
+
 describe("FR-21 the chat's openers (threat model SR-34)", () => {
   it("sends exactly one message, the allow-listed key, when the page opens with ?say=", async () => {
     window.history.replaceState(null, "", "/chat?say=stock_pt");
@@ -219,7 +227,7 @@ describe("FR-18 the reply arrives by polling", () => {
     expect(within(thread()).getByText("Temos duas.")).toBeInTheDocument();
     expect(within(thread()).getAllByText("tem dipirona?")).toHaveLength(1);
 
-    await act(() => vi.advanceTimersByTimeAsync(9000));
+    await elapse(9000);
     expect(server.polls()).toHaveLength(3);
   });
 
@@ -535,7 +543,7 @@ describe("FR-18 the page stops asking for what the server will not bring", () =>
         conversation_id: 2,
       }),
     ]);
-    await act(() => vi.advanceTimersByTimeAsync(18_000));
+    await elapse(18_000);
 
     expect(server.polls()).toHaveLength(2);
     expect(within(thread()).queryByText("/reiniciar")).toBeNull();
@@ -567,7 +575,7 @@ describe("FR-18 the page stops asking for what the server will not bring", () =>
         conversation_id: 2,
       }),
     ]);
-    await act(() => vi.advanceTimersByTimeAsync(9000));
+    await elapse(9000);
 
     expect(screen.queryByRole("button", { name: pt.retry })).toBeNull();
     expect(server.polls()).toHaveLength(2);
@@ -624,7 +632,7 @@ describe("FR-18 a request that never answers", () => {
 
     type("tem dipirona?");
     fireEvent.keyDown(field(), { key: "Enter" });
-    await act(() => vi.advanceTimersByTimeAsync(60_000));
+    await elapse(60_000);
 
     expect(
       within(thread()).getByText(pt.failed, { exact: false }),
@@ -636,7 +644,7 @@ describe("FR-18 a request that never answers", () => {
     vi.stubGlobal("fetch", hanging("/api/session"));
     renderPage(<Chat />);
 
-    await act(() => vi.advanceTimersByTimeAsync(60_000));
+    await elapse(60_000);
 
     expect(screen.getByText(pt.loadFailed)).toBeInTheDocument();
   });
@@ -724,5 +732,38 @@ describe("FR-14 the limit met by the session a message needs", () => {
     expect(
       within(thread()).queryByText(pt.failed, { exact: false }),
     ).toBeNull();
+  });
+});
+
+// Review finding C5 of pull request #14: the page asked every 3 s whatever
+// the answer, refused polls included, which the edge counts too.
+describe("FR-14 the polling that is refused", () => {
+  it("asks less and less often while the polls fail, and at 3 s again once one answers", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderPage(<Chat />);
+    await ready();
+    type("tem dipirona?");
+    fireEvent.keyDown(field(), { key: "Enter" });
+    await waitFor(() => {
+      expect(server.sent()).toHaveLength(1);
+    });
+    const refused = {
+      status: 429,
+      body: {
+        error: "limit",
+        text: "Você chegou ao limite da demo por agora.",
+      },
+    };
+    server.defaults.current = refused;
+
+    await elapse(60_000);
+    const afterAMinute = server.polls().length;
+    expect(afterAMinute).toBeLessThan(10);
+
+    server.defaults.current = conversation(1, [], true);
+    await elapse(30_000);
+    const recovered = server.polls().length;
+    await elapse(9_000);
+    expect(server.polls().length - recovered).toBe(3);
   });
 });

@@ -18,6 +18,10 @@ import { awaiting, initialState, reduce } from "./conversation";
 // fallback after that. Three seconds keep a waiting page at 20 of the 60
 // requests a minute FR-14 allows a visitor.
 export const POLL_MS = 3000;
+// A poll that fails, the edge's refusal included (which the edge counts too),
+// doubles the wait, up to half a minute; one that answers brings it back to
+// 3 s (review finding C5 of pull request #14).
+export const POLL_MAX_MS = 30_000;
 
 type OpenerKey = keyof typeof openers;
 const LANG = { pt: "pt-BR", en: "en", es: "es" } as const;
@@ -46,6 +50,7 @@ export function useConversation() {
   const { i18n } = useTranslation();
   const [state, dispatch] = useReducer(reduce, initialState);
   const [polled, setPolled] = useState(0);
+  const [pollDelay, setPollDelay] = useState(POLL_MS);
 
   // The page's language at the moment of each request: the switch changes it
   // before it tells the conversation.
@@ -169,14 +174,17 @@ export function useConversation() {
   useEffect(() => {
     if (!waiting) return;
     const timer = window.setTimeout(() => {
-      void refresh().finally(() => {
+      void refresh().then((answered) => {
+        setPollDelay((delay) =>
+          answered ? POLL_MS : Math.min(delay * 2, POLL_MAX_MS),
+        );
         setPolled((count) => count + 1);
       });
-    }, POLL_MS);
+    }, pollDelay);
     return () => {
       window.clearTimeout(timer);
     };
-  }, [waiting, polled, refresh]);
+  }, [waiting, polled, pollDelay, refresh]);
 
   return { state, send, sendOpener, retry, changeLanguage };
 }
