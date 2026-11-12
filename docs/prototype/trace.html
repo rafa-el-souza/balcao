@@ -158,10 +158,11 @@
       </li>
       <li class="event" id="r4-sent">
         <time>12:11:32</time>
-        <div class="what"><span class="name">mensagem enviada</span></div>
+        <div class="what"><span class="name">mensagem enviada</span>
+          <dl class="detail"><div><dt>linha fixa</dt><dd>oferta do farmacêutico</dd></div></dl></div>
       </li>
         </ol>
-        <p class="said reply">Dose para criança é uma orientação que só o farmacêutico pode dar. Ele atende no balcão durante todo o horário da loja, ou pelo telefone (31)&nbsp;1234-5678.</p>
+        <p class="said reply">Sobre dar remédio a uma criança, e em que dose, quem orienta é o farmacêutico; por aqui eu não posso responder.<br>O farmacêutico responsável atende no balcão durante todo o horário de funcionamento, ou pelo telefone (31)&nbsp;1234-5678.</p>
         <p class="turn-cost-line"><span class="quiet">custo do turno</span> <span data-arrives="PR-16">US$ 0,027 <span class="quiet">· R$ 0,15</span></span></p>
       </section>
       <section class="turn" id="turn-5">
@@ -200,6 +201,7 @@
     <li>The messages on this page come with the trace's own endpoint (PR-11), each with its turn.</li>
     <li>A command (the trace link, the reset) is a turn of one row: the server matches it before any model call, so it has no received or sent rows, no tokens and no cost, and its reply is a fixed text. Every trace reached from WhatsApp ends with one, since the link is asked for by command. In the glass box the same turn is the same single row.</li>
     <li>Changed from the sketch: the turn's cost moved from its head to a line at its foot; the foot's p95 gave way to the turns' time; the masthead gained the status link. The page has no footer.</li>
+    <li>The fourth turn's reply has two parts. The first sentence is the model's, declining the clinical question. The second is the fixed offer of the MVP (FR-10's note): the pharmacist's line and the phone, read from the store's contact facts, with no tool call; the sent row says so. How the line is attached to the reply, and its locale key, come with the decline texts' pull request (PR-15).</li>
   </ul>
 </aside>
 </body>

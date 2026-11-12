@@ -2189,3 +2189,31 @@ body {
 .chat:has(.glass:target) .count {
   display: none;
 }
+
+/* The language switch of the conversation's head: only where the glass box, which carries the
+   switch beside it, is folded away. */
+.counter-langs {
+  display: none;
+}
+
+@media (width < 52rem) {
+  .counter-head {
+    flex-wrap: wrap;
+    row-gap: 0;
+    padding-top: var(--space-1);
+  }
+
+  .counter-langs {
+    display: flex;
+    margin-left: auto;
+  }
+
+  .counter-head .presence {
+    flex-basis: 100%;
+    margin: 0 0 var(--space-2);
+  }
+
+  .glass .langs {
+    display: none;
+  }
+}
