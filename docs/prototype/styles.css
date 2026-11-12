@@ -2229,3 +2229,8 @@ body {
 .cache[data-cache="miss"] {
   font-weight: 700;
 }
+
+/* A number of the live strip never parts from its unit. */
+.number dd {
+  white-space: nowrap;
+}
