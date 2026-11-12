@@ -130,7 +130,7 @@ RSpec.describe "FR-12 SR-11 SR-12 GET /api/traces/:token, a conversation's trace
   # Review findings C3 and G1 of pull request #17: the token, the whole
   # credential of the trace, travels in the path, and the request's own log
   # line wrote it whole; parameter filtering never reaches a path (SR-30).
-  it "writes no trace token to the log, for the page or its lookup" do
+  it "writes no trace token to the log, for the page or its lookup", :spa_shells do
     io = StringIO.new
     sink = ActiveSupport::Logger.new(io)
     Rails.logger.broadcast_to(sink)
