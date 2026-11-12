@@ -111,6 +111,9 @@
   --measure: 36rem;
   --page-max: 74rem;
   --touch: 2.75rem;
+  /* The gestures' own measures: the corner cut off a slip or a tag, the stamp's tilt. */
+  --cut: 0.875rem;
+  --tilt-stamp: -0.7deg;
   --fade: 120ms;
 }
 
@@ -330,7 +333,7 @@ body {
   border: var(--rule-stamp);
   color: var(--color-accent);
   font-size: var(--text-sm);
-  transform: rotate(-0.7deg);
+  transform: rotate(var(--tilt-stamp));
 }
 
 .stamp strong {
@@ -833,9 +836,10 @@ body {
 .msg.visitor {
   align-self: flex-end;
   max-width: 26rem;
-  padding: var(--space-2) var(--space-4);
-  border: var(--rule-box);
+  padding: var(--space-3) var(--space-6) var(--space-3) var(--space-4);
+  background: var(--color-paper-2);
   font-style: italic;
+  clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, 0 100%);
 }
 
 .msg.attendant,
@@ -888,43 +892,75 @@ body {
   padding: var(--space-4) var(--space-8) var(--space-6);
 }
 
+/* The field and its button share one box: a sheet to write on, growing with the text. */
 .composer-row {
   display: flex;
+  align-items: flex-end;
   gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--color-rule);
+  background: var(--color-paper-2);
 }
 
-.composer input {
+/* At rest the sheet has a quiet edge; in use it takes the ink. */
+.composer-row:focus-within {
+  border-color: var(--color-ink);
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.composer textarea {
   flex: 1;
   min-width: 0;
   min-height: var(--touch);
-  padding: var(--space-2) 0;
+  max-height: calc(6 * 1.6em + 2 * var(--space-2));
+  padding: var(--space-2);
   border: 0;
-  border-bottom: var(--rule-box);
-  border-radius: 0;
   background: none;
   color: var(--color-ink);
   font: inherit;
+  line-height: var(--leading-body);
+  resize: none;
+  field-sizing: content;
 }
 
-.composer input::placeholder {
+.composer textarea:focus-visible {
+  outline: 0;
+}
+
+.composer textarea::placeholder {
   color: var(--color-ink-2);
   font-style: italic;
   opacity: 1;
 }
 
 .stage .send {
-  min-height: var(--touch);
-  padding: 0 var(--space-6);
+  min-height: 2.25rem;
+  padding: 0 var(--space-3);
   border: 1px solid var(--color-accent);
   background: var(--color-accent);
   color: var(--color-on-accent);
-  font-size: var(--text-sm);
-  font-weight: 600;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   cursor: pointer;
 }
 
-.composer input:disabled {
-  border-bottom-color: var(--color-rule-strong);
+/* The button sits in the middle of a one-line sheet, and keeps that distance from the foot as the
+   sheet grows. */
+.stage .send {
+  margin-bottom: calc((var(--touch) - 2.25rem) / 2);
+}
+
+.stage .send .icon {
+  width: 1.1em;
+  height: 1.1em;
+}
+
+.composer-row:has(textarea:disabled) {
+  border-color: var(--color-rule-strong);
+  background: none;
 }
 
 .stage .send:disabled,
@@ -939,8 +975,9 @@ body {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
-  margin: var(--space-3) 0 0;
+  justify-content: center;
+  gap: var(--space-2) var(--space-3);
+  margin: var(--space-4) 0 0;
   font-size: var(--text-sm);
 }
 
@@ -950,7 +987,7 @@ body {
 
 .stage .suggestion {
   min-height: 2rem;
-  padding: 0 var(--space-3);
+  padding: 0 var(--space-4);
   border: 1px solid var(--color-rule-strong);
   background: none;
   cursor: pointer;
@@ -958,6 +995,7 @@ body {
 
 .turnstile {
   margin: var(--space-3) 0 0;
+  text-align: center;
   font-size: var(--text-xs);
   color: var(--color-ink-2);
 }
@@ -1062,6 +1100,10 @@ body {
   font-weight: 700;
 }
 
+.event .stop {
+  color: var(--color-instrument-ink-2);
+}
+
 .event .figure {
   float: right;
   color: var(--color-instrument-ink-2);
@@ -1128,7 +1170,7 @@ body {
   transform: rotate(-45deg);
 }
 
-.event details[open] summary::before {
+.event details[open] > summary::before {
   margin-bottom: 0.2rem;
   transform: rotate(45deg);
 }
@@ -1146,6 +1188,45 @@ body {
 .outcome {
   margin: 0;
 }
+
+/* A tool's result is the text the server keeps, as it is: it wraps, and says when it was cut. */
+.payload.raw {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.cut {
+  margin-left: var(--space-2);
+  padding: 0 var(--space-1);
+  border: 1px solid var(--color-instrument-ink-2);
+}
+
+/* A tool that refuses is a rule at work, not a failure: the instrument's own ink, no error colour. */
+.event[data-state="refused"] .outcome {
+  color: var(--color-instrument-ink);
+  font-weight: 700;
+}
+
+/* The page's own row, for what the server did not trace. */
+.event[data-state="local"] .name {
+  font-weight: 400;
+}
+
+.cache[data-cache="miss"] {
+  color: var(--color-instrument-ink);
+}
+
+.totals:empty {
+  display: none;
+}
+
+.turn-cost-line {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin: var(--space-2) 0 0;
+}
+
 
 .event.turn-start {
   margin-top: var(--space-3);
@@ -1246,13 +1327,34 @@ body {
   }
 
   .stage .suggestion,
-  .stage .tool-button {
+  .stage .tool-button,
+  .stage .send {
     min-height: var(--touch);
   }
 
+  .stage .send {
+    margin-bottom: 0;
+  }
+
   /* The drawer: closed until the summary line is pressed, then a sheet over the lower part of the
-     screen, the conversation still in sight above it. */
+     screen: the conversation keeps the upper half, the drawer takes the lower. */
   .glass {
+    display: none;
+  }
+
+  /* With the drawer open the composer stays in reach under it: the field and the button alone. */
+  .chat:has(.glass:target) .composer {
+    position: fixed;
+    z-index: 2;
+    inset: auto 0 0;
+    max-width: none;
+    padding: var(--space-2) var(--space-4);
+    background: var(--color-paper);
+    border-top: var(--rule-hairline);
+  }
+
+  .chat:has(.glass:target) .suggest,
+  .chat:has(.glass:target) .turnstile {
     display: none;
   }
 
@@ -1260,7 +1362,7 @@ body {
     display: flex;
     position: fixed;
     z-index: 1;
-    inset: 22vh 0 0;
+    inset: 50vh 0 calc(var(--touch) + 2 * var(--space-2) + 2 * var(--space-2) + 4px);
     overflow-y: auto;
     border-left: 0;
     border-top: 4px solid var(--color-instrument-ink);
@@ -1324,6 +1426,28 @@ body {
   .event.is-new,
   .msg.is-new {
     animation: appear var(--fade) ease-out;
+  }
+}
+
+/* Thinking: the cross breathes as a lamp does, dimming and returning without a step. */
+.msg.pending .lamp {
+  margin-right: var(--space-1);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .msg.pending .lamp {
+    animation: lamp 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes lamp {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.3;
   }
 }
 
@@ -1793,7 +1917,6 @@ body {
 }
 
 .tag {
-  --cut: 0.875rem;
   position: relative;
   isolation: isolate;
   flex: 1 1 9rem;
@@ -1864,4 +1987,100 @@ body {
   display: flex;
   flex-direction: column;
   justify-content: center;
+}
+
+/* ---------- The chat holds the window: nothing in one column moves the other ---------- */
+
+/* Beside each other, the counter and the instrument are each as tall as the window and scroll on
+   their own: the conversation inside its thread, the rows inside the glass box. The composer and
+   the totals keep their place whatever opens or arrives. */
+@media (min-width: 52.01rem) {
+  .chat {
+    height: 100vh;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .counter,
+  .glass {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .thread,
+  .events,
+  .glass-empty {
+    min-height: 0;
+    overflow: hidden auto;
+  }
+
+  .events.nested {
+    overflow: visible;
+  }
+
+  .counter-head,
+  .composer,
+  .glass-head,
+  .totals,
+  .glass-actions {
+    flex: none;
+  }
+}
+
+/* Stacked, the page scrolls and the composer stays at the foot of the window. */
+@media (max-width: 52rem) {
+  .composer {
+    position: sticky;
+    bottom: 0;
+    background: var(--color-paper);
+  }
+
+  .stage .summary {
+    position: sticky;
+    bottom: 0;
+  }
+}
+
+/* An earlier turn, folded into one line; the turn in progress and the last one stay open. */
+.event.turn-group {
+  display: block;
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: var(--rule-dash);
+}
+
+.turn-group > details > summary .name {
+  font-weight: 400;
+}
+
+.events.nested {
+  flex: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  overflow: visible;
+  list-style: none;
+}
+
+/* One line per earlier turn, inside the line that holds them all. */
+.event.turn-line {
+  display: block;
+}
+
+.turn-line .name {
+  font-weight: 400;
+}
+
+/* Inside an earlier turn, its rows step in under the turn's line, a dashed rule down their side. */
+.turn-line .events.nested {
+  margin: var(--space-1) 0 var(--space-2) var(--space-1);
+  padding-left: var(--space-3);
+  border-left: var(--rule-dash);
+}
+
+.turn-line .event {
+  grid-template-columns: 4.75rem minmax(0, 1fr);
+}
+
+.turn-line .payload {
+  margin-left: -4.75rem;
 }

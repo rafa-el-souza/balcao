@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chat: the limit was reached · Balcão prototype</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main class="stage chat">
+  <section class="counter" aria-label="Conversa">
+    <header class="counter-head">
+      <a class="back" id="back" href="landing.html"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M14 8H2.5M7 3.5L2.5 8 7 12.5"/></svg> Balcão</a>
+      <span class="presence" id="presence" data-presence="online">
+        <svg class="cross" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 0h4v4h4v4H8v4H4V8H0V4h4z"/></svg>
+        farmacêutico online
+      </span>
+    </header>
+
+    <ol class="thread" id="thread">
+      <li class="msg notice stamp" id="msg-notice">
+        <p><strong>Aviso:</strong> esta é uma demonstração de portfólio, com uma farmácia fictícia. As mensagens ficam guardadas por 7 dias, e você pode apagá-las enviando /apagar.</p>
+      </li>
+      <li class="msg visitor" id="msg-visitor-1">
+        <p>tem dipirona?</p>
+      </li>
+      <li class="msg attendant" id="msg-attendant-1">
+        <p>Temos duas: Dipirona 500 mg, 10 comprimidos, por R$ 7,90, e Dipirona gotas 500 mg/ml, 20 ml, por R$ 9,50. As duas estão em estoque.</p>
+        <p>Quer que eu reserve alguma para retirada?</p>
+      </li>
+      <li class="msg visitor" id="msg-visitor-2">
+        <p>e xarope pra tosse?</p>
+      </li>
+      <li class="msg notice stamp" id="msg-limit">
+        <p><strong>Limite:</strong> você chegou ao limite da demo por agora. Tente de novo daqui a pouco.</p>
+      </li>
+    </ol>
+
+    <a class="summary" id="glass-summary" href="#glass">
+      <span class="summary-figures">6 eventos · limite</span>
+      <span class="summary-open"><span class="visually-hidden">abrir a caixa de vidro</span></span>
+    </a>
+
+    <form class="composer" id="composer">
+      <div class="composer-row">
+        <label class="visually-hidden" for="message">Mensagem</label>
+        <textarea id="message" rows="1" placeholder="escreva aqui…" autocomplete="off" disabled></textarea>
+        <button class="send" id="send" type="button" disabled>Enviar <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11.5M9 3.5L13.5 8 9 12.5"/></svg></button>
+      </div>
+      <p class="suggest" id="suggestions">
+        <span class="suggest-label">Sugestões:</span>
+        <button class="suggestion" type="button" disabled>reservar</button>
+        <button class="suggestion" type="button" disabled>agendar</button>
+        <button class="suggestion" type="button" disabled>falar com farmacêutico</button>
+      </p>
+      <p class="turnstile" id="turnstile-notice">Verificação anti-bot: a Cloudflare faz a checagem e vê o seu IP.</p>
+    </form>
+  </section>
+
+  <section class="glass" id="glass" aria-labelledby="glass-title">
+    <header class="glass-head">
+      <h2 id="glass-title">Caixa de vidro</h2>
+      <nav class="langs" id="langs" aria-label="Idioma">
+        <span class="lang" aria-current="true">PT</span>
+        <button class="lang" type="button">EN</button>
+        <button class="lang" type="button">ES</button>
+      </nav>
+      <span class="mode" id="mode" data-mode="normal">normal</span>
+      <a class="glass-close" id="glass-close" href="chat-limit.html">fechar</a>
+    </header>
+    <ol class="events" id="events">
+      <li class="event" id="t1-received">
+        <time>12:03:41</time>
+        <div class="what"><span class="name">mensagem recebida</span></div>
+      </li>
+      <li class="event" id="t1-model-1">
+        <time>12:03:41</time>
+        <details class="what" open>
+          <summary><span class="name">modelo</span> <span class="stop">parou em tool_use</span> <span class="figure"><span data-arrives="PR-16">US$ 0,004</span> · 1,1 s</span></summary>
+          <dl class="detail"><div><dt>modelo</dt><dd>claude-opus-5-5</dd></div><div><dt>esforço</dt><dd>medium</dd></div><div><dt>entrada</dt><dd>3,1k <span class="cache" data-cache="hit">cache <svg class="tick" viewBox="0 0 12 12" role="img" aria-label="acerto"><path d="M1.5 6.5l3 3 6-7" fill="none" stroke-width="1.6"/></svg> 2,8k</span></dd></div><div><dt>saída</dt><dd>42</dd></div><div><dt>custo</dt><dd><span data-arrives="PR-16">US$ 0,004 <span class="quiet">· R$ 0,02</span></span></dd></div></dl>
+        </details>
+      </li>
+      <li class="event tool" id="t1-tool">
+        <time>12:03:42</time>
+        <details class="what">
+          <summary><span class="name">search_products</span> <span class="figure">38 ms</span></summary>
+          <pre class="payload">{"query":"dipirona"}</pre>
+          <pre class="payload raw">{"query":"dipirona","products":[{"id":"01a1cb3a-c25c-7759-a408-78909fba8f60","name":"Dipirona 500 mg, 10 comprimidos","active_ingredient":"dipirona","price":"R$ 7,90","stock":40,"prescription_required":false,"match":"exact","score":1.0},{"id":"01a1cb3a-c25e-71fd-b0a1-a6dd944df3f2","name":"Dipirona gotas 500 mg/ml, 20 ml","active_ingredient":"dipirona","price":"R$ 9,50","stock":25,"prescription_required":false,"match":"exact","score":1.0}]}</pre>
+          <p class="outcome">2 resultados</p>
+        </details>
+      </li>
+      <li class="event" id="t1-model-2">
+        <time>12:03:43</time>
+        <details class="what" open>
+          <summary><span class="name">modelo</span> <span class="stop">parou em end_turn</span> <span class="figure"><span data-arrives="PR-16">US$ 0,002</span> · 1,6 s</span></summary>
+          <dl class="detail"><div><dt>modelo</dt><dd>claude-opus-5-5</dd></div><div><dt>esforço</dt><dd>medium</dd></div><div><dt>entrada</dt><dd>3,7k <span class="cache" data-cache="hit">cache <svg class="tick" viewBox="0 0 12 12" role="img" aria-label="acerto"><path d="M1.5 6.5l3 3 6-7" fill="none" stroke-width="1.6"/></svg> 2,8k</span></dd></div><div><dt>saída</dt><dd>98</dd></div><div><dt>custo</dt><dd><span data-arrives="PR-16">US$ 0,002 <span class="quiet">· R$ 0,01</span></span></dd></div></dl>
+        </details>
+      </li>
+      <li class="event" id="t1-sent">
+        <time>12:03:44</time>
+        <div class="what"><span class="name">mensagem enviada</span></div>
+      </li>
+      <li class="event turn-start" id="t2-limit" data-state="local">
+        <time>12:04:02</time>
+        <div class="what"><span class="name">limite da demonstração</span>
+          <dl class="detail"><div><dt></dt><dd>sem chamada ao modelo</dd></div></dl></div>
+      </li>
+    </ol>
+    <dl class="totals" id="totals">
+      <div><dt>turno 1</dt><dd>3,0 s</dd></div>
+      <div><dt>custo do turno</dt><dd><span data-arrives="PR-16">US$ 0,006 <span class="quiet">· R$ 0,03</span></span></dd></div>
+    </dl>
+    <div class="glass-actions" id="glass-actions">
+      <button class="tool-button" id="reset" type="button"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.2 6.2A5.25 5.25 0 1 1 2.75 8M3 2.5v3.75h3.75"/></svg> reiniciar</button>
+      <button class="tool-button" id="delete" type="button"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4.5h11M6.25 4.25v-1.5h3.5v1.5M4 4.75l.65 8.5h6.7l.65-8.5M6.75 7.25v3.5M9.25 7.25v3.5"/></svg> apagar dados</button>
+      <a class="tool-button" id="open-trace" href="trace.html"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.75 1.75h8.5v12.5l-1.42-1.25-1.41 1.25L8 13l-1.42 1.25L5.17 13l-1.42 1.25zM6 5.25h4M6 8h4"/></svg> abrir trace em página</a>
+    </div>
+  </section>
+</main>
+
+<aside class="notes" lang="en">
+  <h2>Notes</h2>
+  <ul>
+    <li>Route <code>/chat</code>; content and order from the sketch in design §6.8.</li>
+    <li>At 390 px the glass box folds into the one-line summary above the composer; pressing it opens the drawer (the same file with <code>#glass</code>).</li>
+    <li>State: a request past the demo's limit (FR-14). The fixed reply is a stamp, the system's voice; no model call was made, so the glass box gains no row, and the composer is off until the limit passes.</li>
+    <li>The message that met the limit stays in the thread as sent; it was not stored.</li>
+    <li>The composer is a text area that grows with what is typed, up to six lines, then scrolls; Enter sends and Shift+Enter breaks the line. With the drawer open at 390 px the composer stays in reach under it, reduced to the field and the button.</li>
+    <li>Not visible in a still drawing, for the implementation: when the drawer opens, the conversation scrolls so that the last reply shows in the upper half; when it closes, the suggestions and the anti-bot notice return under the composer.</li>
+    <li>The glass box follows what the server emits (reviewed against it on 2026-11-12): one row per model call, in order, each opening when the call starts and completing in place; closed, a call is one line with where it stopped and its time, and it opens to its model, effort, tokens, cache mark and cost; a tool's result is the raw text the server keeps, cut at 500 characters and marked when cut, with the count beside it; the turn's figure is the time from the message's receipt to the reply.</li>
+    <li>The limit's row is the page's own: the server answers at the edge and stores nothing, so the panel writes one local row saying that no model call was made. It does not say which limit fired.</li>
+    <li>The chat holds the window: beside each other, the conversation and the glass box scroll each inside its own column, so opening a row or a new row arriving never moves the composer or the totals. A new message or row scrolls its own column to itself.</li>
+    <li>For the visitor who stays two minutes and clicks nothing: the turn in progress and the last turn are drawn open, every call with its tokens, cache and cost in sight; earlier turns fold into one line each, with their events, time and cost, and open on demand. Closed, a call's line still carries its cost and its time.</li>
+  </ul>
+</aside>
+</body>
+</html>
