@@ -28,6 +28,17 @@ RSpec.describe "NFR-09 FixedReply, the texts the system writes instead of the mo
       expect(FixedReply.without_notice("Olá! #{FixedReply.notice("pt-BR")}")).to eq("Olá! #{FixedReply.notice("pt-BR")}")
     end
 
+    # The page stamps the notice apart from the reply, without matching its
+    # text (design §10, note of 2026-11-12): the server parts what it joined.
+    it "parts from a reply in any of the three languages, and from nothing else" do
+      LOCALES.each_key do |locale|
+        expect(FixedReply.split_notice(FixedReply.with_notice("Olá!\n\nTudo bem?", locale)))
+          .to eq([ FixedReply.notice(locale), "Olá!\n\nTudo bem?" ])
+      end
+      expect(FixedReply.split_notice("Olá!")).to eq([ nil, "Olá!" ])
+      expect(FixedReply.split_notice("Olá! #{FixedReply.notice("en")}")).to eq([ nil, "Olá! #{FixedReply.notice("en")}" ])
+    end
+
     it "is one line, put before the reply" do
       expect(FixedReply.with_notice("Olá!", "pt-BR")).to eq("#{FixedReply.notice("pt-BR")}\n\nOlá!")
       expect(LOCALES.keys.map { |locale| FixedReply.notice(locale) }).to all(satisfy { |notice| !notice.include?("\n") })

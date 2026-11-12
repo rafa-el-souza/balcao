@@ -14,12 +14,18 @@ module FixedReply
   # The reply as the model wrote it, for the history it reads back
   # (AgentRunner::History): the prompt tells it the system adds the notice,
   # so its own past reply never shows one.
-  def without_notice(body)
+  def without_notice(body) = split_notice(body).last
+
+  # [the notice, the rest] of a body with_notice joined, else [nil, body]: the
+  # page stamps the notice apart from the reply without matching its text
+  # (design §10, note of 2026-11-12), while the stored body stays what every
+  # channel sends (FR-01).
+  def split_notice(body)
     I18n.available_locales.each do |locale|
       prefix = "#{notice(locale)}\n\n"
-      return body.delete_prefix(prefix) if body.start_with?(prefix)
+      return [ notice(locale), body.delete_prefix(prefix) ] if body.start_with?(prefix)
     end
-    body
+    [ nil, body ]
   end
 
   def fallback(locale) = I18n.t("fallback.model_error", locale:)

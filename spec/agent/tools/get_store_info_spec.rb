@@ -33,6 +33,24 @@ RSpec.describe "FR-03 SR-16 get_store_info, the store sheet's topics" do
     StoreSheet::TOPICS.each { |topic| expect(ask(topic)).to eq({ "topic" => topic }.merge(StoreSheet.current.topic(topic))) }
   end
 
+  # The glass box writes "4 bairros" under a list and nothing under a single
+  # fact (design §10, note of 2026-11-12, FR-12): the call it reports says
+  # what the topic lists and how many, from the result before any cut.
+  it "reports what a topic that is a list lists and how many, and nothing for a single fact" do
+    sheet = StoreSheet.current
+    { "delivery" => [ "areas", sheet.topic("delivery")["areas"].size ],
+      "payment" => [ "methods", sheet.topic("payment")["methods"].size ],
+      "services" => [ "services", sheet.topic("services")["list"].size ] }.each do |topic, (unit, count)|
+      ask(topic)
+      expect(calls.last).to have_attributes(unit:, count:), topic
+    end
+    %w[contact parking].each do |topic|
+      ask(topic)
+      expect(calls.last).to have_attributes(unit: nil, count: nil), topic
+    end
+    expect(calls.map(&:characters)).to eq(calls.map { |call| call.output.length })
+  end
+
   it "answers from the sheet the process loaded, so an edit of the file is the new fact (FR-26)" do
     sheet = StoreSheet.new(YAML.safe_load_file(StoreSheet::PATH).deep_merge("topics" => { "parking" => { "text" => "Sem vagas." } }))
     allow(StoreSheet).to receive(:current).and_return(sheet)

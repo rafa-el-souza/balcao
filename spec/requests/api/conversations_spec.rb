@@ -27,7 +27,7 @@ RSpec.describe "FR-18 SR-05 GET /api/conversations/current, the polling fallback
                                          "trace_token" => conversation.trace_token)
       expect(json["messages"]).to eq [ {
         "id" => inbound.id, "client_id" => inbound.external_id, "conversation_id" => conversation.id,
-        "turn_id" => turn.id, "author" => "visitor", "body" => "¿tienen dipirona?",
+        "turn_id" => turn.id, "author" => "visitor", "notice" => nil, "body" => "¿tienen dipirona?",
         "created_at" => inbound.created_at.iso8601(3)
       } ]
       expect(json["spans"]).to eq [ TraceRecorder.payload(
@@ -43,9 +43,17 @@ RSpec.describe "FR-18 SR-05 GET /api/conversations/current, the polling fallback
 
       expect(json["messages"].last).to eq(
         "id" => reply.id, "client_id" => nil, "conversation_id" => conversation.id, "turn_id" => turn.id,
-        "author" => "bot", "body" => "Sí, tenemos.", "created_at" => reply.created_at.iso8601(3)
+        "author" => "bot", "notice" => nil, "body" => "Sí, tenemos.", "created_at" => reply.created_at.iso8601(3)
       )
       expect(json["pending"]).to be false
+    end
+
+    it "carries a first reply's notice apart from its body (FR-01, design §10, note of 2026-11-12)" do
+      Message.record_outbound!(turn:, body: FixedReply.with_notice("¡Hola!", "es"))
+
+      get "/api/conversations/current"
+
+      expect(json["messages"].last).to include("notice" => FixedReply.notice("es"), "body" => "¡Hola!")
     end
 
     it "follows a reset to the conversation it opened (FR-04)" do

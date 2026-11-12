@@ -2,7 +2,8 @@
 # the events AgentRunner yields as they happen: a model call's span opens
 # when the call starts and closes when its answer or its error arrives; a
 # tool call's span is written when the call returns, dated back by its
-# latency. Names and attributes are the ones the Anthropic SDK gives its own
+# latency, with its result's length and, for a list, what it lists and how
+# many, taken before the trace cuts the text (FR-12). Names and attributes are the ones the Anthropic SDK gives its own
 # spans. The system prompt is summarised by its size and a digest (threat
 # model SR-12): a changed prompt shows, its text never does.
 class TurnTrace
@@ -47,14 +48,19 @@ class TurnTrace
   end
 
   # Summed over the attempts of a call a fallback model served, each listed
-  # with its own model (FR-14 prices them apart).
+  # with its own model as it came (FR-14 prices them apart). The input counts
+  # the cache read and written, as the SDK's own tracer does (anthropic 2.8,
+  # Helpers::Tracing): the API's input_tokens leaves them out, and the panel's
+  # input is the whole prompt (design §10, note of 2026-11-12).
   def usage(entries)
     return {} if entries.empty?
 
+    cached = entries.sum(&:cached_tokens)
+    written = entries.sum(&:cache_creation_tokens)
     totals = {
-      "gen_ai.usage.input_tokens" => entries.sum(&:input_tokens), "gen_ai.usage.output_tokens" => entries.sum(&:output_tokens),
-      "gen_ai.usage.cache_read.input_tokens" => entries.sum(&:cached_tokens),
-      "gen_ai.usage.cache_write.input_tokens" => entries.sum(&:cache_creation_tokens)
+      "gen_ai.usage.input_tokens" => entries.sum(&:input_tokens) + cached + written,
+      "gen_ai.usage.output_tokens" => entries.sum(&:output_tokens),
+      "gen_ai.usage.cache_read.input_tokens" => cached, "gen_ai.usage.cache_write.input_tokens" => written
     }
     totals["anthropic.usage.iterations"] = entries.map(&:to_h) if entries.size > 1
     totals
@@ -68,6 +74,7 @@ class TurnTrace
                                                                 "gen_ai.tool.call.arguments" => JSON.generate(TraceRecorder.value_of(call.input))
                                                               })
     span.finish(attributes: { "anthropic.tool_result.content" => call.output, "balcao.latency_ms" => call.latency_ms,
-                              "error.type" => ("tool_error" if call.is_error) })
+                              "balcao.tool_result.characters" => call.characters, "balcao.tool_result.unit" => call.unit,
+                              "balcao.tool_result.count" => call.count, "error.type" => ("tool_error" if call.is_error) })
   end
 end

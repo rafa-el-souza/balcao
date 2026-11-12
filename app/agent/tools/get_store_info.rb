@@ -19,6 +19,16 @@ module Tools
         "returns, in the visitor's language. The address and the opening hours are already in your instructions."
     input_schema Input
 
+    # The topics whose facts are a list, the list's key and what it holds;
+    # the others are single facts (FR-12: the glass box counts lists only).
+    LISTS = { "delivery" => %w[areas areas], "payment" => %w[methods methods], "services" => %w[list services] }.freeze
+
+    def tally(result)
+      key, unit = LISTS[result["topic"]]
+      list = result[key] if key
+      { unit:, count: list.size } if list.is_a?(Array)
+    end
+
     def perform(input)
       topic = input.to_h[:topic].to_s
       facts = StoreSheet.current.topic(topic) or raise Error, UNKNOWN

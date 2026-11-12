@@ -45,7 +45,16 @@ class Message < ApplicationRecord
   # it to the one it sent.
   def stream_payload(turn_id: self.turn_id)
     { id:, client_id: (external_id if inbound? && channel == "web"), conversation_id:, turn_id:,
-      author:, body:, created_at: created_at.iso8601(3) }
+      **trace_payload(turn_id:).slice(:author, :notice, :body, :created_at) }
+  end
+
+  # The message as a trace page shows it (FR-12), to any holder of the link:
+  # its words and its turn, and no id a page could take anywhere else. A
+  # reply's demo notice comes apart from its body (FR-01; design §10, note of
+  # 2026-11-12); a visitor's words are never parted.
+  def trace_payload(turn_id: self.turn_id)
+    notice, text = outbound? ? FixedReply.split_notice(body) : [ nil, body ]
+    { id:, turn_id:, author:, notice:, body: text, created_at: created_at.iso8601(3) }
   end
 
   # Stores the one reply of a turn, in the turn's conversation or in the one
