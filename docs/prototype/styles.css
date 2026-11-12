@@ -103,6 +103,14 @@
   --space-12: 3rem;
   --space-16: 4rem;
 
+  /* Measures that repeat: the instrument's column of hours (narrower under 52rem), the width of a
+     receipt on a page, and the heights of the small controls and of the send button. */
+  --col-time: 5.25rem;
+  --col-time-narrow: 4.75rem;
+  --receipt-max: 46rem;
+  --control: 2rem;
+  --control-send: 2.25rem;
+
   /* Rules: the box and the letterhead in the counter's ink; the receipt's dashes. */
   --rule-box: 1.5px solid var(--color-ink);
   --rule-head: 4px solid var(--color-ink);
@@ -309,7 +317,7 @@ body {
 }
 
 .stage .lang {
-  min-width: 2rem;
+  min-width: var(--control);
   padding: var(--space-1) var(--space-2);
   border: 0;
   background: none;
@@ -937,7 +945,7 @@ body {
 }
 
 .stage .send {
-  min-height: 2.25rem;
+  min-height: var(--control-send);
   padding: 0 var(--space-3);
   border: 1px solid var(--color-accent);
   background: var(--color-accent);
@@ -952,7 +960,7 @@ body {
 /* The button sits in the middle of a one-line sheet, and keeps that distance from the foot as the
    sheet grows. */
 .stage .send {
-  margin-bottom: calc((var(--touch) - 2.25rem) / 2);
+  margin-bottom: calc((var(--touch) - var(--control-send)) / 2);
 }
 
 .stage .send .icon {
@@ -988,7 +996,7 @@ body {
 }
 
 .stage .suggestion {
-  min-height: 2rem;
+  min-height: var(--control);
   padding: 0 var(--space-4);
   border: 1px solid var(--color-rule-strong);
   background: none;
@@ -1087,7 +1095,7 @@ body {
 
 .event {
   display: grid;
-  grid-template-columns: 5.25rem minmax(0, 1fr);
+  grid-template-columns: var(--col-time) minmax(0, 1fr);
 }
 
 .event time {
@@ -1176,7 +1184,7 @@ body {
 }
 
 .payload {
-  margin: var(--space-1) 0 var(--space-1) -5.25rem;
+  margin: var(--space-1) 0 var(--space-1) calc(-1 * var(--col-time));
   padding: var(--space-2) var(--space-3);
   border: var(--rule-dash);
   font: inherit;
@@ -1264,7 +1272,7 @@ body {
 .stage .tool-button {
   display: inline-flex;
   align-items: center;
-  min-height: 2rem;
+  min-height: var(--control);
   padding: 0 var(--space-3);
   border: 1px solid var(--color-instrument-ink-2);
   background: none;
@@ -1405,11 +1413,11 @@ body {
   }
 
   .event {
-    grid-template-columns: 4.75rem minmax(0, 1fr);
+    grid-template-columns: var(--col-time-narrow) minmax(0, 1fr);
   }
 
   .payload {
-    margin-left: -4.75rem;
+    margin-left: calc(-1 * var(--col-time-narrow));
   }
 
   .totals {
@@ -1482,7 +1490,7 @@ body {
 }
 
 .roll {
-  max-width: 46rem;
+  max-width: var(--receipt-max);
   padding: var(--space-6);
 }
 
@@ -1502,7 +1510,7 @@ body {
 
 .turn-head .turn-number {
   flex: none;
-  width: 5.25rem;
+  width: var(--col-time);
   font-weight: 700;
 }
 
@@ -1522,7 +1530,7 @@ body {
 }
 
 .turn .reply {
-  margin: var(--space-2) 0 0 5.25rem;
+  margin: var(--space-2) 0 0 var(--col-time);
   padding-left: var(--space-3);
   border-left: 2px solid var(--color-instrument-ink-2);
   font-style: normal;
@@ -1562,7 +1570,7 @@ body {
   }
 
   .turn-head .turn-number {
-    width: 4.75rem;
+    width: var(--col-time-narrow);
   }
 
   .turn .reply {
@@ -2083,11 +2091,11 @@ body {
 }
 
 .turn-line .event {
-  grid-template-columns: 4.75rem minmax(0, 1fr);
+  grid-template-columns: var(--col-time-narrow) minmax(0, 1fr);
 }
 
 .turn-line .payload {
-  margin-left: -4.75rem;
+  margin-left: calc(-1 * var(--col-time-narrow));
 }
 
 /* On a wide window the one block of a page (the receipt, the column of text) stands in the middle;
@@ -2102,7 +2110,7 @@ body {
 
   .page .trace-note,
   .page .roll + .colophon {
-    max-width: 46rem;
+    max-width: var(--receipt-max);
   }
 }
 
@@ -2111,7 +2119,7 @@ body {
   display: flex;
   justify-content: center;
   gap: var(--space-6);
-  max-width: 46rem;
+  max-width: var(--receipt-max);
   margin: var(--space-8) auto 0;
   font-size: var(--text-sm);
 }
@@ -2164,7 +2172,7 @@ body {
   .stage .lang::after {
     content: "";
     position: absolute;
-    inset: calc((2rem - var(--touch)) / 2) calc(var(--space-1) / -2);
+    inset: calc((var(--control) - var(--touch)) / 2) calc(var(--space-1) / -2);
   }
 }
 
