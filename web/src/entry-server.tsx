@@ -5,6 +5,7 @@ import { App } from "./App";
 import { createI18n } from "./i18n";
 import type { Locale } from "./locale";
 import { type Page, TITLES } from "./pages";
+import { createQueryClient, Providers } from "./providers";
 
 export { LOCALES } from "./locale";
 export { PAGES } from "./pages";
@@ -19,9 +20,11 @@ export function render(
 ): { html: string; title: string } {
   const i18n = createI18n(locale);
   const html = renderToString(
-    <I18nextProvider i18n={i18n}>
-      <App page={page} />
-    </I18nextProvider>,
+    <Providers client={createQueryClient()}>
+      <I18nextProvider i18n={i18n}>
+        <App page={page} />
+      </I18nextProvider>
+    </Providers>,
   );
   return { html, title: i18n.t(TITLES[page]) };
 }
