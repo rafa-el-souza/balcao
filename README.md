@@ -40,7 +40,8 @@ WhatsApp Cloud API · Kamal 2 on one small VM.
 
 Versions, current stable when the implementation started (2026-11-09):
 Ruby 4.0.9 and Rails 8.1.4.1; PostgreSQL 18; Node.js 26 LTS; React 19.3,
-Vite 8.3 (Rolldown), TypeScript 6.0, Vitest 5.1, i18next 27; RSpec 8.1
+Vite 8.3 (Rolldown), TypeScript 6.0, Vitest 5.1, i18next 27, TanStack Query 5
+and the Action Cable client of the same Rails release; RSpec 8.1
 (rspec-rails); the `anthropic` gem 2.8, verified on 2026-11-11 with the model
 ids and request parameters it uses (design §6.4). Two tools sit one major behind on purpose: TypeScript 6.0,
 because typescript-eslint does not support TypeScript 7 yet, and ESLint 9,
@@ -73,9 +74,11 @@ Design complete and independently reviewed (2026-11-02, 30 findings;
 2026-11-09, the twelve-day MVP plan, all applied). The MVP is being built
 (design §9.1): since day 2 the demo host answers at the address above, with
 TLS; since day 5 a conversation runs there over the HTTP API; since day 6 the
-landing and the chat page are there, in three languages, the reply arriving by
-polling. The glass box's rows and the live stream arrive on day 7. See the
-delivery plan in the design document.
+landing and the chat page are there, in three languages; since day 7 the reply
+and the glass box's rows arrive live over the cable, polling only when the
+socket is down, and each conversation has its trace page. The "pensando…"
+state and the fallback's words arrive next, on day 7 too. See the delivery
+plan in the design document.
 
 ## Running locally
 

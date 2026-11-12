@@ -889,6 +889,12 @@ that the turn ends with a polite fallback.
   `APITimeoutError`. Live, the system prompt with no tools is about 1,450
   tokens, above the 512-token minimum these models cache, and a second
   turn read all of it from the cache.
+- Verified on 2026-11-12 (PR-11) against the gem's own tracer
+  (`Anthropic::Helpers::Tracing`, 2.8.0): `gen_ai.usage.input_tokens` is the
+  API's `input_tokens` plus the cache read and the cache written, and
+  `gen_ai.usage.cache_read.input_tokens` and
+  `gen_ai.usage.cache_write.input_tokens` keep the split. The trace's spans
+  count the same way (app/models/turn_trace.rb).
 
 ### 6.5 Data model
 
@@ -1548,6 +1554,75 @@ MVP from its first day and merges at day 11.
 
 Tracked here until resolved; each resolution becomes an ADR or an edit.
 
+- Note 2026-11-12 (PR-11, the glass box, the trace page and the cable). What
+  the drawings asked of the server, the panel, the trace page and the live
+  stream. Choices the text left open:
+  - **The spans the panel reads.** Every span names its turn (`turn_id`, on
+    the streams and in both endpoints). `gen_ai.usage.input_tokens` is the
+    whole prompt, plain input and the cache read and written, as the SDK's
+    tracer counts it (§6.4); the usage records of PR-16 keep the split. A
+    tool's span carries `balcao.tool_result.characters`, its result's length
+    before the 500-character cut, and, for a list, `balcao.tool_result.unit`
+    and `balcao.tool_result.count` ("products", "areas", "methods",
+    "services"), which each tool declares from its result before it is
+    encoded (app/agent/agent_tool.rb). The panel words a unit it knows and
+    shows no count for one it does not.
+  - **The notice apart.** A message's stream payload carries the demo notice
+    apart from its body (`notice`); the stored body stays what every channel
+    sends, notice included (FR-01), and the server parts what it joined
+    (`FixedReply.split_notice`). The chat stamps the notice with its label in
+    bold; the trace page leaves it out, since the receipt shows the reply's
+    own words.
+  - **`GET /api/traces/:token`** answers `{conversation: {started_at},
+    messages, spans}`: each of the conversation's turns' messages, the
+    visitor's and the reply, with the turn (a reset's reply is its turn's,
+    though it opens the conversation the reset started), and no client,
+    conversation or visitor id; 404 `{error: "not_found"}` on a miss. A lookup
+    without the cookie counts against the source's anonymous minute
+    (app/models/edge_limits.rb). The page at `/trace/:token` is one shell for
+    every token, sent with `X-Robots-Tag: noindex, nofollow` and
+    `Referrer-Policy: no-referrer`, since the link is the credential (SR-11).
+    A spec holds the build's pages (web/src/pages.ts) and the server's routes
+    together (review finding C2 of pull request #14).
+  - **The cable and TanStack Query.** One query per endpoint
+    (`/api/conversations/current`, `/api/traces/:token`). The stream's spans
+    go into the page's state as they come, since FR-12 wants them within a
+    second and they need no order; a reply on the stream makes the query
+    fetch, so the thread keeps the server's order and the message the page
+    sent takes its server copy's place ("cable invalidates, query fetches").
+    The query polls every 3 s while the socket is down and a turn waits, with
+    the backoff and the stamps of pull request #14, and every 15 s while the
+    socket is live and a turn waits, since a broadcast that fails leaves the
+    reply for the page to fetch (app/models/turn_processor.rb). Each
+    (re)connection fetches once; the deletion's word cancels a fetch on its
+    way, which could answer with what was there before. Each subscription
+    opens a socket of its own, because the server reads the cookie when the
+    socket opens and a new session brings a new cookie. After a reset the
+    page moves to the next conversation's stream and its glass box starts
+    empty, with the next conversation's trace link (review finding V3 of
+    pull request #11).
+  - **The glass box.** One row per model call, as drawn; the last turn and
+    the turn in progress are open, the earlier ones fold into one line
+    ("turno 1 · 5 eventos · 3,0 s", or "N turnos anteriores · …" opening to a
+    line per turn). The page's own rows: a message the edge refused (FR-14)
+    and one that waits for the turn ahead, until its turn starts. The
+    server's error names and the turn's outcomes become words in the page
+    (web/src/trace/Rows.tsx); a tool's error says "a ferramenta recusou ou
+    falhou" until PR-13's reason code tells the two apart. Tokens past a
+    thousand are written in thousands with one decimal, and under it as
+    they are ("gravou 300", where the drawing has "0,3k"). At 390 px the
+    summary line is a button (`aria-expanded`) that opens the drawer, which
+    Escape and "fechar" close; while it is open the conversation has room
+    below to bring its last entry into the upper half. No cost is drawn,
+    nor a zero in its place, until PR-16.
+  - **The trace page** draws the same rows, every one closed, with each
+    turn's words, live from the trace's stream: a turn that ends makes the
+    query fetch its words. Its title gives the link's first four characters,
+    the day and the hour in São Paulo; until the cost exists, the total's
+    first line carries the turns' time, which the drawing gives a line of
+    its own. Hidden until their source exists: the status link (M3), the
+    privacy link (PR-17) and every cost (PR-16). Before a script runs the
+    page is the receipt's head in the visitor's language.
 - Note 2026-11-12 (PR-10, the landing and the chat). The web app's pages
   follow the drawings of `docs/prototype/` (web/src/landing/, web/src/chat/),
   with `tokens.css` the prototype's token block character for character
