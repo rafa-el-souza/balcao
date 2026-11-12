@@ -641,3 +641,64 @@ describe("FR-18 a request that never answers", () => {
     expect(screen.getByText(pt.loadFailed)).toBeInTheDocument();
   });
 });
+
+// Review finding C4 of pull request #14: on a first visit, a second session
+// request sent while the first was in flight minted a second visitor.
+describe("FR-21 one session at a time", () => {
+  const sessions = () =>
+    server.requests.filter((request) => request.path === "/api/session");
+
+  function holdFirstSession() {
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    vi.stubGlobal("fetch", (path: string, init?: RequestInit) => {
+      const first = path === "/api/session" && sessions().length === 0;
+      const answer = server.fetch(path, init);
+      return first ? held.then(() => answer) : answer;
+    });
+    return () => {
+      release();
+    };
+  }
+
+  it("asks for the switcher's language only after the first session answers", async () => {
+    const release = holdFirstSession();
+    renderPage(<Chat />);
+    await waitFor(() => {
+      expect(sessions()).toHaveLength(1);
+    });
+
+    fireEvent.click(
+      screen.getAllByRole("button", { name: /^EN English$/ })[0] as HTMLElement,
+    );
+    await act(() => Promise.resolve());
+    expect(sessions()).toHaveLength(1);
+
+    release();
+    await waitFor(() => {
+      expect(sessions()).toHaveLength(2);
+    });
+    expect(sessions()[1]?.body).toEqual({ language: "en" });
+  });
+
+  it("sends a message typed before the first session answers only after it, once", async () => {
+    const release = holdFirstSession();
+    renderPage(<Chat />);
+    await waitFor(() => {
+      expect(sessions()).toHaveLength(1);
+    });
+
+    type("tem dipirona?");
+    fireEvent.keyDown(field(), { key: "Enter" });
+    await act(() => Promise.resolve());
+    expect(server.sent()).toEqual([]);
+
+    release();
+    await waitFor(() => {
+      expect(server.sent()).toHaveLength(1);
+    });
+    expect(sessions()).toHaveLength(1);
+  });
+});

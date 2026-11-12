@@ -55,6 +55,20 @@ export function useConversation() {
   );
   const api = useMemo(() => createApi(language), [language]);
 
+  // One session request at a time, and messages only after the one in
+  // flight: two requests without a cookie would mint two visitors, and the
+  // last cookie to arrive would leave the page's message under the other
+  // (review finding C4 of pull request #14).
+  const sessions = useRef<Promise<unknown>>(Promise.resolve());
+  const session = useCallback(
+    (locale: Locale) => {
+      const next = sessions.current.then(() => api.session(locale));
+      sessions.current = next.catch(() => undefined);
+      return next;
+    },
+    [api],
+  );
+
   const refresh = useCallback(async () => {
     const answer = await api.current();
     if (answer.kind === "ok")
@@ -64,10 +78,11 @@ export function useConversation() {
 
   const deliver = useCallback(
     async (clientId: string, content: Content) => {
+      await sessions.current;
       let outcome = await api.send(clientId, content);
       if (outcome.kind === "session") {
-        const session = await api.session(language());
-        if (session.kind === "ok") outcome = await api.send(clientId, content);
+        const renewed = await session(language());
+        if (renewed.kind === "ok") outcome = await api.send(clientId, content);
       }
       if (outcome.kind === "ok")
         dispatch({
@@ -79,7 +94,7 @@ export function useConversation() {
         dispatch({ type: "limited", clientId, text: outcome.text });
       else dispatch({ type: "failed", clientId });
     },
-    [api, language],
+    [api, language, session],
   );
 
   const send = useCallback(
@@ -115,9 +130,9 @@ export function useConversation() {
   // The language of a conversation not yet answered follows the page's (FR-02).
   const changeLanguage = useCallback(
     (locale: Locale) => {
-      void api.session(locale);
+      void session(locale);
     },
-    [api],
+    [session],
   );
 
   // Once per page load, even when React mounts twice in development.
@@ -127,13 +142,13 @@ export function useConversation() {
     started.current = true;
     const say = takeSay();
     void (async () => {
-      const session = await api.session(language());
-      if (session.kind === "limit") {
-        dispatch({ type: "limited", clientId: null, text: session.text });
+      const opened = await session(language());
+      if (opened.kind === "limit") {
+        dispatch({ type: "limited", clientId: null, text: opened.text });
         dispatch({ type: "loaded" });
         return;
       }
-      if (session.kind !== "ok") {
+      if (opened.kind !== "ok") {
         dispatch({ type: "loadFailed" });
         return;
       }
@@ -141,7 +156,7 @@ export function useConversation() {
       if (!(await refresh())) dispatch({ type: "loadFailed" });
       dispatch({ type: "loaded" });
     })();
-  }, [api, language, refresh, sendOpener]);
+  }, [language, refresh, sendOpener, session]);
 
   const waiting = awaiting(state);
   useEffect(() => {
