@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy · Balcão prototype</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main class="stage page privacy">
+  <header class="masthead">
+    <a class="wordmark" id="wordmark" href="landing.html">
+      <svg class="cross" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 0h4v4h4v4H8v4H4V8H0V4h4z"/></svg>
+      Balcão
+    </a>
+    <span class="page-name" id="page-name">privacidade</span>
+    <nav class="langs" id="langs" aria-label="Idioma">
+      <span class="lang" aria-current="true">PT</span>
+      <button class="lang" type="button">EN</button>
+      <button class="lang" type="button">ES</button>
+    </nav>
+    <a class="status-link" id="to-status" href="status.html"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.25 8.5h3l2-5 3.25 9 2-4h3.25"/></svg> status</a>
+  </header>
+
+  <article class="prose">
+    <h1 id="title">Privacidade</h1>
+    <p id="what">O Balcão é uma demonstração de portfólio. A Farmácia Vida Longa não existe: os produtos, os preços, o endereço e o telefone são inventados, e nada do que o atendente diz é orientação de saúde.</p>
+    <p class="stamp" id="advice"><strong>Aviso:</strong> não escreva aqui dados pessoais ou de saúde de verdade.</p>
+
+    <h2 id="kept">O que fica guardado</h2>
+    <ul>
+      <li>As mensagens que você envia e as respostas.</li>
+      <li>As reservas que você fizer.</li>
+      <li>Um identificador do seu navegador (um cookie) ou, no WhatsApp, o da sua conta.</li>
+      <li>O registro técnico de cada resposta: o modelo, as ferramentas, o tempo e o custo. É o que a caixa de vidro mostra.</li>
+    </ul>
+
+    <h2 id="retention">Por quanto tempo</h2>
+    <p>Por 7 dias. Depois disso, tudo é apagado sozinho, toda noite.</p>
+
+    <h2 id="deletion">Como apagar antes</h2>
+    <p>Envie <code>/apagar</code> ou “apagar meus dados” na conversa. As mensagens, as reservas abertas e o histórico são apagados na hora.</p>
+
+    <h2 id="readers">Quem vê a conversa</h2>
+    <p>Quem tiver o link do trace vê a conversa; o link expira em 7 dias. O operador da demonstração pode ler as conversas para corrigir erros.</p>
+
+    <h2 id="processors">Quem processa os dados</h2>
+    <ul>
+      <li>Anthropic: o modelo de linguagem, que recebe o texto das mensagens para responder.</li>
+      <li>Hetzner: a hospedagem do servidor.</li>
+      <li>Meta: quando a conversa é pelo WhatsApp.</li>
+      <li>Cloudflare: a verificação anti-bot, quando estiver ativa; ela vê o seu IP.</li>
+    </ul>
+
+    <h2 id="contact">Contato</h2>
+    <p><a id="contact-email" href="mailto:rafasouza.dev@pm.me?subject=Balc%C3%A3o%3A%20contato">rafasouza.dev@pm.me</a></p>
+  </article>
+
+  <footer class="colophon">
+    <div class="signature signed-block" id="signature">
+      <p class="signed-name"><span class="signed-by">Feito por</span> <span class="signed-hand" id="signed-hand">Rafa Souza</span></p>
+      <p class="signed-links"><button class="doc" id="link-github" type="button"><svg class="icon mark" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg> GitHub</button> <button class="doc" id="link-linkedin" type="button"><svg class="icon mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg> LinkedIn</button> <a class="doc" id="link-email" href="mailto:rafasouza.dev@pm.me?subject=Balc%C3%A3o%3A%20contato"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.75 3.75h12.5v8.5H1.75zM2 4.25l6 4.75 6-4.75"/></svg> e-mail</a></p>
+    </div>
+  </footer>
+</main>
+
+<aside class="notes" lang="en">
+  <h2>Notes</h2>
+  <ul>
+    <li>Route <code>/privacy</code>; design §6.7 lists what it says (fictional demo, seven-day retention, the delete command, the processors) and has no sketch for it.</li>
+    <li>Every sentence here is a draft for the owner to check against FR-05, FR-15 and the threat model before it becomes the locale files.</li>
+    <li>The stamped advice and the "Quem vê a conversa" section are not in §6.7's list; proposed.</li>
+    <li>It is the privacy-policy URL of the Meta app, so it reads alone, without the landing.</li>
+    <li>The footer is signed: the author's name in a pen hand (Cedarville Cursive, OFL, used for this name alone: a third face beside the brief's two) on a signature rule. The GitHub and LinkedIn marks are black, as each company's rules ask (read on 2026-11-12); the LinkedIn drawing stands in for the file from LinkedIn's own brand site, the only one its rules approve.</li>
+  </ul>
+</aside>
+</body>
+</html>
