@@ -1516,7 +1516,7 @@ every pull request.
 | 6 | PR-10 React: app shell, i18n in the three locales, landing with the chips and `say` allow-list (FR-21, SR-34), the chat | Chat in the browser on the host |
 | 7 | PR-11 React: the glass box panel, `/trace/:token`, the cable client with the polling fallback, TanStack Query, and what the drawings ask of the server (§10, note 2026-11-12) · PR-12 NFR-03: fallback text, "pensando…" state, dead-letter visibility in logs, keeping the turn outcomes the panel reads (§10, note 2026-11-12) | **J1 minus the reservation, live** |
 | 8 | PR-13 `create_reservation` keyed by the turn and the product (NFR-02), the limits and the prescription refusal (FR-07), with the drawings' reason code and their FR-07 question (§10, note 2026-11-12) · PR-14 `bin/evals` live runner, the suites `greeting`, `language`, `store`, `catalogue`, `reservation`, `boundary`, `memory` on the normal model, the first scorecard | A reservation code in the chat; the boundary measured |
-| 9 | PR-15 boundary prompt iteration to 100 %, the fixed offer line, the decline texts in three locales · PR-16 the budget ledger with the monthly cap's pause (FR-14), the nightly job (FR-15), log masking (SR-30), and the cost, rate and mode the drawings ask for (§10, note 2026-11-12) | Wallet fenced; the demo honest about the boundary |
+| 9 | PR-15 boundary prompt iteration to 100 %, the fixed offer line, the decline texts in three locales · PR-16 the budget ledger with the monthly cap's pause (FR-14), the nightly job (FR-15), log masking (SR-30), and the cost, rate and mode the drawings ask for, the price table's cache-write column included (§10, note 2026-11-12) | Wallet fenced; the demo honest about the boundary |
 | 10 | PR-17 `/privacy` page, the QR placeholder on the landing, README sixty-second tour, design and README status lines made true, the hours table in the handoff | **Web demo showable** |
 | 11 | PR-18 WhatsApp inbound: webhook verification (SR-08), `X-Hub-Signature-256` constant-time check on the raw body (SR-06), raw event persisted keyed by the SHA-256 of its body and each message by its Meta message id, 200 within 2 s, processing through `ProcessTurnJob` (SR-07, SR-09), identity `sha256(pepper ‖ BSUID)` with the number, when Meta sends it, encrypted at rest (SR-10, FR-19), tests against the payloads recorded from the test number plus a synthetic username-only payload (no `from`, no `wa_id`) | Inbound messages traced on the host |
 | 12 | PR-19 WhatsApp outbound: the Graph API client with timeouts, replies inside the 24-hour window addressed to the number when known and to the BSUID (`recipient`) otherwise, status webhooks, the `/trace` reply with the tokenised link, the QR on the landing, the Meta values as Kamal env secrets; the owner creates the system-user token and switches the app to Live mode with `/privacy` as its policy URL; the first real conversation from the test customer's phone · slack | **J2 minus voice, live** |
@@ -1582,8 +1582,11 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     refusal", while the drawing runs the search, which gives the price,
     and leaves out only the reservation tool; for PR-16, the cost
     attributes, the R$ rate with its date, and the budget's mode in the
-    session and polling answers. ADR-0003's price table has no cache-write
-    price; the drawn examples use 1.25 times the input price.
+    session and polling answers. ADR-0003's table has a cache-write column,
+    but the prices it quotes have no cache-write figure; PR-16 fills the
+    column for each model from the provider's price page when it writes the
+    table, dated like the rest. The drawn examples' 1.25 times the input
+    price is a placeholder until then.
   - **Read, not asked:** a fixed reply's reason comes from the root span's
     `balcao.turn.outcome`, which the server already sends when the turn
     closes (`model_error`, `deadline`, `tool_limit`, `incomplete`,
