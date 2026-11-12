@@ -22,6 +22,8 @@ export const POLL_MS = 3000;
 // doubles the wait, up to half a minute; one that answers brings it back to
 // 3 s (review finding C5 of pull request #14).
 export const POLL_MAX_MS = 30_000;
+// How long after a glass box command's answer the same button stays quiet.
+export const COMMAND_GAP_MS = 1000;
 
 type OpenerKey = keyof typeof openers;
 const LANG = { pt: "pt-BR", en: "en", es: "es" } as const;
@@ -138,15 +140,18 @@ export function useConversation() {
   );
 
   // The glass box's commands, once per press: a second press while the first
-  // is on its way sends nothing, or a double click would reset or delete
-  // twice (review finding C8 of pull request #14).
+  // is on its way, or within a second of its answer, sends nothing, or a
+  // double click would reset or delete twice (review findings C8 and R6 of
+  // pull request #14).
   const commands = useRef(new Set<string>());
   const sendCommand = useCallback(
     (text: string) => {
       if (commands.current.has(text)) return;
       commands.current.add(text);
       void send({ text }, text).finally(() => {
-        commands.current.delete(text);
+        window.setTimeout(() => {
+          commands.current.delete(text);
+        }, COMMAND_GAP_MS);
       });
     },
     [send],

@@ -798,6 +798,7 @@ describe("FR-18 the connection lost", () => {
 // with a new id, so a double click reset or deleted twice.
 describe("FR-04 and FR-05 the glass box's commands, pressed twice", () => {
   it("sends one command for a double click, and the command again once it was sent", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     renderPage(<Chat />);
     await ready();
     const reset = screen.getByRole("button", { name: pt.glass.reset });
@@ -810,6 +811,7 @@ describe("FR-04 and FR-05 the glass box's commands, pressed twice", () => {
     await act(() => Promise.resolve());
     expect(server.sent()).toHaveLength(1);
 
+    await act(() => vi.advanceTimersByTimeAsync(1100));
     fireEvent.click(reset);
     await waitFor(() => {
       expect(server.sent()).toHaveLength(2);
@@ -967,6 +969,38 @@ describe("FR-18 and FR-21 the fixes' own edges (fix review of pull request #14)"
 
     expect(screen.queryByText(pt.offline)).toBeNull();
     expect(within(thread()).getByText(text)).toBeInTheDocument();
+  });
+
+  // R6: a real double click, whose second press comes after the first's 202.
+  it("ignores the second press of a double click that comes after the first command was sent", async () => {
+    renderPage(<Chat />);
+    await ready();
+    const reset = screen.getByRole("button", { name: pt.glass.reset });
+
+    fireEvent.click(reset, { detail: 1 });
+    await waitFor(() => {
+      expect(server.sent()).toHaveLength(1);
+    });
+    await act(() => Promise.resolve());
+    fireEvent.click(reset, { detail: 2 });
+    await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
+
+    expect(server.sent()).toHaveLength(1);
+  });
+
+  // R6, as the verifier wrote it: two presses 150 ms apart, the 202 between.
+  it("sends one reset for two presses whose first answer comes back between them", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderPage(<Chat />);
+    await ready();
+    const reset = screen.getByRole("button", { name: pt.glass.reset });
+
+    fireEvent.click(reset);
+    await act(() => vi.advanceTimersByTimeAsync(150));
+    fireEvent.click(reset);
+    await act(() => vi.advanceTimersByTimeAsync(150));
+
+    expect(server.sent()).toHaveLength(1);
   });
 
   // R2, as the verifier wrote it: a message that met the limit.

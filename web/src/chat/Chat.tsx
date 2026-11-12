@@ -90,8 +90,9 @@ export function Chat() {
           <button
             type="button"
             className={styles.toolButton}
-            onClick={() => {
-              command("resetCommand");
+            onClick={(event) => {
+              // A double click's second press sends nothing (review finding R6).
+              if (event.detail <= 1) command("resetCommand");
             }}
           >
             <Icon name="reset" /> {t("chat.glass.reset")}
@@ -99,8 +100,8 @@ export function Chat() {
           <button
             type="button"
             className={styles.toolButton}
-            onClick={() => {
-              command("deleteCommand");
+            onClick={(event) => {
+              if (event.detail <= 1) command("deleteCommand");
             }}
           >
             <Icon name="bin" /> {t("chat.glass.delete")}
