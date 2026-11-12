@@ -52,8 +52,10 @@ export function useConversation() {
   const [polled, setPolled] = useState(0);
   const [pollDelay, setPollDelay] = useState(POLL_MS);
   // Polls failed in a row: from the second, the page says the connection is
-  // lost (review finding V1 of pull request #14).
+  // lost (review finding V1 of pull request #14). A poll the edge refused is
+  // the limit, said with its own text (review finding R5).
   const [pollFailures, setPollFailures] = useState(0);
+  const [pollRefused, setPollRefused] = useState<string | null>(null);
 
   // The page's language at the moment of each request: the switch changes it
   // before it tells the conversation.
@@ -89,7 +91,7 @@ export function useConversation() {
     const answer = await api.current();
     if (answer.kind === "ok")
       dispatch({ type: "snapshot", answer: answer.value });
-    return answer.kind === "ok";
+    return answer;
   }, [api]);
 
   const deliver = useCallback(
@@ -191,7 +193,11 @@ export function useConversation() {
         return;
       }
       if (say) sendOpener(say);
-      if (!(await refresh())) dispatch({ type: "loadFailed" });
+      const loaded = await refresh();
+      // The edge's refusal is its limit, with its text (review finding R5).
+      if (loaded.kind === "limit")
+        dispatch({ type: "limited", clientId: null, text: loaded.text });
+      else if (loaded.kind !== "ok") dispatch({ type: "loadFailed" });
       dispatch({ type: "loaded" });
     })();
   }, [language, refresh, sendOpener, session]);
@@ -200,24 +206,31 @@ export function useConversation() {
   useEffect(() => {
     if (!waiting) return;
     const timer = window.setTimeout(() => {
-      void refresh().then((answered) => {
+      void refresh().then((answer) => {
         setPollDelay((delay) =>
-          answered ? POLL_MS : Math.min(delay * 2, POLL_MAX_MS),
+          answer.kind === "ok" ? POLL_MS : Math.min(delay * 2, POLL_MAX_MS),
         );
-        setPollFailures((failures) => (answered ? 0 : failures + 1));
+        setPollFailures((failures) =>
+          answer.kind === "failed" ? failures + 1 : 0,
+        );
+        setPollRefused(answer.kind === "limit" ? answer.text : null);
+        // The cookie is gone: a new session, and the polls go on.
+        if (answer.kind === "session") void session(language());
         setPolled((count) => count + 1);
       });
     }, pollDelay);
     return () => {
       window.clearTimeout(timer);
     };
-  }, [waiting, polled, pollDelay, refresh]);
+  }, [waiting, polled, pollDelay, refresh, session, language]);
 
-  const offline = waiting && pollFailures >= 2;
+  const refused = waiting ? pollRefused : null;
+  const offline = waiting && refused === null && pollFailures >= 2;
 
   return {
     state,
     offline,
+    refused,
     send,
     sendCommand,
     sendOpener,

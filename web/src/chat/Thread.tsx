@@ -78,11 +78,13 @@ function Message({
 export function Thread({
   state,
   offline,
+  refused,
   onOpener,
   onRetry,
 }: {
   state: State;
   offline: boolean;
+  refused: string | null;
   onOpener: (key: keyof typeof openers) => void;
   onRetry: (clientId: string, content: Content) => void;
 }) {
@@ -144,6 +146,11 @@ export function Thread({
       {entries.map((entry) => (
         <Message key={entry.key} entry={entry} onRetry={onRetry} />
       ))}
+      {refused !== null && (
+        <li className={cx(styles.msg, VOICE_CLASS.stamp)} data-voice="stamp">
+          <p>{refused}</p>
+        </li>
+      )}
       {offline && (
         <li className={cx(styles.msg, VOICE_CLASS.stamp)} data-voice="stamp">
           <p>{t("chat.offline")}</p>

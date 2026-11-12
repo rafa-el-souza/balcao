@@ -22,6 +22,7 @@ export function Chat() {
   const {
     state,
     offline,
+    refused,
     send,
     sendCommand,
     sendOpener,
@@ -57,6 +58,7 @@ export function Chat() {
         <Thread
           state={state}
           offline={offline}
+          refused={refused}
           onOpener={sendOpener}
           onRetry={retry}
         />

@@ -950,6 +950,25 @@ describe("FR-18 and FR-21 the fixes' own edges (fix review of pull request #14)"
     expect(screen.queryByText(pt.loadFailed)).toBeNull();
   });
 
+  // R5: a refused poll is the limit, not a lost connection.
+  it("stamps the limit's text, not the lost connection, while the edge refuses the polls", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const text =
+      "Você chegou ao limite da demo por agora. Tente de novo daqui a pouco.";
+    renderPage(<Chat />);
+    await ready();
+    type("tem dipirona?");
+    fireEvent.keyDown(field(), { key: "Enter" });
+    await waitFor(() => {
+      expect(server.sent()).toHaveLength(1);
+    });
+    server.defaults.current = { status: 429, body: { error: "limit", text } };
+    await elapse(30_000);
+
+    expect(screen.queryByText(pt.offline)).toBeNull();
+    expect(within(thread()).getByText(text)).toBeInTheDocument();
+  });
+
   // R2, as the verifier wrote it: a message that met the limit.
   it("draws a message that met the limit, and its stamp, after the earlier one still on its way", async () => {
     const text =
