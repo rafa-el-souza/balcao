@@ -29,6 +29,10 @@ module Api
     wrap_parameters false
 
     before_action :verify_origin, unless: -> { request.get? || request.head? }
+    # The answers carry a conversation's words, which a deletion is to erase
+    # everywhere: no browser keeps a copy (FR-05; review finding N3 of pull
+    # request #17).
+    after_action { response.headers["Cache-Control"] = "no-store" }
 
     rescue_from Refused do |refused|
       render json: { error: refused.code }, status: refused.status

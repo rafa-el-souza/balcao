@@ -51,6 +51,18 @@ RSpec.describe "FR-12 SR-11 SR-12 GET /api/traces/:token, a conversation's trace
     expect(json["messages"].last).to include("notice" => "Aviso de antes: outro texto.", "body" => "¡Hola!")
   end
 
+  # Review finding N3 of pull request #17: a browser may keep an answer it is
+  # allowed to cache, and these carry the conversation's words, which a
+  # deletion is to erase (FR-05).
+  it "tells the browser to keep no copy of the conversation's words, here and in the polling answer" do
+    get "/api/traces/#{conversation.trace_token}"
+    expect(response.headers["Cache-Control"]).to include("no-store")
+
+    start_session
+    get "/api/conversations/current"
+    expect(response.headers["Cache-Control"]).to include("no-store")
+  end
+
   it "answers 404 and nothing else for a token that names no conversation, whatever its shape (SR-11)" do
     [ SecureRandom.base58(24), "x", "a" * 200, conversation.trace_token.downcase, "#{conversation.trace_token}x",
       "a%00b", "%FF", "%C3%A7#{"a" * 22}" ].each do |token|
