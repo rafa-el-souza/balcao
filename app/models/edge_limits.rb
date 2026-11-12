@@ -17,10 +17,12 @@ module EdgeLimits
     # Every API and cable request of one source from the web app (its origin
     # or its cookie), and every cable subscription.
     Limit.new(name: "ip/requests", limit: 60, period: 1.minute, reply: :now),
-    # The same for the requests of one source that are neither: refused by the
-    # app, and counted apart, so a hostile page whose visitors' browsers post
-    # here cannot use up the minute of the web app's own pages behind the same
-    # address (review finding C2 of pull request #12).
+    # The same for the requests of one source that are neither, counted apart,
+    # so a hostile page whose visitors' browsers post here cannot use up the
+    # minute of the web app's own pages behind the same address (review
+    # finding C2 of pull request #12). The app refuses them all but a trace
+    # page's lookup, which a link opened without the cookie makes (FR-12,
+    # threat model SR-11).
     Limit.new(name: "ip/anonymous", limit: 60, period: 1.minute, reply: :now),
     # Every session minted for one source from the public origin: a page load
     # that brings back its cookie mints nothing, nor does a request the app

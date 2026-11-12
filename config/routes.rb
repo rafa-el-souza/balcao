@@ -12,10 +12,13 @@ Rails.application.routes.draw do
     resource :session, only: :create
     resources :messages, only: :create
     get "conversations/current", to: "conversations#current"
+    get "traces/:token", to: "traces#show"
   end
 
   # The web app's pages (design §6.7), each sent as its own shell; the others
-  # join here as they arrive (web/src/pages.ts lists the same ones).
+  # join here as they arrive (web/src/pages.ts lists the same ones, and
+  # spec/requests/spa_spec.rb holds the two lists together).
   root "spa#landing"
   get "chat", to: "spa#chat"
+  get "trace/:token", to: "spa#trace", format: false
 end
