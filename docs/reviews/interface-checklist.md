@@ -7,7 +7,10 @@ assertion the verifier can write (Testing Library or Playwright, on roles,
 text, attributes and computed styles, never pixels), by reading, or by a CI
 measure that already exists. The design session that closes the brief into
 `docs/visual-identity.md` revises this list; until then the brief wins
-where they differ.
+where they differ, and the drawings in `docs/prototype/` (with the notes
+under each) win over both: a screen is checked against its drawing first.
+The brief's §0 lists where the drawings leave it, so items 6, 12 and 21 are
+read with that list.
 
 | # | Item | Source | Verified by |
 |---|---|---|---|

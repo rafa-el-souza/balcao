@@ -1,9 +1,36 @@
 # Balcão — visual design brief
 
-**Status:** v1.1, 2026-11-04 (Turnstile notice line added to the chat components; font note cites SR-03); v1 2026-11-02. For the design session that runs after the
+**Status:** v1.2, 2026-11-12 (the prototype is drawn; where it leaves this brief is listed below and in `docs/prototype/index.html`); v1.1, 2026-11-04 (Turnstile notice line added to the chat components; font note cites SR-03); v1 2026-11-02. For the design session that runs after the
 MVP's placeholder is live (day 2) and the chat (days 6–7) is taking shape. The
 session starts from this file and the documents it points to; nothing else
 is assumed.
+
+## 0. Where the prototype leaves this brief (2026-11-12)
+
+The drawings in `docs/prototype/` were reviewed screen by screen with the
+owner. They win where they differ from the text below, until
+`docs/visual-identity.md` replaces this file:
+
+- **§4, paper and ink.** The counter is ink on paper as written; the
+  instrument is near-black on off-white, a till receipt.
+- **§4, no illustration.** Small marks drawn for this project sit on links
+  and buttons and beside the four lines of "O que ele faz"; the stack shows
+  other companies' marks, each to ship only as its owner's rules allow.
+- **§5, two faces.** A third face signs the author's name, and nothing else.
+- **§5, two weights per family.** The counter's face is set in five.
+- **§5, five sizes.** The signature and the price on a tag have sizes of
+  their own.
+- **§5, motion.** The cross beside "pensando…" pulses for as long as the
+  turn runs; reduced motion leaves it still.
+- **§5, meaning colours.** "Normal" and "success" are printed in the
+  brand's one green, always beside a mark that is not colour; economy,
+  pause and error keep colours that mean nothing else.
+- **§5, the chip.** Two kinds: the opener and the composer's suggestion.
+- **§4, the footer.** The instrument's pages (status, trace) end with two
+  links, home and privacy; the signature is on the landing and the privacy
+  page, with an e-mail link beside GitHub and LinkedIn.
+- **§7.2.** Every public screen and state is drawn, not three; three of
+  them (landing, chat, status) also in English and Spanish.
 
 ## 1. What you are designing
 

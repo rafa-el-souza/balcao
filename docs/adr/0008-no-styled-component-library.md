@@ -62,6 +62,9 @@ component library would not save a day on it.
   MVP's day-1 skeleton ships with tokens and a neutral placeholder look.
 - The design session (after day 2) changes tokens and component CSS; it does
   not restructure components.
+- From 2026-11-12 the look is drawn first, as static HTML and CSS in
+  `docs/prototype/`: its token block becomes `web/src/styles/tokens.css`
+  unchanged, and each component's CSS Module follows the drawing's rules.
 - Accessibility (NFR-10) is the implementer's job for everything not
   covered by a primitive: focus order, contrast via tokens, reduced-motion
   media query, keyboard for the composer and the panel.
