@@ -1,0 +1,419 @@
+/* The chat: the counter and, beside it, the instrument (docs/prototype/styles.css, "The chat"
+   and "The chat holds the window"). */
+
+.chat {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(23rem, 40%, 31rem);
+}
+
+.counter {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 100vh;
+}
+
+/* The letterhead of the conversation: the way back in heavy capitals over a thick rule and a
+   thin one. */
+.counterHead {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: 3.5rem;
+  margin-bottom: 5px;
+  padding: 0 var(--space-8);
+  border-bottom: var(--rule-head);
+}
+
+.counterHead::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -9px;
+  border-bottom: var(--rule-hairline);
+}
+
+.back {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  color: var(--color-ink);
+  font-size: var(--text-lg);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.back svg {
+  align-self: center;
+}
+
+/* The switch of the conversation's head shows only where the glass box, which carries it, is
+   folded away. */
+.counterLangs {
+  display: none;
+}
+
+.thread {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  width: 100%;
+  max-width: calc(var(--measure) + 2 * var(--space-8));
+  margin: 0 auto;
+  padding: var(--space-8);
+  list-style: none;
+}
+
+.msg p {
+  margin: 0;
+}
+
+.msg p + p {
+  margin-top: var(--space-2);
+}
+
+/* The visitor's words: a slip handed over the counter. */
+.visitor {
+  align-self: flex-end;
+  max-width: 26rem;
+  padding: var(--space-3) var(--space-6) var(--space-3) var(--space-4);
+  background: var(--color-paper-2);
+  font-style: italic;
+  overflow-wrap: anywhere;
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--cut)) 0,
+    100% var(--cut),
+    100% 100%,
+    0 100%
+  );
+}
+
+/* The attendant speaks in the page's own voice; the pharmacist's words carry a rule down their
+   side. */
+.attendant,
+.pharmacist {
+  max-width: 33rem;
+  overflow-wrap: anywhere;
+}
+
+.pharmacist {
+  padding-left: var(--space-4);
+  border-left: var(--rule-head);
+}
+
+/* The system's voice: a stamp, as wide as its words. */
+.notice {
+  align-self: flex-start;
+  max-width: 33rem;
+}
+
+.openers {
+  margin-top: var(--space-3);
+}
+
+.failed {
+  font-size: var(--text-sm);
+  font-style: normal;
+  color: var(--color-ink-2);
+}
+
+.retry {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  font: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+  cursor: pointer;
+}
+
+.composer {
+  width: 100%;
+  max-width: calc(var(--measure) + 2 * var(--space-8));
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-8) var(--space-6);
+}
+
+/* The field and its button share one box: a sheet to write on, growing with the text. */
+.composerRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--color-rule);
+  background: var(--color-paper-2);
+}
+
+/* At rest the sheet has a quiet edge; in use it takes the ink. */
+.composerRow:focus-within {
+  border-color: var(--color-ink);
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.composer textarea {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--touch);
+  max-height: calc(6 * 1.6em + 2 * var(--space-2));
+  padding: var(--space-2);
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--color-ink);
+  font: inherit;
+  line-height: var(--leading-body);
+  resize: none;
+  field-sizing: content;
+}
+
+.composer textarea:focus-visible {
+  outline: 0;
+}
+
+.composer textarea::placeholder {
+  color: var(--color-ink-2);
+  font-style: italic;
+  opacity: 1;
+}
+
+/* Past 800 characters the composer counts toward the limit, above the send button. */
+.composerSide {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+}
+
+.count {
+  padding-right: var(--space-1);
+  color: var(--color-ink-2);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.count[data-full] {
+  color: var(--color-ink);
+  font-weight: 700;
+}
+
+/* The button sits in the middle of a one-line sheet, and keeps that distance from the foot as the
+   sheet grows. */
+.send {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  min-height: var(--control-send);
+  margin-bottom: calc((var(--touch) - var(--control-send)) / 2);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-accent);
+  border-radius: 0;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.send svg {
+  width: 1.1em;
+  height: 1.1em;
+}
+
+.suggest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2) var(--space-3);
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-sm);
+}
+
+.suggestLabel {
+  color: var(--color-ink-2);
+}
+
+/* A suggestion: the standing shortcut under the composer, the smaller box with the quiet rule. */
+.suggestion {
+  min-height: var(--control);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-rule-strong);
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* The instrument: the glass box, on the receipt's roll. */
+.glass {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-left: var(--rule-dash);
+  background: var(--color-paper-2);
+  color: var(--color-instrument-ink);
+  font-family: var(--font-instrument);
+  font-size: var(--text-xs);
+  line-height: var(--leading-row);
+  font-variant-numeric: tabular-nums;
+}
+
+.glassHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: 3.5rem;
+  padding: 0 var(--space-6);
+  border-bottom: var(--rule-dash);
+}
+
+.glassHead h2 {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.glassLangs {
+  margin-left: auto;
+}
+
+.glassBody {
+  flex: 1;
+}
+
+.glassEmpty {
+  margin: 0;
+  padding: var(--space-4) var(--space-6);
+  color: var(--color-instrument-ink-2);
+}
+
+.glassActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-6) var(--space-6);
+}
+
+.toolButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  min-height: var(--control);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-instrument-ink-2);
+  border-radius: 0;
+  background: none;
+  color: var(--color-instrument-ink);
+  font-family: var(--font-instrument);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+/* Beside each other, the counter and the instrument are each as tall as the window and scroll on
+   their own; the composer keeps its place whatever arrives. */
+@media (width >= 52rem) {
+  .chat {
+    height: 100vh;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .counter,
+  .glass {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .thread,
+  .glassBody {
+    min-height: 0;
+    overflow: hidden auto;
+  }
+
+  .counterHead,
+  .counterFoot,
+  .glassHead,
+  .glassActions {
+    flex: none;
+  }
+}
+
+/* Stacked, the page scrolls and the composer stays at the foot of the window. The glass box's
+   drawer arrives with its rows (PR-11); until then the switch sits in the conversation's head. */
+@media (width < 52rem) {
+  .chat {
+    display: block;
+  }
+
+  .counterHead {
+    flex-wrap: wrap;
+    row-gap: 0;
+    padding: var(--space-1) var(--space-4) 0;
+  }
+
+  .back {
+    font-size: var(--text-md);
+  }
+
+  .counterLangs {
+    display: flex;
+    margin-left: auto;
+  }
+
+  .thread {
+    padding: var(--space-6) var(--space-4);
+  }
+
+  .counterFoot {
+    position: sticky;
+    bottom: 0;
+    background: var(--color-paper);
+  }
+
+  .composer {
+    padding: var(--space-3) var(--space-4) var(--space-4);
+  }
+
+  .suggestion,
+  .send {
+    min-height: var(--touch);
+  }
+
+  .send {
+    margin-bottom: 0;
+  }
+
+  .glass {
+    display: none;
+  }
+}
+
+/* A new message appears in place; nothing slides (design brief §5). */
+@media (prefers-reduced-motion: no-preference) {
+  .msg {
+    animation: appear var(--fade) ease-out;
+  }
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+  }
+}
