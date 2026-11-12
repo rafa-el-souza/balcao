@@ -43,9 +43,43 @@ class Message < ApplicationRecord
   # it (FR-18): the turn of an inbound message is the caller's to give, and a
   # web message carries the id its client generated, so the page can match
   # it to the one it sent.
-  def stream_payload(turn_id: self.turn_id)
+  def stream_payload(turn_id: self.turn_id, first_reply: first_reply?)
     { id:, client_id: (external_id if inbound? && channel == "web"), conversation_id:, turn_id:,
-      author:, body:, created_at: created_at.iso8601(3) }
+      **trace_payload(turn_id:, first_reply:).slice(:author, :notice, :body, :created_at) }
+  end
+
+  # The message as a trace page shows it (FR-12), to any holder of the link:
+  # its words and its turn, and no id a page could take anywhere else. The
+  # demo notice comes apart from the body of the reply that carries it
+  # (FR-01; design §10, note of 2026-11-12).
+  def trace_payload(turn_id: self.turn_id, first_reply: first_reply?)
+    notice, text = first_reply ? notice_and_text : [ nil, body ]
+    { id:, turn_id:, author:, notice:, body: text, created_at: created_at.iso8601(3) }
+  end
+
+  # The reply as the model wrote it, for the history it reads back
+  # (AgentRunner::History): without the notice the system put before it.
+  def body_without_notice(first_reply: first_reply?) = first_reply ? notice_and_text.last : body
+
+  # The first reply of a conversation is the one the system put the notice
+  # before (TurnProcessor#record_reply), on its first line: it is told by its
+  # place, not by its wording, which a later deploy may change (review finding
+  # N1 of pull request #17). The callers that list messages know it already.
+  def first_reply?
+    outbound? && !Message.outbound.where(conversation_id:).where("(created_at, id) < (?, ?)", created_at, id).exists?
+  end
+
+  # The ids of the first reply of each of these conversations.
+  def self.first_reply_ids(conversation_ids)
+    outbound.where(conversation_id: conversation_ids).select("DISTINCT ON (conversation_id) messages.id")
+            .order(:conversation_id, :created_at, :id).map(&:id).to_set
+  end
+
+  private
+
+  def notice_and_text
+    notice, text = body.split("\n\n", 2)
+    text ? [ notice, text ] : [ nil, body ]
   end
 
   # Stores the one reply of a turn, in the turn's conversation or in the one

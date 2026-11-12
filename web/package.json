@@ -18,6 +18,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@rails/actioncable": "^8.1.401",
+    "@tanstack/react-query": "^5.107.1",
     "i18next": "^27.0.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
@@ -30,6 +32,7 @@
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@types/node": "^26.6.6",
+    "@types/rails__actioncable": "^8.0.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.3.0",

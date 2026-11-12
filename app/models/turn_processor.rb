@@ -48,11 +48,16 @@ class TurnProcessor
 
   # FR-05: in the same run, the visitor's data goes, and the confirmation
   # goes to the stream, since there is no conversation left to store it in.
-  # Nothing is traced: the trace would be deleted with the rest.
+  # Nothing is traced: the trace would be deleted with the rest. A trace page
+  # open on any of the visitor's conversations is told too, so it drops what
+  # it showed (review finding G2 of pull request #17).
   def delete
     language = command_language
-    @conversation.visitor.erase!
+    visitor = @conversation.visitor
+    tokens = visitor.conversations.pluck(:trace_token)
+    visitor.erase!
     broadcast(type: "deleted", text: FixedReply.command(:delete, language))
+    tokens.each { |token| broadcast({ type: "deleted" }, "trace:#{token}") }
   end
 
   # FR-04: the conversation closes and the reply opens the next one, so its
@@ -94,10 +99,12 @@ class TurnProcessor
     Message.where(id: later.map(&:last)).update_all(conversation_id: current.id, updated_at: Time.current)
   end
 
-  # FR-12: the link to this conversation's trace page.
+  # FR-12: the link to this conversation's trace page. The token follows the
+  # "#", which no browser sends, so no request line carries it, in Rails' log
+  # or in kamal-proxy's (review finding V3 of pull request #17, SR-30).
   def trace
     language = command_language
-    url = "#{Rails.configuration.x.public_origin}/trace/#{@conversation.trace_token}"
+    url = "#{Rails.configuration.x.public_origin}/trace##{@conversation.trace_token}"
     command(:trace) { store_reply(FixedReply.command(:trace, language, url:), language:) }
   end
 
@@ -190,8 +197,8 @@ class TurnProcessor
   # On the stream of the turn's conversation, the one the visitor's page
   # follows; a reset's reply names the conversation it opened. A broadcast
   # that fails leaves the reply stored for the page to poll (FR-18).
-  def broadcast(payload)
-    ActionCable.server.broadcast("conversation:#{@conversation.id}", payload)
+  def broadcast(payload, stream = "conversation:#{@conversation.id}")
+    ActionCable.server.broadcast(stream, payload)
   rescue StandardError => e
     Rails.logger.error("turn #{@turn.id}: #{payload[:type]} not broadcast: #{e.class}")
   end

@@ -31,6 +31,20 @@ RSpec.describe "SR-16 AgentTool, the base of the attendant's tools (design §6.3
                                                      output: include("dipirona"), latency_ms: a_value >= 0))
   end
 
+  # Review finding C5 of pull request #17: a count of the wrong shape made
+  # the report raise, which dropped the whole call from the trace.
+  it "reports a call whose count has the wrong shape, without the count" do
+    [ { unit: "products" }, { "unit" => "x", "count" => 1 }, 3, [ "x", 1 ] ].each do |tally|
+      echo = Class.new(SpecTools::Echo) { define_method(:tally) { |_result| tally } }
+      allow(echo).to receive(:name).and_return("SpecTools::Echo")
+
+      tool(echo).call(input)
+
+      expect(calls.last).to have_attributes(name: "echo", unit: nil, count: nil), tally.inspect
+    end
+    expect(calls.size).to eq(4)
+  end
+
   it "passes a refusal's message to the model as an error result" do
     expect { tool(SpecTools::Refuse).call(input) }.to raise_error(AgentTool::Error, "no such topic")
     expect(calls.first).to have_attributes(is_error: true, output: "no such topic")

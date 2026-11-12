@@ -21,13 +21,9 @@ RSpec.describe "NFR-09 FixedReply, the texts the system writes instead of the mo
       expect(FixedReply.notice("es")).to include("demostración", "ficticia")
     end
 
-    it "comes off a reply in any of the three languages, and nothing else does" do
-      LOCALES.each_key do |locale|
-        expect(FixedReply.without_notice(FixedReply.with_notice("Olá!\n\nTudo bem?", locale))).to eq("Olá!\n\nTudo bem?")
-      end
-      expect(FixedReply.without_notice("Olá! #{FixedReply.notice("pt-BR")}")).to eq("Olá! #{FixedReply.notice("pt-BR")}")
-    end
-
+    # The notice is told by its place, the first line of a conversation's
+    # first reply (Message#trace_payload, AgentRunner::History), so it must
+    # stay one line.
     it "is one line, put before the reply" do
       expect(FixedReply.with_notice("Olá!", "pt-BR")).to eq("#{FixedReply.notice("pt-BR")}\n\nOlá!")
       expect(LOCALES.keys.map { |locale| FixedReply.notice(locale) }).to all(satisfy { |notice| !notice.include?("\n") })

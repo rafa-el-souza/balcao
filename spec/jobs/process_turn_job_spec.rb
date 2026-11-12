@@ -52,6 +52,17 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       expect(conversation.reload.language).to eq("es")
     end
 
+    # The page stamps the notice apart from the reply, without matching its
+    # text (design §10, note of 2026-11-12); the stored body is what any
+    # channel sends, notice included (FR-01).
+    it "sends the notice apart from the reply's body to the conversation's stream" do
+      responses.replace([ reply("[es] ¡Hola! ¿Buscas algún producto?") ])
+      turn = inbound("hola")
+
+      expect { perform(turn) }.to have_broadcasted_to("conversation:#{conversation.id}")
+        .with(type: "message", message: a_hash_including(notice: FixedReply.notice("es"), body: "¡Hola! ¿Buscas algún producto?"))
+    end
+
     it "does not repeat the notice on later turns" do
       responses.replace([ reply("[pt] Olá!"), reply("[pt] Temos, sim.") ])
       perform(inbound("oi"))
@@ -187,7 +198,10 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
                                               "balcao.turn.mode" => "normal", "balcao.turn.outcome" => "replied")
     end
 
-    it "shows each model call's model, effort and usage (FR-12)" do
+    # The input figure counts the cache read and the cache written, as the
+    # SDK's own tracer does (anthropic 2.8, Helpers::Tracing), so the panel's
+    # "entrada" is the whole prompt (design §10, note of 2026-11-12).
+    it "shows each model call's model, effort and usage, the input with the cache in it (FR-12)" do
       turn = inbound("tem dipirona?")
 
       perform(turn)
@@ -198,10 +212,25 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
         "gen_ai.request.model" => "claude-opus-5-5", "gen_ai.request.reasoning.level" => "medium",
         "gen_ai.request.max_tokens" => 1500, "gen_ai.response.model" => "claude-opus-5-5",
         "anthropic.message.stop_reason" => "end_turn",
-        "gen_ai.usage.input_tokens" => 1300, "gen_ai.usage.output_tokens" => 60,
+        "gen_ai.usage.input_tokens" => 1300 + 2900 + 10, "gen_ai.usage.output_tokens" => 60,
         "gen_ai.usage.cache_read.input_tokens" => 2900, "gen_ai.usage.cache_write.input_tokens" => 10,
         "balcao.latency_ms" => a_kind_of(Integer)
       )
+    end
+
+    it "sums the input with the cache over the attempts of a call a fallback model served, each attempt kept as it came" do
+      attempts = [ iteration(model: "claude-opus-5-5", input: 40, output: 0, cache_read: 20, cache_write: 1),
+                   iteration(model: "claude-sonnet-5-5", input: 60, output: 5, cache_read: 30, cache_write: 6, fallback: true) ]
+      responses[1] = reply("[pt] Temos.", usage: usage(input: 60, output: 5, cache_read: 30, cache_write: 6, iterations: attempts))
+      turn = inbound("tem dipirona?")
+
+      perform(turn)
+
+      call = spans(turn).where(name: "anthropic.messages.create").last
+      expect(call.span_attributes).to include("gen_ai.usage.input_tokens" => 40 + 20 + 1 + 60 + 30 + 6,
+                                              "gen_ai.usage.cache_read.input_tokens" => 50,
+                                              "gen_ai.usage.cache_write.input_tokens" => 7)
+      expect(call.span_attributes["anthropic.usage.iterations"].map { |entry| entry["input_tokens"] }).to eq([ 40, 60 ])
     end
 
     it "summarises the system prompt by size and digest, never its text (SR-12)" do
@@ -225,6 +254,44 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
                                               "gen_ai.tool.call.arguments" => '{"query":"dipirona"}',
                                               "anthropic.tool_result.content" => a_string_including("Dipirona 500 mg"))
       expect(tool.span_attributes).not_to have_key("error.type")
+    end
+
+    # The drawings ask for them (design §10, note of 2026-11-12): the panel
+    # says how many the list held ("1 resultado") and whether the text it
+    # shows was cut, from figures taken before the cut.
+    it "gives a tool result's length and, for a list, what it lists and how many, taken before the cut" do
+      turn = inbound("tem dipirona?")
+
+      perform(turn)
+
+      tool = spans(turn).find_by(name: "anthropic.custom_tool_use search_products")
+      content = tool.span_attributes["anthropic.tool_result.content"]
+      expect(tool.span_attributes).to include("balcao.tool_result.characters" => content.length,
+                                              "balcao.tool_result.unit" => "products", "balcao.tool_result.count" => 1)
+    end
+
+    it "keeps a long result's own length beside the 500 characters the trace keeps (FR-12)" do
+      4.times { |index| create(:product, name: "Dipirona gotas #{index + 1}00 mg/ml, 20 ml, frasco conta-gotas") }
+      turn = inbound("tem dipirona?")
+
+      perform(turn)
+
+      tool = spans(turn).find_by(name: "anthropic.custom_tool_use search_products")
+      expect(tool.span_attributes["anthropic.tool_result.content"].length).to eq(500)
+      expect(tool.span_attributes["balcao.tool_result.characters"]).to be > 500
+      expect(tool.span_attributes["balcao.tool_result.count"]).to eq(5)
+    end
+
+    it "gives a refusal's length and no count" do
+      responses[0] = tool_turn(tool_use("search_products", { query: " " }))
+      turn = inbound("tem dipirona?")
+
+      perform(turn)
+
+      tool = spans(turn).find_by(name: "anthropic.custom_tool_use search_products")
+      expect(tool.span_attributes).to include("error.type" => "tool_error",
+                                              "balcao.tool_result.characters" => Tools::SearchProducts::EMPTY.length)
+      expect(tool.span_attributes.keys).not_to include("balcao.tool_result.count", "balcao.tool_result.unit")
     end
 
     it "records a tool call whose input carries a NUL, and the turn completes (review finding C4 of pull request #10)" do
@@ -403,7 +470,7 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
         perform(trace)
 
         current = Conversation.current_for!(visitor)
-        expect(trace.reload.outbound_message.body).to end_with("/trace/#{current.trace_token}")
+        expect(trace.reload.outbound_message.body).to end_with("/trace##{current.trace_token}")
       end
 
       # Review finding R2 of pull request #11: a reset moves the messages sent
@@ -452,6 +519,17 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
         expect(product.reload.stock).to eq(12)
       end
 
+      # Review finding G2 of pull request #17: a trace page open on any of the
+      # visitor's conversations kept showing what the deletion erased.
+      it "tells the trace page of each of the visitor's conversations that it is gone" do
+        conversation.update!(closed_at: Time.current)
+        current = Conversation.current_for!(visitor)
+        turn = inbound("apagar meus dados", conversation: current)
+
+        expect { perform(turn) }.to have_broadcasted_to("trace:#{conversation.trace_token}").with(type: "deleted")
+          .and have_broadcasted_to("trace:#{current.trace_token}").with(type: "deleted")
+      end
+
       it "confirms in the language of the phrase" do
         turn = inbound("Delete my data.")
 
@@ -477,7 +555,9 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
 
           perform(turn)
 
-          url = "#{Rails.configuration.x.public_origin}/trace/#{conversation.trace_token}"
+          # The token follows the "#", which no browser sends: no request line
+          # carries it (review finding V3 of pull request #17, SR-11, SR-30).
+          url = "#{Rails.configuration.x.public_origin}/trace##{conversation.trace_token}"
           expect(fake.requests).to be_empty
           expect(turn.reload.outbound_message.body).to eq(FixedReply.with_notice(FixedReply.command(:trace, "pt-BR", url:), "pt-BR"))
           expect(spans(turn).sole.span_attributes).to eq("balcao.command.name" => "trace")

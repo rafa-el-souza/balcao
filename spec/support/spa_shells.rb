@@ -4,7 +4,7 @@ require "tmpdir"
 # written into a scratch directory for the request specs: each names its page
 # and language, so a spec can tell which one the server sent.
 module SpaShells
-  PAGES = %w[landing chat].freeze
+  PAGES = %w[landing chat trace].freeze
   LOCALES = %w[pt-BR en es].freeze
 
   def self.around(example)

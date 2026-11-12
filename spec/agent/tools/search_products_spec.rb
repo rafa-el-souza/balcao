@@ -46,6 +46,17 @@ RSpec.describe "FR-06 SR-16 SR-21 search_products, the catalogue lookup" do
     expect(Tools::SearchProducts.doc_string).to include("may be another medicine with a similar name", "substitution")
   end
 
+  # FR-12: the glass box writes "2 resultados" under the call.
+  it "reports how many products it found, none included" do
+    calls = []
+    tool = Tools::SearchProducts.new(turn:, on_call: ->(call) { calls << call })
+    tool.call(Anthropic::Internal::Type::Converter.coerce(tool, { query: "dipirona" }))
+    tool.call(Anthropic::Internal::Type::Converter.coerce(tool, { query: "zzzzzz" }))
+
+    expect(calls.map { |call| [ call.unit, call.count ] }).to eq([ [ "products", Product.search("dipirona", limit: 5).size ],
+                                                                   [ "products", 0 ] ])
+  end
+
   it "answers an empty list when nothing matches, so the attendant says it was not found" do
     expect(search(query: "xarope de unicórnio")).to eq("query" => "xarope de unicórnio", "products" => [])
   end

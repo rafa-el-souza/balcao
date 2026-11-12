@@ -22,7 +22,11 @@ RSpec.describe TraceChannel, "FR-12 SR-11 streams a trace to whoever holds its t
     expect(subscription).to have_stream_from("trace:#{conversation.trace_token}")
   end
 
-  [ "missing0000000000000000000", "", nil, 1, [ "x" ] ].each do |token|
+  # Review finding S4 of pull request #17: a token the database driver
+  # refuses (a NUL) raised inside the subscription, which was then neither
+  # confirmed nor rejected; a token of any shape the server never draws is a
+  # miss without a lookup.
+  [ "missing0000000000000000000", "", nil, 1, [ "x" ], "a\u0000b", "\xFF".b, "0OIl#{"a" * 20}" ].each do |token|
     it "rejects the token #{token.inspect}" do
       subscribe(token:)
 

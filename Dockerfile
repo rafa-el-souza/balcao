@@ -89,6 +89,9 @@ ENTRYPOINT ["/rails/bin/docker-entrypoint"]
 
 # Thruster in front of Puma compresses responses and caches the static assets
 # (the 300 KB first-visit budget of NFR-10). The job role overrides the command
-# with bin/jobs (config/deploy.yml).
+# with bin/jobs (config/deploy.yml). Its own request line would write a trace
+# page's path whole, token included (SR-30); Rails logs each request with the
+# token masked, and kamal-proxy keeps the host's request log.
+ENV THRUSTER_LOG_REQUESTS="false"
 EXPOSE 80
 CMD ["./bin/thrust", "./bin/rails", "server"]

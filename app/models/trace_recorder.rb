@@ -28,6 +28,7 @@ class TraceRecorder
     balcao.channel balcao.message.source balcao.turn.mode balcao.turn.outcome
     balcao.command.name balcao.message.author balcao.message.characters balcao.latency_ms
     balcao.system_prompt.characters balcao.system_prompt.sha256
+    balcao.tool_result.characters balcao.tool_result.count balcao.tool_result.unit
     gen_ai.operation.name gen_ai.provider.name gen_ai.request.model gen_ai.request.max_tokens
     gen_ai.request.reasoning.level gen_ai.response.model anthropic.message.stop_reason
     gen_ai.usage.input_tokens gen_ai.usage.output_tokens
@@ -57,10 +58,13 @@ class TraceRecorder
     Rails.logger.error("trace: span #{payload.dig(:span, :name)} not broadcast: #{e.class}")
   end
 
+  # The span as the streams and the endpoints carry it; its turn lets the
+  # panel group the rows of a conversation by turn (design §10, note of
+  # 2026-11-12).
   def self.payload(span)
     { type: "span",
-      span: { trace_id: span[:trace_id], span_id: span[:span_id], parent_span_id: span[:parent_span_id], name: span[:name],
-              attributes: span[:attributes], started_at: span[:started_at]&.iso8601(3),
+      span: { turn_id: span[:turn_id], trace_id: span[:trace_id], span_id: span[:span_id], parent_span_id: span[:parent_span_id],
+              name: span[:name], attributes: span[:attributes], started_at: span[:started_at]&.iso8601(3),
               finished_at: span[:finished_at]&.iso8601(3) } }
   end
 
@@ -105,7 +109,7 @@ class TraceRecorder
   end
 
   def start_span(name, parent: nil, attributes: {}, started_at: nil)
-    span = Span.new(self, name:, span_id: self.class.random_id(8), parent_span_id: parent&.span_id,
+    span = Span.new(self, name:, span_id: self.class.random_id(8), parent_span_id: parent&.span_id, turn_id: @turn.id,
                           started_at: started_at || Time.current, attributes: self.class.clean(attributes))
     write(span) do
       span.event = TraceEvent.create!(turn_id: @turn.id, trace_id:, span_id: span.span_id, parent_span_id: span.parent_span_id,
@@ -141,14 +145,15 @@ class TraceRecorder
   end
 
   class Span
-    attr_reader :name, :span_id, :parent_span_id, :started_at
+    attr_reader :name, :span_id, :parent_span_id, :turn_id, :started_at
     attr_accessor :attributes, :finished_at, :event
 
-    def initialize(recorder, name:, span_id:, parent_span_id:, started_at:, attributes:)
+    def initialize(recorder, name:, span_id:, parent_span_id:, turn_id:, started_at:, attributes:)
       @recorder = recorder
       @name = name
       @span_id = span_id
       @parent_span_id = parent_span_id
+      @turn_id = turn_id
       @started_at = started_at
       @attributes = attributes
     end
@@ -158,7 +163,7 @@ class TraceRecorder
     def finish(attributes: {}) = @recorder.finish(self, attributes)
 
     def payload
-      TraceRecorder.payload(trace_id:, span_id:, parent_span_id:, name:, attributes:, started_at:, finished_at:)
+      TraceRecorder.payload(turn_id:, trace_id:, span_id:, parent_span_id:, name:, attributes:, started_at:, finished_at:)
     end
   end
 end

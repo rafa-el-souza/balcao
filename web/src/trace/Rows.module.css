@@ -1,0 +1,215 @@
+/* The instrument's rows: the glass box and the trace page draw the same ones
+   (docs/prototype/styles.css, "The instrument" and "The chat holds the window"). */
+
+.events {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.event {
+  display: grid;
+  grid-template-columns: var(--col-time) minmax(0, 1fr);
+}
+
+.event time {
+  color: var(--color-instrument-ink-2);
+}
+
+.what {
+  min-width: 0;
+}
+
+.name {
+  font-weight: 700;
+}
+
+.stop,
+.value {
+  color: var(--color-instrument-ink-2);
+}
+
+.figure {
+  float: right;
+  color: var(--color-instrument-ink-2);
+}
+
+.event[data-state="error"] .name,
+.event[data-state="error"] .outcome {
+  color: var(--color-error);
+}
+
+.event[data-state="running"] .name,
+.event[data-state="local"] .name {
+  font-weight: 400;
+}
+
+/* A tool that refuses is a rule at work, not a failure: the instrument's own ink, no error colour. */
+.event[data-state="refused"] .outcome {
+  color: var(--color-instrument-ink);
+  font-weight: 700;
+}
+
+.detail {
+  clear: both;
+  margin: 0;
+}
+
+.detail > div {
+  display: grid;
+  grid-template-columns: minmax(4.5rem, max-content) minmax(0, 1fr);
+  column-gap: var(--space-2);
+}
+
+.detail dt,
+.outcome {
+  color: var(--color-instrument-ink-2);
+}
+
+.detail dd {
+  margin: 0;
+}
+
+.cache[data-cache="hit"] {
+  color: var(--color-success);
+}
+
+/* A cache miss is drawn like a hit, in the instrument's ink and heavier: the miss is the news. */
+.cache[data-cache="miss"] {
+  color: var(--color-instrument-ink);
+  font-weight: 700;
+}
+
+.tick {
+  width: 0.8em;
+  height: 0.8em;
+  vertical-align: -0.05em;
+  fill: none;
+  stroke: var(--color-success);
+}
+
+.tick[data-miss] {
+  stroke: var(--color-instrument-ink);
+}
+
+.event summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.event summary::-webkit-details-marker {
+  display: none;
+}
+
+/* A row that opens: a chevron in the same rule, to the right when closed, down when open. */
+.event summary::before {
+  content: "";
+  display: inline-block;
+  width: 0.4rem;
+  height: 0.4rem;
+  margin: 0 var(--space-2) 0.1rem 0;
+  border-right: 1.5px solid var(--color-instrument-ink);
+  border-bottom: 1.5px solid var(--color-instrument-ink);
+  transform: rotate(-45deg);
+}
+
+.event details[open] > summary::before {
+  margin-bottom: 0.2rem;
+  transform: rotate(45deg);
+}
+
+.event summary:focus-visible {
+  outline: 2px solid var(--color-instrument-ink);
+  outline-offset: 2px;
+}
+
+/* A tool's arguments and its result, as the server keeps them: they wrap, and the result says
+   when it was cut. */
+.payload {
+  margin: var(--space-1) 0 var(--space-1) calc(-1 * var(--col-time));
+  padding: var(--space-2) var(--space-3);
+  border: var(--rule-dash);
+  font: inherit;
+  line-height: 1.25rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.outcome {
+  margin: 0;
+}
+
+.cut {
+  margin-left: var(--space-2);
+  padding: 0 var(--space-1);
+  border: 1px solid var(--color-instrument-ink-2);
+}
+
+/* The start of a turn after another one drawn open, and the page's own rows. */
+.turnStart {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: var(--rule-dash);
+}
+
+/* An earlier turn, folded into one line; the turn in progress and the last one stay open. */
+.turnGroup {
+  display: block;
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: var(--rule-dash);
+}
+
+.turnGroup > details > summary .name,
+.turnLine .name {
+  font-weight: 400;
+}
+
+.nested {
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* One line per earlier turn, inside the line that holds them all. */
+.turnLine {
+  display: block;
+}
+
+/* Inside an earlier turn, its rows step in under the turn's line, a dashed rule down their side. */
+.turnLine .nested {
+  margin: var(--space-1) 0 var(--space-2) var(--space-1);
+  padding-left: var(--space-3);
+  border-left: var(--rule-dash);
+}
+
+.turnLine .event {
+  grid-template-columns: var(--col-time-narrow) minmax(0, 1fr);
+}
+
+.turnLine .payload {
+  margin-left: calc(-1 * var(--col-time-narrow));
+}
+
+@media (width < 52rem) {
+  .event {
+    grid-template-columns: var(--col-time-narrow) minmax(0, 1fr);
+  }
+
+  .payload {
+    margin-left: calc(-1 * var(--col-time-narrow));
+  }
+}
+
+/* Trace rows appear in place; nothing slides (design brief §5). */
+@media (prefers-reduced-motion: no-preference) {
+  .event {
+    animation: appear var(--fade) ease-out;
+  }
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+  }
+}

@@ -37,8 +37,8 @@ class AgentTool < Anthropic::BaseTool
   def call(input)
     @gate&.call
     started = monotonic
-    output, error = run(input)
-    report(input, error ? error.message : output, !error.nil?, started)
+    output, error, tally = run(input)
+    report(input, error ? error.message : output, !error.nil?, started, tally)
     raise error if error
 
     output
@@ -46,11 +46,18 @@ class AgentTool < Anthropic::BaseTool
 
   def perform(input) = raise(NotImplementedError, "#{self.class} must implement perform")
 
+  # What a result that is a list holds and how many, for the trace ("2
+  # resultados", FR-12): { unit: "products", count: 2 }, read from the result
+  # before it is encoded, so before the trace cuts its text. Nil for a single
+  # fact; a tool whose result is a list says so.
+  def tally(_result) = nil
+
   private
 
   # The output, or the error the model reads: a refusal's own, FAILED for a bug.
   def run(input)
-    [ encode(perform(input)), nil ]
+    result = perform(input)
+    [ encode(result), nil, tally_of(result) ]
   rescue Error => e
     [ nil, e ]
   rescue StandardError => e
@@ -60,12 +67,24 @@ class AgentTool < Anthropic::BaseTool
 
   def encode(output) = output.is_a?(String) ? output : JSON.generate(output)
 
-  def report(input, output, is_error, started)
+  # A count that cannot be taken, or that is not a unit and a number, is no
+  # count; the result still reaches the model and the call the trace (review
+  # finding C5 of pull request #17).
+  def tally_of(result)
+    tally = tally(result)
+    tally if tally.is_a?(Hash) && tally[:unit].is_a?(String) && tally[:count].is_a?(Integer)
+  rescue StandardError => e
+    Rails.logger.error("tool #{name}: the result was not counted: #{e.class}")
+    nil
+  end
+
+  def report(input, output, is_error, started, tally)
     return unless @on_call
 
     @on_call.call(AgentRunner::ToolCall.new(
       name:, input: JSON.parse(JSON.generate(input.to_h)), output:, is_error:,
-      latency_ms: ((monotonic - started) * 1000).round
+      latency_ms: ((monotonic - started) * 1000).round, characters: output.to_s.length,
+      unit: tally&.fetch(:unit), count: tally&.fetch(:count)
     ))
   rescue StandardError => e
     Rails.logger.error("tool #{name}: the call was not reported: #{e.class}")

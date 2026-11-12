@@ -16,6 +16,17 @@ class SpaController < ApplicationController
 
   def chat = send_shell("chat")
 
+  # The shell is the same for every trace: the token follows the "#" of the
+  # link, which no browser sends, and the page reads it and looks the trace up
+  # (FR-12; review finding V3 of pull request #17). The link is a credential
+  # (threat model SR-11), so the page stays out of search indexes and passes
+  # no referrer on.
+  def trace
+    response.headers["X-Robots-Tag"] = "noindex, nofollow"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    send_shell("trace")
+  end
+
   # Rails reads the query for its log line before the action runs, and a query
   # it cannot parse (a value not in UTF-8, a key both a string and a hash,
   # nesting too deep) raised BadRequest outside any rescue, an empty 400

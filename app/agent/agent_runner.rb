@@ -32,7 +32,9 @@ class AgentRunner
   # Events, in the order they happen; ModelCall and ToolCall are also in the result.
   ModelStarted = Data.define(:model, :effort)
   ModelCall = Data.define(:model, :effort, :stop_reason, :usage, :latency_ms, :error)
-  ToolCall = Data.define(:name, :input, :output, :is_error, :latency_ms)
+  # characters is the output's length; unit and count say what a list holds
+  # and how many ("products", 2), nil for a single fact (FR-12).
+  ToolCall = Data.define(:name, :input, :output, :is_error, :latency_ms, :characters, :unit, :count)
 
   # outcome: :replied (text and language set), :refused, :incomplete (cut off
   # or empty), :tool_limit, :deadline or :model_error (error set).

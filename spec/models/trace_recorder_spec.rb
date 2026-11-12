@@ -67,6 +67,16 @@ RSpec.describe "ADR-0010 TraceRecorder, the trace of a turn in the shape of Open
       expect { span.finish(attributes: { "gen_ai.usage.output_tokens" => 80 }) }
         .to have_broadcasted_to(streams.first).with(finished).and have_broadcasted_to(streams.last).with(finished)
     end
+
+    # The drawings ask for it (design §10, note of 2026-11-12): the panel
+    # groups its rows by turn, live and from the polling answer alike.
+    it "names the span's turn, on the streams and in the stored span's payload" do
+      named = a_hash_including(type: "span", span: a_hash_including(turn_id: turn.id))
+
+      expect { recorder.start_span("balcao.turn").finish }
+        .to have_broadcasted_to(streams.first).with(named).twice
+      expect(TraceEvent.sole.stream_payload).to include(turn_id: turn.id)
+    end
   end
 
   describe "what a span may carry (SR-12)" do

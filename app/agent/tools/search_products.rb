@@ -49,6 +49,8 @@ module Tools
       { "query" => query, "products" => products.map { |product| entry(product) } }
     end
 
+    def tally(result) = { unit: "products", count: result.fetch("products").size }
+
     private
 
     def limit(input)

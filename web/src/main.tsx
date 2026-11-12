@@ -3,9 +3,11 @@ import { createRoot, hydrateRoot } from "react-dom/client";
 import { I18nextProvider } from "react-i18next";
 
 import { App } from "./App";
+import { createCable } from "./cable";
 import { createI18n } from "./i18n";
 import { chooseLocale } from "./locale";
 import { isPage, pageOf } from "./pages";
+import { createQueryClient, Providers } from "./providers";
 import "./styles/base.css";
 
 const root = document.getElementById("root");
@@ -28,9 +30,11 @@ const page = isPage(root.dataset.page)
 
 const app = (
   <StrictMode>
-    <I18nextProvider i18n={createI18n(locale)}>
-      <App page={page} />
-    </I18nextProvider>
+    <Providers client={createQueryClient()} cable={createCable()}>
+      <I18nextProvider i18n={createI18n(locale)}>
+        <App page={page} />
+      </I18nextProvider>
+    </Providers>
   </StrictMode>
 );
 

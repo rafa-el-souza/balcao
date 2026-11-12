@@ -235,6 +235,60 @@ RSpec.describe "FR-14 SR-01 SR-36 per-IP and per-visitor limits", type: :request
     end
   end
 
+  # Review findings C1, S1, S2, S3, V1 and V2 of pull request #17: the router
+  # squeezes repeated slashes and drops a trailing one before it routes, so
+  # the edge must count a request by the path the router reads, or a script
+  # would reach every endpoint past every limit (SR-01, SR-11). Rack::Attack
+  # normalizes PATH_INFO with the router's own normalize_path before its rules
+  # run (rack-attack 6.8.0, Rack::Attack#call), so it does; these keep it so.
+  # The app is called with the path as Puma passes it.
+  describe "a path the router reads as another" do
+    # Rack::MockRequest would read a leading "//" as a host, so the path is
+    # set as Puma sets it, from the request line.
+    def raw(method, path, body: nil, cookie: nil)
+      env = Rack::MockRequest.env_for("/", method:, input: body, "CONTENT_TYPE" => "application/json",
+                                           "HTTP_ORIGIN" => origin, "REMOTE_ADDR" => "203.0.113.7")
+      env.merge!("PATH_INFO" => path, "REQUEST_PATH" => path, "REQUEST_URI" => path)
+      env["HTTP_COOKIE"] = cookie if cookie
+      status, headers, = Rails.application.call(env)
+      [ status, headers ]
+    end
+
+    def raw_session
+      _, headers = raw("POST", "/api/session", body: "{}")
+      Array(headers["set-cookie"]).join("\n")[/#{WebSession::COOKIE}=[^;]+/o]
+    end
+
+    def turn(path, cookie) = raw("POST", path, body: { id: SecureRandom.uuid, text: "oi" }.to_json, cookie:).first
+
+    it "counts a turn whatever slashes its path repeats or ends with" do
+      cookie = raw_session
+      paths = [ "//api/messages", "/api/messages/", "/api//messages", "//api//messages/" ]
+
+      expect(10.times.map { |index| turn(paths[index % paths.size], cookie) }).to all(eq(202))
+      expect(paths.map { |path| turn(path, cookie) }).to all(eq(429))
+    end
+
+    it "counts a session minted on a path with a repeated or trailing slash" do
+      expect(20.times.map { |index| raw("POST", index.even? ? "//api/session" : "/api/session/", body: "{}").first }).to all(eq(201))
+
+      expect { expect(raw("POST", "//api/session", body: "{}").first).to eq(429) }.not_to change(Visitor, :count)
+    end
+
+    # Review finding V4 of pull request #17: the edge's checks hold only
+    # because Rack::Attack reads the path through the router's normalizer.
+    it "reads the path through the router's own normalizer" do
+      expect(Rack::Attack::PathNormalizer).to be(ActionDispatch::Journey::Router::Utils)
+    end
+
+    it "counts a request to the API or the cable on a path with a repeated slash" do
+      paths = [ "//api/conversations/current", "//api/trace", "//cable" ]
+      60.times { |index| raw("GET", paths[index % paths.size]) }
+
+      expect(raw("GET", "/api/conversations/current").first).to eq(429)
+    end
+  end
+
   describe "one visitor" do
     before { session_from("203.0.113.7") }
 

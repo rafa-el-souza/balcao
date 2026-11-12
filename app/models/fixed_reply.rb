@@ -11,17 +11,6 @@ module FixedReply
 
   def with_notice(text, locale) = "#{notice(locale)}\n\n#{text}"
 
-  # The reply as the model wrote it, for the history it reads back
-  # (AgentRunner::History): the prompt tells it the system adds the notice,
-  # so its own past reply never shows one.
-  def without_notice(body)
-    I18n.available_locales.each do |locale|
-      prefix = "#{notice(locale)}\n\n"
-      return body.delete_prefix(prefix) if body.start_with?(prefix)
-    end
-    body
-  end
-
   def fallback(locale) = I18n.t("fallback.model_error", locale:)
 
   def declined(locale) = I18n.t("turn.declined", locale:)

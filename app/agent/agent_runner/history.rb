@@ -6,7 +6,8 @@ class AgentRunner
   # block of its own: the model reads "today" and "now" from it, and since the
   # line is built from the stored time, a past message reads the same on every
   # turn and the cached conversation holds. A reply reads as the model wrote
-  # it, without the demo notice the system put before it (FR-01). Visitor
+  # it, without the demo notice the system put before the conversation's
+  # first reply, told by its place, not by its wording (FR-01). Visitor
   # messages that got no reply join into one user message, as the API expects
   # the roles to alternate.
   module History
@@ -20,7 +21,8 @@ class AgentRunner
                   .order(created_at: :desc, id: :desc).limit(TURNS)
                   .includes(:inbound_message, :outbound_message).to_a.reverse
 
-      turns.flat_map { |past| [ visitor(past.inbound_message), (reply(past.outbound_message) if past.outbound_message) ] }
+      first = Message.first_reply_ids([ turn.conversation_id ])
+      turns.flat_map { |past| [ visitor(past.inbound_message), (reply(past.outbound_message, first) if past.outbound_message) ] }
            .compact
            .chunk_while { |before, after| before[:role] == after[:role] }
            .map { |run| { role: run.first[:role], content: run.flat_map { |message| message[:content] } } }
@@ -31,7 +33,9 @@ class AgentRunner
       { role: "user", content: [ text(sent), text(message.body) ] }
     end
 
-    def reply(message) = { role: "assistant", content: [ text(FixedReply.without_notice(message.body)) ] }
+    def reply(message, first)
+      { role: "assistant", content: [ text(message.body_without_notice(first_reply: first.include?(message.id))) ] }
+    end
 
     def text(text) = { type: "text", text: }
   end

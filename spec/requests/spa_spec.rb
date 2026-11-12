@@ -37,6 +37,24 @@ RSpec.describe "Design §6.7 the web app's shell is sent fresh on every visit", 
     end
   end
 
+  # A trace link is a credential (threat model SR-11): the page that opens it
+  # stays out of search indexes and sends no referrer on. The token follows
+  # the "#", which no browser sends, so the page's own request carries none
+  # and kamal-proxy's log of the host never sees it (review finding V3 of pull
+  # request #17); the page reads it and looks the trace up itself.
+  it "serves the trace page at /trace, out of indexes and without a referrer, and moves a link given before there (FR-12)" do
+    get "/trace"
+
+    expect(response).to have_http_status(:ok)
+    expect(response.body).to include(%(data-page="trace"))
+    expect(response.headers["Cache-Control"]).to eq "no-cache"
+    expect(response.headers["X-Robots-Tag"]).to eq "noindex, nofollow"
+    expect(response.headers["Referrer-Policy"]).to eq "no-referrer"
+
+    get "/trace/Xy7GqR2mN8pLw4Kd9sTzVb3H"
+    expect(response).to redirect_to("/trace#Xy7GqR2mN8pLw4Kd9sTzVb3H")
+  end
+
   it "has no shell for a path that is not a page" do
     get "/chats"
 
@@ -92,5 +110,35 @@ RSpec.describe "Design §6.7 the web app's shells location" do
     expect(Rails.application.config.x.spa_shells).to eq Rails.root.join("web/dist/shells")
     expect(Rails.root.join("Dockerfile").read)
       .to include("COPY --chown=rails:rails --from=web /web/dist/shells /rails/web/dist/shells")
+  end
+end
+
+# Each page the build renders (web/src/pages.ts) in each language
+# (web/src/locale.ts) is a shell the server can send, and each route the server
+# sends a shell for is one of them: a route without its shell would answer 500
+# behind a green deploy (review finding C2 of pull request #14).
+RSpec.describe "Design §6.7 the build's pages and the server's routes agree" do
+  let(:pages) do
+    source = Rails.root.join("web/src/pages.ts").read[/export const PAGES = \{(.*?)\} as const;/m, 1]
+    source.scan(/^\s*(\w+): "([^"]+)",?$/).to_h
+  end
+
+  it "routes each page's path to the action of its name" do
+    expect(pages).to include("landing" => "/", "chat" => "/chat", "trace" => "/trace")
+    pages.each do |page, path|
+      expect(Rails.application.routes.recognize_path(path)).to include(controller: "spa", action: page), path
+    end
+  end
+
+  it "sends shells only for the build's pages, and the spec fixture writes the same ones" do
+    routed = Rails.application.routes.routes.filter_map { |route| route.defaults[:action] if route.defaults[:controller] == "spa" }
+    expect(routed.uniq).to match_array(pages.keys)
+    expect(SpaShells::PAGES).to match_array(pages.keys)
+  end
+
+  it "renders the languages the server chooses among" do
+    locales = Rails.root.join("web/src/locale.ts").read[/export const LOCALES = \[(.*?)\] as const;/, 1].scan(/"([^"]+)"/).flatten
+    expect(locales).to eq(I18n.available_locales.map(&:to_s))
+    expect(SpaShells::LOCALES).to eq(locales)
   end
 end
