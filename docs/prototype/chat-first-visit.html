@@ -11,7 +11,7 @@
   <section class="counter" aria-label="Conversa">
     <header class="counter-head">
       <a class="back" id="back" href="landing.html"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M14 8H2.5M7 3.5L2.5 8 7 12.5"/></svg> Balcão</a>
-      <span class="presence" id="presence" data-presence="online">
+      <span class="presence" id="presence" data-presence="online" data-arrives="M2">
         <svg class="cross" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 0h4v4h4v4H8v4H4V8H0V4h4z"/></svg>
         farmacêutico online
       </span>
@@ -61,7 +61,7 @@
         <button class="lang" type="button">EN</button>
         <button class="lang" type="button">ES</button>
       </nav>
-      <span class="mode" id="mode" data-mode="normal">normal</span>
+      <span class="mode" id="mode" data-mode="normal" data-arrives="PR-16">normal</span>
       <a class="glass-close" id="glass-close" href="chat-first-visit.html">fechar</a>
     </header>
     <p class="glass-empty" id="glass-empty">Nenhum evento ainda. Cada chamada ao modelo e cada ferramenta aparece aqui, com a hora, o tempo e o custo.</p>
@@ -83,6 +83,7 @@
     <li>The composer is a text area that grows with what is typed, up to six lines, then scrolls; Enter sends and Shift+Enter breaks the line. With the drawer open at 390 px the composer stays in reach under it, reduced to the field and the button.</li>
     <li>Not visible in a still drawing, for the implementation: when the drawer opens, the conversation scrolls so that the last reply shows in the upper half; when it closes, the suggestions and the anti-bot notice return under the composer.</li>
     <li>The chat holds the window: beside each other, the conversation and the glass box scroll each inside its own column, so opening a row or a new row arriving never moves the composer or the totals. A new message or row scrolls its own column to itself.</li>
+    <li>Drawn as the target and hidden until their source exists: the pharmacist's presence in the counter's head has none before the console (M2), and the mode in the glass box's head needs the budget's mode in the session and polling answers (PR-16). The one-line summary at 390 px speaks of the last turn alone: its number, rows, time and cost.</li>
   </ul>
 </aside>
 </body>

@@ -59,7 +59,7 @@
         <p class="meter-note quiet">da fatia diária de US$ 5,00 · economia ao atingir</p></dd>
       </div>
       <div class="reading"><dt>custo por conversa</dt><dd id="cost">R$ 0,30</dd></div>
-      <div class="reading"><dt>câmbio do dólar</dt><dd id="rate">R$ 5,40</dd></div>
+      <div class="reading"><dt>câmbio</dt><dd><span id="rate">R$ 5,40</span> <span class="dater" id="rate-checked">02 NOV 2026</span></dd></div>
       <div class="reading"><dt>preços verificados</dt><dd><span class="dater" id="prices-checked">02 NOV 2026</span></dd></div>
     </dl>
 
@@ -73,7 +73,7 @@
     <dl class="readings mode-key" id="mode-key">
       <div class="reading"><dt><span class="mode" data-mode="normal">normal</span></dt><dd class="quiet">o modelo principal responde</dd></div>
       <div class="reading"><dt><span class="mode" data-mode="economy">economia</span></dt><dd class="quiet">o modelo mais barato responde</dd></div>
-      <div class="reading"><dt><span class="mode" data-mode="paused">pausado</span></dt><dd class="quiet">só respostas fixas, até o teto renovar</dd></div>
+      <div class="reading"><dt><span class="mode" data-mode="paused">pausado</span></dt><dd class="quiet">só respostas fixas</dd></div>
     </dl>
   </div>
 
@@ -90,10 +90,12 @@
     <li>Two sparklines, one per metric: messages per day and the median latency, thirty days each, in the receipt's ink with the last day marked. They carry a text alternative with the range; the app adds nothing on hover.</li>
     <li>The spend meters are filled with the colour of the mode in force, so the bar says the mode: green in normal, amber in economy, grey when paused. The tick at 70% is where economy starts.</li>
     <li>The key at the foot fixes the meaning colours: each is a square beside its name, never the colour alone. The error colour belongs to failures in the glass box, not to a mode.</li>
-    <li>The dates that attest something (the price table, the round of evals) are date stamps.</li>
+    <li>The dates that attest something (the exchange rate, the price table, the round of evals) are date stamps.</li>
     <li>The eval figures after the first two rows are examples; the sketch's third row is cut off.</li>
     <li>The foot of the page is two quiet links under the receipt, centred with it: home and privacy. The privacy link is a proposal; the signature stays on the landing and the privacy page.</li>
-    <li>At 390 px every reading keeps to one line: the long labels are short, and what qualifies a figure (the cap, the daily slice) sits under the meter, and the exchange rate has a line of its own; the number in brackets after a suite of evals is its count of cases, not beside the figure. In the key of modes each meaning goes under its name.</li>
+    <li>At 390 px every reading keeps to one line: the long labels are short, and what qualifies a figure (the cap, the daily slice) sits under the meter, and the exchange rate has a line of its own, with its date; the number in brackets after a suite of evals is its count of cases, not beside the figure. In the key of modes each meaning goes under its name.</li>
+    <li>This page arrives with M3 (FR-13); until then nothing links to it. A pause has three causes (the monthly cap, a day without the cheaper model, the operator's hand), so the key gives no end for it.</li>
+    <li>Open in the specification, to settle before M3: the daily aggregates keep only counts of messages, referrers and canary runs, so the thirty-day latency line, the window of the two percentiles and the cost per conversation have no source yet.</li>
   </ul>
 </aside>
 </body>

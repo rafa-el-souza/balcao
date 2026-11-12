@@ -771,7 +771,7 @@ body {
 
 .chat {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(23rem, 31rem);
+  grid-template-columns: minmax(0, 1fr) clamp(23rem, 40%, 31rem);
 }
 
 .counter {
@@ -1142,10 +1142,6 @@ body {
   margin-left: var(--space-2);
 }
 
-.cache {
-  margin-left: var(--space-2);
-}
-
 .cache[data-cache="hit"] {
   color: var(--color-success);
 }
@@ -1479,7 +1475,7 @@ body {
 
 .trace-note .token {
   font-family: var(--font-instrument);
-  font-size: 0.9em;
+  font-size: var(--text-md);
 }
 
 .roll {
@@ -1609,7 +1605,7 @@ body {
 
 .prose code {
   font-family: var(--font-instrument);
-  font-size: 0.9em;
+  font-size: var(--text-sm);
 }
 
 .page .colophon {

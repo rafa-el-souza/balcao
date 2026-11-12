@@ -11,7 +11,7 @@
   <section class="counter" aria-label="Conversa">
     <header class="counter-head">
       <a class="back" id="back" href="landing.html"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M14 8H2.5M7 3.5L2.5 8 7 12.5"/></svg> Balcão</a>
-      <span class="presence" id="presence" data-presence="online">
+      <span class="presence" id="presence" data-presence="online" data-arrives="M2">
         <svg class="cross" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 0h4v4h4v4H8v4H4V8H0V4h4z"/></svg>
         farmacêutico online
       </span>
@@ -31,7 +31,7 @@
 
     <div class="counter-foot">
     <a class="summary" id="glass-summary" href="#glass">
-      <span class="summary-figures">3 eventos · 4,3 s</span>
+      <span class="summary-figures">turno 1 · 3 eventos · 4,3 s</span>
       <span class="summary-open"><span class="visually-hidden">abrir a caixa de vidro</span></span>
     </a>
 
@@ -60,7 +60,7 @@
         <button class="lang" type="button">EN</button>
         <button class="lang" type="button">ES</button>
       </nav>
-      <span class="mode" id="mode" data-mode="normal">normal</span>
+      <span class="mode" id="mode" data-mode="normal" data-arrives="PR-16">normal</span>
       <a class="glass-close" id="glass-close" href="chat-fallback.html">fechar</a>
     </header>
     <ol class="events" id="events">
@@ -71,7 +71,7 @@
       <li class="event" id="t1-model-1" data-state="error">
         <time>12:03:41</time>
         <div class="what"><span class="name">modelo</span> <span class="value">claude-opus-5-5</span> <span class="figure">4,2 s</span>
-          <dl class="detail"><div><dt>esforço</dt><dd>medium</dd></div><div><dt>erro</dt><dd>sobrecarga, 3 tentativas</dd></div></dl></div>
+          <dl class="detail"><div><dt>esforço</dt><dd>medium</dd></div><div><dt>erro</dt><dd>sobrecarga</dd></div></dl></div>
       </li>
       <li class="event" id="t1-sent">
         <time>12:03:45</time>
@@ -95,14 +95,15 @@
   <ul>
     <li>Route <code>/chat</code>; content and order from the sketch in design §6.8.</li>
     <li>At 390 px the glass box folds into the one-line summary above the composer; pressing it opens the drawer (the same file with <code>#glass</code>).</li>
-    <li>State: the model was overloaded three times and the attendant sends the fixed fallback reply (NFR-03). In the counter it is the attendant's ordinary voice; in the glass box the failed call carries the error colour.</li>
+    <li>State: the model was overloaded and the attendant sends the fixed fallback reply (NFR-03). In the counter it is the attendant's ordinary voice; in the glass box the failed call carries the error colour.</li>
     <li>The error colour is used here and nowhere decorative.</li>
     <li>The composer is a text area that grows with what is typed, up to six lines, then scrolls; Enter sends and Shift+Enter breaks the line. With the drawer open at 390 px the composer stays in reach under it, reduced to the field and the button.</li>
     <li>Not visible in a still drawing, for the implementation: when the drawer opens, the conversation scrolls so that the last reply shows in the upper half; when it closes, the suggestions and the anti-bot notice return under the composer.</li>
     <li>The glass box follows what the server emits (reviewed against it on 2026-11-12): one row per model call, in order, each opening when the call starts and completing in place with its time, its tokens, the cache mark and where it stopped; a tool's result is the raw text the server keeps, cut at 500 characters and marked when cut, with the count beside it; the turn's figure is the time from the message's receipt to the reply.</li>
-    <li>The reason of a fixed reply sits inside the sent row; the server is to put it on that span when it starts (a note for PR-12). The panel turns the server's error names into words and has a plain default for a name it does not know. No cost is shown: none was incurred, and a zero is never drawn.</li>
+    <li>The reason of a fixed reply sits inside the sent row. It is read from the turn's outcome, which the server sends when the turn closes, a moment after the sent row. Proposed words per outcome: a model error, "o modelo não respondeu"; the deadline, "o tempo esgotou"; the tool limit, "ferramentas demais"; an incomplete answer, "resposta incompleta"; a refusal, "o modelo recusou"; a reply from stored reservations, "sem modelo". The panel turns the server's error names into words and has a plain default for a name it does not know; the server keeps no count of attempts, so none is drawn. No cost is shown: none was incurred, and a zero is never drawn.</li>
     <li>The chat holds the window: beside each other, the conversation and the glass box scroll each inside its own column, so opening a row or a new row arriving never moves the composer or the totals. A new message or row scrolls its own column to itself.</li>
     <li>For the visitor who stays two minutes and clicks nothing: the turn in progress and the last turn are drawn open, every call with its tokens, cache and cost in sight; earlier turns fold into one line each, with their events, time and cost, and open on demand. Closed, a call's line still carries its cost and its time.</li>
+    <li>Drawn as the target and hidden until their source exists: the pharmacist's presence in the counter's head has none before the console (M2), and the mode in the glass box's head needs the budget's mode in the session and polling answers (PR-16). The one-line summary at 390 px speaks of the last turn alone: its number, rows, time and cost.</li>
   </ul>
 </aside>
 </body>

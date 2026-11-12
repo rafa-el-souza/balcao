@@ -11,7 +11,7 @@
   <section class="counter" aria-label="Conversa">
     <header class="counter-head">
       <a class="back" id="back" href="landing.html"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M14 8H2.5M7 3.5L2.5 8 7 12.5"/></svg> Balcão</a>
-      <span class="presence" id="presence" data-presence="online">
+      <span class="presence" id="presence" data-presence="online" data-arrives="M2">
         <svg class="cross" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 0h4v4h4v4H8v4H4V8H0V4h4z"/></svg>
         farmacêutico online
       </span>
@@ -28,7 +28,7 @@
 
     <div class="counter-foot">
     <a class="summary" id="glass-summary" href="#glass">
-      <span class="summary-figures">4 eventos · 2,4 s …</span>
+      <span class="summary-figures">turno 1 · 4 eventos · 2,4 s …</span>
       <span class="summary-open"><span class="visually-hidden">abrir a caixa de vidro</span></span>
     </a>
 
@@ -57,7 +57,7 @@
         <button class="lang" type="button">EN</button>
         <button class="lang" type="button">ES</button>
       </nav>
-      <span class="mode" id="mode" data-mode="normal">normal</span>
+      <span class="mode" id="mode" data-mode="normal" data-arrives="PR-16">normal</span>
       <a class="glass-close" id="glass-close" href="chat-thinking.html">fechar</a>
     </header>
     <ol class="events" id="events">
@@ -68,8 +68,8 @@
       <li class="event" id="t1-model-1">
         <time>12:03:41</time>
         <details class="what" open>
-          <summary><span class="name">modelo</span> <span class="stop">parou em tool_use</span> <span class="figure"><span data-arrives="PR-16">US$ 0,004</span> · 1,1 s</span></summary>
-          <dl class="detail"><div><dt>modelo</dt><dd>claude-opus-5-5</dd></div><div><dt>esforço</dt><dd>medium</dd></div><div><dt>entrada</dt><dd>3,1k <span class="cache" data-cache="hit">cache <svg class="tick" viewBox="0 0 12 12" role="img" aria-label="acerto"><path d="M1.5 6.5l3 3 6-7" fill="none" stroke-width="1.6"/></svg> 2,8k</span></dd></div><div><dt>saída</dt><dd>42</dd></div><div><dt>custo</dt><dd><span data-arrives="PR-16">US$ 0,004 <span class="quiet">· R$ 0,02</span></span></dd></div></dl>
+          <summary><span class="name">modelo</span> <span class="stop">parou em tool_use</span> <span class="figure"><span data-arrives="PR-16">US$ 0,003</span> · 1,1 s</span></summary>
+          <dl class="detail"><div><dt>modelo</dt><dd>claude-opus-5-5</dd></div><div><dt>esforço</dt><dd>medium</dd></div><div><dt>prompt</dt><dd>11,8k caracteres · 9f2c41d0</dd></div><div><dt>entrada</dt><dd>3,1k</dd></div><div><dt>cache</dt><dd><span class="cache" data-cache="hit"><svg class="tick" viewBox="0 0 12 12" role="img" aria-label="leu"><path d="M1.5 6.5l3 3 6-7" fill="none" stroke-width="1.6"/></svg> 2,8k · gravou 0,3k</span></dd></div><div><dt>saída</dt><dd>42</dd></div><div><dt>custo</dt><dd><span data-arrives="PR-16">US$ 0,003 <span class="quiet">· R$ 0,02</span></span></dd></div></dl>
         </details>
       </li>
       <li class="event tool" id="t1-tool">
@@ -111,6 +111,8 @@
     <li>While the turn runs, its time counts up in the totals and in the summary line; the open model row shows only what is known at its start, the model and the effort.</li>
     <li>The chat holds the window: beside each other, the conversation and the glass box scroll each inside its own column, so opening a row or a new row arriving never moves the composer or the totals. A new message or row scrolls its own column to itself.</li>
     <li>For the visitor who stays two minutes and clicks nothing: the turn in progress and the last turn are drawn open, every call with its tokens, cache and cost in sight; earlier turns fold into one line each, with their events, time and cost, and open on demand. Closed, a call's line still carries its cost and its time.</li>
+    <li>Drawn as the target and hidden until their source exists: the pharmacist's presence in the counter's head has none before the console (M2), and the mode in the glass box's head needs the budget's mode in the session and polling answers (PR-16). The one-line summary at 390 px speaks of the last turn alone: its number, rows, time and cost.</li>
+    <li>This state arrives with the stream's pull request (PR-12).</li>
   </ul>
 </aside>
 </body>

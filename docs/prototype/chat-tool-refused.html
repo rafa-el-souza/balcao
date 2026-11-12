@@ -11,7 +11,7 @@
   <section class="counter" aria-label="Conversa">
     <header class="counter-head">
       <a class="back" id="back" href="landing.html"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M14 8H2.5M7 3.5L2.5 8 7 12.5"/></svg> Balcão</a>
-      <span class="presence" id="presence" data-presence="online">
+      <span class="presence" id="presence" data-presence="online" data-arrives="M2">
         <svg class="cross" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 0h4v4h4v4H8v4H4V8H0V4h4z"/></svg>
         farmacêutico online
       </span>
@@ -38,7 +38,7 @@
 
     <div class="counter-foot">
     <a class="summary" id="glass-summary" href="#glass">
-      <span class="summary-figures">10 eventos · 3,1 s · US$ 0,009</span>
+      <span class="summary-figures">turno 2 · 5 eventos · 3,1 s · <span data-arrives="PR-16">US$ 0,006</span></span>
       <span class="summary-open"><span class="visually-hidden">abrir a caixa de vidro</span></span>
     </a>
 
@@ -67,13 +67,13 @@
         <button class="lang" type="button">EN</button>
         <button class="lang" type="button">ES</button>
       </nav>
-      <span class="mode" id="mode" data-mode="normal">normal</span>
+      <span class="mode" id="mode" data-mode="normal" data-arrives="PR-16">normal</span>
       <a class="glass-close" id="glass-close" href="chat-tool-refused.html">fechar</a>
     </header>
     <ol class="events" id="events">
       <li class="event turn-group" id="turn-1-group">
         <details>
-          <summary><span class="name">turno 1 · 5 eventos · 3,0 s · <span data-arrives="PR-16">US$ 0,006</span></span></summary>
+          <summary><span class="name">turno 1 · 5 eventos · 3,0 s · <span data-arrives="PR-16">US$ 0,009</span></span></summary>
           <ol class="events nested">
       <li class="event" id="t1-received">
         <time>12:03:41</time>
@@ -82,8 +82,8 @@
       <li class="event" id="t1-model-1">
         <time>12:03:41</time>
         <details class="what">
-          <summary><span class="name">modelo</span> <span class="stop">parou em tool_use</span> <span class="figure"><span data-arrives="PR-16">US$ 0,004</span> · 1,1 s</span></summary>
-          <dl class="detail"><div><dt>modelo</dt><dd>claude-opus-5-5</dd></div><div><dt>esforço</dt><dd>medium</dd></div><div><dt>entrada</dt><dd>3,1k <span class="cache" data-cache="hit">cache <svg class="tick" viewBox="0 0 12 12" role="img" aria-label="acerto"><path d="M1.5 6.5l3 3 6-7" fill="none" stroke-width="1.6"/></svg> 2,8k</span></dd></div><div><dt>saída</dt><dd>42</dd></div><div><dt>custo</dt><dd><span data-arrives="PR-16">US$ 0,004 <span class="quiet">· R$ 0,02</span></span></dd></div></dl>
+          <summary><span class="name">modelo</span> <span class="stop">parou em tool_use</span> <span class="figure"><span data-arrives="PR-16">US$ 0,003</span> · 1,1 s</span></summary>
+          <dl class="detail"><div><dt>modelo</dt><dd>claude-opus-5-5</dd></div><div><dt>esforço</dt><dd>medium</dd></div><div><dt>prompt</dt><dd>11,8k caracteres · 9f2c41d0</dd></div><div><dt>entrada</dt><dd>3,1k</dd></div><div><dt>cache</dt><dd><span class="cache" data-cache="hit"><svg class="tick" viewBox="0 0 12 12" role="img" aria-label="leu"><path d="M1.5 6.5l3 3 6-7" fill="none" stroke-width="1.6"/></svg> 2,8k · gravou 0,3k</span></dd></div><div><dt>saída</dt><dd>42</dd></div><div><dt>custo</dt><dd><span data-arrives="PR-16">US$ 0,003 <span class="quiet">· R$ 0,02</span></span></dd></div></dl>
         </details>
       </li>
       <li class="event tool" id="t1-tool">
@@ -98,8 +98,8 @@
       <li class="event" id="t1-model-2">
         <time>12:03:43</time>
         <details class="what">
-          <summary><span class="name">modelo</span> <span class="stop">parou em end_turn</span> <span class="figure"><span data-arrives="PR-16">US$ 0,002</span> · 1,6 s</span></summary>
-          <dl class="detail"><div><dt>modelo</dt><dd>claude-opus-5-5</dd></div><div><dt>esforço</dt><dd>medium</dd></div><div><dt>entrada</dt><dd>3,7k <span class="cache" data-cache="hit">cache <svg class="tick" viewBox="0 0 12 12" role="img" aria-label="acerto"><path d="M1.5 6.5l3 3 6-7" fill="none" stroke-width="1.6"/></svg> 2,8k</span></dd></div><div><dt>saída</dt><dd>98</dd></div><div><dt>custo</dt><dd><span data-arrives="PR-16">US$ 0,002 <span class="quiet">· R$ 0,01</span></span></dd></div></dl>
+          <summary><span class="name">modelo</span> <span class="stop">parou em end_turn</span> <span class="figure"><span data-arrives="PR-16">US$ 0,006</span> · 1,6 s</span></summary>
+          <dl class="detail"><div><dt>modelo</dt><dd>claude-opus-5-5</dd></div><div><dt>esforço</dt><dd>medium</dd></div><div><dt>prompt</dt><dd>11,8k caracteres · 9f2c41d0</dd></div><div><dt>entrada</dt><dd>3,7k</dd></div><div><dt>cache</dt><dd><span class="cache" data-cache="hit"><svg class="tick" viewBox="0 0 12 12" role="img" aria-label="leu"><path d="M1.5 6.5l3 3 6-7" fill="none" stroke-width="1.6"/></svg> 3,1k · gravou 0,6k</span></dd></div><div><dt>saída</dt><dd>98</dd></div><div><dt>custo</dt><dd><span data-arrives="PR-16">US$ 0,006 <span class="quiet">· R$ 0,03</span></span></dd></div></dl>
         </details>
       </li>
       <li class="event" id="t1-sent">
@@ -116,8 +116,8 @@
       <li class="event" id="t2-model-1">
         <time>12:04:10</time>
         <details class="what" open>
-          <summary><span class="name">modelo</span> <span class="stop">parou em tool_use</span> <span class="figure"><span data-arrives="PR-16">US$ 0,005</span> · 1,2 s</span></summary>
-          <dl class="detail"><div><dt>modelo</dt><dd>claude-opus-5-5</dd></div><div><dt>esforço</dt><dd>medium</dd></div><div><dt>entrada</dt><dd>3,9k <span class="cache" data-cache="hit">cache <svg class="tick" viewBox="0 0 12 12" role="img" aria-label="acerto"><path d="M1.5 6.5l3 3 6-7" fill="none" stroke-width="1.6"/></svg> 3,5k</span></dd></div><div><dt>saída</dt><dd>51</dd></div><div><dt>custo</dt><dd><span data-arrives="PR-16">US$ 0,005 <span class="quiet">· R$ 0,03</span></span></dd></div></dl>
+          <summary><span class="name">modelo</span> <span class="stop">parou em tool_use</span> <span class="figure"><span data-arrives="PR-16">US$ 0,003</span> · 1,2 s</span></summary>
+          <dl class="detail"><div><dt>modelo</dt><dd>claude-opus-5-5</dd></div><div><dt>esforço</dt><dd>medium</dd></div><div><dt>prompt</dt><dd>11,8k caracteres · 9f2c41d0</dd></div><div><dt>entrada</dt><dd>3,9k</dd></div><div><dt>cache</dt><dd><span class="cache" data-cache="hit"><svg class="tick" viewBox="0 0 12 12" role="img" aria-label="leu"><path d="M1.5 6.5l3 3 6-7" fill="none" stroke-width="1.6"/></svg> 3,7k · gravou 0,2k</span></dd></div><div><dt>saída</dt><dd>51</dd></div><div><dt>custo</dt><dd><span data-arrives="PR-16">US$ 0,003 <span class="quiet">· R$ 0,02</span></span></dd></div></dl>
         </details>
       </li>
       <li class="event tool" id="t2-tool" data-state="refused">
@@ -132,8 +132,8 @@
       <li class="event" id="t2-model-2">
         <time>12:04:12</time>
         <details class="what" open>
-          <summary><span class="name">modelo</span> <span class="stop">parou em end_turn</span> <span class="figure"><span data-arrives="PR-16">US$ 0,004</span> · 0,9 s</span></summary>
-          <dl class="detail"><div><dt>modelo</dt><dd>claude-opus-5-5</dd></div><div><dt>esforço</dt><dd>medium</dd></div><div><dt>entrada</dt><dd>4,1k <span class="cache" data-cache="hit">cache <svg class="tick" viewBox="0 0 12 12" role="img" aria-label="acerto"><path d="M1.5 6.5l3 3 6-7" fill="none" stroke-width="1.6"/></svg> 3,5k</span></dd></div><div><dt>saída</dt><dd>64</dd></div><div><dt>custo</dt><dd><span data-arrives="PR-16">US$ 0,004 <span class="quiet">· R$ 0,02</span></span></dd></div></dl>
+          <summary><span class="name">modelo</span> <span class="stop">parou em end_turn</span> <span class="figure"><span data-arrives="PR-16">US$ 0,003</span> · 0,9 s</span></summary>
+          <dl class="detail"><div><dt>modelo</dt><dd>claude-opus-5-5</dd></div><div><dt>esforço</dt><dd>medium</dd></div><div><dt>prompt</dt><dd>11,8k caracteres · 9f2c41d0</dd></div><div><dt>entrada</dt><dd>4,1k</dd></div><div><dt>cache</dt><dd><span class="cache" data-cache="hit"><svg class="tick" viewBox="0 0 12 12" role="img" aria-label="leu"><path d="M1.5 6.5l3 3 6-7" fill="none" stroke-width="1.6"/></svg> 3,9k · gravou 0,2k</span></dd></div><div><dt>saída</dt><dd>64</dd></div><div><dt>custo</dt><dd><span data-arrives="PR-16">US$ 0,003 <span class="quiet">· R$ 0,02</span></span></dd></div></dl>
         </details>
       </li>
       <li class="event" id="t2-sent">
@@ -143,7 +143,7 @@
     </ol>
     <dl class="totals" id="totals">
       <div><dt>turno 2</dt><dd>3,1 s</dd></div>
-      <div><dt>custo do turno</dt><dd><span data-arrives="PR-16">US$ 0,009 <span class="quiet">· R$ 0,05</span></span></dd></div>
+      <div><dt>custo do turno</dt><dd><span data-arrives="PR-16">US$ 0,006 <span class="quiet">· R$ 0,03</span></span></dd></div>
     </dl>
     <div class="glass-actions" id="glass-actions">
       <button class="tool-button" id="reset" type="button"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.2 6.2A5.25 5.25 0 1 1 2.75 8M3 2.5v3.75h3.75"/></svg> reiniciar</button>
@@ -161,10 +161,14 @@
     <li>The composer is a text area that grows with what is typed, up to six lines, then scrolls; Enter sends and Shift+Enter breaks the line. With the drawer open at 390 px the composer stays in reach under it, reduced to the field and the button.</li>
     <li>Not visible in a still drawing, for the implementation: when the drawer opens, the conversation scrolls so that the last reply shows in the upper half; when it closes, the suggestions and the anti-bot notice return under the composer.</li>
     <li>The glass box follows what the server emits (reviewed against it on 2026-11-12): one row per model call, in order, each opening when the call starts and completing in place; closed, a call is one line with where it stopped and its time, and it opens to its model, effort, tokens, cache mark and cost; a tool's result is the raw text the server keeps, cut at 500 characters and marked when cut, with the count beside it; the turn's figure is the time from the message's receipt to the reply.</li>
-    <li>Arriving after the panel's own pull request: every cost figure and the reais beside the dollars come with the usage records (PR-16); until a figure exists the panel shows nothing in its place, never a zero. The guardrail's row comes after the MVP and is drawn in a state of its own. The rows are grouped by turn through a turn id in each span, and the count beside a tool's result is computed before the cut: two small additions on the server's side, for the panel's pull request.</li>
+    <li>Arriving after the panel's own pull request: every cost figure and the reais beside the dollars come with the usage records (PR-16); until a figure exists the panel shows nothing in its place, never a zero. The guardrail's row comes after the MVP and is drawn in a state of its own.</li>
+    <li>Asked of the server, for the panel's pull request (PR-11): a turn id in each span, so the rows group by turn; the input figure as the sum of plain input, cache read and cache write, as the SDK's own tracer counts it; a tool result's original length and its count, taken before the cut; and the first-visit notice apart from the reply's body, so the page stamps it without matching text.</li>
+    <li>A model call opens to seven lines. The prompt line is the system prompt's size and digest, never its text (SR-12). The cache line says what was read and what was written; the tick means something was read, the cross that nothing was. The example costs follow the dated price table, with a cache write at 1.25 times the input price.</li>
     <li>State: the visitor asks for more than a reservation allows, and the tool itself refuses (FR-07). The row says so in the instrument's own ink: a rule enforced by code is not a failure, so it does not take the error colour.</li>
     <li>The chat holds the window: beside each other, the conversation and the glass box scroll each inside its own column, so opening a row or a new row arriving never moves the composer or the totals. A new message or row scrolls its own column to itself.</li>
     <li>For the visitor who stays two minutes and clicks nothing: the turn in progress and the last turn are drawn open, every call with its tokens, cache and cost in sight; earlier turns fold into one line each, with their events, time and cost, and open on demand. Closed, a call's line still carries its cost and its time.</li>
+    <li>Drawn as the target and hidden until their source exists: the pharmacist's presence in the counter's head has none before the console (M2), and the mode in the glass box's head needs the budget's mode in the session and polling answers (PR-16). The one-line summary at 390 px speaks of the last turn alone: its number, rows, time and cost.</li>
+    <li>Today the server reports a rule's refusal and a tool's failure alike. Asked of it, with the reservation's pull request (PR-13): a reason code on the tool's span, from which the panel tells the two apart and writes the outcome's words. The tool's own text is English, written for the model, and is shown as kept.</li>
   </ul>
 </aside>
 </body>
