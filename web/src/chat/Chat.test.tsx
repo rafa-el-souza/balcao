@@ -767,3 +767,29 @@ describe("FR-14 the polling that is refused", () => {
     expect(server.polls().length - recovered).toBe(3);
   });
 });
+
+// Review finding V1 of pull request #14 (found by the verifier): a page
+// whose polls kept failing showed the message as sent and said nothing; the
+// drawing's note asks it to say so when asking the server fails too.
+describe("FR-18 the connection lost", () => {
+  it("says so while the polls fail, and stops saying it once one answers", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderPage(<Chat />);
+    await ready();
+    type("tem dipirona?");
+    fireEvent.keyDown(field(), { key: "Enter" });
+    await waitFor(() => {
+      expect(server.sent()).toHaveLength(1);
+    });
+
+    server.defaults.current = "network";
+    await elapse(3000);
+    expect(screen.queryByText(pt.offline)).toBeNull();
+    await elapse(30_000);
+    expect(within(thread()).getByText(pt.offline)).toBeInTheDocument();
+
+    server.defaults.current = conversation(1, [], true);
+    await elapse(30_000);
+    expect(screen.queryByText(pt.offline)).toBeNull();
+  });
+});

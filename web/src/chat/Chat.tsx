@@ -19,7 +19,8 @@ import { useConversation } from "./useConversation";
 // (Turnstile, after the MVP) and the "agendar" suggestion (FR-08, M2).
 export function Chat() {
   const { t } = useTranslation();
-  const { state, send, sendOpener, retry, changeLanguage } = useConversation();
+  const { state, offline, send, sendOpener, retry, changeLanguage } =
+    useConversation();
   const empty = entriesOf(state).length === 0;
 
   useEffect(() => {
@@ -47,7 +48,12 @@ export function Chat() {
           />
         </header>
 
-        <Thread state={state} onOpener={sendOpener} onRetry={retry} />
+        <Thread
+          state={state}
+          offline={offline}
+          onOpener={sendOpener}
+          onRetry={retry}
+        />
 
         <div className={styles.counterFoot}>
           <Composer

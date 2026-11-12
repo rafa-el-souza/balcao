@@ -58,6 +58,7 @@
     "heading": "Conversation with Farmácia Vida Longa",
     "greeting": "Hello! I can check stock and prices or reserve a product. Just write, or start with one of these:",
     "loadFailed": "I couldn't open the conversation just now. Reload the page in a little while.",
+    "offline": "No connection to the server right now. Still trying.",
     "failed": "not sent",
     "retry": "send again",
     "composer": {

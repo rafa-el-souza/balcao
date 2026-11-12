@@ -58,6 +58,7 @@
     "heading": "Conversación con la Farmácia Vida Longa",
     "greeting": "¡Hola! Puedo consultar existencias y precios o reservar un producto. Solo escribe, o empieza por una de estas:",
     "loadFailed": "No pude abrir la conversación ahora. Recarga la página en un rato.",
+    "offline": "Sin conexión con el servidor ahora. Sigo intentando.",
     "failed": "no enviado",
     "retry": "enviar de nuevo",
     "composer": {

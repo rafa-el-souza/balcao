@@ -51,6 +51,9 @@ export function useConversation() {
   const [state, dispatch] = useReducer(reduce, initialState);
   const [polled, setPolled] = useState(0);
   const [pollDelay, setPollDelay] = useState(POLL_MS);
+  // Polls failed in a row: from the second, the page says the connection is
+  // lost (review finding V1 of pull request #14).
+  const [pollFailures, setPollFailures] = useState(0);
 
   // The page's language at the moment of each request: the switch changes it
   // before it tells the conversation.
@@ -178,6 +181,7 @@ export function useConversation() {
         setPollDelay((delay) =>
           answered ? POLL_MS : Math.min(delay * 2, POLL_MAX_MS),
         );
+        setPollFailures((failures) => (answered ? 0 : failures + 1));
         setPolled((count) => count + 1);
       });
     }, pollDelay);
@@ -186,5 +190,7 @@ export function useConversation() {
     };
   }, [waiting, polled, pollDelay, refresh]);
 
-  return { state, send, sendOpener, retry, changeLanguage };
+  const offline = waiting && pollFailures >= 2;
+
+  return { state, offline, send, sendOpener, retry, changeLanguage };
 }

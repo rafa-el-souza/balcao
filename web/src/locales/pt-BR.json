@@ -58,6 +58,7 @@
     "heading": "Conversa com a Farmácia Vida Longa",
     "greeting": "Olá! Posso ver estoque e preço ou reservar um produto. É só escrever, ou começar por uma destas:",
     "loadFailed": "Não consegui abrir a conversa agora. Recarregue a página daqui a pouco.",
+    "offline": "Sem conexão com o servidor agora. Continuo tentando.",
     "failed": "não enviada",
     "retry": "enviar de novo",
     "composer": {
