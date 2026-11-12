@@ -8,9 +8,13 @@ module Api
   # the conversation the reset started, FR-04), and its spans, in the shape the
   # trace stream sends them, so the page follows it live.
   class TracesController < BaseController
+    # A token of bytes that are not UTF-8 reaches the action, binary, and is a
+    # miss like any other, not the router's 400 (review finding S5 of pull
+    # request #17).
+    skip_parameter_encoding :show
+
     def show
-      token = params[:token]
-      conversation = Conversation.find_by(trace_token: token) if token.is_a?(String)
+      conversation = Conversation.find_by_trace_token(params[:token])
       return render(json: { error: "not_found" }, status: :not_found) if conversation.nil?
 
       turns = conversation.turns.includes(:inbound_message, :outbound_message).order(:created_at, :id).to_a

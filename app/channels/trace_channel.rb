@@ -9,9 +9,9 @@ class TraceChannel < ApplicationCable::Channel
   def subscribed
     return reject if over_limit?
 
-    token = params[:token]
-    return reject unless token.is_a?(String) && Conversation.exists?(trace_token: token)
+    conversation = Conversation.find_by_trace_token(params[:token])
+    return reject if conversation.nil?
 
-    stream_from "trace:#{token}"
+    stream_from "trace:#{conversation.trace_token}"
   end
 end

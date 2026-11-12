@@ -12,6 +12,11 @@ class SpaController < ApplicationController
 
   LOCALES = I18n.available_locales.map(&:to_s).freeze
 
+  # The trace page's shell is the same whatever its token, and the page reads
+  # the token itself, so one of bytes that are not UTF-8 gets the shell too,
+  # not the router's 400 (review finding S5 of pull request #17).
+  skip_parameter_encoding :trace
+
   def landing = send_shell("landing")
 
   def chat = send_shell("chat")

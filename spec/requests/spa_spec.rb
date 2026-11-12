@@ -41,7 +41,7 @@ RSpec.describe "Design §6.7 the web app's shell is sent fresh on every visit", 
   # stays out of search indexes and sends no referrer on, and its shell is
   # the same whatever the token, which the page reads and looks up itself.
   it "serves the trace page at /trace/:token, for any token, out of indexes and without a referrer (FR-12)" do
-    [ "Xy7GqR2mN8pLw4Kd9sTzVb3H", "anything" ].each do |token|
+    [ "Xy7GqR2mN8pLw4Kd9sTzVb3H", "anything", "%FF", "a%00b" ].each do |token|
       get "/trace/#{token}"
 
       expect(response).to have_http_status(:ok), token
