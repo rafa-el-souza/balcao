@@ -1348,7 +1348,7 @@ implementer may swap it with a one-line note in the pull request.
 | Framework and build | React, Vite, TypeScript strict | fixed (ADR-0001) |
 | Styling | own CSS over tokens, CSS Modules; no utility framework, no styled kit | fixed (ADR-0008) |
 | Headless primitives | one library for dialog/menu/tabs/tooltip, chosen when the first such widget appears (Radix Primitives or React Aria) | default |
-| Routing | React Router (five routes) | default |
+| Routing | none on the client: one HTML shell per page and language, rendered at build time and chosen by the server (React Router was the default; §10, note of PR-10) | default |
 | Live updates | `@rails/actioncable` client | fixed (FR-12, FR-18) |
 | Data fetching | TanStack Query over `fetch`: one query per endpoint, Action Cable events invalidate the matching query ("cable invalidates, query fetches"), polling fallback via refetch interval (FR-18); the conversation itself (messages and trace events of the open turn) is a React reducer, not server cache | fixed (decided 2026-11-02) |
 | i18n | i18next with JSON locale files; the CI parity check compares keys per side | default |
@@ -1548,6 +1548,74 @@ MVP from its first day and merges at day 11.
 
 Tracked here until resolved; each resolution becomes an ADR or an edit.
 
+- Note 2026-11-12 (PR-10, the landing and the chat). The web app's pages
+  follow the drawings of `docs/prototype/` (web/src/landing/, web/src/chat/),
+  with `tokens.css` the prototype's token block character for character
+  (web/test/tokens.test.ts). Choices the text left open:
+  - **No client router.** Each page is rendered at build time into its own
+    HTML shell, once per language (`web/dist/shells/<page>.<locale>.html`,
+    web/vite.config.ts), and Rails sends the one for the route and the
+    visitor's language: the switcher's choice, kept in the `lang` cookie,
+    else the first of the three that `Accept-Language` names, else
+    Portuguese (app/controllers/spa_controller.rb). A visitor without
+    JavaScript reads the page in their language (NFR-09, NFR-10), the
+    document's `lang` is true from the first byte, and the browser hydrates
+    what it received. Links between pages are plain links. This replaces
+    §6.9's default, React Router; the image copies the shells instead of
+    one `index.html` (Dockerfile).
+  - **The reply arrives by polling** in this pull request: the page asks
+    `GET /api/conversations/current` every 3 s while a turn waits, which is
+    FR-18's fallback and keeps a waiting page at 20 of FR-14's 60 requests a
+    minute. The cable client, which makes it live, comes with the glass box
+    (PR-11). A turn that broke without a reply keeps `pending` true, so the
+    page keeps asking until PR-12 gives it its fallback text.
+  - **The glass box is its frame** here: the title, the switcher, the empty
+    state and the two commands, which send the page's language's own command
+    text (`/reiniciar`, `/reset`, `/apagar`, `/delete`, `/borrar`). Its rows,
+    its drawer and summary line at 390 px are PR-11's; until then, under
+    52rem, the commands are typed.
+  - **The openers** are shown before any request, so the web app holds a
+    copy of `config/openers.yml`'s keys, languages and texts
+    (`web/src/openers.json`); spec/models/web_openers_spec.rb keeps the two
+    equal (FR-21, SR-34), and an opener's change is a change to both files
+    (FR-26). The fourth chip, "tente me enganar", stays out until the owner
+    decides what it does (2026-11-12).
+  - **Left out until their source exists**, as the drawings' notes say: the
+    live numbers, the status link, the WhatsApp QR, the example
+    conversations, the offer's tags and exclusions, the scorecard's rows,
+    the booking line, voice notes, the privacy link, the pharmacist's
+    presence, the mode, the anti-bot line and the "agendar" suggestion. In
+    the MVP "O que ele faz" says the attendant points to the store's
+    pharmacist rather than handing the conversation over (FR-10's MVP note).
+    Other companies' marks (the stack, GitHub, LinkedIn) wait for their
+    owners' files or permission; the links stand as words.
+  - **The composer's suggestions put a phrase in the field** for the visitor
+    to finish and send nothing. A message that could not be sent says so
+    beside it and is sent again with the same id (NFR-02); a missing cookie
+    gets one new session and the message is sent again. The page names its
+    language in every request's `Accept-Language` and in the session's
+    `{language}`, again when the switcher changes it, so an unanswered
+    conversation follows the page (FR-02).
+  - **Assistive technology.** Each language button keeps the focus when
+    pressed and is named by its code and its language's name ("EN English",
+    WCAG 2.5.3); the chat's first-level heading is read, not drawn; the
+    message list is a polite live region. The axe-core pass of NFR-10's MVP
+    note ran by hand on both pages at 390 and 1280 px with no violation.
+  - FR-01's notice reaches the page as the head of the first reply's text
+    and is shown so until PR-11 sends it apart.
+  - **What the review of pull request #14 settled** (its Review section has
+    each finding). The thread is the server's messages in the server's
+    order; the page's own entries (a message on its way, one that failed or
+    met a limit, the limit's stamp) follow the entry drawn before them, and
+    a message the server holds takes its copy's place. A request is given up
+    after 15 s and counts as failed. Session requests go one at a time and a
+    message waits for the one in flight, so a first visit mints one visitor.
+    A failed poll doubles the wait up to 30 s; a refused one stamps the
+    limit's text; from the second poll in a row that gets no answer, the
+    thread says the connection is lost; a 401 asks for a session again. A
+    glass box command is sent once per press and stays quiet a second after
+    its answer. The pages answer whatever the query: one Rails cannot parse
+    is dropped before the shell is sent, since the page reads its own.
 - Note 2026-11-12 (the drawing slice, before PR-10). The public screens are
   drawn as static HTML and CSS in `docs/prototype/` (open `index.html`): one
   file per screen and state, one stylesheet, and under each drawing the

@@ -14,6 +14,8 @@ Rails.application.routes.draw do
     get "conversations/current", to: "conversations#current"
   end
 
-  # The web app's shell; its own routes join here as its pages arrive (design §6.7).
-  root "spa#show"
+  # The web app's pages (design §6.7), each sent as its own shell; the others
+  # join here as they arrive (web/src/pages.ts lists the same ones).
+  root "spa#landing"
+  get "chat", to: "spa#chat"
 end

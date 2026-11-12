@@ -1,5 +1,6 @@
 /* The page itself, over the tokens; everything else is a CSS Module. */
 @import "./tokens.css";
+@import "./fonts.css";
 
 *,
 *::before,
@@ -18,15 +19,21 @@ body {
   color: var(--color-ink);
   font-family: var(--font-counter);
   font-size: var(--text-md);
+  font-weight: var(--weight-text);
   line-height: var(--leading-body);
+  font-variant-numeric: lining-nums;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 a {
   color: var(--color-accent);
-  text-underline-offset: 0.15em;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
 }
 
-a:focus-visible {
+:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }

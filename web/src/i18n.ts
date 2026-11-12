@@ -1,30 +1,30 @@
-import i18n from "i18next";
+import i18next, { type i18n } from "i18next";
 import { initReactI18next } from "react-i18next";
 
+import { DEFAULT_LOCALE, LOCALES, type Locale } from "./locale";
 import en from "./locales/en.json";
 import es from "./locales/es.json";
 import ptBR from "./locales/pt-BR.json";
 
-// Every page string lives in the three locale files (design NFR-09). The
-// browser-language choice and the persistent switcher arrive with the
-// landing (design §9.1, PR-10); until then the app opens in pt-BR.
-export const LOCALES = ["pt-BR", "en", "es"] as const;
-export type Locale = (typeof LOCALES)[number];
-export const DEFAULT_LOCALE: Locale = "pt-BR";
-
+// Every page string lives in the three locale files (design NFR-09).
 export const resources = {
   "pt-BR": { translation: ptBR },
   en: { translation: en },
   es: { translation: es },
 } as const;
 
-void i18n.use(initReactI18next).init({
-  resources,
-  lng: DEFAULT_LOCALE,
-  fallbackLng: DEFAULT_LOCALE,
-  supportedLngs: LOCALES,
-  // React escapes what it renders, and HTML from strings is banned by lint (SR-03).
-  interpolation: { escapeValue: false },
-});
-
-export default i18n;
+// One instance per page load in the browser, one per render at build time:
+// the resources are in the bundle, so it is ready when this returns.
+export function createI18n(locale: Locale): i18n {
+  const instance = i18next.createInstance();
+  void instance.use(initReactI18next).init({
+    resources,
+    lng: locale,
+    fallbackLng: DEFAULT_LOCALE,
+    supportedLngs: LOCALES,
+    initAsync: false,
+    // React escapes what it renders, and HTML from strings is banned by lint (SR-03).
+    interpolation: { escapeValue: false },
+  });
+  return instance;
+}

@@ -1,24 +1,35 @@
 // @vitest-environment node
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { build } from "vite";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
-// Review finding C1 on pull request #4: the placeholder was drawn only by
-// client-side React into an empty #root, so a visitor without JavaScript, or
-// a link preview, got a blank page. NFR-10: "The public page works without
-// JavaScript for its text content." The text must come from the locale files
-// (NFR-09), so the build renders the app into the shell.
-const web = fileURLToPath(new URL("..", import.meta.url));
+// NFR-10: "The public page works without JavaScript for its text content."
+// The build renders each page into its own HTML shell, once per language
+// (NFR-09), and the server sends the one for the route and the visitor's
+// language (app/controllers/spa_controller.rb). Review finding C1 on pull
+// request #4 first asked for the text in the HTML; the shells per language
+// also keep a visitor of another language from seeing Portuguese first, and
+// give the document its true lang.
+const web = new URL("..", import.meta.url).pathname;
 const LOCALES = ["pt-BR", "en", "es"] as const;
-const REPOSITORY_URL = "https://github.com/rafa-el-souza/balcao";
+const PAGES = ["landing", "chat"] as const;
 
 interface Text {
-  app: { name: string; pharmacy: string };
-  placeholder: Record<
-    "status" | "tagline" | "soon" | "meanwhile" | "repository",
-    string
-  >;
+  landing: {
+    title: string;
+    headline: string;
+    lede: string;
+    does: { title: string; stock: string };
+    business: { title: string };
+    warning: { text: string };
+  };
+  chat: {
+    title: string;
+    conversation: string;
+    heading: string;
+    composer: { send: string };
+    glass: { title: string };
+  };
 }
 const textOf = (locale: string) =>
   JSON.parse(
@@ -42,8 +53,11 @@ const visibleWithoutJavaScript = (html: string) =>
     .replace(/&amp;/g, "&")
     .replace(/\s+/g, " ");
 
-describe("NFR-10 the placeholder's text is in the HTML the server sends", () => {
-  it("carries the three languages and the repository link before any script runs", async () => {
+describe("NFR-10 each page's text is in the HTML the server sends, in each language", () => {
+  const shells = new Map<string, string>();
+  let files: string[] = [];
+
+  beforeAll(async () => {
     const result = await build({
       root: web,
       logLevel: "silent",
@@ -51,29 +65,73 @@ describe("NFR-10 the placeholder's text is in the HTML the server sends", () => 
     });
     const [bundle] = Array.isArray(result) ? result : [result];
     if (!("output" in bundle)) throw new Error("vite build returned a watcher");
-    const shell = bundle.output.find((file) => file.fileName === "index.html");
-    if (shell?.type !== "asset") throw new Error("the build has no index.html");
-    const html =
-      typeof shell.source === "string"
-        ? shell.source
-        : Buffer.from(shell.source).toString("utf8");
-    const text = visibleWithoutJavaScript(html);
-
-    expect(text).toContain(textOf("pt-BR").app.name);
-    expect(text).toContain(textOf("pt-BR").app.pharmacy);
-    for (const locale of LOCALES) {
-      const { placeholder } = textOf(locale);
-      for (const line of [
-        placeholder.status,
-        placeholder.tagline,
-        placeholder.soon,
-        placeholder.meanwhile,
-        placeholder.repository,
-      ]) {
-        expect(text).toContain(line);
-      }
-      expect(html).toContain(`lang="${locale}"`);
+    files = bundle.output.map((file) => file.fileName);
+    for (const file of bundle.output) {
+      if (file.type === "asset" && file.fileName.startsWith("shells/"))
+        shells.set(
+          file.fileName,
+          typeof file.source === "string"
+            ? file.source
+            : Buffer.from(file.source).toString("utf8"),
+        );
     }
-    expect(html).toContain(`href="${REPOSITORY_URL}"`);
-  }, 60_000);
+  }, 120_000);
+
+  it("writes one shell per page and language, and no other HTML", () => {
+    expect([...shells.keys()].sort()).toEqual(
+      PAGES.flatMap((page) =>
+        LOCALES.map((locale) => `shells/${page}.${locale}.html`),
+      ).sort(),
+    );
+    expect(files.filter((file) => file.endsWith(".html")).sort()).toEqual(
+      [...shells.keys()].sort(),
+    );
+  });
+
+  it.each(LOCALES)(
+    "carries the landing's text in %s, with the document's language and title",
+    (locale) => {
+      const html = shells.get(`shells/landing.${locale}.html`) ?? "";
+      const text = visibleWithoutJavaScript(html);
+      const { landing } = textOf(locale);
+
+      expect(html).toContain(`<html lang="${locale}">`);
+      expect(html).toContain(`<title>${landing.title}</title>`);
+      expect(html).toContain('data-page="landing"');
+      for (const line of [
+        landing.headline,
+        landing.lede,
+        landing.does.title,
+        landing.does.stock,
+        landing.business.title,
+        landing.warning.text,
+      ])
+        // A number and its unit are joined by a no-break space, which the
+        // text above folds like any other space.
+        expect(text).toContain(line.replace(/\s+/g, " "));
+    },
+  );
+
+  it.each(LOCALES)("carries the chat's frame in %s", (locale) => {
+    const html = shells.get(`shells/chat.${locale}.html`) ?? "";
+    const { chat } = textOf(locale);
+
+    expect(html).toContain(`<html lang="${locale}">`);
+    expect(html).toContain(`<title>${chat.title}</title>`);
+    expect(html).toContain('data-page="chat"');
+    expect(html).toContain(`aria-label="${chat.conversation}"`);
+    expect(visibleWithoutJavaScript(html)).toContain(chat.heading);
+    expect(visibleWithoutJavaScript(html)).toContain(chat.glass.title);
+  });
+
+  it("names its scripts and styles by hash, from the same origin, with no inline script or style (SR-03)", () => {
+    for (const html of shells.values()) {
+      expect(html).toMatch(
+        /<script type="module" crossorigin src="\/assets\/[^"]+\.js"><\/script>/,
+      );
+      expect(html).not.toMatch(/<script(?![^>]*\bsrc=)[^>]*>/);
+      expect(html).not.toMatch(/\sstyle="/);
+      expect(html).not.toMatch(/<style/);
+    }
+  });
 });

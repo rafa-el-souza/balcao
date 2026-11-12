@@ -6,15 +6,19 @@ import ptBR from "./pt-BR.json";
 
 // The CI check that the web app's three locale files share the same keys
 // (design NFR-09). The server's files have their own check in spec/i18n.
-type Tree = { [key: string]: string | Tree };
+// A list (the stack's names) counts by its positions, so the three hold the
+// same number of items.
+type Tree = { [key: string]: string | string[] | Tree };
 
-function leaves(tree: Tree, prefix = ""): [string, string][] {
-  return Object.entries(tree).flatMap(([key, value]) => {
-    const path = prefix ? `${prefix}.${key}` : key;
-    return typeof value === "string"
-      ? [[path, value] as [string, string]]
-      : leaves(value, path);
-  });
+function leaves(tree: Tree | string[], prefix = ""): [string, string][] {
+  return Object.entries(tree).flatMap(
+    ([key, value]: [string, Tree[string]]) => {
+      const path = prefix ? `${prefix}.${key}` : key;
+      return typeof value === "string"
+        ? [[path, value] as [string, string]]
+        : leaves(value, path);
+    },
+  );
 }
 
 const locales: Record<string, Tree> = { "pt-BR": ptBR, en, es };

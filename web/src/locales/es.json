@@ -3,11 +3,82 @@
     "name": "Balcão",
     "pharmacy": "Farmácia Vida Longa"
   },
-  "placeholder": {
-    "status": "en construcción",
-    "tagline": "Un asistente de IA para una farmacia de barrio ficticia.",
-    "soon": "La demostración abre en esta dirección pronto: conversa en el navegador o por WhatsApp y mira, junto a la conversación, cada llamada al modelo, cada herramienta y cuánto costó.",
-    "meanwhile": "Mientras tanto, el proyecto está abierto:",
-    "repository": "diseño, decisiones y modelo de amenazas en GitHub"
+  "language": {
+    "label": "Idioma",
+    "pt-BR": "Português",
+    "en": "English",
+    "es": "Español"
+  },
+  "landing": {
+    "title": "Balcão · un asistente de IA para una farmacia de barrio",
+    "headline": "Un asistente de IA para una farmacia de barrio.",
+    "lede": "Ficticia. Funcionando. Con la caja de cristal abierta.",
+    "say": "Di:",
+    "does": {
+      "title": "Qué hace",
+      "stock": "Consulta existencias y precio, y reserva el producto para retirarlo.",
+      "clinical": "Reconoce el límite clínico e indica al farmacéutico de la tienda.",
+      "languages": "Atiende en portugués, inglés y español."
+    },
+    "business": {
+      "title": "Para tu negocio",
+      "knows": "Sabe lo que no puede decir.",
+      "pharmacist": "Fui farmacéutico antes de ser desarrollador.",
+      "email": "Escribir un correo"
+    },
+    "built": {
+      "title": "Cómo está hecho",
+      "stack": [
+        "Rails",
+        "React",
+        "Postgres",
+        "Claude",
+        "WhatsApp Cloud API",
+        "1 VM"
+      ],
+      "design": "design doc",
+      "adrs": "decisiones (ADRs)",
+      "threats": "modelo de amenazas",
+      "evals": "evals"
+    },
+    "warning": {
+      "label": "Aviso:",
+      "text": "esto es una demostración, y los datos son ficticios. Los mensajes se guardan 7 días; “borrar mis datos” borra tus datos de Balcão."
+    },
+    "signature": {
+      "by": "Hecho por",
+      "github": "GitHub",
+      "linkedin": "LinkedIn",
+      "email": "correo"
+    }
+  },
+  "chat": {
+    "title": "Conversación · Balcão",
+    "conversation": "Conversación",
+    "heading": "Conversación con la Farmácia Vida Longa",
+    "greeting": "¡Hola! Puedo consultar existencias y precios o reservar un producto. Solo escribe, o empieza por una de estas:",
+    "loadFailed": "No pude abrir la conversación ahora. Recarga la página en un rato.",
+    "offline": "Sin conexión con el servidor ahora. Sigo intentando.",
+    "failed": "no enviado",
+    "retry": "enviar de nuevo",
+    "composer": {
+      "label": "Mensaje",
+      "placeholder": "escribe aquí…",
+      "send": "Enviar",
+      "count": "{{count}} de {{max}}",
+      "suggestions": "Sugerencias:",
+      "reserve": "reservar",
+      "reserveText": "Quiero reservar ",
+      "pharmacist": "hablar con el farmacéutico",
+      "pharmacistText": "Quiero hablar con el farmacéutico."
+    },
+    "glass": {
+      "title": "Caja de cristal",
+      "empty": "Todavía no hay eventos. Cada llamada al modelo y a cada herramienta aparece aquí, con la hora, la duración y el costo.",
+      "reset": "reiniciar",
+      "resetCommand": "/reiniciar",
+      "delete": "borrar datos",
+      "deleteCommand": "/borrar"
+    }
   }
 }

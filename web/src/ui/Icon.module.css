@@ -1,0 +1,15 @@
+.icon {
+  flex: none;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.12em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
+.cross {
+  width: 0.72em;
+  height: 0.72em;
+  fill: var(--color-accent);
+}

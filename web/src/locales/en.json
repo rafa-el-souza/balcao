@@ -3,11 +3,82 @@
     "name": "Balcão",
     "pharmacy": "Farmácia Vida Longa"
   },
-  "placeholder": {
-    "status": "under construction",
-    "tagline": "An AI attendant for a fictional neighbourhood pharmacy.",
-    "soon": "The demo opens at this address soon: chat in the browser or on WhatsApp and watch, beside the conversation, every model call, every tool and what it cost.",
-    "meanwhile": "Meanwhile, the project is open:",
-    "repository": "design, decisions and threat model on GitHub"
+  "language": {
+    "label": "Language",
+    "pt-BR": "Português",
+    "en": "English",
+    "es": "Español"
+  },
+  "landing": {
+    "title": "Balcão · an AI attendant for a neighbourhood pharmacy",
+    "headline": "An AI attendant for a neighbourhood pharmacy.",
+    "lede": "Fictional. Working. With the glass box open.",
+    "say": "Say:",
+    "does": {
+      "title": "What it does",
+      "stock": "Checks stock and price, and reserves the product for pickup.",
+      "clinical": "Knows the clinical limit and points to the store's pharmacist.",
+      "languages": "Answers in Portuguese, English and Spanish."
+    },
+    "business": {
+      "title": "For your business",
+      "knows": "It knows what it must not say.",
+      "pharmacist": "I was a pharmacist before I was a developer.",
+      "email": "Write an e-mail"
+    },
+    "built": {
+      "title": "How it is made",
+      "stack": [
+        "Rails",
+        "React",
+        "Postgres",
+        "Claude",
+        "WhatsApp Cloud API",
+        "1 VM"
+      ],
+      "design": "design doc",
+      "adrs": "decisions (ADRs)",
+      "threats": "threat model",
+      "evals": "evals"
+    },
+    "warning": {
+      "label": "Notice:",
+      "text": "this is a demo, and the data is fictional. Messages are kept for 7 days; “delete my data” deletes your data from Balcão."
+    },
+    "signature": {
+      "by": "Made by",
+      "github": "GitHub",
+      "linkedin": "LinkedIn",
+      "email": "e-mail"
+    }
+  },
+  "chat": {
+    "title": "Conversation · Balcão",
+    "conversation": "Conversation",
+    "heading": "Conversation with Farmácia Vida Longa",
+    "greeting": "Hello! I can check stock and prices or reserve a product. Just write, or start with one of these:",
+    "loadFailed": "I couldn't open the conversation just now. Reload the page in a little while.",
+    "offline": "No connection to the server right now. Still trying.",
+    "failed": "not sent",
+    "retry": "send again",
+    "composer": {
+      "label": "Message",
+      "placeholder": "write here…",
+      "send": "Send",
+      "count": "{{count}} of {{max}}",
+      "suggestions": "Suggestions:",
+      "reserve": "reserve",
+      "reserveText": "I'd like to reserve ",
+      "pharmacist": "talk to the pharmacist",
+      "pharmacistText": "I'd like to talk to the pharmacist."
+    },
+    "glass": {
+      "title": "Glass box",
+      "empty": "No events yet. Every call to the model and to each tool shows up here, with its time, its duration and its cost.",
+      "reset": "restart",
+      "resetCommand": "/reset",
+      "delete": "delete data",
+      "deleteCommand": "/delete"
+    }
   }
 }

@@ -1,0 +1,335 @@
+/* The landing (docs/prototype/styles.css, "The landing" and the sections on its widths). */
+
+.landing {
+  --page-pad: max(var(--space-6), calc((100vw - var(--page-max)) / 2));
+  padding: 0 var(--page-pad) var(--space-12);
+}
+
+.masthead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: 5px;
+  padding: var(--space-6) 0 var(--space-3);
+}
+
+.pharmacy {
+  font-style: italic;
+  color: var(--color-ink-2);
+}
+
+.langs {
+  margin-left: auto;
+}
+
+.hero {
+  padding: var(--space-8) 0;
+}
+
+.hero h1,
+.lede {
+  margin: 0;
+  font-size: var(--text-xl);
+  line-height: var(--leading-tight);
+  text-wrap: balance;
+}
+
+.hero h1 {
+  font-weight: 500;
+  letter-spacing: -0.022em;
+}
+
+.lede {
+  margin-top: 0.3em;
+  font-style: italic;
+  letter-spacing: -0.015em;
+  color: var(--color-ink-2);
+}
+
+.say {
+  margin-top: var(--space-8);
+}
+
+.sayLabel {
+  margin: 0 0 var(--space-2);
+  font-style: italic;
+}
+
+.does,
+.business {
+  padding: var(--space-6) 0;
+}
+
+.landing h2 {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.business p {
+  margin: 0 0 var(--space-3);
+}
+
+.does ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.does li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.does li + li {
+  margin-top: var(--space-3);
+}
+
+.does li svg {
+  position: relative;
+  top: 0.14em;
+  width: 1.05em;
+  height: 1.05em;
+  color: var(--color-accent);
+}
+
+.contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+}
+
+/* The ways to reach the author share the row; when it is too narrow each takes a row whole. */
+.contact > a {
+  flex: 1 1 13.5rem;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+/* "Como é feito" is the engineer's part, so it is a receipt: the stack as items, then the
+   documents. */
+.built {
+  align-self: start;
+  margin: var(--space-6) 0;
+  padding: var(--space-4);
+}
+
+.built h2 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  letter-spacing: 0.1em;
+  line-height: var(--leading-row);
+}
+
+.stack,
+.documents {
+  margin: 0;
+  padding: 0 0 var(--space-2);
+  list-style: none;
+}
+
+.documents {
+  padding-top: var(--space-2);
+  border-top: var(--rule-dash);
+}
+
+.documents li {
+  min-height: 1.75rem;
+}
+
+.colophon {
+  margin-top: var(--space-8);
+}
+
+.warning {
+  margin: 0;
+}
+
+/* The footer is signed, as a prescription is: the author's name in a pen hand on the signature
+   rule, and under it the ways to reach him. */
+.signature {
+  width: fit-content;
+  max-width: 100%;
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-sm);
+}
+
+.signedName {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin: 0;
+  border-bottom: var(--rule-box);
+}
+
+.signedBy {
+  font-style: italic;
+  color: var(--color-ink-2);
+}
+
+.signedHand {
+  font-family: var(--font-signature);
+  font-size: 1.75rem;
+  line-height: 1.3;
+}
+
+.signedLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  padding-top: var(--space-2);
+}
+
+/* The phone. */
+@media (width < 40rem) {
+  .langs {
+    order: 2;
+  }
+
+  .pharmacy {
+    order: 3;
+    flex: 1 1 60%;
+  }
+}
+
+/* Where the blocks stack, a quiet rule opens each section. */
+@media (width < 60rem) {
+  .does,
+  .business {
+    border-top: 1px solid var(--color-rule);
+  }
+
+  .signature {
+    margin-inline: auto;
+  }
+}
+
+/* Between the phone and the desk: two columns. The two sections of text side by side, and the
+   receipt beside the warning and the signature. */
+@media (40rem <= width < 60rem) {
+  .landing {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto auto auto auto;
+    column-gap: var(--space-8);
+  }
+
+  .masthead {
+    grid-column: 1 / -1;
+  }
+
+  /* The main block spans the rows of the hero, the pair and the receipt; the footer takes the
+     receipt's row, in the column the receipt leaves. */
+  .main {
+    grid-column: 1 / -1;
+    grid-row: 2 / span 3;
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-template-rows: subgrid;
+  }
+
+  .hero {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    padding: var(--space-12) 0 var(--space-8);
+  }
+
+  .does {
+    grid-row: 2;
+  }
+
+  .business {
+    grid-row: 2;
+  }
+
+  .built {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .colophon {
+    grid-column: 2;
+    grid-row: 4;
+    align-self: center;
+    margin-top: var(--space-6);
+  }
+
+  .signature {
+    margin-top: var(--space-8);
+  }
+}
+
+/* The desk: three columns. With no live numbers nor WhatsApp receipt yet, the receipt of "Como é
+   feito" takes their place, beside the hero. */
+@media (width >= 60rem) {
+  .landing {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: var(--space-12);
+  }
+
+  .masthead,
+  .colophon {
+    grid-column: 1 / -1;
+  }
+
+  .main {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: subgrid;
+  }
+
+  .hero {
+    grid-column: 1 / span 2;
+    grid-row: 1;
+    padding: var(--space-16) 0 var(--space-12);
+  }
+
+  .say {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: var(--space-4);
+    align-items: start;
+    margin-top: var(--space-12);
+  }
+
+  .sayLabel {
+    margin: 0;
+    padding-top: var(--space-2);
+  }
+
+  .does,
+  .business {
+    grid-row: 2;
+    padding-top: var(--space-6);
+    border-top: var(--rule-hairline);
+  }
+
+  .built {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+    margin: calc(var(--space-16) + var(--space-2)) 0 0;
+  }
+
+  .colophon {
+    display: grid;
+    grid-template-columns: subgrid;
+    align-items: end;
+    margin-top: var(--space-16);
+  }
+
+  .warning {
+    grid-column: 1 / span 2;
+  }
+
+  .signature {
+    margin: 0 0 var(--space-2);
+    justify-self: center;
+  }
+}

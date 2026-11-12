@@ -3,3 +3,5 @@ coverage
 playwright-report
 test-results
 package-lock.json
+# The prototype's token block, copied unchanged (test/tokens.test.ts).
+src/styles/tokens.css

@@ -1,22 +1,9 @@
 require "rails_helper"
-require "tmpdir"
 
 # Threat model SR-03 for the MVP: a strict policy with no inline script and
 # no third-party origin (Turnstile's, the only one, arrives with SR-39 after
 # the MVP; design FR-18's MVP note).
-RSpec.describe "SR-03 the Content-Security-Policy of every response", type: :request do
-  around do |example|
-    Dir.mktmpdir("spa") do |dir|
-      shell = Pathname(dir).join("index.html")
-      shell.write(%(<!doctype html><html lang="pt-BR"><body><div id="root"></div></body></html>))
-      original = Rails.configuration.x.spa_shell
-      Rails.configuration.x.spa_shell = shell
-      example.run
-    ensure
-      Rails.configuration.x.spa_shell = original
-    end
-  end
-
+RSpec.describe "SR-03 the Content-Security-Policy of every response", :spa_shells, type: :request do
   def directives
     response.headers["Content-Security-Policy"].split(";").to_h do |directive|
       name, *sources = directive.split
