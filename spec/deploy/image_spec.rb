@@ -73,3 +73,19 @@ RSpec.describe "SR-24 the image runs as a non-root user on the pinned toolchain"
       .to all(match(/@sha256:[0-9a-f]{64}\z/))
   end
 end
+
+# Review finding R1 of pull request #17: Thruster, in front of Puma, writes a
+# line of its own for every request, with the path whole, to the container's
+# log; a trace page's path and its lookup's carry the trace's token, the whole
+# credential of the conversation's trace (threat model SR-11, SR-30). Rails'
+# own line masks it, and kamal-proxy keeps the request log of the host.
+RSpec.describe "SR-30 SR-11 the web container writes no request line of its own" do
+  let(:dockerfile) { Rails.root.join("Dockerfile").read }
+
+  it "turns Thruster's request log off in the image" do
+    settings = dockerfile.gsub(/\\\n/, " ").scan(/^\s*ENV\s+(.+)$/).flatten.join(" ")
+
+    expect(dockerfile).to match(%r{^CMD \["\./bin/thrust"})
+    expect(settings).to match(/(?:\A|\s)THRUSTER_LOG_REQUESTS="?false"?(?=\s|\z)/)
+  end
+end
