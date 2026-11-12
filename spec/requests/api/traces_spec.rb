@@ -107,6 +107,25 @@ RSpec.describe "FR-12 SR-11 SR-12 GET /api/traces/:token, a conversation's trace
     expect(json["messages"].flat_map(&:keys).uniq).to match_array(%w[id turn_id author notice body created_at])
   end
 
+  # Review findings C3 and G1 of pull request #17: the token, the whole
+  # credential of the trace, travels in the path, and the request's own log
+  # line wrote it whole; parameter filtering never reaches a path (SR-30).
+  it "writes no trace token to the log, for the page or its lookup" do
+    io = StringIO.new
+    sink = ActiveSupport::Logger.new(io)
+    Rails.logger.broadcast_to(sink)
+    begin
+      get "/api/traces/#{conversation.trace_token}"
+      get "/trace/#{conversation.trace_token}"
+      get "//api/traces/#{conversation.trace_token}"
+    ensure
+      Rails.logger.stop_broadcasting_to(sink)
+    end
+
+    expect(io.string).to include("Started GET", "/api/traces/[FILTERED]", "/trace/[FILTERED]")
+    expect(io.string).not_to include(conversation.trace_token)
+  end
+
   describe "at the edge (FR-14, SR-01, SR-11)" do
     around do |example|
       store = Rack::Attack.cache.store

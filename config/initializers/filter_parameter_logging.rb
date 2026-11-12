@@ -13,3 +13,42 @@ Rails.application.config.filter_parameters += [
   :passw, :email, :secret, :token, :_key, :crypt, :salt, :certificate, :otp, :ssn, :cvv, :cvc,
   :text, :body
 ]
+
+# A trace's token is the whole credential of a conversation's trace page
+# (threat model SR-11), and parameter filtering never reaches the lines that
+# carry it: the request's own line, which writes the path, and Action Cable's
+# lines, which write the stream a page follows and the identifier it
+# subscribes with. These write [FILTERED] in its place (SR-30; review findings
+# C3 and G1 of pull request #17). The conversations' streams name a
+# conversation, which only its visitor's cookie opens, and stay as they are.
+module Balcao
+  module TraceTokenFilter
+    PATH = %r{\A(/+(?:api/+traces|trace)/+)[^/?]+}
+    STREAM = /\b(trace:)[^\s"\\)]+/
+    PARAM = /(\\?"token\\?"\s*(?::|=>)\s*\\?")[^"\\]*/
+
+    module_function
+
+    def path(path) = path.sub(PATH, '\1[FILTERED]')
+
+    def line(text) = text.gsub(STREAM, '\1[FILTERED]').gsub(PARAM, '\1[FILTERED]')
+  end
+
+  # The request's line logs the filtered path, which filters only the query.
+  module FilteredTracePath
+    def filtered_path = TraceTokenFilter.path(super)
+  end
+
+  # Action Cable's logger, through which every line of the cable passes.
+  class CableLogger < SimpleDelegator
+    %i[debug info warn error fatal unknown].each do |level|
+      define_method(level) do |message = nil, &block|
+        message = block.call if message.nil? && block
+        __getobj__.public_send(level, message.is_a?(String) ? TraceTokenFilter.line(message) : message)
+      end
+    end
+  end
+end
+
+ActionDispatch::Request.prepend(Balcao::FilteredTracePath)
+Rails.application.config.action_cable.logger = Balcao::CableLogger.new(Rails.logger)
