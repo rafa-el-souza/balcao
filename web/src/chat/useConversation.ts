@@ -82,7 +82,14 @@ export function useConversation() {
       let outcome = await api.send(clientId, content);
       if (outcome.kind === "session") {
         const renewed = await session(language());
-        if (renewed.kind === "ok") outcome = await api.send(clientId, content);
+        // A refused session is the edge's limit, said with its own text
+        // (review finding C6 of pull request #14).
+        outcome =
+          renewed.kind === "ok"
+            ? await api.send(clientId, content)
+            : renewed.kind === "limit"
+              ? renewed
+              : outcome;
       }
       if (outcome.kind === "ok")
         dispatch({

@@ -702,3 +702,27 @@ describe("FR-21 one session at a time", () => {
     expect(sessions()).toHaveLength(1);
   });
 });
+
+// Review finding C6 of pull request #14: when the new session a message
+// needed was refused at the edge, the limit's text was dropped.
+describe("FR-14 the limit met by the session a message needs", () => {
+  it("stamps the limit's text instead of offering a retry", async () => {
+    const text =
+      "Você chegou ao limite da demo por agora. Tente de novo daqui a pouco.";
+    server.answers.messages.push({ status: 401, body: { error: "session" } });
+    renderPage(<Chat />);
+    await ready();
+    server.answers.session.push({
+      status: 429,
+      body: { error: "limit", text },
+    });
+
+    type("tem dipirona?");
+    fireEvent.keyDown(field(), { key: "Enter" });
+
+    expect(await within(thread()).findByText(text)).toBeInTheDocument();
+    expect(
+      within(thread()).queryByText(pt.failed, { exact: false }),
+    ).toBeNull();
+  });
+});
