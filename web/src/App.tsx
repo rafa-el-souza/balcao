@@ -1,7 +1,7 @@
-import { Placeholder } from "./placeholder/Placeholder";
+import { Chat } from "./chat/Chat";
+import { Landing } from "./landing/Landing";
+import type { Page } from "./pages";
 
-// Until the landing and the chat arrive (design §9.1, PR-10), the domain
-// shows the trilingual placeholder.
-export function App() {
-  return <Placeholder />;
+export function App({ page }: { page: Page }) {
+  return page === "chat" ? <Chat /> : <Landing />;
 }

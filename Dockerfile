@@ -73,10 +73,10 @@ USER 1000:1000
 COPY --chown=rails:rails --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}"
 COPY --chown=rails:rails --from=build /rails /rails
 
-# The web app's shell goes where SpaController sends it from, with no-cache;
-# its hashed assets are static files under public/, cached for a year
-# (design §6.7).
-COPY --chown=rails:rails --from=web /web/dist/index.html /rails/web/dist/index.html
+# The web app's shells, one per page and language, go where SpaController
+# sends them from, with no-cache; their hashed assets are static files under
+# public/, cached for a year (design §6.7).
+COPY --chown=rails:rails --from=web /web/dist/shells /rails/web/dist/shells
 COPY --chown=rails:rails --from=web /web/dist/assets /rails/public/assets
 
 # The root filesystem is read-only at run time (config/deploy.yml): Bootsnap
