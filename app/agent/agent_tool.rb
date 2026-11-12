@@ -67,9 +67,12 @@ class AgentTool < Anthropic::BaseTool
 
   def encode(output) = output.is_a?(String) ? output : JSON.generate(output)
 
-  # A count that cannot be taken is no count; the result still reaches the model.
+  # A count that cannot be taken, or that is not a unit and a number, is no
+  # count; the result still reaches the model and the call the trace (review
+  # finding C5 of pull request #17).
   def tally_of(result)
-    tally(result)
+    tally = tally(result)
+    tally if tally.is_a?(Hash) && tally[:unit].is_a?(String) && tally[:count].is_a?(Integer)
   rescue StandardError => e
     Rails.logger.error("tool #{name}: the result was not counted: #{e.class}")
     nil
