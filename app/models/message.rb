@@ -57,6 +57,10 @@ class Message < ApplicationRecord
     { id:, turn_id:, author:, notice:, body: text, created_at: created_at.iso8601(3) }
   end
 
+  # The reply as the model wrote it, for the history it reads back
+  # (AgentRunner::History): without the notice the system put before it.
+  def body_without_notice(first_reply: first_reply?) = first_reply ? notice_and_text.last : body
+
   # The first reply of a conversation is the one the system put the notice
   # before (TurnProcessor#record_reply), on its first line: it is told by its
   # place, not by its wording, which a later deploy may change (review finding

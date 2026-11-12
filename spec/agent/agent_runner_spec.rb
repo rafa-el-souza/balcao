@@ -134,6 +134,22 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
       expect(first.outbound_message.body).to start_with(FixedReply.notice("es"))
       expect(request.body[:messages][1]).to eq(role: "assistant", content: [ { type: "text", text: "¡Hola!" } ])
     end
+
+    # Review finding R3 of pull request #17: the notice is told by its place,
+    # the first line of the conversation's first reply, not by today's
+    # wording, which a later deploy may change.
+    it "leaves out a notice stored under an earlier wording, and keeps a later reply whole (FR-01)" do
+      turn_in(conversation, "hola", at: Time.zone.local(2026, 11, 11, 15, 0),
+                                    reply: "Aviso: una redacción anterior del aviso.\n\n¡Hola!")
+      turn_in(conversation, "¿y gotas?", at: Time.zone.local(2026, 11, 11, 15, 1),
+                                        reply: "Tenemos dos.\n\n¿Cuál prefieres?")
+      third = turn_in(conversation, "la primera", at: Time.zone.local(2026, 11, 11, 15, 2))
+
+      runner.run(third)
+
+      expect(request.body[:messages][1]).to eq(role: "assistant", content: [ { type: "text", text: "¡Hola!" } ])
+      expect(request.body[:messages][3]).to eq(role: "assistant", content: [ { type: "text", text: "Tenemos dos.\n\n¿Cuál prefieres?" } ])
+    end
   end
 
   describe "the reply (FR-02)" do

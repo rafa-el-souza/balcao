@@ -1569,8 +1569,10 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     shows no count for one it does not.
   - **The notice apart.** A message's stream payload carries the demo notice
     apart from its body (`notice`); the stored body stays what every channel
-    sends, notice included (FR-01), and the server parts what it joined
-    (`FixedReply.split_notice`). The chat stamps the notice with its label in
+    sends, notice included (FR-01), and the server parts what it joined:
+    the first line of a conversation's first reply (`Message#trace_payload`),
+    which is also what the history leaves out for the model. The chat stamps
+    the notice with its label in
     bold; the trace page leaves it out, since the receipt shows the reply's
     own words.
   - **`GET /api/traces/:token`** answers `{conversation: {started_at},
