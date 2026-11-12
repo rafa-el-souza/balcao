@@ -19,13 +19,13 @@
 
     <ol class="thread" id="thread">
       <li class="msg notice stamp" id="msg-notice">
-        <p><strong>Aviso:</strong> esta é uma demonstração de portfólio, com uma farmácia fictícia. As mensagens ficam guardadas por 7 dias, e você pode apagá-las enviando /apagar.</p>
+        <p><strong>Aviso:</strong> esta é uma demonstração de portfólio, com uma farmácia fictícia. As mensagens ficam guardadas por 7&nbsp;dias, e você pode apagá-las enviando /apagar.</p>
       </li>
       <li class="msg visitor" id="msg-visitor-1">
         <p>tem dipirona?</p>
       </li>
       <li class="msg attendant" id="msg-attendant-1">
-        <p>Temos duas: Dipirona 500 mg, 10 comprimidos, por R$ 7,90, e Dipirona gotas 500 mg/ml, 20 ml, por R$ 9,50. As duas estão em estoque.</p>
+        <p>Temos duas: Dipirona 500&nbsp;mg, 10&nbsp;comprimidos, por R$ 7,90, e Dipirona gotas 500&nbsp;mg/ml, 20&nbsp;ml, por R$ 9,50. As duas estão em estoque.</p>
         <p>Quer que eu reserve alguma para retirada?</p>
       </li>
       <li class="msg visitor" id="msg-visitor-2">
@@ -38,7 +38,7 @@
 
     <div class="counter-foot">
     <a class="summary" id="glass-summary" href="#glass">
-      <span class="summary-figures">limite da demonstração</span>
+      <span class="summary-figures">limite da demo</span>
       <span class="summary-open"><span class="visually-hidden">abrir a caixa de vidro</span></span>
     </a>
 
@@ -52,7 +52,7 @@
         <span class="suggest-label">Sugestões:</span>
         <button class="suggestion" type="button">reservar</button>
         <button class="suggestion" type="button">agendar</button>
-        <button class="suggestion" type="button">falar com farmacêutico</button>
+        <button class="suggestion" type="button">falar com o farmacêutico</button>
       </p>
       <p class="turnstile" id="turnstile-notice">Verificação anti-bot: a Cloudflare faz a checagem e vê o seu IP.</p>
     </form>
@@ -104,7 +104,7 @@
       </li>
       <li class="event turn-start" id="t2-limit" data-state="local">
         <time>12:04:02</time>
-        <div class="what"><span class="name">limite da demonstração</span>
+        <div class="what"><span class="name">limite da demo</span>
           <p class="outcome">sem chamada ao modelo</p></div>
       </li>
     </ol>
@@ -130,10 +130,11 @@
     <li>The composer is a text area that grows with what is typed, up to six lines, then scrolls; Enter sends and Shift+Enter breaks the line. With the drawer open at 390 px the composer stays in reach under it, reduced to the field and the button.</li>
     <li>Not visible in a still drawing, for the implementation: when the drawer opens, the conversation scrolls so that the last reply shows in the upper half; when it closes, the suggestions and the anti-bot notice return under the composer.</li>
     <li>The glass box follows what the server emits (reviewed against it on 2026-11-12): one row per model call, in order, each opening when the call starts and completing in place; closed, a call is one line with where it stopped and its time, and it opens to its model, effort, tokens, cache mark and cost; a tool's result is the raw text the server keeps, cut at 500 characters and marked when cut, with the count beside it; the turn's figure is the time from the message's receipt to the reply.</li>
-    <li>The limit's row is the page's own: the server answers at the edge and stores nothing, so the panel writes one local row saying that no model call was made. It does not say which limit fired.</li>
+    <li>The limit's row is the page's own: the server answers at the edge and stores nothing, so the panel writes one local row saying that no model call was made. The row does not say which limit fired; the stamp's words do, by their window ("por agora" or "por hoje").</li>
     <li>The chat holds the window: beside each other, the conversation and the glass box scroll each inside its own column, so opening a row or a new row arriving never moves the composer or the totals. A new message or row scrolls its own column to itself.</li>
     <li>For the visitor who stays two minutes and clicks nothing: the turn in progress and the last turn are drawn open, every call with its tokens, cache and cost in sight; earlier turns fold into one line each, with their events, time and cost, and open on demand. Closed, a call's line still carries its cost and its time.</li>
     <li>Drawn as the target and hidden until their source exists: the pharmacist's presence in the counter's head has none before the console (M2), and the mode in the glass box's head needs the budget's mode in the session and polling answers (PR-16). The one-line summary at 390 px speaks of the last turn alone: its number, rows, time and cost.</li>
+    <li>The anti-bot line under the composer appears with the check itself, in the first slice after the MVP (FR-18); until then it is not rendered.</li>
   </ul>
 </aside>
 </body>

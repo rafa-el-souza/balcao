@@ -24,7 +24,7 @@
 
   <div class="trace-note">
     <h1 id="title">Conversa <span class="token">7f3a…</span>, iniciada às 12:03, com 5 turnos</h1>
-    <p id="share-note">Quem tiver este link vê esta conversa. Ele expira em 7 dias.</p>
+    <p id="share-note">Quem tiver este link vê esta conversa. Ele expira em 7&nbsp;dias.</p>
   </div>
 
   <div class="roll slip" id="roll">
@@ -63,11 +63,11 @@
         <div class="what"><span class="name">mensagem enviada</span></div>
       </li>
         </ol>
-        <p class="said reply">Temos duas: Dipirona 500 mg, 10 comprimidos, por R$ 7,90, e Dipirona gotas 500 mg/ml, 20 ml, por R$ 9,50. As duas estão em estoque. Quer que eu reserve alguma para retirada?</p>
+        <p class="said reply">Temos duas: Dipirona 500&nbsp;mg, 10&nbsp;comprimidos, por R$ 7,90, e Dipirona gotas 500&nbsp;mg/ml, 20&nbsp;ml, por R$ 9,50. As duas estão em estoque. Quer que eu reserve alguma para retirada?</p>
         <p class="turn-cost-line"><span class="quiet">custo do turno</span> <span data-arrives="PR-16">US$ 0,009 <span class="quiet">· R$ 0,05</span></span></p>
       </section>
       <section class="turn" id="turn-2">
-        <h2 class="turn-head"><span class="turn-number">turno 2</span><span class="said">reserva duas caixas da de 500 mg</span><span class="turn-cost">3,1 s</span></h2>
+        <h2 class="turn-head"><span class="turn-number">turno 2</span><span class="said">reserva duas caixas da de 500&nbsp;mg</span><span class="turn-cost">3,1 s</span></h2>
         <ol class="events">
       <li class="event" id="r2-received">
         <time>12:04:10</time>
@@ -101,7 +101,7 @@
         <div class="what"><span class="name">mensagem enviada</span></div>
       </li>
         </ol>
-        <p class="said reply">Reservado: 2 × Dipirona 500 mg, 10 comprimidos. O código é 4K2QHM, e a retirada é até 13/11 às 20:00. É só dizer o código no balcão.</p>
+        <p class="said reply">Reservado: 2 × Dipirona 500&nbsp;mg, 10&nbsp;comprimidos. O código é 4K2QHM, e a retirada é até 13/11 às 20:00. É só dizer o código no balcão.</p>
         <p class="turn-cost-line"><span class="quiet">custo do turno</span> <span data-arrives="PR-16">US$ 0,006 <span class="quiet">· R$ 0,03</span></span></p>
       </section>
       <section class="turn" id="turn-3">
@@ -139,7 +139,7 @@
         <div class="what"><span class="name">mensagem enviada</span></div>
       </li>
         </ol>
-        <p class="said reply">Entregamos, sim. No Santa Tereza a taxa é de R$ 7,00 e chega em até 50 minutos, durante o horário da loja.</p>
+        <p class="said reply">Entregamos, sim. No Santa Tereza a taxa é de R$ 7,00, e o pedido chega em até 50&nbsp;minutos, durante o horário da loja.</p>
         <p class="turn-cost-line"><span class="quiet">custo do turno</span> <span data-arrives="PR-16">US$ 0,008 <span class="quiet">· R$ 0,04</span></span></p>
       </section>
       <section class="turn" id="turn-4">
@@ -161,7 +161,7 @@
         <div class="what"><span class="name">mensagem enviada</span></div>
       </li>
         </ol>
-        <p class="said reply">Dose para criança é uma orientação que só o farmacêutico pode dar. Ele atende no balcão durante todo o horário da loja, ou pelo telefone (31) 1234-5678.</p>
+        <p class="said reply">Dose para criança é uma orientação que só o farmacêutico pode dar. Ele atende no balcão durante todo o horário da loja, ou pelo telefone (31)&nbsp;1234-5678.</p>
         <p class="turn-cost-line"><span class="quiet">custo do turno</span> <span data-arrives="PR-16">US$ 0,027 <span class="quiet">· R$ 0,15</span></span></p>
       </section>
       <section class="turn" id="turn-5">
@@ -199,6 +199,7 @@
     <li>Each turn's head carries its time, and its cost closes it; the totals at the foot are the sums of the rows above. The fourth turn comes after more than five idle minutes, so its call misses the cache and writes it: a miss is a story worth telling.</li>
     <li>The messages on this page come with the trace's own endpoint (PR-11), each with its turn.</li>
     <li>A command (the trace link, the reset) is a turn of one row: the server matches it before any model call, so it has no received or sent rows, no tokens and no cost, and its reply is a fixed text. Every trace reached from WhatsApp ends with one, since the link is asked for by command. In the glass box the same turn is the same single row.</li>
+    <li>Changed from the sketch: the turn's cost moved from its head to a line at its foot; the foot's p95 gave way to the turns' time; the masthead gained the status link. The page has no footer.</li>
   </ul>
 </aside>
 </body>

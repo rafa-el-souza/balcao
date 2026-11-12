@@ -1125,7 +1125,8 @@ body {
 
 .detail > div {
   display: grid;
-  grid-template-columns: 4.5rem minmax(0, 1fr);
+  grid-template-columns: minmax(4.5rem, max-content) minmax(0, 1fr);
+  column-gap: var(--space-2);
 }
 
 .detail dt,
@@ -2132,5 +2133,34 @@ body {
     display: block;
     padding-left: calc(0.5rem + var(--space-2));
     text-align: left;
+  }
+}
+
+/* An icon beside a word: the underline belongs to the word, never to the space between them. */
+.status-link,
+.page-foot a,
+.signed-links .doc,
+.documents .doc {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* The models' names beside "evals" keep their case. */
+.reading .slip-title .quiet {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Under 52rem the language switch answers to a full touch target, drawn no bigger than it is. */
+@media (width < 52rem) {
+  .stage .lang {
+    position: relative;
+  }
+
+  .stage .lang::after {
+    content: "";
+    position: absolute;
+    inset: calc((2rem - var(--touch)) / 2) calc(var(--space-1) / -2);
   }
 }

@@ -19,20 +19,20 @@
 
     <ol class="thread" id="thread">
       <li class="msg notice stamp" id="msg-notice">
-        <p><strong>Aviso:</strong> esta é uma demonstração de portfólio, com uma farmácia fictícia. As mensagens ficam guardadas por 7 dias, e você pode apagá-las enviando /apagar.</p>
+        <p><strong>Aviso:</strong> esta é uma demonstração de portfólio, com uma farmácia fictícia. As mensagens ficam guardadas por 7&nbsp;dias, e você pode apagá-las enviando /apagar.</p>
       </li>
       <li class="msg visitor" id="msg-visitor-1">
         <p>tem dipirona?</p>
       </li>
       <li class="msg attendant" id="msg-attendant-1">
-        <p>Temos duas: Dipirona 500 mg, 10 comprimidos, por R$ 7,90, e Dipirona gotas 500 mg/ml, 20 ml, por R$ 9,50. As duas estão em estoque.</p>
+        <p>Temos duas: Dipirona 500&nbsp;mg, 10&nbsp;comprimidos, por R$ 7,90, e Dipirona gotas 500&nbsp;mg/ml, 20&nbsp;ml, por R$ 9,50. As duas estão em estoque.</p>
         <p>Quer que eu reserve alguma para retirada?</p>
       </li>
     </ol>
 
     <div class="counter-foot">
     <a class="summary" id="glass-summary" href="#glass">
-      <span class="summary-figures">turno 1 · 5 eventos · 3,0 s · <span data-arrives="PR-16">US$ 0,009</span></span>
+      <span class="summary-figures">turno 1 · 5 eventos · <span data-arrives="PR-16">US$ 0,009</span> · 3,0 s</span>
       <span class="summary-open"><span class="visually-hidden">abrir a caixa de vidro</span></span>
     </a>
 
@@ -46,7 +46,7 @@
         <span class="suggest-label">Sugestões:</span>
         <button class="suggestion" type="button">reservar</button>
         <button class="suggestion" type="button">agendar</button>
-        <button class="suggestion" type="button">falar com farmacêutico</button>
+        <button class="suggestion" type="button">falar com o farmacêutico</button>
       </p>
       <p class="turnstile" id="turnstile-notice">Verificação anti-bot: a Cloudflare faz a checagem e vê o seu IP.</p>
     </form>
@@ -127,6 +127,7 @@
     <li>The chat holds the window: beside each other, the conversation and the glass box scroll each inside its own column, so opening a row or a new row arriving never moves the composer or the totals. A new message or row scrolls its own column to itself.</li>
     <li>For the visitor who stays two minutes and clicks nothing: the turn in progress and the last turn are drawn open, every call with its tokens, cache and cost in sight; earlier turns fold into one line each, with their events, time and cost, and open on demand. Closed, a call's line still carries its cost and its time.</li>
     <li>Drawn as the target and hidden until their source exists: the pharmacist's presence in the counter's head has none before the console (M2), and the mode in the glass box's head needs the budget's mode in the session and polling answers (PR-16). The one-line summary at 390 px speaks of the last turn alone: its number, rows, time and cost.</li>
+    <li>The anti-bot line under the composer appears with the check itself, in the first slice after the MVP (FR-18); until then it is not rendered.</li>
   </ul>
 </aside>
 </body>
