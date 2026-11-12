@@ -1603,6 +1603,19 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     note ran by hand on both pages at 390 and 1280 px with no violation.
   - FR-01's notice reaches the page as the head of the first reply's text
     and is shown so until PR-11 sends it apart.
+  - **What the review of pull request #14 settled** (its Review section has
+    each finding). The thread is the server's messages in the server's
+    order; the page's own entries (a message on its way, one that failed or
+    met a limit, the limit's stamp) follow the entry drawn before them, and
+    a message the server holds takes its copy's place. A request is given up
+    after 15 s and counts as failed. Session requests go one at a time and a
+    message waits for the one in flight, so a first visit mints one visitor.
+    A failed poll doubles the wait up to 30 s; a refused one stamps the
+    limit's text; from the second poll in a row that gets no answer, the
+    thread says the connection is lost; a 401 asks for a session again. A
+    glass box command is sent once per press and stays quiet a second after
+    its answer. The pages answer whatever the query: one Rails cannot parse
+    is dropped before the shell is sent, since the page reads its own.
 - Note 2026-11-12 (the drawing slice, before PR-10). The public screens are
   drawn as static HTML and CSS in `docs/prototype/` (open `index.html`): one
   file per screen and state, one stylesheet, and under each drawing the
