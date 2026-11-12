@@ -39,6 +39,14 @@ export type TraceView =
   | { kind: "failed" }
   | { kind: "ok"; trace: Trace; spans: Span[] };
 
+function isDeleted(data: unknown): data is { type: "deleted" } {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    (data as { type?: unknown }).type === "deleted"
+  );
+}
+
 function isSpanEvent(data: unknown): data is { type: "span"; span: Span } {
   return (
     typeof data === "object" &&
@@ -59,6 +67,8 @@ export function useTrace(token: string | null): TraceView {
   );
   const api = useMemo(() => createApi(language), [language]);
   const [live, setLive] = useState<Span[]>([]);
+  // The stream said the conversation's data is gone (FR-05).
+  const [deleted, setDeleted] = useState(false);
 
   const query = useQuery({
     queryKey: ["traces", token],
@@ -82,6 +92,10 @@ export function useTrace(token: string | null): TraceView {
         disconnected: () => undefined,
         rejected: () => undefined,
         received: (data) => {
+          if (isDeleted(data)) {
+            setDeleted(true);
+            return;
+          }
           if (!isSpanEvent(data)) return;
           setLive((spans) => withSpans(spans, [data.span]));
           // A turn that ends brings its words with the next fetch.
@@ -93,6 +107,7 @@ export function useTrace(token: string | null): TraceView {
   }, [cable, token, queryClient]);
 
   const answer = query.data;
+  if (deleted) return { kind: "gone" };
   if (!answer) return { kind: "loading" };
   if (answer.kind === "missing") return { kind: "gone" };
   if (answer.kind !== "ok") return { kind: "failed" };

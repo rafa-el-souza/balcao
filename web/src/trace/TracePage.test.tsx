@@ -225,6 +225,28 @@ describe("FR-12 the trace page follows the conversation live", () => {
   });
 });
 
+// Review finding G2 of pull request #17: the deletion's word reaches the
+// trace's stream, and the page drops what it showed (FR-05).
+describe("FR-05 the trace page of a conversation whose data is deleted", () => {
+  it("says the conversation is no longer here as soon as its stream says so", async () => {
+    server.defaults.trace = trace(answeredTurn("t1"));
+    const cable = fakeCable();
+    renderPage(<TracePage />, "pt-BR", cable.cable);
+    await screen.findByRole("region", { name: pt.roll });
+    await waitFor(() => {
+      expect(cable.active()).toHaveLength(1);
+    });
+
+    cable.send({ type: "deleted" });
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: pt.goneHeading }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: pt.roll })).toBeNull();
+    expect(screen.queryByText("tem dipirona?")).toBeNull();
+  });
+});
+
 describe("NFR-10 the trace page before any script runs", () => {
   it("is the receipt's head in the page's language, with no token of any link in it", () => {
     const { html, title } = prerender("trace", "pt-BR");

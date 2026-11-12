@@ -519,6 +519,17 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
         expect(product.reload.stock).to eq(12)
       end
 
+      # Review finding G2 of pull request #17: a trace page open on any of the
+      # visitor's conversations kept showing what the deletion erased.
+      it "tells the trace page of each of the visitor's conversations that it is gone" do
+        conversation.update!(closed_at: Time.current)
+        current = Conversation.current_for!(visitor)
+        turn = inbound("apagar meus dados", conversation: current)
+
+        expect { perform(turn) }.to have_broadcasted_to("trace:#{conversation.trace_token}").with(type: "deleted")
+          .and have_broadcasted_to("trace:#{current.trace_token}").with(type: "deleted")
+      end
+
       it "confirms in the language of the phrase" do
         turn = inbound("Delete my data.")
 
