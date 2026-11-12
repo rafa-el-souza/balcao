@@ -19,8 +19,15 @@ import { useConversation } from "./useConversation";
 // (Turnstile, after the MVP) and the "agendar" suggestion (FR-08, M2).
 export function Chat() {
   const { t } = useTranslation();
-  const { state, offline, send, sendOpener, retry, changeLanguage } =
-    useConversation();
+  const {
+    state,
+    offline,
+    send,
+    sendCommand,
+    sendOpener,
+    retry,
+    changeLanguage,
+  } = useConversation();
   const empty = entriesOf(state).length === 0;
 
   useEffect(() => {
@@ -28,8 +35,7 @@ export function Chat() {
   }, [t]);
 
   const command = (name: "resetCommand" | "deleteCommand") => {
-    const text = t(`chat.glass.${name}`);
-    send({ text }, text);
+    sendCommand(t(`chat.glass.${name}`));
   };
 
   return (
@@ -58,7 +64,7 @@ export function Chat() {
         <div className={styles.counterFoot}>
           <Composer
             onSend={(text) => {
-              send({ text }, text);
+              void send({ text }, text);
             }}
           />
         </div>

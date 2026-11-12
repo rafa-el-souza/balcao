@@ -122,14 +122,29 @@ export function useConversation() {
         text,
         ...(lang ? { lang } : {}),
       });
-      void deliver(clientId, content);
+      return deliver(clientId, content);
     },
     [deliver],
   );
 
+  // The glass box's commands, once per press: a second press while the first
+  // is on its way sends nothing, or a double click would reset or delete
+  // twice (review finding C8 of pull request #14).
+  const commands = useRef(new Set<string>());
+  const sendCommand = useCallback(
+    (text: string) => {
+      if (commands.current.has(text)) return;
+      commands.current.add(text);
+      void send({ text }, text).finally(() => {
+        commands.current.delete(text);
+      });
+    },
+    [send],
+  );
+
   const sendOpener = useCallback(
     (key: OpenerKey) => {
-      send({ say: key }, openers[key].text, openerLang(key));
+      void send({ say: key }, openers[key].text, openerLang(key));
     },
     [send],
   );
@@ -192,5 +207,13 @@ export function useConversation() {
 
   const offline = waiting && pollFailures >= 2;
 
-  return { state, offline, send, sendOpener, retry, changeLanguage };
+  return {
+    state,
+    offline,
+    send,
+    sendCommand,
+    sendOpener,
+    retry,
+    changeLanguage,
+  };
 }

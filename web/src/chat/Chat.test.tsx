@@ -793,3 +793,26 @@ describe("FR-18 the connection lost", () => {
     expect(screen.queryByText(pt.offline)).toBeNull();
   });
 });
+
+// Review finding C8 of pull request #14: each click sent the command again
+// with a new id, so a double click reset or deleted twice.
+describe("FR-04 and FR-05 the glass box's commands, pressed twice", () => {
+  it("sends one command for a double click, and the command again once it was sent", async () => {
+    renderPage(<Chat />);
+    await ready();
+    const reset = screen.getByRole("button", { name: pt.glass.reset });
+
+    fireEvent.click(reset);
+    fireEvent.click(reset);
+    await waitFor(() => {
+      expect(server.sent()).toHaveLength(1);
+    });
+    await act(() => Promise.resolve());
+    expect(server.sent()).toHaveLength(1);
+
+    fireEvent.click(reset);
+    await waitFor(() => {
+      expect(server.sent()).toHaveLength(2);
+    });
+  });
+});
