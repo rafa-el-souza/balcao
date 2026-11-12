@@ -32,17 +32,28 @@
       <li>As mensagens que você envia e as respostas.</li>
       <li>As reservas que você fizer.</li>
       <li>Um identificador do seu navegador (um cookie) ou, no WhatsApp, o da sua conta.</li>
+      <li>No WhatsApp, o seu número de telefone, quando a Meta o envia. Ele fica guardado cifrado.</li>
+      <li>O seu endereço IP, usado para contar os limites de uso.</li>
       <li>O registro técnico de cada resposta: o modelo, as ferramentas, o tempo e o custo. É o que a caixa de vidro mostra.</li>
     </ul>
 
     <h2 id="retention">Por quanto tempo</h2>
-    <p>Por 7&nbsp;dias. Depois disso, tudo é apagado sozinho, toda noite.</p>
+    <p>No servidor do Balcão, a limpeza roda toda noite, sem ninguém pedir:</p>
+    <ul>
+      <li>cada mensagem é apagada 7&nbsp;dias depois de enviada, com o registro técnico da resposta;</li>
+      <li>cada reserva é apagada 7&nbsp;dias depois do prazo de retirada;</li>
+      <li>o seu identificador é apagado 7&nbsp;dias depois da sua última visita;</li>
+      <li>as cópias de segurança do servidor guardam o que foi apagado por até mais 7&nbsp;dias.</li>
+    </ul>
+    <p>As contagens de uso da demonstração (quantas mensagens por dia) ficam, porque não identificam ninguém.</p>
 
     <h2 id="deletion">Como apagar antes</h2>
-    <p>Envie <code>/apagar</code> ou “apagar meus dados” na conversa. As mensagens, as reservas abertas e o histórico são apagados na hora.</p>
+    <p>Envie <code>/apagar</code> ou “apagar meus dados” na conversa. As mensagens, as reservas abertas, o histórico e o seu identificador são apagados do Balcão na hora. As cópias de segurança perdem esses dados em até 7&nbsp;dias.</p>
+    <p>No WhatsApp, o comando apaga a cópia que está no Balcão. A conversa continua no seu aplicativo e nos servidores da Meta, e lá quem apaga é você.</p>
 
     <h2 id="readers">Quem vê a conversa</h2>
-    <p>Quem tiver o link do trace vê a conversa; o link expira em 7&nbsp;dias. O operador da demonstração pode ler as conversas para corrigir erros.</p>
+    <p>Quem tiver o link do trace vê a conversa. O link deixa de funcionar 7&nbsp;dias depois da última mensagem, ou na hora, se você apagar seus dados.</p>
+    <p>O operador da demonstração pode ler as conversas para corrigir erros. Uma conversa em que o atendente erra pode virar um caso de teste no repositório público do projeto: reescrita, com outras palavras, e sem nada que identifique quem escreveu.</p>
 
     <h2 id="processors">Quem processa os dados</h2>
     <ul>
@@ -68,7 +79,7 @@
   <h2>Notes</h2>
   <ul>
     <li>Route <code>/privacy</code>; design §6.7 lists what it says (fictional demo, seven-day retention, the delete command, the processors) and has no sketch for it.</li>
-    <li>Every sentence here is a draft for the owner to check against FR-05, FR-15 and the threat model before it becomes the locale files.</li>
+    <li>Every sentence here is a draft until it becomes the locale files. Retention and deletion were checked against FR-05, FR-15 and the backups' rotation on 2026-11-12: each kind of record has its own clock, the backups hold deleted rows for up to seven more days (from M3, when backups exist), and on WhatsApp the command erases only this server's copy. The page also says that a conversation may become a public test case, rewritten and unidentified.</li>
     <li>The stamped advice and the "Quem vê a conversa" section are not in §6.7's list; proposed.</li>
     <li>It is the privacy-policy URL of the Meta app, so it reads alone, without the landing.</li>
     <li>The footer is signed: the author's name in a pen hand (Cedarville Cursive, OFL, used for this name alone: a third face beside the brief's two) on a signature rule. The GitHub and LinkedIn marks are black, as each company's rules ask (read on 2026-11-12); the LinkedIn drawing stands in for the file from LinkedIn's own brand site, the only one its rules approve.</li>
