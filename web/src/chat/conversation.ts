@@ -1,4 +1,5 @@
-import type { Content, Deleted, ServerMessage, Snapshot } from "./api";
+import { withSpans } from "../trace/model";
+import type { Content, Deleted, ServerMessage, Snapshot, Span } from "./api";
 
 // The conversation on the page (design §6.9: a React reducer, not server
 // cache). Two parts, drawn as one thread:
@@ -14,6 +15,9 @@ import type { Content, Deleted, ServerMessage, Snapshot } from "./api";
 // A message the page sent leaves its own part when a snapshot holds it,
 // matched by the id the page generated (client_id), so it takes the server's
 // place in the order (review finding C1 of pull request #14).
+//
+// Beside the thread, the conversation's spans, which the glass box draws
+// (FR-12): the snapshot's and those the cable brings, one per span id.
 
 export type Voice = "visitor" | "attendant" | "pharmacist" | "stamp";
 
@@ -21,12 +25,18 @@ export interface Entry {
   key: string;
   voice: Voice;
   text: string;
+  // FR-01's notice, stamped apart from the reply it came with.
+  notice?: boolean;
   // An opener's language, when it is not the page's.
   lang?: string;
   // The page's own message: the id it generated, its state and its content.
   clientId?: string;
   status?: "sending" | "sent" | "failed" | "limited";
   content?: Content;
+  // The turn the server opened for it (the 202's answer), and when the
+  // server accepted it or the edge refused it, for the glass box's own rows.
+  turnId?: string;
+  at?: string;
 }
 
 interface Own extends Entry {
@@ -35,17 +45,20 @@ interface Own extends Entry {
   // before any.
   after: string | null;
   // The conversation the server accepted it into (the 202's answer).
-  conversationId?: number;
+  conversationId?: string;
 }
 
 export interface State {
   phase: "loading" | "ready" | "failed";
-  conversationId: number | null;
+  conversationId: string | null;
+  // The link to the conversation's trace page (FR-12), from the snapshot.
+  traceToken: string | null;
   // FR-05's confirmation, when the visitor's data is gone.
   deleted: string | null;
   pending: boolean;
   server: ServerMessage[];
   own: Own[];
+  spans: Span[];
   // The languages of the openers the page sent, by client id.
   langs: Record<string, string>;
   // A snapshot has been merged: the page knows the conversation's history.
@@ -53,13 +66,13 @@ export interface State {
   // The conversations the page has learned of, from the session or a
   // snapshot: one accepted into another is either one of these, left behind,
   // or a newer one the page has not seen yet (review finding R1).
-  known: number[];
+  known: string[];
   // Numbers the stamps the page writes.
   stamps: number;
 }
 
 export type Action =
-  | { type: "session"; conversationId: number }
+  | { type: "session"; conversationId: string }
   | { type: "loaded" }
   | { type: "loadFailed" }
   | {
@@ -69,19 +82,29 @@ export type Action =
       text: string;
       lang?: string;
     }
-  | { type: "accepted"; clientId: string; conversationId: number }
+  | {
+      type: "accepted";
+      clientId: string;
+      conversationId: string;
+      turnId?: string;
+      at?: string;
+    }
   | { type: "failed"; clientId: string }
-  | { type: "limited"; clientId: string | null; text: string }
+  | { type: "limited"; clientId: string | null; text: string; at?: string }
   | { type: "retrying"; clientId: string }
-  | { type: "snapshot"; answer: Snapshot | Deleted };
+  | { type: "snapshot"; answer: Snapshot | Deleted }
+  // A span the cable brought, started or finished (FR-12).
+  | { type: "span"; span: Span };
 
 export const initialState: State = {
   phase: "loading",
   conversationId: null,
+  traceToken: null,
   deleted: null,
   pending: false,
   server: [],
   own: [],
+  spans: [],
   langs: {},
   seen: false,
   known: [],
@@ -155,6 +178,8 @@ export function reduce(state: State, action: Action): State {
       return update(state, action.clientId, {
         status: "sent",
         conversationId: action.conversationId,
+        ...(action.turnId ? { turnId: action.turnId } : {}),
+        ...(action.at ? { at: action.at } : {}),
       });
     case "failed":
       return update(state, action.clientId, {
@@ -166,7 +191,11 @@ export function reduce(state: State, action: Action): State {
     case "limited": {
       const after = lastDrawn(state, action.clientId);
       const limited = action.clientId
-        ? update(state, action.clientId, { status: "limited", after })
+        ? update(state, action.clientId, {
+            status: "limited",
+            after,
+            ...(action.at ? { at: action.at } : {}),
+          })
         : state;
       return {
         ...limited,
@@ -184,6 +213,8 @@ export function reduce(state: State, action: Action): State {
     }
     case "snapshot":
       return merge(state, action.answer);
+    case "span":
+      return { ...state, spans: withSpans(state.spans, [action.span]) };
   }
 }
 
@@ -193,9 +224,11 @@ function merge(state: State, answer: Snapshot | Deleted): State {
       ...state,
       phase: "ready",
       conversationId: null,
+      traceToken: null,
       deleted: answer.text,
       pending: false,
       server: [],
+      spans: [],
       own: state.own.filter((entry) => entry.status === "sending"),
       seen: true,
     };
@@ -211,7 +244,7 @@ function merge(state: State, answer: Snapshot | Deleted): State {
   // What the page drew before it knew the history follows the history
   // (review finding R3).
   const last = answer.messages.at(-1);
-  const start = last ? `s${String(last.id)}` : null;
+  const start = last ? `s${last.id}` : null;
   const own = state.own
     .filter((entry) => {
       // The server has it: its copy takes the entry's place.
@@ -238,10 +271,14 @@ function merge(state: State, answer: Snapshot | Deleted): State {
     ...state,
     phase: "ready",
     conversationId: id,
+    traceToken: answer.conversation.trace_token,
     deleted: null,
     pending: answer.pending,
     server: answer.messages,
     own,
+    // A conversation the page did not show starts its glass box empty: after a
+    // reset the new one has its own trace (FR-04, FR-12).
+    spans: changed ? answer.spans : withSpans(state.spans, answer.spans),
     seen: true,
     known: state.known.includes(id) ? state.known : [...state.known, id],
   };
@@ -250,21 +287,32 @@ function merge(state: State, answer: Snapshot | Deleted): State {
 // The thread as drawn: the server's messages in its order and then the
 // messages still travelling, each followed by what the page anchored after it.
 export function entriesOf(state: State): Entry[] {
-  const fromServer = (message: ServerMessage): Entry => {
+  const fromServer = (message: ServerMessage): Entry[] => {
     const lang = message.client_id ? state.langs[message.client_id] : undefined;
-    return {
-      key: `s${String(message.id)}`,
-      voice: VOICES[message.author],
-      text: message.body,
-      ...(lang ? { lang } : {}),
-    };
+    return [
+      // FR-01's notice, which the server sends apart from the reply.
+      ...(message.notice
+        ? [
+            {
+              key: `n${message.id}`,
+              voice: "stamp" as const,
+              text: message.notice,
+              notice: true,
+            },
+          ]
+        : []),
+      {
+        key: `s${message.id}`,
+        voice: VOICES[message.author],
+        text: message.body,
+        ...(lang ? { lang } : {}),
+      },
+    ];
   };
   // A page message the server holds is drawn as the server's copy.
   const copies = new Map<string, string>(
     state.server.flatMap((message): [string, string][] =>
-      message.client_id
-        ? [[`l${message.client_id}`, `s${String(message.id)}`]]
-        : [],
+      message.client_id ? [[`l${message.client_id}`, `s${message.id}`]] : [],
     ),
   );
   const resolve = (key: string | null) =>
@@ -282,8 +330,8 @@ export function entriesOf(state: State): Entry[] {
   const head = follow(null);
   const body = [
     ...state.server.flatMap((message) => [
-      fromServer(message),
-      ...follow(`s${String(message.id)}`),
+      ...fromServer(message),
+      ...follow(`s${message.id}`),
     ]),
     ...state.own
       .filter(travelling)
@@ -299,15 +347,31 @@ export function entriesOf(state: State): Entry[] {
     ...head,
     ...stray,
     ...body,
-  ].map(({ key, voice, text, lang, clientId, status, content }) => ({
-    key,
-    voice,
-    text,
-    ...(lang ? { lang } : {}),
-    ...(clientId ? { clientId } : {}),
-    ...(status ? { status } : {}),
-    ...(content ? { content } : {}),
-  }));
+  ].map(
+    ({
+      key,
+      voice,
+      text,
+      notice,
+      lang,
+      clientId,
+      status,
+      content,
+      turnId,
+      at,
+    }) => ({
+      key,
+      voice,
+      text,
+      ...(notice ? { notice } : {}),
+      ...(lang ? { lang } : {}),
+      ...(clientId ? { clientId } : {}),
+      ...(status ? { status } : {}),
+      ...(content ? { content } : {}),
+      ...(turnId ? { turnId } : {}),
+      ...(at ? { at } : {}),
+    }),
+  );
 }
 
 // While the server holds a turn without its reply, or a message it accepted

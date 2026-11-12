@@ -852,7 +852,7 @@ describe("FR-18 and FR-21 the fixes' own edges (fix review of pull request #14)"
     server.answers.current.push(conversation(1, earlier()));
     server.answers.messages.push({
       status: 202,
-      body: { turn_id: 9, message_id: 9, conversation_id: 2 },
+      body: { turn_id: "9", message_id: "9", conversation_id: "2" },
     });
     const release = holdFirstPoll();
     window.history.replaceState(null, "", "/chat?say=delivery_es");
