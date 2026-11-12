@@ -2141,6 +2141,7 @@ body {
 /* An icon beside a word: the underline belongs to the word, never to the space between them. */
 .status-link,
 .page-foot a,
+.trace-note a,
 .signed-links .doc,
 .documents .doc {
   display: inline-flex;

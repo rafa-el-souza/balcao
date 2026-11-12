@@ -23,7 +23,7 @@
   </header>
 
   <div class="trace-note">
-    <h1 id="title">Conversa <span class="token">7f3a…</span>, iniciada às 12:03, com 5 turnos</h1>
+    <h1 id="title">Conversa <span class="token">7f3a…</span>, iniciada em 12/11 às&nbsp;12:03, com 5&nbsp;turnos</h1>
     <p id="share-note">Quem tiver este link vê esta conversa. Ele deixa de funcionar 7&nbsp;dias depois da última mensagem, ou na hora, se a pessoa apagar seus dados.</p>
   </div>
 
@@ -183,6 +183,10 @@
       <div><dt>tempo dos turnos</dt><dd>10,7 s</dd></div>
     </dl>
   </div>
+  <footer class="page-foot" id="page-foot">
+    <a id="to-landing" href="landing.html"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M14 8H2.5M7 3.5L2.5 8 7 12.5"/></svg> Início</a>
+    <a id="to-privacy" href="privacy.html">Privacidade</a>
+  </footer>
 </main>
 
 <aside class="notes" lang="en">
@@ -200,7 +204,7 @@
     <li>Each turn's head carries its time, and its cost closes it; the totals at the foot are the sums of the rows above. The fourth turn comes after more than five idle minutes, so its call misses the cache and writes it: a miss is a story worth telling.</li>
     <li>The messages on this page come with the trace's own endpoint (PR-11), each with its turn.</li>
     <li>A command (the trace link, the reset) is a turn of one row: the server matches it before any model call, so it has no received or sent rows, no tokens and no cost, and its reply is a fixed text. Every trace reached from WhatsApp ends with one, since the link is asked for by command. In the glass box the same turn is the same single row.</li>
-    <li>Changed from the sketch: the turn's cost moved from its head to a line at its foot; the foot's p95 gave way to the turns' time; the masthead gained the status link. The page has no footer.</li>
+    <li>Changed from the sketch: the turn's cost moved from its head to a line at its foot; the foot's p95 gave way to the turns' time; the masthead gained the status link. The page ends as the status page does, with two quiet links under the receipt, home and privacy: the instrument's pages carry these, and the signature stays on the landing and the privacy page. The title gives the day as well as the hour, since the link outlives the day.</li>
     <li>The fourth turn's reply has two parts. The first sentence is the model's, declining the clinical question. The second is the fixed offer of the MVP (FR-10's note): the pharmacist's line and the phone, read from the store's contact facts, with no tool call; the sent row says so. How the line is attached to the reply, and its locale key, come with the decline texts' pull request (PR-15).</li>
   </ul>
 </aside>
