@@ -187,7 +187,9 @@ function merge(state: State, answer: Snapshot | Deleted): State {
   const own = state.own.filter((entry) => {
     // The server has it: its copy takes the entry's place.
     if (entry.clientId !== undefined && held.has(entry.clientId)) return false;
-    if (entry.status === "sent") return !changed;
+    // Accepted into a conversation that is not this one, and not moved here:
+    // it belongs to a conversation the page no longer shows.
+    if (entry.status === "sent") return entry.conversationId === id;
     // What the page drew in another conversation goes with it, but for a
     // message still on its way.
     return !changed || entry.status === "sending";

@@ -514,3 +514,62 @@ describe("FR-21 the thread in the server's order", () => {
     ]);
   });
 });
+
+// Review finding C3 of pull request #14: a message accepted into a
+// conversation the page no longer shows kept the page asking every 3 s.
+describe("FR-18 the page stops asking for what the server will not bring", () => {
+  it("stops once a reset's conversation arrives after a failed first load", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    server.answers.current.push("network");
+    renderPage(<Chat />);
+    await screen.findByText(pt.loadFailed);
+
+    fireEvent.click(screen.getByRole("button", { name: pt.glass.reset }));
+    await waitFor(() => {
+      expect(server.sent()).toHaveLength(1);
+    });
+    server.defaults.current = conversation(2, [
+      message({
+        author: "bot",
+        body: "Pronto, começamos de novo.",
+        conversation_id: 2,
+      }),
+    ]);
+    await act(() => vi.advanceTimersByTimeAsync(18_000));
+
+    expect(server.polls()).toHaveLength(2);
+    expect(within(thread()).queryByText("/reiniciar")).toBeNull();
+    expect(
+      within(thread()).getByText("Pronto, começamos de novo."),
+    ).toBeInTheDocument();
+  });
+
+  it("drops a failed message with the conversation a reset closed, so no retry lands there", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    server.answers.current.push(
+      conversation(1, [message({ author: "visitor", body: "oi" })]),
+    );
+    renderPage(<Chat />);
+    await ready();
+
+    server.answers.messages.push("network");
+    type("tem dipirona?");
+    fireEvent.keyDown(field(), { key: "Enter" });
+    await screen.findByRole("button", { name: pt.retry });
+    fireEvent.click(screen.getByRole("button", { name: pt.glass.reset }));
+    await waitFor(() => {
+      expect(server.sent()).toHaveLength(2);
+    });
+    server.defaults.current = conversation(2, [
+      message({
+        author: "bot",
+        body: "Pronto, começamos de novo.",
+        conversation_id: 2,
+      }),
+    ]);
+    await act(() => vi.advanceTimersByTimeAsync(9000));
+
+    expect(screen.queryByRole("button", { name: pt.retry })).toBeNull();
+    expect(server.polls()).toHaveLength(2);
+  });
+});
