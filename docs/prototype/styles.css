@@ -1,0 +1,1867 @@
+/* The prototype's one stylesheet: the faces and the tokens first, then the stage and its notes, then
+   the screens' parts. The tokens block becomes web/src/styles/tokens.css unchanged
+   (docs/design-brief.md §5).
+
+   The direction, chosen on 2026-11-11: the pharmacy's printed stationery. The counter is one green
+   ink on pale green paper, with a letterhead and a Clarendon face; a notice is a rubber stamp. The
+   instrument beside it is a till receipt: black thermal print on white, torn off the roll. */
+
+@font-face {
+  font-family: "Besley";
+  src: url("fonts/besley-roman.woff2") format("woff2");
+  font-weight: 400 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Besley";
+  src: url("fonts/besley-italic.woff2") format("woff2");
+  font-weight: 400 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Commit Mono";
+  src: url("fonts/commit-mono-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Commit Mono";
+  src: url("fonts/commit-mono-700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* The signature's pen hand: for the author's name in the footer, and nothing else. */
+@font-face {
+  font-family: "Cedarville Cursive";
+  src: url("fonts/cedarville-cursive-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ---------- Tokens ---------- */
+
+:root {
+  /* The counter: the pad's pale green paper and its one green ink. */
+  --color-paper: #e4eddf;
+  --color-ink: #0f3a29;
+  --color-ink-2: #3a5d4d;
+  --color-rule: #b3c8b5;
+  --color-rule-strong: #577c66;
+  /* The instrument: the receipt's white roll (the raised surface) and its black thermal print. */
+  --color-paper-2: #f9f9f6;
+  --color-instrument-ink: #1b1c1c;
+  --color-instrument-ink-2: #595c5b;
+  /* The pharmacy green, lit: links, the online cross, the primary button, the stamp. */
+  --color-accent: #086f49;
+  --color-on-accent: #f4f8f0;
+
+  /* Meaning colours carry meaning and nothing else. */
+  --color-normal: #086f49;
+  --color-economy: #845400;
+  --color-paused: #595c5b;
+  --color-error: #a4281d;
+  --color-success: #086f49;
+  /* Other companies' marks keep the black their own rules ask for, never the page's ink. */
+  --color-brand-mark: #000000;
+
+  /* Two faces: the counter's Clarendon and the instrument's mono. */
+  --font-counter: "Besley", "Clarendon", Georgia, serif;
+  --font-instrument: "Commit Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --font-signature: "Cedarville Cursive", "Besley", cursive;
+
+  /* Five sizes. */
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9375rem;
+  --text-md: 1.0625rem;
+  --text-lg: 1.4375rem;
+  --text-xl: clamp(2.25rem, 1rem + 4vw, 4.125rem);
+  --leading-tight: 1.08;
+  --leading-body: 1.6;
+  --leading-row: 1.5rem;
+  /* The text weight sits a little above regular: the face's hairlines hold at text size on a
+     low-density screen. */
+  --weight-text: 440;
+
+  /* A 4 px baseline. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* Rules: the box and the letterhead in the counter's ink; the receipt's dashes. */
+  --rule-box: 1.5px solid var(--color-ink);
+  --rule-head: 4px solid var(--color-ink);
+  --rule-hairline: 1px solid var(--color-ink);
+  --rule-dash: 1px dashed var(--color-instrument-ink-2);
+  --rule-stamp: 3px double var(--color-accent);
+
+  --measure: 36rem;
+  --page-max: 74rem;
+  --touch: 2.75rem;
+  --fade: 120ms;
+}
+
+/* ---------- The stage and its notes ---------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+}
+
+/* The stage is the screen itself, as wide as the window, so that 390 px and 1280 px are true. */
+.stage {
+  display: block;
+  min-height: 100vh;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-counter);
+  font-size: var(--text-md);
+  line-height: var(--leading-body);
+  font-variant-numeric: lining-nums;
+  font-weight: var(--weight-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  --page-pad: max(var(--space-6), calc((100vw - var(--page-max)) / 2));
+}
+
+/* The notes sit under the stage, outside the drawing: plain, and never part of the screen. */
+.notes {
+  margin: 0;
+  padding: 20px 24px 28px;
+  border-top: 4px double #777;
+  background: #fff;
+  color: #222;
+  font: 13px/1.5 ui-monospace, Menlo, Consolas, monospace;
+}
+
+.notes h2 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.notes ul {
+  margin: 0;
+  padding-left: 18px;
+  max-width: 88ch;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- Shared parts ---------- */
+
+.stage a {
+  color: var(--color-accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+.stage button {
+  font: inherit;
+  color: inherit;
+  border-radius: 0;
+}
+
+.stage :focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* The pharmacy's cross: the one nod, beside the name and as the online lamp. */
+.cross {
+  width: 0.72em;
+  height: 0.72em;
+  fill: var(--color-accent);
+}
+
+/* The project's own marks on buttons and links, and its arrows: a 16 px grid, the page's 1.5 px
+   rule, square joins. Drawn for this project; no icon library. */
+.icon {
+  flex: none;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.12em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
+.icon.solid {
+  fill: currentColor;
+  stroke: none;
+}
+
+.stage .send,
+.stage .action,
+.stage .tool-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.back .icon {
+  align-self: center;
+}
+
+.tick {
+  width: 0.8em;
+  height: 0.8em;
+  stroke: var(--color-success);
+}
+
+/* The letterhead: the name in heavy capitals over a thick rule and a thin one. */
+.masthead,
+.counter-head {
+  position: relative;
+  border-bottom: var(--rule-head);
+}
+
+.masthead::after,
+.counter-head::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -9px;
+  border-bottom: var(--rule-hairline);
+}
+
+.masthead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: 5px;
+  padding: var(--space-6) 0 var(--space-3);
+}
+
+.stage .wordmark,
+.stage .back {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  color: var(--color-ink);
+  font-size: var(--text-lg);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.pharmacy,
+.page-name {
+  font-style: italic;
+  color: var(--color-ink-2);
+}
+
+.masthead .langs {
+  margin-left: auto;
+}
+
+.status-link {
+  font-size: var(--text-sm);
+}
+
+.langs {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.stage .lang {
+  min-width: 2rem;
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  background: none;
+  color: var(--color-ink);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: var(--leading-row);
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.stage .lang[aria-current="true"] {
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+
+/* The rubber stamp: a double frame, pressed a little askew, in the lit green. The notice of a
+   conversation and the landing's warning are stamps. */
+.stamp {
+  padding: var(--space-3) var(--space-4);
+  border: var(--rule-stamp);
+  color: var(--color-accent);
+  font-size: var(--text-sm);
+  transform: rotate(-0.7deg);
+}
+
+.stamp strong {
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.stage .stamp a {
+  color: inherit;
+}
+
+/* The till receipt: the instrument's surface on a counter page. No frame, dashed separators, torn
+   off the roll at the head and at the foot. */
+.slip {
+  position: relative;
+  background: var(--color-paper-2);
+  color: var(--color-instrument-ink);
+  font-family: var(--font-instrument);
+  font-size: var(--text-xs);
+  line-height: var(--leading-row);
+  font-variant-numeric: tabular-nums;
+}
+
+.slip::before,
+.slip::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 7px;
+  background:
+    linear-gradient(135deg, var(--color-paper-2) 50%, transparent 50%) 0 0 / 10px 7px repeat-x,
+    linear-gradient(225deg, var(--color-paper-2) 50%, transparent 50%) 0 0 / 10px 7px repeat-x;
+}
+
+.slip::after {
+  top: 100%;
+}
+
+.slip::before {
+  bottom: 100%;
+  transform: scaleY(-1);
+}
+
+.slip .unit,
+.slip .quiet {
+  font-size: var(--text-xs);
+  font-weight: 400;
+  color: var(--color-instrument-ink-2);
+}
+
+.stage .slip-title {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-instrument);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  line-height: var(--leading-row);
+  text-transform: uppercase;
+}
+
+/* Buttons: the primary one is the lit green; the second is a box in the counter's ink. */
+.stage .action {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.stage button.action {
+  border: var(--rule-box);
+  background: none;
+  color: var(--color-ink);
+}
+
+.stage .doc {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+  cursor: pointer;
+}
+
+/* A phrase to say: a box in the counter's ink, on the landing and on the chat's first visit. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stage .chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch);
+  padding: var(--space-2) var(--space-4);
+  border: var(--rule-box);
+  color: var(--color-ink);
+  line-height: 1.25;
+  text-decoration: none;
+}
+
+.stage .chip:hover {
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+
+/* ---------- The landing ---------- */
+
+.landing,
+.page {
+  padding: 0 var(--page-pad) var(--space-12);
+}
+
+.hero {
+  padding: var(--space-8) 0;
+}
+
+.hero h1,
+.lede {
+  margin: 0;
+  font-size: var(--text-xl);
+  line-height: var(--leading-tight);
+  text-wrap: balance;
+}
+
+.hero h1 {
+  font-weight: 500;
+  letter-spacing: -0.022em;
+}
+
+.lede {
+  margin-top: 0.3em;
+  font-style: italic;
+  letter-spacing: -0.015em;
+  color: var(--color-ink-2);
+}
+
+.numbers {
+  margin: var(--space-8) 0 0;
+}
+
+.number {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+}
+
+.number + .number {
+  border-top: var(--rule-dash);
+}
+
+.number dt {
+  color: var(--color-instrument-ink-2);
+}
+
+.number dd {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: right;
+}
+
+.say {
+  margin-top: var(--space-8);
+}
+
+.say-label {
+  margin: 0 0 var(--space-2);
+  font-style: italic;
+}
+
+.exhibits {
+  margin: var(--space-8) 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-ink-2);
+}
+
+.pair {
+  display: contents;
+}
+
+.does,
+.business {
+  padding: var(--space-6) 0;
+}
+
+.landing h2 {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.business p {
+  margin: 0 0 var(--space-3);
+}
+
+.does ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.does li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.does li + li {
+  margin-top: var(--space-3);
+}
+
+.does li .icon {
+  position: relative;
+  top: 0.14em;
+  width: 1.05em;
+  height: 1.05em;
+  color: var(--color-accent);
+}
+
+.contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+}
+
+/* "Como é feito" is the engineer's part, so it is a receipt too: the stack as items, the documents,
+   the scorecard as its total. */
+.built {
+  align-self: start;
+  margin: var(--space-6) 0;
+  padding: var(--space-4);
+}
+
+.stack,
+.documents {
+  margin: 0;
+  padding: 0 0 var(--space-2);
+  list-style: none;
+}
+
+.documents {
+  padding-top: var(--space-2);
+  border-top: var(--rule-dash);
+}
+
+.documents li {
+  min-height: 1.75rem;
+}
+
+.scorecard {
+  margin: 0;
+  padding-top: var(--space-2);
+  border-top: var(--rule-dash);
+}
+
+.scorecard > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.scorecard dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.scorecard .score-date,
+.scorecard .score-date dd {
+  font-weight: 400;
+  color: var(--color-instrument-ink-2);
+}
+
+.colophon {
+  margin-top: var(--space-8);
+}
+
+.warning {
+  margin: 0;
+}
+
+.signature {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-sm);
+}
+
+/* The footer is signed, as a prescription is: the author's name in a pen hand on the signature
+   rule, and under it the ways to reach him. */
+.signed-block {
+  width: fit-content;
+  max-width: 100%;
+}
+
+.signed-name {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin: 0;
+  border-bottom: var(--rule-box);
+}
+
+.signed-by {
+  font-style: italic;
+  color: var(--color-ink-2);
+}
+
+.signed-hand {
+  font-family: var(--font-signature);
+  font-size: 1.75rem;
+  line-height: 1.3;
+}
+
+.signed-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  padding-top: var(--space-2);
+}
+
+.icon.mark {
+  fill: var(--color-brand-mark);
+  stroke: none;
+}
+
+@media (max-width: 40rem) {
+  .masthead .langs {
+    order: 2;
+  }
+
+  .pharmacy,
+  .page-name {
+    order: 3;
+    flex: 1 1 60%;
+  }
+
+  .status-link {
+    order: 4;
+  }
+}
+
+@media (min-width: 60rem) {
+  .landing {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: var(--space-12);
+  }
+
+  .landing > .masthead,
+  .landing > .colophon {
+    grid-column: 1 / -1;
+  }
+
+  .hero {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: subgrid;
+    padding: var(--space-16) 0 var(--space-12);
+  }
+
+  .pitch,
+  .say,
+  .exhibits {
+    grid-column: 1 / span 2;
+  }
+
+  .numbers {
+    grid-column: 3;
+    grid-row: 1 / span 3;
+    align-self: start;
+    margin: var(--space-2) 0 0;
+  }
+
+  .say {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: var(--space-4);
+    align-items: start;
+    margin-top: var(--space-12);
+  }
+
+  .say-label {
+    margin: 0;
+    padding-top: 0.5rem;
+  }
+
+  .does,
+  .business {
+    padding-top: var(--space-6);
+    border-top: var(--rule-hairline);
+  }
+
+  .built {
+    margin: 0;
+  }
+
+  .landing > .colophon {
+    display: grid;
+    grid-template-columns: subgrid;
+    align-items: end;
+    margin-top: var(--space-16);
+  }
+
+  .warning {
+    grid-column: 1 / span 2;
+  }
+
+  .landing .signature {
+    margin: 0 0 var(--space-2);
+    justify-self: center;
+  }
+}
+
+/* ---------- The chat: the counter and, beside it, the instrument ---------- */
+
+.chat {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(23rem, 31rem);
+}
+
+.counter {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 100vh;
+}
+
+.counter-head,
+.glass-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: 3.5rem;
+  padding: 0 var(--space-8);
+}
+
+.counter-head {
+  margin-bottom: 5px;
+}
+
+.presence {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-left: auto;
+  font-size: var(--text-sm);
+  color: var(--color-ink-2);
+}
+
+/* The lamp is out: no pharmacist is present. */
+.presence[data-presence="offline"] .cross {
+  fill: none;
+  stroke: var(--color-rule-strong);
+  stroke-width: 1;
+}
+
+.thread {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  width: 100%;
+  max-width: calc(var(--measure) + 2 * var(--space-8));
+  margin: 0 auto;
+  padding: var(--space-8);
+  list-style: none;
+}
+
+.msg p {
+  margin: 0;
+}
+
+.msg p + p {
+  margin-top: var(--space-2);
+}
+
+/* Four voices, told apart by form and never by an avatar: the notice is the stamp; the visitor's
+   words are a slip handed over the counter; the attendant speaks in the page's own voice; the
+   pharmacist's words carry a rule down their side and a signature. */
+.msg.visitor {
+  align-self: flex-end;
+  max-width: 26rem;
+  padding: var(--space-2) var(--space-4);
+  border: var(--rule-box);
+  font-style: italic;
+}
+
+.msg.attendant,
+.msg.pharmacist {
+  max-width: 33rem;
+}
+
+.msg.pharmacist {
+  padding-left: var(--space-4);
+  border-left: var(--rule-head);
+}
+
+.msg .signed {
+  font-size: var(--text-sm);
+  font-style: italic;
+  color: var(--color-ink-2);
+}
+
+.msg.pending {
+  font-style: italic;
+  color: var(--color-ink-2);
+}
+
+/* A reservation's code: a small stamp in the instrument's face, since it is what the visitor shows
+   at the counter. */
+.code {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border: var(--rule-stamp);
+  color: var(--color-accent);
+  font-family: var(--font-instrument);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.5;
+}
+
+.openers {
+  margin-top: var(--space-3);
+}
+
+.summary {
+  display: none;
+}
+
+.composer {
+  width: 100%;
+  max-width: calc(var(--measure) + 2 * var(--space-8));
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-8) var(--space-6);
+}
+
+.composer-row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.composer input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--touch);
+  padding: var(--space-2) 0;
+  border: 0;
+  border-bottom: var(--rule-box);
+  border-radius: 0;
+  background: none;
+  color: var(--color-ink);
+  font: inherit;
+}
+
+.composer input::placeholder {
+  color: var(--color-ink-2);
+  font-style: italic;
+  opacity: 1;
+}
+
+.stage .send {
+  min-height: var(--touch);
+  padding: 0 var(--space-6);
+  border: 1px solid var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.composer input:disabled {
+  border-bottom-color: var(--color-rule-strong);
+}
+
+.stage .send:disabled,
+.stage .suggestion:disabled {
+  border-color: var(--color-rule-strong);
+  background: none;
+  color: var(--color-ink-2);
+  cursor: not-allowed;
+}
+
+.suggest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+}
+
+.suggest-label {
+  color: var(--color-ink-2);
+}
+
+.stage .suggestion {
+  min-height: 2rem;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-rule-strong);
+  background: none;
+  cursor: pointer;
+}
+
+.turnstile {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-xs);
+  color: var(--color-ink-2);
+}
+
+/* The instrument: the glass box, on the receipt's roll. */
+.glass {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-left: var(--rule-dash);
+  background: var(--color-paper-2);
+  color: var(--color-instrument-ink);
+  font-family: var(--font-instrument);
+  font-size: var(--text-xs);
+  line-height: var(--leading-row);
+  font-variant-numeric: tabular-nums;
+}
+
+.glass-head {
+  padding: 0 var(--space-6);
+  border-bottom: var(--rule-dash);
+}
+
+.glass-head h2 {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.glass .langs {
+  margin-left: auto;
+}
+
+.stage .glass .lang {
+  color: var(--color-instrument-ink);
+  font-family: var(--font-instrument);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.stage .glass .lang[aria-current="true"] {
+  background: var(--color-instrument-ink);
+  color: var(--color-paper-2);
+}
+
+/* The mode: a square of its meaning colour and its name. */
+.mode {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.mode::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  background: var(--color-normal);
+}
+
+.mode[data-mode="economy"]::before {
+  background: var(--color-economy);
+}
+
+.mode[data-mode="paused"]::before {
+  background: var(--color-paused);
+}
+
+.stage .glass-close {
+  display: none;
+}
+
+.events {
+  flex: 1;
+  margin: 0;
+  padding: var(--space-4) var(--space-6);
+  list-style: none;
+}
+
+.glass-empty {
+  flex: 1;
+  margin: 0;
+  padding: var(--space-4) var(--space-6);
+  color: var(--color-instrument-ink-2);
+}
+
+.event {
+  display: grid;
+  grid-template-columns: 5.25rem minmax(0, 1fr);
+}
+
+.event time {
+  color: var(--color-instrument-ink-2);
+}
+
+.what {
+  min-width: 0;
+}
+
+.event .name {
+  font-weight: 700;
+}
+
+.event .figure {
+  float: right;
+  color: var(--color-instrument-ink-2);
+}
+
+.event[data-state="error"] .name,
+.event[data-state="error"] .outcome {
+  color: var(--color-error);
+}
+
+.event[data-state="running"] .name {
+  font-weight: 400;
+}
+
+.detail {
+  margin: 0;
+}
+
+.detail > div {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+}
+
+.detail dt,
+.aside-figure,
+.outcome {
+  color: var(--color-instrument-ink-2);
+}
+
+.detail dd {
+  margin: 0;
+}
+
+.aside-figure {
+  margin-left: var(--space-2);
+}
+
+.cache {
+  margin-left: var(--space-2);
+}
+
+.cache[data-cache="hit"] {
+  color: var(--color-success);
+}
+
+.event summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.event summary::-webkit-details-marker {
+  display: none;
+}
+
+/* A row that opens: a chevron in the same rule, to the right when closed, down when open. */
+.event summary::before {
+  content: "";
+  display: inline-block;
+  width: 0.4rem;
+  height: 0.4rem;
+  margin: 0 var(--space-2) 0.1rem 0;
+  border-right: 1.5px solid var(--color-instrument-ink);
+  border-bottom: 1.5px solid var(--color-instrument-ink);
+  transform: rotate(-45deg);
+}
+
+.event details[open] summary::before {
+  margin-bottom: 0.2rem;
+  transform: rotate(45deg);
+}
+
+.payload {
+  margin: var(--space-1) 0 var(--space-1) -5.25rem;
+  padding: var(--space-2) var(--space-3);
+  border: var(--rule-dash);
+  font: inherit;
+  line-height: 1.25rem;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.outcome {
+  margin: 0;
+}
+
+.event.turn-start {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: var(--rule-dash);
+}
+
+.totals {
+  margin: 0 var(--space-6);
+  padding: var(--space-2) 0;
+  border-top: var(--rule-dash);
+}
+
+.totals > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.totals dd {
+  margin: 0;
+}
+
+.totals > div:first-child {
+  font-weight: 700;
+}
+
+.glass-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-6) var(--space-6);
+}
+
+.stage .tool-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-instrument-ink-2);
+  background: none;
+  color: var(--color-instrument-ink);
+  font-family: var(--font-instrument);
+  font-size: var(--text-xs);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+@media (max-width: 52rem) {
+  .chat {
+    display: block;
+  }
+
+  .counter-head {
+    padding: 0 var(--space-4);
+  }
+
+  .stage .back {
+    font-size: var(--text-md);
+  }
+
+  .thread {
+    padding: var(--space-6) var(--space-4);
+  }
+
+  /* The glass box folded: one line, always in sight above the composer. */
+  .stage .summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    min-height: var(--touch);
+    padding: 0 var(--space-4);
+    border-top: var(--rule-dash);
+    border-bottom: var(--rule-dash);
+    background: var(--color-paper-2);
+    color: var(--color-instrument-ink);
+    font-family: var(--font-instrument);
+    font-size: var(--text-xs);
+    font-variant-numeric: tabular-nums;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .summary-open::after {
+    content: "";
+    display: inline-block;
+    width: 0.45rem;
+    height: 0.45rem;
+    margin: 0.3rem var(--space-1) 0 var(--space-2);
+    border-left: 1.5px solid var(--color-instrument-ink);
+    border-top: 1.5px solid var(--color-instrument-ink);
+    transform: rotate(45deg);
+  }
+
+  .composer {
+    padding: var(--space-3) var(--space-4) var(--space-4);
+  }
+
+  .stage .suggestion,
+  .stage .tool-button {
+    min-height: var(--touch);
+  }
+
+  /* The drawer: closed until the summary line is pressed, then a sheet over the lower part of the
+     screen, the conversation still in sight above it. */
+  .glass {
+    display: none;
+  }
+
+  .glass:target {
+    display: flex;
+    position: fixed;
+    z-index: 1;
+    inset: 22vh 0 0;
+    overflow-y: auto;
+    border-left: 0;
+    border-top: 4px solid var(--color-instrument-ink);
+  }
+
+  .glass:target > * {
+    flex-shrink: 0;
+  }
+
+  .glass-head {
+    flex-wrap: wrap;
+    gap: 0 var(--space-3);
+    padding: 0 var(--space-4);
+  }
+
+  /* The drawer's head: the title, the mode and the way out on one row; the languages under it. */
+  .stage .glass-close {
+    display: inline-flex;
+    align-items: center;
+    order: 2;
+    min-height: var(--touch);
+    margin-left: auto;
+    padding: 0 var(--space-2);
+    color: var(--color-instrument-ink);
+  }
+
+  .glass .mode {
+    order: 1;
+  }
+
+  .glass .langs {
+    order: 3;
+    flex-basis: 100%;
+    margin: 0 0 var(--space-2);
+  }
+
+  .events,
+  .glass-empty {
+    padding: var(--space-4);
+  }
+
+  .event {
+    grid-template-columns: 4.75rem minmax(0, 1fr);
+  }
+
+  .payload {
+    margin-left: -4.75rem;
+  }
+
+  .totals {
+    margin: 0 var(--space-4);
+  }
+
+  .glass-actions {
+    padding: var(--space-3) var(--space-4) var(--space-6);
+  }
+}
+
+/* Trace rows appear in place; nothing slides (design brief §5). */
+@media (prefers-reduced-motion: no-preference) {
+  .event.is-new,
+  .msg.is-new {
+    animation: appear var(--fade) ease-out;
+  }
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ---------- The trace page: the same receipt, whole and at full length ---------- */
+
+.trace-note {
+  max-width: var(--measure);
+  margin: var(--space-8) 0 var(--space-12);
+}
+
+.trace-note h1 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.trace-note p {
+  margin: 0;
+  color: var(--color-ink-2);
+}
+
+.trace-note .token {
+  font-family: var(--font-instrument);
+  font-size: 0.9em;
+}
+
+.roll {
+  max-width: 46rem;
+  padding: var(--space-6);
+}
+
+.turn + .turn {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: var(--rule-dash);
+}
+
+.turn-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0;
+  margin: 0 0 var(--space-2);
+  font: inherit;
+}
+
+.turn-head .turn-number {
+  flex: none;
+  width: 5.25rem;
+  font-weight: 700;
+}
+
+.turn-head .turn-cost {
+  flex: none;
+  margin-left: auto;
+  padding-left: var(--space-4);
+  font-weight: 700;
+}
+
+/* The words of the conversation, on the receipt, stay in the counter's face. */
+.said {
+  font-family: var(--font-counter);
+  font-size: var(--text-sm);
+  font-style: italic;
+  line-height: 1.5;
+}
+
+.turn .reply {
+  margin: var(--space-2) 0 0 5.25rem;
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--color-instrument-ink-2);
+  font-style: normal;
+}
+
+.turn .events {
+  padding: 0;
+}
+
+.roll-total {
+  margin: var(--space-4) 0 0;
+  padding-top: var(--space-3);
+  border-top: 3px double var(--color-instrument-ink);
+}
+
+.roll-total > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.roll-total dd {
+  margin: 0;
+}
+
+.roll-total > div:first-child {
+  font-weight: 700;
+}
+
+@media (max-width: 40rem) {
+  .roll {
+    padding: var(--space-4);
+  }
+
+  .turn-head {
+    flex-wrap: wrap;
+  }
+
+  .turn-head .turn-number {
+    width: 4.75rem;
+  }
+
+  .turn .reply {
+    margin-left: 0;
+  }
+}
+
+/* ---------- The privacy page: the counter's own voice, one column ---------- */
+
+.prose {
+  max-width: var(--measure);
+  padding: var(--space-8) 0 0;
+}
+
+.prose h1 {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-xl);
+  font-weight: 500;
+  letter-spacing: -0.022em;
+  line-height: var(--leading-tight);
+}
+
+.prose h2 {
+  margin: var(--space-8) 0 var(--space-2);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.prose p,
+.prose ul {
+  margin: 0 0 var(--space-3);
+}
+
+.prose ul {
+  padding-left: 1.2em;
+}
+
+.prose .stamp {
+  margin: var(--space-6) 0;
+}
+
+.prose code {
+  font-family: var(--font-instrument);
+  font-size: 0.9em;
+}
+
+.page .colophon {
+  max-width: var(--measure);
+  margin-top: var(--space-12);
+  padding-top: var(--space-4);
+  border-top: var(--rule-hairline);
+}
+
+/* ---------- The index of the prototype ---------- */
+
+.index-list {
+  margin: var(--space-4) 0 var(--space-8);
+  padding: 0;
+  list-style: none;
+}
+
+.index-list li {
+  padding: var(--space-1) 0;
+}
+
+.index-list code {
+  font-family: var(--font-instrument);
+  font-size: var(--text-xs);
+  color: var(--color-ink-2);
+}
+
+/* ---------- The date stamp and the WhatsApp receipt ---------- */
+
+/* A date that attests something (a round of evals, a verified price table, a recorded example) is
+   stamped: the dater's frame, a little askew, in the lit green. */
+.dater {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border: 1.5px solid var(--color-accent);
+  color: var(--color-accent);
+  font-family: var(--font-instrument);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  transform: rotate(-2deg);
+}
+
+/* The WhatsApp QR, printed on a receipt of its own under the live numbers. */
+.whatsapp {
+  margin: var(--space-6) 0 var(--space-2);
+  padding: var(--space-4);
+  text-align: center;
+}
+
+.stage .whatsapp a {
+  color: inherit;
+}
+
+.qr {
+  display: block;
+  width: 7.5rem;
+  height: 7.5rem;
+  margin: var(--space-1) auto;
+  fill: var(--color-instrument-ink);
+}
+
+@media (min-width: 60rem) {
+  .hero .numbers.with-more {
+    grid-row: 1;
+  }
+
+  .hero .whatsapp {
+    grid-column: 3;
+    grid-row: 2 / span 2;
+    align-self: start;
+  }
+}
+
+/* ---------- The status page: one receipt of readings ---------- */
+
+.readings {
+  margin: 0;
+}
+
+.readings + .readings {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: var(--rule-dash);
+}
+
+.reading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0 var(--space-4);
+  min-height: var(--leading-row);
+}
+
+.reading dt {
+  color: var(--color-instrument-ink-2);
+}
+
+.reading dd {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  font-weight: 700;
+}
+
+.reading dd.quiet {
+  font-weight: 400;
+}
+
+.reading .slip-title {
+  margin: 0;
+  color: var(--color-instrument-ink);
+}
+
+/* One sparkline per metric at most: thirty days in the receipt's ink, the last day marked. */
+.spark {
+  width: 7.5rem;
+  height: 1.5rem;
+}
+
+.spark path {
+  fill: none;
+  stroke: var(--color-instrument-ink-2);
+  stroke-width: 1.25;
+}
+
+.spark rect {
+  fill: var(--color-instrument-ink);
+}
+
+/* The spend meter: a ruled box filled with the colour of the mode in force. */
+.meter-reading {
+  padding: var(--space-1) 0;
+}
+
+.meter {
+  position: relative;
+  flex: 0 0 100%;
+  height: 0.75rem;
+  margin: var(--space-1) 0;
+  border: 1px solid var(--color-instrument-ink);
+}
+
+.meter-fill {
+  position: absolute;
+  inset: 1px auto 1px 1px;
+  background: var(--color-normal);
+}
+
+.meter[data-mode="economy"] .meter-fill {
+  background: var(--color-economy);
+}
+
+.meter[data-mode="paused"] .meter-fill {
+  background: var(--color-paused);
+}
+
+.meter-41 {
+  width: 41%;
+}
+
+.meter-38 {
+  width: 38%;
+}
+
+.meter-mark {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  border-left: 1.5px solid var(--color-instrument-ink);
+}
+
+.meter-at-70 {
+  left: 70%;
+}
+
+.meter-note {
+  flex: 0 0 100%;
+  margin: 0;
+}
+
+.mode-key .reading dt {
+  color: var(--color-instrument-ink);
+}
+
+.reading .dater {
+  font-size: var(--text-xs);
+}
+
+.reading dd {
+  margin-left: auto;
+  text-align: right;
+}
+
+@media (max-width: 40rem) {
+  .spark {
+    width: 4rem;
+  }
+}
+
+/* ---------- The landing between the phone and the desk, and on the phone ---------- */
+
+/* Where the blocks stack, a quiet rule opens each section. */
+@media (max-width: 59.99rem) {
+  .does,
+  .business {
+    border-top: 1px solid var(--color-rule);
+  }
+
+  .signature {
+    margin-inline: auto;
+  }
+}
+
+/* The tablet: two columns. The two receipts of the hero stand side by side, the two sections of
+   text side by side, and the last receipt beside the warning and the signature. */
+@media (min-width: 40rem) and (max-width: 59.99rem) {
+  .landing {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--space-8);
+  }
+
+  .landing > .masthead {
+    grid-column: 1 / -1;
+  }
+
+  .hero {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: subgrid;
+    padding: var(--space-12) 0 var(--space-8);
+  }
+
+  .pitch,
+  .say,
+  .exhibits {
+    grid-column: 1 / -1;
+  }
+
+  .pitch {
+    grid-row: 1;
+  }
+
+  .hero .numbers,
+  .hero .whatsapp {
+    grid-row: 2;
+    align-self: start;
+    margin: var(--space-12) 0 var(--space-2);
+  }
+
+  .hero .whatsapp {
+    grid-column: 2;
+  }
+
+  .say {
+    grid-row: 3;
+  }
+
+  .exhibits {
+    grid-row: 4;
+  }
+
+  /* The warning and the signature, as one group, centred on the receipt beside them. */
+  .landing > .colophon {
+    align-self: center;
+    margin-top: var(--space-6);
+  }
+
+  .landing .signature {
+    margin-top: var(--space-8);
+  }
+}
+
+/* ---------- The stack's marks ---------- */
+
+.stack li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.icon.tech {
+  width: 0.9rem;
+  height: 0.9rem;
+  shape-rendering: geometricPrecision;
+}
+
+.business .outside {
+  font-size: var(--text-sm);
+  color: var(--color-ink-2);
+}
+
+/* The month's figure and the offer as shelf price tags: a cut corner at the hole's end, the punched
+   hole, the label above, the figure large with the currency small beside it. */
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: var(--space-4) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tag {
+  --cut: 0.875rem;
+  position: relative;
+  isolation: isolate;
+  flex: 1 1 9rem;
+  padding: var(--space-3) var(--space-8);
+  text-align: center;
+  background: var(--color-ink);
+  line-height: 1.3;
+  clip-path: polygon(var(--cut) 0, 100% 0, 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut)), 0 var(--cut));
+}
+
+/* The tag's card, inside its inked edge. */
+.tag::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 1.5px;
+  background: var(--color-paper-2);
+  clip-path: polygon(var(--cut) 0, 100% 0, 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut)), 0 var(--cut));
+}
+
+/* The punched hole: the page's paper shows through. */
+.tag::before {
+  content: "";
+  position: absolute;
+  left: var(--space-3);
+  top: 50%;
+  width: 0.625rem;
+  height: 0.625rem;
+  margin-top: -0.3125rem;
+  border: var(--rule-box);
+  border-radius: 50%;
+  background: var(--color-paper);
+}
+
+.tag-label,
+.tag-unit {
+  display: block;
+  font-size: var(--text-sm);
+  font-style: italic;
+  color: var(--color-ink-2);
+}
+
+.tag-price {
+  display: block;
+  font-size: 1.875rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.tag-currency {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0;
+  vertical-align: 0.65em;
+}
+
+/* The two ways to reach the author share the row; when it is too narrow each takes a row whole. */
+.contact .action {
+  flex: 1 1 13.5rem;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+/* The tags of a row share its height; each one's words sit in its middle. */
+.tag {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
