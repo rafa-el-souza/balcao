@@ -43,6 +43,14 @@ RSpec.describe "FR-12 SR-11 SR-12 GET /api/traces/:token, a conversation's trace
   # Review findings C2 and S5 of pull request #17: a NUL, which the database
   # driver refuses, answered 500, and bytes that are not UTF-8 a 400 from the
   # router; both are misses like any other.
+  it "parts the notice of a conversation's first reply whatever its wording (review finding N1 of pull request #17)" do
+    turn_in(conversation, "hola", reply: "Aviso de antes: outro texto.\n\n¡Hola!")
+
+    get "/api/traces/#{conversation.trace_token}"
+
+    expect(json["messages"].last).to include("notice" => "Aviso de antes: outro texto.", "body" => "¡Hola!")
+  end
+
   it "answers 404 and nothing else for a token that names no conversation, whatever its shape (SR-11)" do
     [ SecureRandom.base58(24), "x", "a" * 200, conversation.trace_token.downcase, "#{conversation.trace_token}x",
       "a%00b", "%FF", "%C3%A7#{"a" * 22}" ].each do |token|

@@ -28,9 +28,10 @@ module Api
     private
 
     def messages_of(turns)
-      turns.flat_map { |turn| [ turn.inbound_message, turn.outbound_message ].compact.map { |message| [ message, turn ] } }
-           .sort_by { |message, _| [ message.created_at, message.id ] }
-           .map { |message, turn| message.trace_payload(turn_id: turn.id) }
+      pairs = turns.flat_map { |turn| [ turn.inbound_message, turn.outbound_message ].compact.map { |message| [ message, turn ] } }
+      first_replies = Message.first_reply_ids(pairs.filter_map { |message, _| message.conversation_id if message.outbound? })
+      pairs.sort_by { |message, _| [ message.created_at, message.id ] }
+           .map { |message, turn| message.trace_payload(turn_id: turn.id, first_reply: first_replies.include?(message.id)) }
     end
   end
 end

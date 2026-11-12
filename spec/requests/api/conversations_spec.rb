@@ -48,6 +48,23 @@ RSpec.describe "FR-18 SR-05 GET /api/conversations/current, the polling fallback
       expect(json["pending"]).to be false
     end
 
+    # Review finding N1 of pull request #17: the notice was told apart by
+    # today's text, so a reply stored under an earlier wording kept it in its
+    # body; the first reply of a conversation is the one that carries it.
+    it "parts the notice of a conversation's first reply whatever its wording, and nothing from a later one" do
+      Message.record_outbound!(turn:, body: "Aviso de antes: outro texto.\n\n¡Hola!")
+      later = Turn.for_inbound!(Message.record_inbound!(conversation:, external_id: SecureRandom.uuid, body: "¿y?"))
+      Message.record_outbound!(turn: later, body: "Sí.\n\nY también en gotas.")
+
+      get "/api/conversations/current"
+
+      replies = json["messages"].select { |message| message["author"] == "bot" }
+      expect(replies.map { |message| message.slice("notice", "body") }).to eq [
+        { "notice" => "Aviso de antes: outro texto.", "body" => "¡Hola!" },
+        { "notice" => nil, "body" => "Sí.\n\nY también en gotas." }
+      ]
+    end
+
     it "carries a first reply's notice apart from its body (FR-01, design §10, note of 2026-11-12)" do
       Message.record_outbound!(turn:, body: FixedReply.with_notice("¡Hola!", "es"))
 

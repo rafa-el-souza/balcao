@@ -10,9 +10,13 @@ module Api
 
       conversation = Conversation.current_for!(visitor)
       turns = conversation.turns.pluck(:inbound_message_id, :id).to_h
+      messages = conversation.messages.order(:created_at, :id).to_a
+      first_reply = messages.find(&:outbound?)
       render json: {
         conversation: conversation.slice(:id, :language, :state, :trace_token),
-        messages: conversation.messages.order(:created_at, :id).map { |message| message.stream_payload(turn_id: turns.fetch(message.id, message.turn_id)) },
+        messages: messages.map do |message|
+          message.stream_payload(turn_id: turns.fetch(message.id, message.turn_id), first_reply: message == first_reply)
+        end,
         spans: TraceEvent.where(turn_id: turns.values).order(:started_at, :id).map(&:stream_payload),
         pending: conversation.turns.where.missing(:outbound_message).exists?
       }
