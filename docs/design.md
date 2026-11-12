@@ -1623,6 +1623,23 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     its own. Hidden until their source exists: the status link (M3), the
     privacy link (PR-17) and every cost (PR-16). Before a script runs the
     page is the receipt's head in the visitor's language.
+  - **What the review of pull request #17 settled** (its Review section has
+    each finding). A trace token is looked up only in the shape the server
+    draws (24 characters of base58), and the two trace routes take any bytes,
+    so every other token is a plain miss. The token never reaches the logs:
+    the request's line and Action Cable's lines write `[FILTERED]` in its
+    place (SR-30, SR-11), ahead of PR-16's log masking. A deletion tells the
+    trace page of each of the visitor's conversations, which then says the
+    conversation is no longer here (FR-05). The notice is told by its place,
+    the first line of a conversation's first reply, not by its wording. The
+    API answers `no-store`. The edge counts a path with a repeated or a
+    trailing slash as the router reads it, because Rack::Attack normalizes
+    the path with the router's own utility first; a spec keeps it so. On the
+    page: a message accepted into a conversation the page does not follow
+    moves it and its stream there; a refused subscription is asked for again
+    30 s later; a trace fetch that fails keeps the receipt drawn before; the
+    page's own rows are dated by the server's clock, from its answers'
+    `Date`; and a running turn's time counts up, as the drawings ask.
 - Note 2026-11-12 (PR-10, the landing and the chat). The web app's pages
   follow the drawings of `docs/prototype/` (web/src/landing/, web/src/chat/),
   with `tokens.css` the prototype's token block character for character
