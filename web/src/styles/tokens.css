@@ -3,45 +3,55 @@
  * space a component uses comes from here; components style themselves with
  * CSS Modules over these names and nothing else.
  *
- * These are the placeholder's neutral values: the roles are the design
- * brief's, the values are provisional until the design session sets them
- * (self-hosted faces included). Contrast, checked on 2026-11-09 against
- * --color-paper: ink 15.3, ink-2 6.8, accent 5.8, economy 5.6, paused 6.2,
- * error 6.5 (text, AA needs 4.5); rule-strong 3.2 (UI, AA needs 3).
+ * The block below is the one at the top of docs/prototype/styles.css,
+ * unchanged (design §10, note of 2026-11-12); styles/tokens.test.ts holds
+ * the two in step. The direction: the pharmacy's printed stationery, one
+ * green ink on pale green paper for the counter, a till receipt for the
+ * instrument.
  */
 :root {
-  /* Surfaces and ink: paper, not white; ink, not black. */
-  --color-paper: #f6f1e7;
-  --color-paper-2: #fbf8f1;
-  --color-ink: #1d1b18;
-  --color-ink-2: #5a5249;
-  /* Hairlines: decorative rules, and the stronger one for UI boundaries. */
-  --color-rule: #d6ccba;
-  --color-rule-strong: #8f8573;
-  /* The pharmacy green, used sparingly: links, the online dot, the primary button. */
-  --color-accent: #1e6a43;
+  /* The counter: the pad's pale green paper and its one green ink. */
+  --color-paper: #e4eddf;
+  --color-ink: #0f3a29;
+  --color-ink-2: #3a5d4d;
+  --color-rule: #b3c8b5;
+  --color-rule-strong: #577c66;
+  /* The instrument: the receipt's white roll (the raised surface) and its black thermal print. */
+  --color-paper-2: #f9f9f6;
+  --color-instrument-ink: #1b1c1c;
+  --color-instrument-ink-2: #595c5b;
+  /* The pharmacy green, lit: links, the online cross, the primary button, the stamp. */
+  --color-accent: #086f49;
+  --color-on-accent: #f4f8f0;
 
   /* Meaning colours carry meaning and nothing else. */
-  --color-normal: #1e6a43;
-  --color-economy: #8a5300;
-  --color-paused: #5f5850;
-  --color-error: #a3271c;
-  --color-success: #1e6a43;
+  /* One green ink: "normal" and "success" share the accent's value on purpose (a one-colour
+     print), and never stand alone without a tick or a name. */
+  --color-normal: #086f49;
+  --color-economy: #845400;
+  --color-paused: #595c5b;
+  --color-error: #a4281d;
+  --color-success: #086f49;
+  /* Other companies' marks keep the black their own rules ask for, never the page's ink. */
+  --color-brand-mark: #000000;
 
-  /* The counter (conversation, landing) and the instrument (glass box, trace, status). */
-  --font-counter: Georgia, "Times New Roman", Times, serif;
-  --font-instrument:
-    ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono",
-    monospace;
+  /* Two faces: the counter's Clarendon and the instrument's mono. */
+  --font-counter: "Besley", "Clarendon", Georgia, serif;
+  --font-instrument: "Commit Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --font-signature: "Cedarville Cursive", "Besley", cursive;
 
   /* Five sizes. */
   --text-xs: 0.8125rem;
   --text-sm: 0.9375rem;
   --text-md: 1.0625rem;
-  --text-lg: 1.375rem;
-  --text-xl: 2rem;
-  --leading-tight: 1.25;
-  --leading-body: 1.55;
+  --text-lg: 1.4375rem;
+  --text-xl: clamp(2.25rem, 1rem + 4vw, 4.125rem);
+  --leading-tight: 1.08;
+  --leading-body: 1.6;
+  --leading-row: 1.5rem;
+  /* The text weight sits a little above regular: the face's hairlines hold at text size on a
+     low-density screen. */
+  --weight-text: 440;
 
   /* A 4 px baseline. */
   --space-1: 0.25rem;
@@ -51,8 +61,28 @@
   --space-6: 1.5rem;
   --space-8: 2rem;
   --space-12: 3rem;
+  --space-16: 4rem;
 
-  --rule-hairline: 1px solid var(--color-rule);
-  --measure: 38rem;
-  --page-max: 72rem;
+  /* Measures that repeat: the instrument's column of hours (narrower under 52rem), the width of a
+     receipt on a page, and the heights of the small controls and of the send button. */
+  --col-time: 5.25rem;
+  --col-time-narrow: 4.75rem;
+  --receipt-max: 46rem;
+  --control: 2rem;
+  --control-send: 2.25rem;
+
+  /* Rules: the box and the letterhead in the counter's ink; the receipt's dashes. */
+  --rule-box: 1.5px solid var(--color-ink);
+  --rule-head: 4px solid var(--color-ink);
+  --rule-hairline: 1px solid var(--color-ink);
+  --rule-dash: 1px dashed var(--color-instrument-ink-2);
+  --rule-stamp: 3px double var(--color-accent);
+
+  --measure: 36rem;
+  --page-max: 74rem;
+  --touch: 2.75rem;
+  /* The gestures' own measures: the corner cut off a slip or a tag, the stamp's tilt. */
+  --cut: 0.875rem;
+  --tilt-stamp: -0.7deg;
+  --fade: 120ms;
 }

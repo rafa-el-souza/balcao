@@ -1,0 +1,45 @@
+/*
+ * The faces, self-hosted (threat model SR-03: no third-party origin). The
+ * files and their OFL licences are in src/fonts; Vite hashes them into the
+ * build's assets.
+ */
+@font-face {
+  font-family: "Besley";
+  src: url("../fonts/besley-roman.woff2") format("woff2");
+  font-weight: 400 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Besley";
+  src: url("../fonts/besley-italic.woff2") format("woff2");
+  font-weight: 400 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Commit Mono";
+  src: url("../fonts/commit-mono-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Commit Mono";
+  src: url("../fonts/commit-mono-700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* The signature's pen hand: for the author's name in the footer, and nothing else. */
+@font-face {
+  font-family: "Cedarville Cursive";
+  src: url("../fonts/cedarville-cursive-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
