@@ -28,22 +28,24 @@ function localRows(state: State, turns: Turn[]): LocalRow[] {
   const running = turns.find((turn) => turn.running);
   if (!running) return rows;
   const traced = new Set(turns.map((turn) => turn.id));
+  // The page's own messages were sent while it was open; a server's copy is
+  // compared by the server's own hours (review finding C3 of pull request #17).
   const waiting = [
     ...state.own.flatMap((entry) =>
       entry.status === "sent" && entry.turnId && entry.at
-        ? [{ turnId: entry.turnId, at: entry.at }]
+        ? [{ turnId: entry.turnId, at: entry.at, own: true }]
         : [],
     ),
     ...state.server.flatMap((message) =>
       message.author === "visitor" && message.turn_id
-        ? [{ turnId: message.turn_id, at: message.created_at }]
+        ? [{ turnId: message.turn_id, at: message.created_at, own: false }]
         : [],
     ),
   ];
   const queued = new Set<string>();
-  for (const { turnId, at } of waiting) {
+  for (const { turnId, at, own } of waiting) {
     if (traced.has(turnId) || queued.has(turnId)) continue;
-    if (Date.parse(at) < Date.parse(running.startedAt)) continue;
+    if (!own && Date.parse(at) < Date.parse(running.startedAt)) continue;
     queued.add(turnId);
     rows.push({
       kind: "queued",

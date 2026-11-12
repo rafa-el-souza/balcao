@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { render as prerender } from "../entry-server";
@@ -222,6 +222,49 @@ describe("FR-12 the trace page follows the conversation live", () => {
     await waitFor(() => {
       expect(server.traces()).toHaveLength(3);
     });
+  });
+});
+
+// Review findings C2 and C5 of pull request #17 (the verifier's examples).
+describe("FR-12 the trace page keeps what it drew", () => {
+  it("keeps the receipt it drew when a later fetch fails", async () => {
+    server.answers.trace.push(trace(answeredTurn("t1")), "network");
+    const cable = fakeCable();
+    const { client } = renderPage(<TracePage />, "pt-BR", cable.cable);
+    await screen.findByRole("region", { name: pt.roll });
+    await waitFor(() => {
+      expect(cable.active()).toHaveLength(1);
+    });
+
+    cable.connect();
+    await waitFor(() => {
+      expect(server.traces()).toHaveLength(2);
+    });
+    await waitFor(() => {
+      expect(client.getQueryState(["traces", LINK])?.fetchStatus).toBe("idle");
+    });
+
+    expect(screen.queryByText(pt.loadFailed)).toBeNull();
+    expect(roll()).toHaveTextContent("tem dipirona?");
+  });
+
+  it("asks for the stream again a while after the server refused it", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    server.defaults.trace = trace(answeredTurn("t1"));
+    const cable = fakeCable();
+    renderPage(<TracePage />, "pt-BR", cable.cable);
+    await screen.findByRole("region", { name: pt.roll });
+    await waitFor(() => {
+      expect(cable.active()).toHaveLength(1);
+    });
+
+    act(() => {
+      cable.active()[0]?.handlers.rejected();
+    });
+    await act(() => vi.advanceTimersByTimeAsync(31_000));
+
+    expect(cable.subscriptions.length).toBeGreaterThan(1);
+    vi.useRealTimers();
   });
 });
 

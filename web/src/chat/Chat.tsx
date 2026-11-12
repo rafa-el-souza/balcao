@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { useTurnLine } from "../trace/Rows";
+import { useTicking, useTurnLine } from "../trace/Rows";
 import { Icon } from "../ui/Icon";
 import { LanguageSwitch } from "../ui/LanguageSwitch";
 import parts from "../ui/parts.module.css";
@@ -33,6 +33,7 @@ export function Chat() {
   const glass = glassOf(state);
   const summary = useSummary(glass);
   const line = useTurnLine();
+  useTicking(glass.open.some((turn) => turn.running));
   const empty = glass.last === null && glass.leading.length === 0;
   const [drawer, setDrawer] = useState(false);
   const opener = useRef<HTMLButtonElement>(null);

@@ -18,6 +18,7 @@ import {
   type Content,
   type Deleted,
   type Outcome,
+  serverNow,
   type Snapshot,
   type Span,
 } from "./api";
@@ -42,6 +43,9 @@ export const POLL_MAX_MS = 30_000;
 export const POLL_LIVE_MS = 15_000;
 // How long after a glass box command's answer the same button stays quiet.
 export const COMMAND_GAP_MS = 1000;
+// How long after the server refused a subscription (a limit's minute) the
+// page asks for it again (review finding C5 of pull request #17).
+export const RESUBSCRIBE_MS = 30_000;
 
 export const CURRENT = ["conversations", "current"] as const;
 
@@ -66,8 +70,10 @@ type StreamEvent =
 function isStreamEvent(data: unknown): data is StreamEvent {
   if (typeof data !== "object" || data === null) return false;
   const { type } = data as { type?: unknown };
-  if (type === "span")
-    return typeof (data as { span?: unknown }).span === "object";
+  if (type === "span") {
+    const { span } = data as { span?: unknown };
+    return typeof span === "object" && span !== null;
+  }
   if (type === "deleted")
     return typeof (data as { text?: unknown }).text === "string";
   return type === "message";
@@ -150,8 +156,11 @@ export function useConversation() {
       setPollDelay((delay) =>
         answer.kind === "ok" ? POLL_MS : Math.min(delay * 2, POLL_MAX_MS),
       );
+      // An answer that finds nothing is no answer either (review finding C11).
       setPollFailures((failures) =>
-        answer.kind === "failed" ? failures + 1 : 0,
+        answer.kind === "failed" || answer.kind === "missing"
+          ? failures + 1
+          : 0,
       );
       setPollRefused(answer.kind === "limit" ? answer.text : null);
       // The cookie is gone: a new session, and the polls go on.
@@ -194,8 +203,15 @@ export function useConversation() {
   // pull request #11). Every (re)connection fetches the conversation once,
   // for what the stream carried while it was down.
   const conversationId = state.conversationId;
+  const following = useRef(conversationId);
+  useEffect(() => {
+    following.current = conversationId;
+  }, [conversationId]);
+  // A refused subscription is asked for again a while later.
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     if (conversationId === null) return;
+    let again: number | undefined;
     const refetch = () => {
       void queryClient.invalidateQueries({ queryKey: CURRENT });
     };
@@ -211,6 +227,9 @@ export function useConversation() {
         },
         rejected: () => {
           setLive(false);
+          again = window.setTimeout(() => {
+            setAttempt((count) => count + 1);
+          }, RESUBSCRIBE_MS);
         },
         received: (data) => {
           if (!isStreamEvent(data)) return;
@@ -227,10 +246,11 @@ export function useConversation() {
       },
     );
     return () => {
+      window.clearTimeout(again);
       stop();
       setLive(false);
     };
-  }, [cable, conversationId, queryClient]);
+  }, [cable, conversationId, queryClient, attempt]);
 
   const deliver = useCallback(
     async (clientId: string, content: Content) => {
@@ -247,8 +267,8 @@ export function useConversation() {
               ? renewed
               : outcome;
       }
-      const at = new Date().toISOString();
-      if (outcome.kind === "ok")
+      const at = new Date(serverNow()).toISOString();
+      if (outcome.kind === "ok") {
         dispatch({
           type: "accepted",
           clientId,
@@ -256,11 +276,19 @@ export function useConversation() {
           turnId: outcome.value.turn_id,
           at,
         });
-      else if (outcome.kind === "limit")
+        // Accepted into a conversation the page does not follow (FR-04's 24
+        // hours, a reset): the conversation's answer moves the page and its
+        // stream there (review finding C1 of pull request #17).
+        if (
+          following.current !== null &&
+          outcome.value.conversation_id !== following.current
+        )
+          void queryClient.invalidateQueries({ queryKey: CURRENT });
+      } else if (outcome.kind === "limit")
         dispatch({ type: "limited", clientId, text: outcome.text, at });
       else dispatch({ type: "failed", clientId });
     },
-    [api, language, session],
+    [api, language, session, queryClient],
   );
 
   const send = useCallback(

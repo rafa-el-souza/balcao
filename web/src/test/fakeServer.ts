@@ -1,5 +1,7 @@
 import { vi } from "vitest";
 
+import { serverClock } from "../chat/api";
+
 // A stand-in for the Rails API of PR-09 and PR-11 (design §10, notes of
 // 2026-11-11 and 2026-11-12), in the shapes the server answers: POST
 // /api/session, POST /api/messages, GET /api/conversations/current and GET
@@ -82,6 +84,8 @@ export function message(
 }
 
 export function fakeServer() {
+  // Each test starts with the browser's clock as the server's.
+  serverClock.offset = 0;
   const requests: Recorded[] = [];
   const answers = {
     session: [] as Answer[],

@@ -10,7 +10,7 @@ import {
 import { useTranslation } from "react-i18next";
 
 import { CableContext } from "../cable";
-import { createApi, type Span, type Trace } from "../chat/api";
+import { createApi, type Outcome, type Span, type Trace } from "../chat/api";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "../locale";
 import { withSpans } from "./model";
 
@@ -21,6 +21,19 @@ import { withSpans } from "./model";
 // SR-11): the page reads it from its address and sends it nowhere else.
 
 const TOKEN = /^\/trace\/([^/]+)\/?$/;
+// How long after the server refused the stream the page asks for it again.
+export const RESUBSCRIBE_MS = 30_000;
+
+// A fetch that failed, which the query holds as its error, so the receipt it
+// drew before stays (review finding C2 of pull request #17).
+class TraceUnavailable extends Error {
+  readonly outcome: Outcome<Trace>;
+
+  constructor(outcome: Outcome<Trace>) {
+    super(outcome.kind);
+    this.outcome = outcome;
+  }
+}
 const noChange = () => () => undefined;
 
 // The address's token; none in the prerender and while the page hydrates,
@@ -72,25 +85,38 @@ export function useTrace(token: string | null): TraceView {
 
   const query = useQuery({
     queryKey: ["traces", token],
-    queryFn: ({ signal }) => api.trace(token ?? "", signal),
+    queryFn: async ({ signal }) => {
+      const answer = await api.trace(token ?? "", signal);
+      if (answer.kind !== "ok" && answer.kind !== "missing")
+        throw new TraceUnavailable(answer);
+      return answer;
+    },
     enabled: token !== null,
     retry: false,
     refetchOnWindowFocus: false,
     networkMode: "always",
   });
 
+  // A refused subscription is asked for again a while later (review finding
+  // C5 of pull request #17).
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     if (token === null) return;
+    let again: number | undefined;
     const refetch = () => {
       void queryClient.invalidateQueries({ queryKey: ["traces", token] });
     };
-    return cable.subscribe(
+    const stop = cable.subscribe(
       { channel: "TraceChannel", token },
       {
         // What the stream carried while it was down.
         connected: refetch,
         disconnected: () => undefined,
-        rejected: () => undefined,
+        rejected: () => {
+          again = window.setTimeout(() => {
+            setAttempt((count) => count + 1);
+          }, RESUBSCRIBE_MS);
+        },
         received: (data) => {
           if (isDeleted(data)) {
             setDeleted(true);
@@ -104,13 +130,17 @@ export function useTrace(token: string | null): TraceView {
         },
       },
     );
-  }, [cable, token, queryClient]);
+    return () => {
+      window.clearTimeout(again);
+      stop();
+    };
+  }, [cable, token, queryClient, attempt]);
 
   const answer = query.data;
   if (deleted) return { kind: "gone" };
-  if (!answer) return { kind: "loading" };
-  if (answer.kind === "missing") return { kind: "gone" };
-  if (answer.kind !== "ok") return { kind: "failed" };
+  if (answer?.kind === "missing") return { kind: "gone" };
+  if (answer?.kind !== "ok")
+    return { kind: query.isError ? "failed" : "loading" };
   return {
     kind: "ok",
     trace: answer.value,

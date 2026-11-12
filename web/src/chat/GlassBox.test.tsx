@@ -37,6 +37,14 @@ const ready = () =>
     expect(server.polls()).toHaveLength(1);
   });
 
+// React applies the updates made inside one act() when it ends, so a timer
+// the page re-arms after an answer needs time to pass in steps.
+async function elapse(ms: number) {
+  for (let passed = 0; passed < ms; passed += 500) {
+    await act(() => vi.advanceTimersByTimeAsync(500));
+  }
+}
+
 // The rows of a list, each as its own text: its hour, then what it says.
 const rowsOf = (list: HTMLElement) =>
   within(list)
@@ -222,6 +230,8 @@ describe("FR-12 a long conversation in the glass box", () => {
   });
 
   it("keeps the last turn open beside the one that runs, which shows what is known at its start", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date("2026-11-12T15:05:12Z")); // the turn started at 15:05:10Z
     server.answers.current.push(
       conversation(1, [], true, [
         ...answeredTurn("t1", { minute: 3 }),
@@ -244,9 +254,78 @@ describe("FR-12 a long conversation in the glass box", () => {
     expect(
       within(running as HTMLElement).getByText("claude-opus-5-5"),
     ).toBeInTheDocument();
-    // The totals speak of the turn in progress, which has no time yet.
+    // The totals speak of the turn in progress, whose time counts up.
     expect(within(glass()).getByText("turno 2")).toBeInTheDocument();
-    expect(within(glass()).getAllByText("…").length).toBeGreaterThan(0);
+    expect(within(glass()).getByText(/^\d+,\d s …$/)).toBeInTheDocument();
+  });
+});
+
+// Review findings C3 and C4 of pull request #17 (the verifier's examples).
+describe("FR-12 the glass box and the clocks", () => {
+  it("counts the running turn's time up in the totals and the summary line", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date("2026-11-12T15:05:12Z")); // the turn started at 15:05:10Z
+    server.answers.current.push(conversation(1, [], true, runningTurn("t1")));
+    renderPage(<Chat />);
+    await ready();
+
+    expect(
+      await screen.findByRole("button", { name: /turno 1 · .* · 2,\d s …/ }),
+    ).toBeInTheDocument();
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    expect(
+      screen.getByRole("button", { name: /turno 1 · .* · 3,\d s …/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("writes the queued row whatever the browser's clock says", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date("2026-11-12T15:04:00Z")); // the server's turn started at 15:05:10Z
+    server.answers.current.push(conversation(1, [], true, runningTurn("t1")));
+    server.answers.messages.push({
+      status: 202,
+      body: { turn_id: "t2", message_id: "m2", conversation_id: "1" },
+    });
+    renderPage(<Chat />);
+    await ready();
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: "e a de gotas?" },
+    });
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+
+    expect(
+      await within(glass()).findByText("mensagem na fila"),
+    ).toBeInTheDocument();
+  });
+
+  it("dates the page's own rows by the server's clock, from the answers' Date", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date("2026-11-12T15:00:00Z"));
+    const date = { Date: "Wed, 12 Nov 2026 15:04:02 GMT" };
+    server.fetch.mockImplementation((path: string, init: RequestInit = {}) => {
+      const limited = init.method === "POST" && path === "/api/messages";
+      const body = limited
+        ? { error: "limit", text: "Você chegou ao limite da demo por agora." }
+        : path === "/api/session"
+          ? { conversation_id: "1", trace_token: "t1", language: "pt-BR" }
+          : conversation(1, [], false, answeredTurn("t1")).body;
+      return Promise.resolve(
+        new Response(JSON.stringify(body), {
+          status: limited ? 429 : 200,
+          headers: { "Content-Type": "application/json", ...date },
+        }),
+      );
+    });
+    renderPage(<Chat />);
+    await within(glass()).findByText("search_products");
+
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "oi" } });
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+
+    const row = (await within(glass()).findByText("limite da demo")).closest(
+      "li",
+    ) as HTMLElement;
+    expect(within(row).getByText("12:04:02")).toBeInTheDocument();
   });
 });
 
@@ -588,6 +667,66 @@ describe("FR-18 the conversation's stream, with the polling as its fallback", ()
     await act(() => Promise.resolve());
     expect(
       within(thread()).getByText("Pronto: apaguei os seus dados."),
+    ).toBeInTheDocument();
+  });
+
+  // Review finding C1 of pull request #17: the 202 named a conversation the
+  // page did not follow (FR-04's 24 hours), whose turn then came 15 s late.
+  it("follows the stream of the conversation the server accepted the message into", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const cable = await live();
+    cable.connect();
+    await waitFor(() => {
+      expect(server.polls()).toHaveLength(2);
+    });
+    server.answers.messages.push({
+      status: 202,
+      body: { turn_id: "t2", message_id: "m2", conversation_id: "2" },
+    });
+    server.defaults.current = conversation(2, [], true);
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "oi" } });
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+    await waitFor(() => {
+      expect(server.sent()).toHaveLength(1);
+    });
+
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    expect(cable.active().at(-1)?.params).toEqual({
+      channel: "ConversationChannel",
+      conversation_id: "2",
+    });
+  });
+
+  // Review finding C5 of pull request #17: a refused subscription was never
+  // tried again.
+  it("asks for the stream again a while after the server refused it", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const cable = await live();
+
+    act(() => {
+      cable.active()[0]?.handlers.rejected();
+    });
+    await act(() => vi.advanceTimersByTimeAsync(31_000));
+
+    expect(cable.subscriptions.length).toBeGreaterThan(1);
+    expect(cable.active()).toHaveLength(1);
+  });
+
+  // Review findings C9 and C11 of pull request #17.
+  it("ignores a span that is no span, and counts a poll that finds nothing as failed", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const cable = await live();
+    cable.send({ type: "span", span: null });
+    expect(glass()).toBeInTheDocument();
+
+    cable.drop();
+    server.defaults.current = { status: 404, body: { error: "not_found" } };
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "oi" } });
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+    await elapse(3000 + 6000 + 1000);
+
+    expect(
+      await within(thread()).findByText(pt.chat.offline),
     ).toBeInTheDocument();
   });
 

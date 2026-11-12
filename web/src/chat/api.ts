@@ -98,6 +98,16 @@ export interface Api {
   trace(token: string, signal?: AbortSignal): Promise<Outcome<Trace>>;
 }
 
+// The server's clock, as the Date of its last answer gives it (to the
+// second): the page's own rows are dated by it, and a running turn's time is
+// counted against it, since the server's spans carry the server's hours
+// (review finding C3 of pull request #17).
+export const serverClock = { offset: 0 };
+
+export function serverNow(): number {
+  return Date.now() + serverClock.offset;
+}
+
 // A request the server has not answered in this time is given up and counts
 // as failed: the page says so beside the message, which is sent again with the
 // same id (review finding C2 of pull request #14). The server's own hang is
@@ -133,6 +143,8 @@ export function createApi(locale: () => Locale): Api {
         signal: controller.signal,
         ...(body ? { body: JSON.stringify(body) } : {}),
       });
+      const date = Date.parse(response.headers.get("Date") ?? "");
+      if (!Number.isNaN(date)) serverClock.offset = date - Date.now();
       json = await response.json().catch(() => null);
     } catch {
       return { kind: "failed" };

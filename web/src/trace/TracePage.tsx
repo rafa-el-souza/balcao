@@ -14,7 +14,7 @@ import {
   type Turn,
   turnsOf,
 } from "./model";
-import { rowStyles, TurnRows } from "./Rows";
+import { rowStyles, TurnRows, useTicking, useTurnLine } from "./Rows";
 import styles from "./TracePage.module.css";
 import { useToken, useTrace } from "./useTrace";
 
@@ -61,7 +61,8 @@ function Masthead() {
 }
 
 function TurnSection({ turn, trace }: { turn: Turn; trace: Trace }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
+  const line = useTurnLine();
   const messages = trace.messages.filter(
     (message) => message.turn_id === turn.id,
   );
@@ -74,11 +75,7 @@ function TurnSection({ turn, trace }: { turn: Turn; trace: Trace }) {
           {t("instrument.turn", { number: turn.number })}
         </span>{" "}
         {said && <span className={styles.said}>{said.body}</span>}{" "}
-        <span className={styles.turnTime}>
-          {turn.durationMs === null
-            ? t("instrument.running")
-            : formatDuration(turn.durationMs, i18n.language)}
-        </span>
+        <span className={styles.turnTime}>{line.time(turn)}</span>
       </h2>
       <ol className={rowStyles.events}>
         <TurnRows turn={turn} open={false} />
@@ -137,6 +134,9 @@ export function TracePage() {
   const { t, i18n } = useTranslation();
   const token = useToken();
   const view = useTrace(token);
+  useTicking(
+    view.kind === "ok" && turnsOf(view.spans).some((turn) => turn.running),
+  );
 
   useEffect(() => {
     document.title = t("trace.title");

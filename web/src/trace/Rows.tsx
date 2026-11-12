@@ -1,4 +1,7 @@
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+
+import { serverNow } from "../chat/api";
 
 import { cx } from "../ui/cx";
 import {
@@ -395,7 +398,9 @@ export function TurnRows({
   );
 }
 
-// The words of a turn's line: its number, its rows and its time.
+// The words of a turn's line: its number, its rows and its time. While the
+// turn runs, its time counts up from its receipt by the server's clock
+// (docs/prototype/chat-queued.html; review finding C4 of pull request #17).
 export function useTurnLine() {
   const { t, i18n } = useTranslation();
   return {
@@ -403,10 +408,24 @@ export function useTurnLine() {
     events: (count: number) => t("instrument.events", { count }),
     time: (turn: Turn) =>
       turn.durationMs === null
-        ? t("instrument.running")
+        ? `${formatDuration(Math.max(0, serverNow() - Date.parse(turn.startedAt)), i18n.language)} ${t("instrument.running")}`
         : formatDuration(turn.durationMs, i18n.language),
     total: (ms: number) => formatDuration(ms, i18n.language),
   };
+}
+
+// Draws again every tenth of a second while a turn runs, so its time counts.
+export function useTicking(active: boolean) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    const timer = window.setInterval(() => {
+      setTick((tick) => tick + 1);
+    }, 100);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [active]);
 }
 
 export const rowStyles = styles;
