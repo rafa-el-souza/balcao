@@ -502,6 +502,11 @@
     display: none;
   }
 
+  /* Room under the conversation, so its last entry can scroll into the upper half. */
+  .chat[data-drawer] .thread {
+    padding-bottom: 50vh;
+  }
+
   .glassHead {
     padding: 0 var(--space-4);
   }
