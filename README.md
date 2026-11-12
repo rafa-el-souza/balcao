@@ -71,10 +71,11 @@ and each pull request's Review section is the record.
 Design complete and independently reviewed (2026-11-02, 30 findings;
 2026-11-04, the amended deploy model, the bot gap and the testing strategy;
 2026-11-09, the twelve-day MVP plan, all applied). The MVP is being built
-(design §9.1): since day 2 the demo host serves a placeholder page at the
-address above, with TLS; since day 5 a conversation runs there over the HTTP
-API; the chat page arrives on day 6. See the delivery plan in the design
-document.
+(design §9.1): since day 2 the demo host answers at the address above, with
+TLS; since day 5 a conversation runs there over the HTTP API; since day 6 the
+landing and the chat page are there, in three languages, the reply arriving by
+polling. The glass box's rows and the live stream arrive on day 7. See the
+delivery plan in the design document.
 
 ## Running locally
 
