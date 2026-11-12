@@ -2217,3 +2217,12 @@ body {
     display: none;
   }
 }
+
+/* A cache miss is drawn like a hit, in the instrument's ink and heavier: the miss is the news. */
+.tick.miss {
+  stroke: var(--color-instrument-ink);
+}
+
+.cache[data-cache="miss"] {
+  font-weight: 700;
+}
