@@ -601,3 +601,43 @@ describe("FR-18 the chat that could not open, and then could", () => {
     expect(screen.queryByText(pt.loadFailed)).toBeNull();
   });
 });
+
+// Review finding C2 of pull request #14: a request that never answered left
+// the message drawn as sent, or the page loading, with nothing said.
+describe("FR-18 a request that never answers", () => {
+  const hanging =
+    (hung: string) =>
+    (path: string, init: RequestInit = {}) =>
+      path === hung
+        ? new Promise<Response>((_, reject) => {
+            init.signal?.addEventListener("abort", () => {
+              reject(new DOMException("timed out", "AbortError"));
+            });
+          })
+        : server.fetch(path, init);
+
+  it("says a message was not sent when its request hangs", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.stubGlobal("fetch", hanging("/api/messages"));
+    renderPage(<Chat />);
+    await ready();
+
+    type("tem dipirona?");
+    fireEvent.keyDown(field(), { key: "Enter" });
+    await act(() => vi.advanceTimersByTimeAsync(60_000));
+
+    expect(
+      within(thread()).getByText(pt.failed, { exact: false }),
+    ).toBeInTheDocument();
+  });
+
+  it("says the chat could not open when the session request hangs", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.stubGlobal("fetch", hanging("/api/session"));
+    renderPage(<Chat />);
+
+    await act(() => vi.advanceTimersByTimeAsync(60_000));
+
+    expect(screen.getByText(pt.loadFailed)).toBeInTheDocument();
+  });
+});

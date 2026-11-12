@@ -59,6 +59,12 @@ export interface Api {
   ): Promise<Outcome<{ conversation_id: number }>>;
 }
 
+// A request the server has not answered in this time is given up and counts
+// as failed: the page says so beside the message, which is sent again with the
+// same id (review finding C2 of pull request #14). The server's own hang is
+// cut at 30 s by the proxy; the visitor's network can stall for minutes.
+export const TIMEOUT_MS = 15_000;
+
 export function createApi(locale: () => Locale): Api {
   async function request<T>(
     method: "GET" | "POST",
@@ -70,18 +76,26 @@ export function createApi(locale: () => Locale): Api {
       "Accept-Language": locale(),
     };
     if (body) headers["Content-Type"] = "application/json";
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      controller.abort();
+    }, TIMEOUT_MS);
     let response: Response;
+    let json: unknown;
     try {
       response = await fetch(path, {
         method,
         headers,
         credentials: "same-origin",
+        signal: controller.signal,
         ...(body ? { body: JSON.stringify(body) } : {}),
       });
+      json = await response.json().catch(() => null);
     } catch {
       return { kind: "failed" };
+    } finally {
+      clearTimeout(timer);
     }
-    const json: unknown = await response.json().catch(() => null);
     if (response.ok && json !== null) return { kind: "ok", value: json as T };
     if (response.status === 401) return { kind: "session" };
     if (response.status === 429 && isLimit(json))
