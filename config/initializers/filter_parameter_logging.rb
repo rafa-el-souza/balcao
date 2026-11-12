@@ -16,10 +16,11 @@ Rails.application.config.filter_parameters += [
 
 # A trace's token is the whole credential of a conversation's trace page
 # (threat model SR-11), and parameter filtering never reaches the lines that
-# carry it: the request's own line, which writes the path, and Action Cable's
-# lines, which write the stream a page follows and the identifier it
-# subscribes with. These write [FILTERED] in its place (SR-30; review findings
-# C3 and G1 of pull request #17). The conversations' streams name a
+# carry it: Action Cable's lines, which write the stream a page follows and
+# the identifier it subscribes with, and the request's own line, which writes
+# the path, should a token be typed into one (the link carries it after the
+# "#", and the lookup in a header). These write [FILTERED] in its place (SR-30;
+# review findings C3, G1 and V3 of pull request #17). The conversations' streams name a
 # conversation, which only its visitor's cookie opens, and stay as they are.
 module Balcao
   module TraceTokenFilter

@@ -5,7 +5,7 @@ import { serverClock } from "../chat/api";
 // A stand-in for the Rails API of PR-09 and PR-11 (design §10, notes of
 // 2026-11-11 and 2026-11-12), in the shapes the server answers: POST
 // /api/session, POST /api/messages, GET /api/conversations/current and GET
-// /api/traces/:token. Each request is recorded; each answer can be set per
+// /api/trace, the token in X-Trace-Token. Each request is recorded; each answer can be set per
 // test. The server's ids are UUIDs, strings on the wire; the helpers take a
 // number for short and send its string.
 export interface Recorded {
@@ -111,7 +111,7 @@ export function fakeServer() {
     if (method === "POST" && path === "/api/messages") return "messages";
     if (method === "GET" && path === "/api/conversations/current")
       return "current";
-    if (method === "GET" && path.startsWith("/api/traces/")) return "trace";
+    if (method === "GET" && path === "/api/trace") return "trace";
     throw new Error(`no route for ${method} ${path}`);
   };
 
@@ -145,7 +145,6 @@ export function fakeServer() {
       requests.filter(
         (request) => request.path === "/api/conversations/current",
       ),
-    traces: () =>
-      requests.filter((request) => request.path.startsWith("/api/traces/")),
+    traces: () => requests.filter((request) => request.path === "/api/trace"),
   };
 }

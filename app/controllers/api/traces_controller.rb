@@ -1,20 +1,18 @@
 module Api
-  # GET /api/traces/:token (FR-12, design §6.6): a conversation's trace page,
-  # for whoever holds its link, cookie or not (a WhatsApp visitor has none).
-  # The token is the whole credential (threat model SR-11): 128 random bits
-  # and more, counted at the edge like every API request, 404 on a miss, and
-  # no listing. The answer is that conversation alone (SR-05): each of its
-  # turns' messages, with the turn (a reset's reply among them, though it opens
-  # the conversation the reset started, FR-04), and its spans, in the shape the
-  # trace stream sends them, so the page follows it live.
+  # GET /api/trace (FR-12, design §6.6 and §10, note of 2026-11-12): a
+  # conversation's trace page, for whoever holds its link, cookie or not (a
+  # WhatsApp visitor has none). The token is the whole credential (threat
+  # model SR-11): 128 random bits and more, counted at the edge like every API
+  # request, 404 on a miss, and no listing. It travels in the X-Trace-Token
+  # header, never in the path or the query, which kamal-proxy writes to the
+  # host's log (review finding V3 of pull request #17, SR-30). The answer is
+  # that conversation alone (SR-05): each of its turns' messages, with the
+  # turn (a reset's reply among them, though it opens the conversation the
+  # reset started, FR-04), and its spans, in the shape the trace stream sends
+  # them, so the page follows it live.
   class TracesController < BaseController
-    # A token of bytes that are not UTF-8 reaches the action, binary, and is a
-    # miss like any other, not the router's 400 (review finding S5 of pull
-    # request #17).
-    skip_parameter_encoding :show
-
     def show
-      conversation = Conversation.find_by_trace_token(params[:token])
+      conversation = Conversation.find_by_trace_token(request.headers["X-Trace-Token"])
       return render(json: { error: "not_found" }, status: :not_found) if conversation.nil?
 
       turns = conversation.turns.includes(:inbound_message, :outbound_message).order(:created_at, :id).to_a

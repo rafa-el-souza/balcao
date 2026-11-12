@@ -12,7 +12,7 @@ Rails.application.routes.draw do
     resource :session, only: :create
     resources :messages, only: :create
     get "conversations/current", to: "conversations#current"
-    get "traces/:token", to: "traces#show"
+    get "trace", to: "traces#show"
   end
 
   # The web app's pages (design §6.7), each sent as its own shell; the others
@@ -20,5 +20,11 @@ Rails.application.routes.draw do
   # spec/requests/spa_spec.rb holds the two lists together).
   root "spa#landing"
   get "chat", to: "spa#chat"
-  get "trace/:token", to: "spa#trace", format: false
+  get "trace", to: "spa#trace"
+  # A trace's link carries its token after the "#", which no browser sends
+  # (review finding V3 of pull request #17). A link given before then is moved
+  # there by a plain answer: Rails' redirect would log the new address whole,
+  # and the request's own line masks the token (SR-30).
+  get "trace/:token", constraints: { token: /[1-9A-HJ-NP-Za-km-z]{24}/ }, format: false,
+                      to: ->(env) { [ 301, { "location" => "/trace##{env["action_dispatch.request.path_parameters"][:token]}" }, [] ] }
 end

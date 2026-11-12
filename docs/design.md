@@ -1575,19 +1575,26 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     the notice with its label in
     bold; the trace page leaves it out, since the receipt shows the reply's
     own words.
-  - **`GET /api/traces/:token`** answers `{conversation: {started_at},
-    messages, spans}`: each of the conversation's turns' messages, the
-    visitor's and the reply, with the turn (a reset's reply is its turn's,
-    though it opens the conversation the reset started), and no client,
-    conversation or visitor id; 404 `{error: "not_found"}` on a miss. A lookup
-    without the cookie counts against the source's anonymous minute
-    (app/models/edge_limits.rb). The page at `/trace/:token` is one shell for
-    every token, sent with `X-Robots-Tag: noindex, nofollow` and
-    `Referrer-Policy: no-referrer`, since the link is the credential (SR-11).
+  - **`GET /api/trace`**, the token in the `X-Trace-Token` header, answers
+    `{conversation: {started_at}, messages, spans}`: each of the
+    conversation's turns' messages, the visitor's and the reply, with the
+    turn (a reset's reply is its turn's, though it opens the conversation the
+    reset started), and no client, conversation or visitor id; 404 `{error:
+    "not_found"}` on a miss. A lookup without the cookie counts against the
+    source's anonymous minute (app/models/edge_limits.rb). The link is
+    `/trace#<token>`: one shell for every trace, sent with `X-Robots-Tag:
+    noindex, nofollow` and `Referrer-Policy: no-referrer`, since the link is
+    the credential (SR-11). This replaces §6.6's `GET /api/traces/:token` and
+    §6.8's `/trace/:token`: kamal-proxy writes the path and the query of
+    every request to the host's log, and Kamal's proxy settings reach only
+    headers, so the token travels after the "#", which no browser sends, and
+    in a header (review finding V3 of pull request #17, SR-30). A link given
+    before, `/trace/<token>`, is moved to the new one by a plain answer that
+    writes no log line of its own; kamal-proxy's log keeps that one request.
     A spec holds the build's pages (web/src/pages.ts) and the server's routes
     together (review finding C2 of pull request #14).
   - **The cable and TanStack Query.** One query per endpoint
-    (`/api/conversations/current`, `/api/traces/:token`). The stream's spans
+    (`/api/conversations/current`, `/api/trace`). The stream's spans
     go into the page's state as they come, since FR-12 wants them within a
     second and they need no order; a reply on the stream makes the query
     fetch, so the thread keeps the server's order and the message the page
@@ -1627,21 +1634,25 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     page is the receipt's head in the visitor's language.
   - **What the review of pull request #17 settled** (its Review section has
     each finding). A trace token is looked up only in the shape the server
-    draws (24 characters of base58), and the two trace routes take any bytes,
-    so every other token is a plain miss. The token never reaches the logs:
-    the request's line and Action Cable's lines write `[FILTERED]` in its
-    place (SR-30, SR-11), ahead of PR-16's log masking. A deletion tells the
-    trace page of each of the visitor's conversations, which then says the
+    draws (24 characters of base58), so every other token, of any bytes, is
+    a plain miss. No request the pages make carries the token in its line
+    (above), Thruster writes no request line of its own, and Action Cable's
+    lines and the request line of a link given before write `[FILTERED]` in
+    its place (SR-30, SR-11), ahead of PR-16's log masking. A deletion tells
+    the trace page of each of the visitor's conversations, which then says the
     conversation is no longer here (FR-05). The notice is told by its place,
-    the first line of a conversation's first reply, not by its wording. The
-    API answers `no-store`. The edge counts a path with a repeated or a
+    the first line of a conversation's first reply, not by its wording, in
+    the payloads and in the history the model reads. The API answers
+    `no-store`. The edge counts a path with a repeated or a
     trailing slash as the router reads it, because Rack::Attack normalizes
     the path with the router's own utility first; a spec keeps it so. On the
     page: a message accepted into a conversation the page does not follow
     moves it and its stream there; a refused subscription is asked for again
     30 s later; a trace fetch that fails keeps the receipt drawn before; the
-    page's own rows are dated by the server's clock, from its answers'
-    `Date`; and a running turn's time counts up, as the drawings ask.
+    page's own rows are dated by the server's clock, which an answer's
+    `Date` places within its second and the round trip, so a right clock
+    stands and a wrong one moves; and a running turn's time counts up, as
+    the drawings ask.
 - Note 2026-11-12 (PR-10, the landing and the chat). The web app's pages
   follow the drawings of `docs/prototype/` (web/src/landing/, web/src/chat/),
   with `tokens.css` the prototype's token block character for character

@@ -38,18 +38,21 @@ RSpec.describe "Design §6.7 the web app's shell is sent fresh on every visit", 
   end
 
   # A trace link is a credential (threat model SR-11): the page that opens it
-  # stays out of search indexes and sends no referrer on, and its shell is
-  # the same whatever the token, which the page reads and looks up itself.
-  it "serves the trace page at /trace/:token, for any token, out of indexes and without a referrer (FR-12)" do
-    [ "Xy7GqR2mN8pLw4Kd9sTzVb3H", "anything", "%FF", "a%00b" ].each do |token|
-      get "/trace/#{token}"
+  # stays out of search indexes and sends no referrer on. The token follows
+  # the "#", which no browser sends, so the page's own request carries none
+  # and kamal-proxy's log of the host never sees it (review finding V3 of pull
+  # request #17); the page reads it and looks the trace up itself.
+  it "serves the trace page at /trace, out of indexes and without a referrer, and moves a link given before there (FR-12)" do
+    get "/trace"
 
-      expect(response).to have_http_status(:ok), token
-      expect(response.body).to include(%(data-page="trace"))
-      expect(response.headers["Cache-Control"]).to eq "no-cache"
-      expect(response.headers["X-Robots-Tag"]).to eq "noindex, nofollow"
-      expect(response.headers["Referrer-Policy"]).to eq "no-referrer"
-    end
+    expect(response).to have_http_status(:ok)
+    expect(response.body).to include(%(data-page="trace"))
+    expect(response.headers["Cache-Control"]).to eq "no-cache"
+    expect(response.headers["X-Robots-Tag"]).to eq "noindex, nofollow"
+    expect(response.headers["Referrer-Policy"]).to eq "no-referrer"
+
+    get "/trace/Xy7GqR2mN8pLw4Kd9sTzVb3H"
+    expect(response).to redirect_to("/trace#Xy7GqR2mN8pLw4Kd9sTzVb3H")
   end
 
   it "has no shell for a path that is not a page" do
@@ -120,11 +123,10 @@ RSpec.describe "Design §6.7 the build's pages and the server's routes agree" do
     source.scan(/^\s*(\w+): "([^"]+)",?$/).to_h
   end
 
-  it "routes each page's path, with any token, to the action of its name" do
-    expect(pages.keys).to include("landing", "chat", "trace")
+  it "routes each page's path to the action of its name" do
+    expect(pages).to include("landing" => "/", "chat" => "/chat", "trace" => "/trace")
     pages.each do |page, path|
-      recognized = Rails.application.routes.recognize_path(path.gsub(/:\w+/, "Xy7GqR2mN8pLw4Kd9sTzVb3H"))
-      expect(recognized).to include(controller: "spa", action: page), path
+      expect(Rails.application.routes.recognize_path(path)).to include(controller: "spa", action: page), path
     end
   end
 

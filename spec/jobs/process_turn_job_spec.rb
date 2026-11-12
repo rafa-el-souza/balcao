@@ -470,7 +470,7 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
         perform(trace)
 
         current = Conversation.current_for!(visitor)
-        expect(trace.reload.outbound_message.body).to end_with("/trace/#{current.trace_token}")
+        expect(trace.reload.outbound_message.body).to end_with("/trace##{current.trace_token}")
       end
 
       # Review finding R2 of pull request #11: a reset moves the messages sent
@@ -555,7 +555,9 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
 
           perform(turn)
 
-          url = "#{Rails.configuration.x.public_origin}/trace/#{conversation.trace_token}"
+          # The token follows the "#", which no browser sends: no request line
+          # carries it (review finding V3 of pull request #17, SR-11, SR-30).
+          url = "#{Rails.configuration.x.public_origin}/trace##{conversation.trace_token}"
           expect(fake.requests).to be_empty
           expect(turn.reload.outbound_message.body).to eq(FixedReply.with_notice(FixedReply.command(:trace, "pt-BR", url:), "pt-BR"))
           expect(spans(turn).sole.span_attributes).to eq("balcao.command.name" => "trace")

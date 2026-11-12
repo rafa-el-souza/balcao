@@ -12,19 +12,15 @@ class SpaController < ApplicationController
 
   LOCALES = I18n.available_locales.map(&:to_s).freeze
 
-  # The trace page's shell is the same whatever its token, and the page reads
-  # the token itself, so one of bytes that are not UTF-8 gets the shell too,
-  # not the router's 400 (review finding S5 of pull request #17).
-  skip_parameter_encoding :trace
-
   def landing = send_shell("landing")
 
   def chat = send_shell("chat")
 
-  # The shell is the same for every token: the page reads the token from its
-  # address and looks the trace up (FR-12). The link is a credential (threat
-  # model SR-11), so the page stays out of search indexes and passes no
-  # referrer on.
+  # The shell is the same for every trace: the token follows the "#" of the
+  # link, which no browser sends, and the page reads it and looks the trace up
+  # (FR-12; review finding V3 of pull request #17). The link is a credential
+  # (threat model SR-11), so the page stays out of search indexes and passes
+  # no referrer on.
   def trace
     response.headers["X-Robots-Tag"] = "noindex, nofollow"
     response.headers["Referrer-Policy"] = "no-referrer"

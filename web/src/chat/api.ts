@@ -137,10 +137,12 @@ export function createApi(locale: () => Locale): Api {
     path: string,
     body?: object,
     signal?: AbortSignal,
+    extra: Record<string, string> = {},
   ): Promise<Outcome<T>> {
     const headers: Record<string, string> = {
       Accept: "application/json",
       "Accept-Language": locale(),
+      ...extra,
     };
     if (body) headers["Content-Type"] = "application/json";
     const controller = new AbortController();
@@ -181,13 +183,13 @@ export function createApi(locale: () => Locale): Api {
     current: (signal) =>
       request("GET", "/api/conversations/current", undefined, signal),
     send: (id, content) => request("POST", "/api/messages", { id, ...content }),
+    // The token travels in a header, never in the path or the query, which
+    // kamal-proxy writes to the host's log (review finding V3 of pull request
+    // #17).
     trace: (token, signal) =>
-      request(
-        "GET",
-        `/api/traces/${encodeURIComponent(token)}`,
-        undefined,
-        signal,
-      ),
+      request("GET", "/api/trace", undefined, signal, {
+        "X-Trace-Token": token,
+      }),
   };
 }
 

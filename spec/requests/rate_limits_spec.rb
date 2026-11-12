@@ -282,7 +282,7 @@ RSpec.describe "FR-14 SR-01 SR-36 per-IP and per-visitor limits", type: :request
     end
 
     it "counts a request to the API or the cable on a path with a repeated slash" do
-      paths = [ "//api/conversations/current", "//api/traces/#{SecureRandom.base58(24)}", "//cable" ]
+      paths = [ "//api/conversations/current", "//api/trace", "//cable" ]
       60.times { |index| raw("GET", paths[index % paths.size]) }
 
       expect(raw("GET", "/api/conversations/current").first).to eq(429)

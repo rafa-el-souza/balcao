@@ -14,13 +14,14 @@ import { createApi, type Outcome, type Span, type Trace } from "../chat/api";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "../locale";
 import { withSpans } from "./model";
 
-// The trace page's data (FR-12): GET /api/traces/:token, one query, and the
-// trace's stream, whose spans are drawn as they come; a turn that ends makes
-// the query fetch, which brings its words ("cable invalidates, query
-// fetches", design §6.9). The token is the whole credential (threat model
-// SR-11): the page reads it from its address and sends it nowhere else.
+// The trace page's data (FR-12): GET /api/trace, one query, and the trace's
+// stream, whose spans are drawn as they come; a turn that ends makes the
+// query fetch, which brings its words ("cable invalidates, query fetches",
+// design §6.9). The token is the whole credential (threat model SR-11): the
+// page reads it after its address's "#", which no browser sends, and sends it
+// only in the lookup's header and the stream's subscription, so no request
+// line carries it to a log (review finding V3 of pull request #17).
 
-const TOKEN = /^\/trace\/([^/]+)\/?$/;
 // How long after the server refused the stream the page asks for it again.
 export const RESUBSCRIBE_MS = 30_000;
 
@@ -34,14 +35,20 @@ class TraceUnavailable extends Error {
     this.outcome = outcome;
   }
 }
-const noChange = () => () => undefined;
+function onHashChange(changed: () => void) {
+  window.addEventListener("hashchange", changed);
+  return () => {
+    window.removeEventListener("hashchange", changed);
+  };
+}
 
-// The address's token; none in the prerender and while the page hydrates,
-// whose markup carries no link's token.
+// The token after the address's "#", "" when there is none, and a link to
+// another trace opened in the same tab changes it; unknown (null) in the
+// prerender and while the page hydrates, whose markup carries no link's token.
 export function useToken(): string | null {
   return useSyncExternalStore(
-    noChange,
-    () => TOKEN.exec(window.location.pathname)?.[1] ?? null,
+    onHashChange,
+    () => window.location.hash.replace(/^#/, ""),
     () => null,
   );
 }
@@ -82,6 +89,14 @@ export function useTrace(token: string | null): TraceView {
   const [live, setLive] = useState<Span[]>([]);
   // The stream said the conversation's data is gone (FR-05).
   const [deleted, setDeleted] = useState(false);
+  // A link to another trace opened in the same tab keeps nothing of the one
+  // before.
+  const [shown, setShown] = useState(token);
+  if (shown !== token) {
+    setShown(token);
+    setLive([]);
+    setDeleted(false);
+  }
 
   const query = useQuery({
     queryKey: ["traces", token],
@@ -91,7 +106,7 @@ export function useTrace(token: string | null): TraceView {
         throw new TraceUnavailable(answer);
       return answer;
     },
-    enabled: token !== null,
+    enabled: Boolean(token),
     retry: false,
     refetchOnWindowFocus: false,
     networkMode: "always",
@@ -101,7 +116,7 @@ export function useTrace(token: string | null): TraceView {
   // C5 of pull request #17).
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
-    if (token === null) return;
+    if (!token) return;
     let again: number | undefined;
     const refetch = () => {
       void queryClient.invalidateQueries({ queryKey: ["traces", token] });
@@ -137,7 +152,7 @@ export function useTrace(token: string | null): TraceView {
   }, [cable, token, queryClient, attempt]);
 
   const answer = query.data;
-  if (deleted) return { kind: "gone" };
+  if (deleted || token === "") return { kind: "gone" };
   if (answer?.kind === "missing") return { kind: "gone" };
   if (answer?.kind !== "ok")
     return { kind: query.isError ? "failed" : "loading" };

@@ -99,10 +99,12 @@ class TurnProcessor
     Message.where(id: later.map(&:last)).update_all(conversation_id: current.id, updated_at: Time.current)
   end
 
-  # FR-12: the link to this conversation's trace page.
+  # FR-12: the link to this conversation's trace page. The token follows the
+  # "#", which no browser sends, so no request line carries it, in Rails' log
+  # or in kamal-proxy's (review finding V3 of pull request #17, SR-30).
   def trace
     language = command_language
-    url = "#{Rails.configuration.x.public_origin}/trace/#{@conversation.trace_token}"
+    url = "#{Rails.configuration.x.public_origin}/trace##{@conversation.trace_token}"
     command(:trace) { store_reply(FixedReply.command(:trace, language, url:), language:) }
   end
 

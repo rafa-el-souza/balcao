@@ -2,12 +2,14 @@
 // at build time into its own shell, once per language, and Rails sends the
 // shell of the route (config/routes.rb, app/controllers/spa_controller.rb;
 // spec/requests/spa_spec.rb holds the two lists together). A route's
-// `:param` is one path segment the page reads itself. The privacy and status
-// pages join here with their pull requests.
+// `:param` is one path segment the page reads itself; the trace page reads
+// its token after the "#" instead, which no browser sends (review finding V3
+// of pull request #17). The privacy and status pages join here with their
+// pull requests.
 export const PAGES = {
   landing: "/",
   chat: "/chat",
-  trace: "/trace/:token",
+  trace: "/trace",
 } as const;
 
 export type Page = keyof typeof PAGES;

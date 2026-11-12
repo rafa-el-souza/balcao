@@ -199,7 +199,7 @@ export function Chat() {
           {state.traceToken && (
             <a
               className={styles.toolButton}
-              href={`/trace/${encodeURIComponent(state.traceToken)}`}
+              href={`/trace#${encodeURIComponent(state.traceToken)}`}
             >
               <Icon name="receipt" /> {t("chat.glass.openTrace")}
             </a>

@@ -457,7 +457,7 @@ describe("FR-12 the way to the conversation's trace page", () => {
     const link = await within(glass()).findByRole("link", {
       name: pt.chat.glass.openTrace,
     });
-    expect(link).toHaveAttribute("href", "/trace/t1");
+    expect(link).toHaveAttribute("href", "/trace#t1");
   });
 });
 
@@ -677,7 +677,7 @@ describe("FR-18 the conversation's stream, with the polling as its fallback", ()
     expect(within(glass()).getByText(pt.chat.glass.empty)).toBeInTheDocument();
     expect(
       within(glass()).getByRole("link", { name: pt.chat.glass.openTrace }),
-    ).toHaveAttribute("href", "/trace/t2");
+    ).toHaveAttribute("href", "/trace#t2");
   });
 
   it("shows only the confirmation when the stream says the data is gone (FR-05)", async () => {

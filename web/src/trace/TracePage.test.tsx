@@ -19,7 +19,7 @@ let server: ReturnType<typeof fakeServer>;
 beforeEach(() => {
   server = fakeServer();
   vi.stubGlobal("fetch", server.fetch);
-  window.history.replaceState(null, "", `/trace/${LINK}`);
+  window.history.replaceState(null, "", `/trace#${LINK}`);
 });
 
 afterEach(() => {
@@ -78,8 +78,71 @@ describe("FR-12 the trace page, the glass box at full length", () => {
     await waitFor(() => {
       expect(server.traces()).toHaveLength(1);
     });
-    expect(server.traces()[0]?.path).toBe(`/api/traces/${LINK}`);
+    expect(server.traces()[0]?.headers.get("X-Trace-Token")).toBe(LINK);
     expect(server.traces()[0]?.headers.get("Accept-Language")).toBe("pt-BR");
+  });
+
+  // Review finding V3 of pull request #17: kamal-proxy writes the path and
+  // the query of every request to the host's log, so the token travels after
+  // the address's "#", which no browser sends, and in a header.
+  it("reads the token after the #, and puts it in no request's path or query", async () => {
+    server.answers.trace.push(trace());
+    renderPage(<TracePage />);
+
+    await screen.findByText("tem dipirona?");
+    expect(server.traces()[0]?.path).toBe("/api/trace");
+    expect(
+      server.requests.filter((request) => request.path.includes(LINK)),
+    ).toEqual([]);
+  });
+
+  it("follows a link to another trace opened in the same tab, and keeps nothing of the first", async () => {
+    const other = "Ab3dEf5gHj7kLm9nPq2rSt4u";
+    server.answers.trace.push(trace(answeredTurn("t1")), {
+      status: 200,
+      body: {
+        conversation: { started_at: "2026-11-12T15:03:41.000Z" },
+        messages: [said("m9", "t9", "outra conversa")],
+        spans: answeredTurn("t9"),
+      },
+    });
+    const cable = fakeCable();
+    renderPage(<TracePage />, "pt-BR", cable.cable);
+    await screen.findByText("tem dipirona?");
+    await waitFor(() => {
+      expect(cable.active()).toHaveLength(1);
+    });
+    cable.send({ type: "span", span: runningTurn("t3", 9)[0] });
+    expect(
+      await within(roll()).findByRole("heading", {
+        level: 2,
+        name: /^turno 2/,
+      }),
+    ).toBeInTheDocument();
+
+    act(() => {
+      window.history.replaceState(null, "", `/trace#${other}`);
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+    });
+
+    expect(await screen.findByText("outra conversa")).toBeInTheDocument();
+    expect(server.traces().at(-1)?.headers.get("X-Trace-Token")).toBe(other);
+    expect(cable.active().map((each) => each.params)).toEqual([
+      { channel: "TraceChannel", token: other },
+    ]);
+    expect(
+      within(roll()).queryByRole("heading", { level: 2, name: /^turno 2/ }),
+    ).toBeNull();
+  });
+
+  it("says the link is gone for an address with no token after the #", async () => {
+    window.history.replaceState(null, "", "/trace");
+    renderPage(<TracePage />);
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: pt.goneHeading }),
+    ).toBeInTheDocument();
+    expect(server.traces()).toEqual([]);
   });
 
   it("titles the page with the link's head, the day and the hour it started in São Paulo, and its turns", async () => {
@@ -301,9 +364,9 @@ describe("NFR-10 the trace page before any script runs", () => {
 });
 
 describe("Design §6.7 the trace page's route", () => {
-  it("is the page of any /trace/:token address", () => {
-    expect(pageOf(`/trace/${LINK}`)).toBe("trace");
-    expect(pageOf("/trace/")).toBe("landing");
-    expect(pageOf(`/trace/${LINK}/more`)).toBe("landing");
+  it("is the page of the /trace address, whatever follows its #", () => {
+    expect(pageOf("/trace")).toBe("trace");
+    expect(pageOf("/trace/")).toBe("trace");
+    expect(pageOf(`/trace/${LINK}`)).toBe("landing");
   });
 });

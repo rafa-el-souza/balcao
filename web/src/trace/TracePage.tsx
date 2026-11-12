@@ -18,7 +18,7 @@ import { rowStyles, TurnRows, useTicking, useTurnLine } from "./Rows";
 import styles from "./TracePage.module.css";
 import { useToken, useTrace } from "./useTrace";
 
-// The trace page, `/trace/:token` (FR-12, design §6.7, §6.8;
+// The trace page, `/trace#<token>` (FR-12, design §6.7, §6.8;
 // docs/prototype/trace.html and trace-expired.html): the glass box's rows at
 // full length, on one receipt, every row closed, and live while the
 // conversation goes on. For a WhatsApp conversation it is the only glass
