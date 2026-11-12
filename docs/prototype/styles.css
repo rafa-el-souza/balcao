@@ -2084,3 +2084,19 @@ body {
 .turn-line .payload {
   margin-left: -4.75rem;
 }
+
+/* On a wide window the one block of a page (the receipt, the column of text) stands in the middle;
+   what is inside it keeps its own alignment. */
+@media (min-width: 60rem) {
+  .page .trace-note,
+  .page .roll,
+  .page .prose,
+  .page .colophon {
+    margin-inline: auto;
+  }
+
+  .page .trace-note,
+  .page .roll + .colophon {
+    max-width: 46rem;
+  }
+}
