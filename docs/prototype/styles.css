@@ -679,7 +679,7 @@ body {
   stroke: none;
 }
 
-@media (max-width: 40rem) {
+@media (width < 40rem) {
   .masthead .langs {
     order: 2;
   }
@@ -695,7 +695,7 @@ body {
   }
 }
 
-@media (min-width: 60rem) {
+@media (width >= 60rem) {
   .landing {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -737,7 +737,7 @@ body {
 
   .say-label {
     margin: 0;
-    padding-top: 0.5rem;
+    padding-top: var(--space-2);
   }
 
   .does,
@@ -1119,6 +1119,7 @@ body {
 }
 
 .detail {
+  clear: both;
   margin: 0;
 }
 
@@ -1181,8 +1182,8 @@ body {
   border: var(--rule-dash);
   font: inherit;
   line-height: 1.25rem;
-  white-space: pre;
-  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .outcome {
@@ -1275,7 +1276,7 @@ body {
   cursor: pointer;
 }
 
-@media (max-width: 52rem) {
+@media (width < 52rem) {
   .chat {
     display: block;
   }
@@ -1362,7 +1363,7 @@ body {
     display: flex;
     position: fixed;
     z-index: 1;
-    inset: 50vh 0 calc(var(--touch) + 2 * var(--space-2) + 2 * var(--space-2) + 4px);
+    inset: 50vh 0 calc(var(--touch) + 2 * var(--space-2) + 2 * var(--space-2) + 3px);
     overflow-y: auto;
     border-left: 0;
     border-top: 4px solid var(--color-instrument-ink);
@@ -1552,7 +1553,7 @@ body {
   font-weight: 700;
 }
 
-@media (max-width: 40rem) {
+@media (width < 40rem) {
   .roll {
     padding: var(--space-4);
   }
@@ -1671,7 +1672,7 @@ body {
   fill: var(--color-instrument-ink);
 }
 
-@media (min-width: 60rem) {
+@media (width >= 60rem) {
   .hero .numbers.with-more {
     grid-row: 1;
   }
@@ -1778,8 +1779,8 @@ body {
 
 .meter-mark {
   position: absolute;
-  top: -4px;
-  bottom: -4px;
+  top: calc(-1 * var(--space-1));
+  bottom: calc(-1 * var(--space-1));
   border-left: 1.5px solid var(--color-instrument-ink);
 }
 
@@ -1787,9 +1788,19 @@ body {
   left: 70%;
 }
 
+.meter-reading dd {
+  display: contents;
+}
+
+.meter-value {
+  margin-left: auto;
+}
+
 .meter-note {
   flex: 0 0 100%;
   margin: 0;
+  font-weight: 400;
+  text-align: left;
 }
 
 .mode-key .reading dt {
@@ -1805,7 +1816,7 @@ body {
   text-align: right;
 }
 
-@media (max-width: 40rem) {
+@media (width < 40rem) {
   .spark {
     width: 4rem;
   }
@@ -1814,7 +1825,7 @@ body {
 /* ---------- The landing between the phone and the desk, and on the phone ---------- */
 
 /* Where the blocks stack, a quiet rule opens each section. */
-@media (max-width: 59.99rem) {
+@media (width < 60rem) {
   .does,
   .business {
     border-top: 1px solid var(--color-rule);
@@ -1827,7 +1838,7 @@ body {
 
 /* The tablet: two columns. The two receipts of the hero stand side by side, the two sections of
    text side by side, and the last receipt beside the warning and the signature. */
-@media (min-width: 40rem) and (max-width: 59.99rem) {
+@media (40rem <= width < 60rem) {
   .landing {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1994,7 +2005,7 @@ body {
 /* Beside each other, the counter and the instrument are each as tall as the window and scroll on
    their own: the conversation inside its thread, the rows inside the glass box. The composer and
    the totals keep their place whatever opens or arrives. */
-@media (min-width: 52.01rem) {
+@media (width >= 52rem) {
   .chat {
     height: 100vh;
     min-height: 0;
@@ -2019,7 +2030,7 @@ body {
   }
 
   .counter-head,
-  .composer,
+  .counter-foot,
   .glass-head,
   .totals,
   .glass-actions {
@@ -2028,16 +2039,11 @@ body {
 }
 
 /* Stacked, the page scrolls and the composer stays at the foot of the window. */
-@media (max-width: 52rem) {
-  .composer {
+@media (width < 52rem) {
+  .counter-foot {
     position: sticky;
     bottom: 0;
     background: var(--color-paper);
-  }
-
-  .stage .summary {
-    position: sticky;
-    bottom: 0;
   }
 }
 
@@ -2087,7 +2093,7 @@ body {
 
 /* On a wide window the one block of a page (the receipt, the column of text) stands in the middle;
    what is inside it keeps its own alignment. */
-@media (min-width: 60rem) {
+@media (width >= 60rem) {
   .page .trace-note,
   .page .roll,
   .page .prose,
@@ -2117,7 +2123,7 @@ body {
 }
 
 /* In the key of modes a meaning sits under its name when the row is narrow. */
-@media (max-width: 40rem) {
+@media (width < 40rem) {
   .mode-key .reading {
     display: block;
   }

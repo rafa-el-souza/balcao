@@ -55,6 +55,7 @@
       </li>
     </ol>
 
+    <div class="counter-foot">
     <a class="summary" id="glass-summary" href="#glass">
       <span class="summary-figures">23 eventos · 3,1 s · US$ 0,009</span>
       <span class="summary-open"><span class="visually-hidden">abrir a caixa de vidro</span></span>
@@ -74,6 +75,7 @@
       </p>
       <p class="turnstile" id="turnstile-notice">Verificação anti-bot: a Cloudflare faz a checagem e vê o seu IP.</p>
     </form>
+    </div>
   </section>
 
   <section class="glass" id="glass" aria-labelledby="glass-title">
@@ -90,7 +92,7 @@
     <ol class="events" id="events">
       <li class="event turn-group" id="earlier-turns">
         <details>
-          <summary><span class="name">4 turnos anteriores · 18 eventos · 9,3 s · <span data-arrives="PR-16">US$ 0,022</span></span></summary>
+          <summary><span class="name">4 turnos anteriores · 18 eventos · 9,9 s · <span data-arrives="PR-16">US$ 0,025</span></span></summary>
           <ol class="events nested">
             <li class="event turn-line" id="turn-1-line"><details><summary><span class="name">turno 1</span> <span class="stop">5 eventos</span> <span class="figure"><span data-arrives="PR-16">US$ 0,006</span> · 3,0 s</span></summary>
               <ol class="events nested">
@@ -145,7 +147,7 @@
               <details class="what">
                 <summary><span class="name">get_store_info</span> <span class="figure">4 ms</span></summary>
                 <pre class="payload">{"topic":"delivery"}</pre>
-                <pre class="payload raw">{"areas":[{"name":"Floresta","fee":"R$ 5,00","time":"até 40 minutos"},{"name":"Santa Tereza","fee":"R$ 7,00","time":"até 50 minutos"},{"name":"Sagrada Família","fee":"R$ 8,00","time":"até 50 minutos"},{"name":"Horto","fee":"R$ 9,00","time":"até 1 hora"}],"hours":"Durante o horário de funcionamento; o último pedido do dia sai 30 minutos antes de fechar.","notes":["Fora desses bairros não fazemos entrega.","Medicamentos que exigem receita não vão por entrega; são vendidos no balcão, com a receita.…</pre>
+                <pre class="payload raw">{"topic":"delivery","areas":[{"name":"Floresta","fee":"R$ 5,00","time":"até 40 minutos"},{"name":"Santa Tereza","fee":"R$ 7,00","time":"até 50 minutos"},{"name":"Sagrada Família","fee":"R$ 8,00","time":"até 50 minutos"},{"name":"Horto","fee":"R$ 9,00","time":"até 1 hora"}],"hours":"Durante o horário de funcionamento; o último pedido do dia sai 30 minutos antes de fechar.","notes":["Fora desses bairros não fazemos entrega.","Medicamentos que exigem receita não vão por entrega; são vendidos no ba…</pre>
                 <p class="outcome">4 bairros <span class="cut">cortado em 500 caracteres</span></p>
               </details>
             </li>
@@ -162,7 +164,7 @@
             </li>
               </ol>
             </details></li>
-            <li class="event turn-line" id="turn-3-line"><details><summary><span class="name">turno 3</span> <span class="stop">3 eventos</span> <span class="figure"><span data-arrives="PR-16">US$ 0,004</span> · 1,4 s</span></summary>
+            <li class="event turn-line" id="turn-3-line"><details><summary><span class="name">turno 3</span> <span class="stop">3 eventos</span> <span class="figure"><span data-arrives="PR-16">US$ 0,007</span> · 2,0 s</span></summary>
               <ol class="events nested">
             <li class="event" id="t3-received">
               <time>12:11:30</time>
@@ -184,34 +186,34 @@
             <li class="event turn-line" id="turn-4-line"><details><summary><span class="name">turno 4</span> <span class="stop">5 eventos</span> <span class="figure"><span data-arrives="PR-16">US$ 0,006</span> · 2,3 s</span></summary>
               <ol class="events nested">
             <li class="event" id="t4-received">
-              <time>12:05:02</time>
+              <time>12:12:02</time>
               <div class="what"><span class="name">mensagem recebida</span></div>
             </li>
             <li class="event" id="t4-model-1">
-              <time>12:05:02</time>
+              <time>12:12:02</time>
               <details class="what">
                 <summary><span class="name">modelo</span> <span class="stop">parou em tool_use</span> <span class="figure"><span data-arrives="PR-16">US$ 0,004</span> · 1,0 s</span></summary>
                 <dl class="detail"><div><dt>modelo</dt><dd>claude-opus-5-5</dd></div><div><dt>esforço</dt><dd>medium</dd></div><div><dt>entrada</dt><dd>4,4k <span class="cache" data-cache="hit">cache <svg class="tick" viewBox="0 0 12 12" role="img" aria-label="acerto"><path d="M1.5 6.5l3 3 6-7" fill="none" stroke-width="1.6"/></svg> 3,9k</span></dd></div><div><dt>saída</dt><dd>38</dd></div><div><dt>custo</dt><dd><span data-arrives="PR-16">US$ 0,004 <span class="quiet">· R$ 0,02</span></span></dd></div></dl>
               </details>
             </li>
             <li class="event tool" id="t4-tool">
-              <time>12:05:03</time>
+              <time>12:12:03</time>
               <details class="what">
                 <summary><span class="name">get_store_info</span> <span class="figure">4 ms</span></summary>
                 <pre class="payload">{"topic":"payment"}</pre>
-                <pre class="payload raw">{"methods":["Pix","cartão de débito","cartão de crédito","dinheiro"],"notes":["No crédito, em até 3 vezes sem juros nas compras a partir de R$ 100,00.","Não aceitamos cheque."]}</pre>
+                <pre class="payload raw">{"topic":"payment","methods":["Pix","cartão de débito","cartão de crédito","dinheiro"],"notes":["No crédito, em até 3 vezes sem juros nas compras a partir de R$ 100,00.","Não aceitamos cheque."]}</pre>
                 <p class="outcome">4 formas</p>
               </details>
             </li>
             <li class="event" id="t4-model-2">
-              <time>12:05:03</time>
+              <time>12:12:03</time>
               <details class="what">
                 <summary><span class="name">modelo</span> <span class="stop">parou em end_turn</span> <span class="figure"><span data-arrives="PR-16">US$ 0,002</span> · 1,3 s</span></summary>
                 <dl class="detail"><div><dt>modelo</dt><dd>claude-opus-5-5</dd></div><div><dt>esforço</dt><dd>medium</dd></div><div><dt>entrada</dt><dd>4,9k <span class="cache" data-cache="hit">cache <svg class="tick" viewBox="0 0 12 12" role="img" aria-label="acerto"><path d="M1.5 6.5l3 3 6-7" fill="none" stroke-width="1.6"/></svg> 3,9k</span></dd></div><div><dt>saída</dt><dd>71</dd></div><div><dt>custo</dt><dd><span data-arrives="PR-16">US$ 0,002 <span class="quiet">· R$ 0,01</span></span></dd></div></dl>
               </details>
             </li>
             <li class="event" id="t4-sent">
-              <time>12:05:05</time>
+              <time>12:12:05</time>
               <div class="what"><span class="name">mensagem enviada</span></div>
             </li>
               </ol>
@@ -220,18 +222,18 @@
         </details>
       </li>
       <li class="event" id="t5-received">
-        <time>12:04:10</time>
+        <time>12:12:40</time>
         <div class="what"><span class="name">mensagem recebida</span></div>
       </li>
       <li class="event" id="t5-model-1">
-        <time>12:04:10</time>
+        <time>12:12:40</time>
         <details class="what" open>
           <summary><span class="name">modelo</span> <span class="stop">parou em tool_use</span> <span class="figure"><span data-arrives="PR-16">US$ 0,005</span> · 1,2 s</span></summary>
           <dl class="detail"><div><dt>modelo</dt><dd>claude-opus-5-5</dd></div><div><dt>esforço</dt><dd>medium</dd></div><div><dt>entrada</dt><dd>3,9k <span class="cache" data-cache="hit">cache <svg class="tick" viewBox="0 0 12 12" role="img" aria-label="acerto"><path d="M1.5 6.5l3 3 6-7" fill="none" stroke-width="1.6"/></svg> 3,5k</span></dd></div><div><dt>saída</dt><dd>51</dd></div><div><dt>custo</dt><dd><span data-arrives="PR-16">US$ 0,005 <span class="quiet">· R$ 0,03</span></span></dd></div></dl>
         </details>
       </li>
       <li class="event tool" id="t5-tool">
-        <time>12:04:11</time>
+        <time>12:12:41</time>
         <details class="what" open>
           <summary><span class="name">create_reservation</span> <span class="figure">61 ms</span></summary>
           <pre class="payload">{"product_id":"01a1cb3a-c25c-7759-a408-78909fba8f60","quantity":2}</pre>
@@ -240,14 +242,14 @@
         </details>
       </li>
       <li class="event" id="t5-model-2">
-        <time>12:04:12</time>
+        <time>12:12:42</time>
         <details class="what" open>
           <summary><span class="name">modelo</span> <span class="stop">parou em end_turn</span> <span class="figure"><span data-arrives="PR-16">US$ 0,004</span> · 0,9 s</span></summary>
           <dl class="detail"><div><dt>modelo</dt><dd>claude-opus-5-5</dd></div><div><dt>esforço</dt><dd>medium</dd></div><div><dt>entrada</dt><dd>4,1k <span class="cache" data-cache="hit">cache <svg class="tick" viewBox="0 0 12 12" role="img" aria-label="acerto"><path d="M1.5 6.5l3 3 6-7" fill="none" stroke-width="1.6"/></svg> 3,5k</span></dd></div><div><dt>saída</dt><dd>64</dd></div><div><dt>custo</dt><dd><span data-arrives="PR-16">US$ 0,004 <span class="quiet">· R$ 0,02</span></span></dd></div></dl>
         </details>
       </li>
       <li class="event" id="t5-sent">
-        <time>12:04:13</time>
+        <time>12:12:43</time>
         <div class="what"><span class="name">mensagem enviada</span></div>
       </li>
     </ol>
@@ -268,7 +270,7 @@
   <ul>
     <li>Route <code>/chat</code>; content and order from the sketch in design §6.8.</li>
     <li>At 390 px the glass box folds into the one-line summary above the composer; pressing it opens the drawer (the same file with <code>#glass</code>).</li>
-    <li>State: the second turn stored a reservation. Its code is a small stamp in the instrument's face: it is what the visitor shows at the counter.</li>
+    <li>State: the fifth turn stored a reservation. Its code is a small stamp in the instrument's face: it is what the visitor shows at the counter.</li>
     <li>The composer is a text area that grows with what is typed, up to six lines, then scrolls; Enter sends and Shift+Enter breaks the line. With the drawer open at 390 px the composer stays in reach under it, reduced to the field and the button.</li>
     <li>Not visible in a still drawing, for the implementation: when the drawer opens, the conversation scrolls so that the last reply shows in the upper half; when it closes, the suggestions and the anti-bot notice return under the composer.</li>
     <li>The glass box follows what the server emits (reviewed against it on 2026-11-12): one row per model call, in order, each opening when the call starts and completing in place; closed, a call is one line with where it stopped and its time, and it opens to its model, effort, tokens, cache mark and cost; a tool's result is the raw text the server keeps, cut at 500 characters and marked when cut, with the count beside it; the turn's figure is the time from the message's receipt to the reply.</li>

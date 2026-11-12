@@ -123,7 +123,7 @@
         <details class="what" open>
           <summary><span class="name">get_store_info</span> <span class="figure">4 ms</span></summary>
           <pre class="payload">{"topic":"delivery"}</pre>
-          <pre class="payload raw">{"areas":[{"name":"Floresta","fee":"R$ 5,00","time":"até 40 minutos"},{"name":"Santa Tereza","fee":"R$ 7,00","time":"até 50 minutos"},{"name":"Sagrada Família","fee":"R$ 8,00","time":"até 50 minutos"},{"name":"Horto","fee":"R$ 9,00","time":"até 1 hora"}],"hours":"Durante o horário de funcionamento; o último pedido do dia sai 30 minutos antes de fechar.","notes":["Fora desses bairros não fazemos entrega.","Medicamentos que exigem receita não vão por entrega; são vendidos no balcão, com a receita.…</pre>
+          <pre class="payload raw">{"topic":"delivery","areas":[{"name":"Floresta","fee":"R$ 5,00","time":"até 40 minutos"},{"name":"Santa Tereza","fee":"R$ 7,00","time":"até 50 minutos"},{"name":"Sagrada Família","fee":"R$ 8,00","time":"até 50 minutos"},{"name":"Horto","fee":"R$ 9,00","time":"até 1 hora"}],"hours":"Durante o horário de funcionamento; o último pedido do dia sai 30 minutos antes de fechar.","notes":["Fora desses bairros não fazemos entrega.","Medicamentos que exigem receita não vão por entrega; são vendidos no ba…</pre>
           <p class="outcome">4 bairros <span class="cut">cortado em 500 caracteres</span></p>
         </details>
       </li>
@@ -184,7 +184,7 @@
     <li>For a WhatsApp conversation this page is the only glass box.</li>
     <li>The glass box follows what the server emits (reviewed against it on 2026-11-12): one row per model call, in order, each opening when the call starts and completing in place; closed, a call is one line with where it stopped and its time, and it opens to its model, effort, tokens, cache mark and cost; a tool's result is the raw text the server keeps, cut at 500 characters and marked when cut, with the count beside it; the turn's figure is the time from the message's receipt to the reply.</li>
     <li>Arriving after the panel's own pull request: every cost figure and the reais beside the dollars come with the usage records (PR-16); until a figure exists the panel shows nothing in its place, never a zero. The guardrail's row comes after the MVP and is drawn in a state of its own. The rows are grouped by turn through a turn id in each span, and the count beside a tool's result is computed before the cut: two small additions on the server's side, for the panel's pull request.</li>
-    <li>Each turn's head carries its time, and its cost closes it; the totals at the foot are the sums of the rows above. The fourth turn comes after five idle minutes, so its call misses the cache and writes it: a miss is a story worth telling.</li>
+    <li>Each turn's head carries its time, and its cost closes it; the totals at the foot are the sums of the rows above. The fourth turn comes after more than five idle minutes, so its call misses the cache and writes it: a miss is a story worth telling.</li>
     <li>The messages on this page come with the trace's own endpoint (PR-11), each with its turn.</li>
   </ul>
 </aside>

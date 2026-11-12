@@ -36,6 +36,7 @@
       </li>
     </ol>
 
+    <div class="counter-foot">
     <a class="summary" id="glass-summary" href="#glass">
       <span class="summary-figures">6 eventos · limite</span>
       <span class="summary-open"><span class="visually-hidden">abrir a caixa de vidro</span></span>
@@ -55,6 +56,7 @@
       </p>
       <p class="turnstile" id="turnstile-notice">Verificação anti-bot: a Cloudflare faz a checagem e vê o seu IP.</p>
     </form>
+    </div>
   </section>
 
   <section class="glass" id="glass" aria-labelledby="glass-title">
@@ -103,7 +105,7 @@
       <li class="event turn-start" id="t2-limit" data-state="local">
         <time>12:04:02</time>
         <div class="what"><span class="name">limite da demonstração</span>
-          <dl class="detail"><div><dt></dt><dd>sem chamada ao modelo</dd></div></dl></div>
+          <p class="outcome">sem chamada ao modelo</p></div>
       </li>
     </ol>
     <dl class="totals" id="totals">
@@ -123,7 +125,7 @@
   <ul>
     <li>Route <code>/chat</code>; content and order from the sketch in design §6.8.</li>
     <li>At 390 px the glass box folds into the one-line summary above the composer; pressing it opens the drawer (the same file with <code>#glass</code>).</li>
-    <li>State: a request past the demo's limit (FR-14). The fixed reply is a stamp, the system's voice; no model call was made, so the glass box gains no row, and the composer is off until the limit passes.</li>
+    <li>State: a request past the demo's limit (FR-14). The fixed reply is a stamp, the system's voice; no model call was made, and the composer is off until the limit passes.</li>
     <li>The message that met the limit stays in the thread as sent; it was not stored.</li>
     <li>The composer is a text area that grows with what is typed, up to six lines, then scrolls; Enter sends and Shift+Enter breaks the line. With the drawer open at 390 px the composer stays in reach under it, reduced to the field and the button.</li>
     <li>Not visible in a still drawing, for the implementation: when the drawer opens, the conversation scrolls so that the last reply shows in the upper half; when it closes, the suggestions and the anti-bot notice return under the composer.</li>
