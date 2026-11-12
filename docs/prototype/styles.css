@@ -2100,3 +2100,35 @@ body {
     max-width: 46rem;
   }
 }
+
+/* The foot of a page that carries no signature: quiet links under its block, centred with it. */
+.page-foot {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-6);
+  max-width: 46rem;
+  margin: var(--space-8) auto 0;
+  font-size: var(--text-sm);
+}
+
+/* The rule over a page's signature is the quiet one. */
+.page .colophon {
+  border-top-color: var(--color-rule);
+}
+
+/* In the key of modes a meaning sits under its name when the row is narrow. */
+@media (max-width: 40rem) {
+  .mode-key .reading {
+    display: block;
+  }
+
+  .mode-key .reading + .reading {
+    margin-top: var(--space-2);
+  }
+
+  .mode-key .reading dd {
+    display: block;
+    padding-left: calc(0.5rem + var(--space-2));
+    text-align: left;
+  }
+}
