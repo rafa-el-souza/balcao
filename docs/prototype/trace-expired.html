@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trace: link expired · Balcão prototype</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main class="stage page trace">
+  <header class="masthead">
+    <a class="wordmark" id="wordmark" href="landing.html">
+      <svg class="cross" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 0h4v4h4v4H8v4H4V8H0V4h4z"/></svg>
+      Balcão
+    </a>
+    <span class="page-name" id="page-name">trace da conversa</span>
+    <nav class="langs" id="langs" aria-label="Idioma">
+      <span class="lang" aria-current="true">PT</span>
+      <button class="lang" type="button">EN</button>
+      <button class="lang" type="button">ES</button>
+    </nav>
+    <a class="status-link" id="to-status" href="status.html"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.25 8.5h3l2-5 3.25 9 2-4h3.25"/></svg> status</a>
+  </header>
+
+  <div class="trace-note">
+    <h1 id="title">Esta conversa não está mais aqui</h1>
+    <p id="share-note">O link de um trace vale até 7&nbsp;dias depois da última mensagem, e deixa de valer antes disso se a pessoa apagar os próprios dados.</p>
+    <p id="trace-gone-links"><a id="to-chat" href="chat-first-visit.html">Começar uma conversa <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11.5M9 3.5L13.5 8 9 12.5"/></svg></a></p>
+  </div>
+  <footer class="page-foot" id="page-foot">
+    <a id="to-landing" href="landing.html"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M14 8H2.5M7 3.5L2.5 8 7 12.5"/></svg> Início</a>
+    <a id="to-privacy" href="privacy.html">Privacidade</a>
+  </footer>
+</main>
+
+<aside class="notes" lang="en">
+  <h2>Notes</h2>
+  <ul>
+    <li>Route <code>/trace/:token</code>, when the token resolves to nothing: the link is older than seven days, or the visitor erased their data. The page does not say which, and shows no receipt.</li>
+    <li>The wording is a draft.</li>
+  </ul>
+</aside>
+</body>
+</html>

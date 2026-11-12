@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Status (en) · Balcão prototype</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main class="stage page status">
+  <header class="masthead">
+    <a class="wordmark" id="wordmark" href="landing-en.html">
+      <svg class="cross" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 0h4v4h4v4H8v4H4V8H0V4h4z"/></svg>
+      Balcão
+    </a>
+    <span class="page-name" id="page-name">status</span>
+    <nav class="langs" id="langs" aria-label="Language">
+      <button class="lang" type="button">PT</button>
+      <span class="lang" aria-current="true">EN</span>
+      <button class="lang" type="button">ES</button>
+    </nav>
+  </header>
+
+  <div class="trace-note">
+    <h1 id="title">How the demo is doing now</h1>
+    <p id="updated">Updated at 12:05 (Brasília time).</p>
+  </div>
+
+  <div class="roll slip" id="roll">
+    <dl class="readings" id="health">
+      <div class="reading"><dt>mode</dt><dd><span class="mode" id="mode" data-mode="normal">normal</span> <span class="quiet" id="mode-model">claude-opus-5-5</span></dd></div>
+      <div class="reading"><dt>attendant up, 30 days</dt><dd id="uptime">99.6%</dd></div>
+      <div class="reading"><dt>canary</dt><dd id="canary"><svg class="tick" viewBox="0 0 12 12" role="img" aria-label="passed"><path d="M1.5 6.5l3 3 6-7" fill="none" stroke-width="1.6"/></svg> 12:00</dd></div>
+    </dl>
+
+    <dl class="readings" id="traffic">
+      <div class="reading"><dt>messages, 24 h</dt><dd id="messages-day">212</dd></div>
+      <div class="reading"><dt>messages, 30 days</dt><dd id="messages-month"><svg class="spark" id="spark-messages" viewBox="0 0 120 24" role="img" aria-label="messages per day, 30 days: from 82 to 223"><path d="M2.0 13.6L6.0 8.4L10.0 6.4L14.0 8.1L18.0 5.2L22.0 3.1L26.0 4.8L30.0 4.9L34.0 7.3L38.0 14.0L42.0 12.1L46.0 19.3L50.0 17.4L54.0 20.5L58.0 18.6L62.0 21.0L66.0 20.1L70.0 14.1L74.0 13.7L78.0 10.8L82.0 8.2L86.0 6.7L90.0 5.7L94.0 3.0L98.0 6.8L102.0 7.0L106.0 5.2L110.0 11.3L114.0 10.7L118.0 4.4"/><rect x="116.0" y="2.4000000000000004" width="4" height="4"/></svg> 4,930</dd></div>
+      <div class="reading"><dt>latency p50</dt><dd id="latency-p50"><svg class="spark" id="spark-latency" viewBox="0 0 120 24" role="img" aria-label="latency p50 per day, 30 days: from 1,61 to 2,54 s"><path d="M2.0 12.3L6.0 13.8L10.0 6.7L14.0 10.2L18.0 3.0L22.0 9.6L26.0 3.6L30.0 3.4L34.0 8.0L38.0 6.3L42.0 4.7L46.0 10.2L50.0 8.4L54.0 12.7L58.0 11.7L62.0 14.2L66.0 12.3L70.0 19.5L74.0 18.3L78.0 21.0L82.0 17.1L86.0 18.3L90.0 14.2L94.0 12.3L98.0 10.4L102.0 12.3L106.0 7.6L110.0 8.4L114.0 7.5L118.0 7.5"/><rect x="116.0" y="5.5" width="4" height="4"/></svg> 2.1 s</dd></div>
+      <div class="reading"><dt>latency p95</dt><dd id="latency-p95">5.8 s</dd></div>
+    </dl>
+
+    <dl class="readings" id="spend">
+      <div class="reading meter-reading">
+        <dt>spend this month</dt>
+        <dd><span class="meter-value" id="spend-month">41%</span>
+        <div class="meter" id="meter-month" data-mode="normal" role="img" aria-label="41% of the month's cap; economy starts at 70%">
+          <span class="meter-fill meter-41"></span>
+          <span class="meter-mark meter-at-70"></span>
+        </div>
+        <p class="meter-note quiet">of US$ 100 a month · economy at 70% · pause at 100%</p></dd>
+      </div>
+      <div class="reading meter-reading">
+        <dt>spend today</dt>
+        <dd><span class="meter-value" id="spend-day">38%</span>
+        <div class="meter" id="meter-day" data-mode="normal" role="img" aria-label="38% of today's slice; the mode changes when the slice is reached">
+          <span class="meter-fill meter-38"></span>
+        </div>
+        <p class="meter-note quiet">of the daily slice of US$ 5.00 · the mode changes when reached</p></dd>
+      </div>
+      <div class="reading"><dt>model cost per conversation</dt><dd id="cost">R$ 0.30</dd></div>
+      <div class="reading"><dt>exchange rate</dt><dd><span id="rate">R$ 5.40</span> <span class="dater" id="rate-checked">02 NOV 2026</span></dd></div>
+      <div class="reading"><dt>model prices</dt><dd><span class="dater" id="prices-checked">02 NOV 2026</span></dd></div>
+    </dl>
+
+    <dl class="readings" id="evals">
+      <div class="reading"><dt class="slip-title">evals <span class="quiet">opus / haiku</span></dt><dd><span class="dater" id="evals-round">30 NOV 2026</span></dd></div>
+      <div class="reading"><dt>clinical boundary <span class="quiet">(10)</span></dt><dd>100% / 100%</dd></div>
+      <div class="reading" id="evals-injection"><dt>prompt injection <span class="quiet">(3)</span></dt><dd>100% / 100%</dd></div>
+      <div class="reading"><dt>catalogue <span class="quiet">(12)</span></dt><dd>100% / 92%</dd></div>
+    </dl>
+
+    <dl class="readings mode-key" id="mode-key">
+      <div class="reading"><dt><span class="mode" data-mode="normal">normal</span></dt><dd class="quiet">the main model answers</dd></div>
+      <div class="reading"><dt><span class="mode" data-mode="economy">economy</span></dt><dd class="quiet">the cheaper model answers</dd></div>
+      <div class="reading"><dt><span class="mode" data-mode="paused">paused</span></dt><dd class="quiet">fixed replies only</dd></div>
+    </dl>
+  </div>
+
+  <footer class="page-foot" id="page-foot">
+    <a id="to-landing" href="landing-en.html"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M14 8H2.5M7 3.5L2.5 8 7 12.5"/></svg> Home</a>
+    <a id="to-privacy" href="privacy.html">Privacy</a>
+  </footer>
+</main>
+
+<aside class="notes" lang="en">
+  <h2>Notes</h2>
+  <ul>
+    <li>The English sibling of <code>status.html</code>, to see the same screen at this language's lengths; the notes for the implementation are on the Portuguese file.</li>
+    <li>The wording is a draft until the locale files. The first-visit notice is the server's text for this language; product names stay as the catalogue has them; the openers keep their own languages. Numbers take a decimal point here.</li>
+  </ul>
+</aside>
+</body>
+</html>

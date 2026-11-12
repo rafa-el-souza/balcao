@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trace · Balcão prototype</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main class="stage page trace">
+  <header class="masthead">
+    <a class="wordmark" id="wordmark" href="landing.html">
+      <svg class="cross" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 0h4v4h4v4H8v4H4V8H0V4h4z"/></svg>
+      Balcão
+    </a>
+    <span class="page-name" id="page-name">trace da conversa</span>
+    <nav class="langs" id="langs" aria-label="Idioma">
+      <span class="lang" aria-current="true">PT</span>
+      <button class="lang" type="button">EN</button>
+      <button class="lang" type="button">ES</button>
+    </nav>
+    <a class="status-link" id="to-status" href="status.html"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.25 8.5h3l2-5 3.25 9 2-4h3.25"/></svg> status</a>
+  </header>
+
+  <div class="trace-note">
+    <h1 id="title">Conversa <span class="token">7f3a…</span>, iniciada em 12/11 às&nbsp;12:03, com 5&nbsp;turnos</h1>
+    <p id="share-note">Quem tiver este link vê esta conversa. Ele deixa de funcionar 7&nbsp;dias depois da última mensagem, ou na hora, se a pessoa apagar seus dados.</p>
+  </div>
+
+  <div class="roll slip" id="roll">
+      <section class="turn" id="turn-1">
+        <h2 class="turn-head"><span class="turn-number">turno 1</span><span class="said">tem dipirona?</span><span class="turn-cost">3,0 s</span></h2>
+        <ol class="events">
+      <li class="event" id="r1-received">
+        <time>12:03:41</time>
+        <div class="what"><span class="name">mensagem recebida</span></div>
+      </li>
+      <li class="event" id="r1-model-1">
+        <time>12:03:41</time>
+        <details class="what">
+          <summary><span class="name">modelo</span> <span class="stop">parou em tool_use</span> <span class="figure"><span data-arrives="PR-16">US$ 0,003</span> · 1,1 s</span></summary>
+          <dl class="detail"><div><dt>modelo</dt><dd>claude-opus-5-5</dd></div><div><dt>esforço</dt><dd>medium</dd></div><div><dt>prompt</dt><dd>11,8k caracteres · 9f2c41d0</dd></div><div><dt>entrada</dt><dd>3,1k</dd></div><div><dt>cache</dt><dd><span class="cache" data-cache="hit"><svg class="tick" viewBox="0 0 12 12" role="img" aria-label="leu"><path d="M1.5 6.5l3 3 6-7" fill="none" stroke-width="1.6"/></svg> 2,8k · gravou 0,3k</span></dd></div><div><dt>saída</dt><dd>42</dd></div><div><dt>custo</dt><dd><span data-arrives="PR-16">US$ 0,003 <span class="quiet">· R$ 0,02</span></span></dd></div></dl>
+        </details>
+      </li>
+      <li class="event tool" id="r1-tool">
+        <time>12:03:42</time>
+        <details class="what">
+          <summary><span class="name">search_products</span> <span class="figure">38 ms</span></summary>
+          <pre class="payload">{"query":"dipirona"}</pre>
+          <pre class="payload raw">{"query":"dipirona","products":[{"id":"01a1cb3a-c25c-7759-a408-78909fba8f60","name":"Dipirona 500 mg, 10 comprimidos","active_ingredient":"dipirona","price":"R$ 7,90","stock":40,"prescription_required":false,"match":"exact","score":1.0},{"id":"01a1cb3a-c25e-71fd-b0a1-a6dd944df3f2","name":"Dipirona gotas 500 mg/ml, 20 ml","active_ingredient":"dipirona","price":"R$ 9,50","stock":25,"prescription_required":false,"match":"exact","score":1.0}]}</pre>
+          <p class="outcome">2 resultados</p>
+        </details>
+      </li>
+      <li class="event" id="r1-model-2">
+        <time>12:03:43</time>
+        <details class="what">
+          <summary><span class="name">modelo</span> <span class="stop">parou em end_turn</span> <span class="figure"><span data-arrives="PR-16">US$ 0,006</span> · 1,6 s</span></summary>
+          <dl class="detail"><div><dt>modelo</dt><dd>claude-opus-5-5</dd></div><div><dt>esforço</dt><dd>medium</dd></div><div><dt>prompt</dt><dd>11,8k caracteres · 9f2c41d0</dd></div><div><dt>entrada</dt><dd>3,7k</dd></div><div><dt>cache</dt><dd><span class="cache" data-cache="hit"><svg class="tick" viewBox="0 0 12 12" role="img" aria-label="leu"><path d="M1.5 6.5l3 3 6-7" fill="none" stroke-width="1.6"/></svg> 3,1k · gravou 0,6k</span></dd></div><div><dt>saída</dt><dd>98</dd></div><div><dt>custo</dt><dd><span data-arrives="PR-16">US$ 0,006 <span class="quiet">· R$ 0,03</span></span></dd></div></dl>
+        </details>
+      </li>
+      <li class="event" id="r1-sent">
+        <time>12:03:44</time>
+        <div class="what"><span class="name">mensagem enviada</span></div>
+      </li>
+        </ol>
+        <p class="said reply">Temos duas: Dipirona 500&nbsp;mg, 10&nbsp;comprimidos, por R$ 7,90, e Dipirona gotas 500&nbsp;mg/ml, 20&nbsp;ml, por R$ 9,50. As duas estão em estoque. Quer que eu reserve alguma para retirada?</p>
+        <p class="turn-cost-line"><span class="quiet">custo do turno</span> <span data-arrives="PR-16">US$ 0,009 <span class="quiet">· R$ 0,05</span></span></p>
+      </section>
+      <section class="turn" id="turn-2">
+        <h2 class="turn-head"><span class="turn-number">turno 2</span><span class="said">reserva duas caixas da de 500&nbsp;mg</span><span class="turn-cost">3,1 s</span></h2>
+        <ol class="events">
+      <li class="event" id="r2-received">
+        <time>12:04:10</time>
+        <div class="what"><span class="name">mensagem recebida</span></div>
+      </li>
+      <li class="event" id="r2-model-1">
+        <time>12:04:10</time>
+        <details class="what">
+          <summary><span class="name">modelo</span> <span class="stop">parou em tool_use</span> <span class="figure"><span data-arrives="PR-16">US$ 0,003</span> · 1,2 s</span></summary>
+          <dl class="detail"><div><dt>modelo</dt><dd>claude-opus-5-5</dd></div><div><dt>esforço</dt><dd>medium</dd></div><div><dt>prompt</dt><dd>11,8k caracteres · 9f2c41d0</dd></div><div><dt>entrada</dt><dd>3,9k</dd></div><div><dt>cache</dt><dd><span class="cache" data-cache="hit"><svg class="tick" viewBox="0 0 12 12" role="img" aria-label="leu"><path d="M1.5 6.5l3 3 6-7" fill="none" stroke-width="1.6"/></svg> 3,7k · gravou 0,2k</span></dd></div><div><dt>saída</dt><dd>51</dd></div><div><dt>custo</dt><dd><span data-arrives="PR-16">US$ 0,003 <span class="quiet">· R$ 0,02</span></span></dd></div></dl>
+        </details>
+      </li>
+      <li class="event tool" id="r2-tool">
+        <time>12:04:11</time>
+        <details class="what" open>
+          <summary><span class="name">create_reservation</span> <span class="figure">61 ms</span></summary>
+          <pre class="payload">{"product_id":"01a1cb3a-c25c-7759-a408-78909fba8f60","quantity":2}</pre>
+          <pre class="payload raw">{"code":"4K2QHM","quantity":2,"product":"Dipirona 500 mg, 10 comprimidos","pickup_until":"2026-11-13T20:00:00-03:00"}</pre>
+          <p class="outcome">reserva 4K2QHM</p>
+        </details>
+      </li>
+      <li class="event" id="r2-model-2">
+        <time>12:04:12</time>
+        <details class="what">
+          <summary><span class="name">modelo</span> <span class="stop">parou em end_turn</span> <span class="figure"><span data-arrives="PR-16">US$ 0,003</span> · 0,9 s</span></summary>
+          <dl class="detail"><div><dt>modelo</dt><dd>claude-opus-5-5</dd></div><div><dt>esforço</dt><dd>medium</dd></div><div><dt>prompt</dt><dd>11,8k caracteres · 9f2c41d0</dd></div><div><dt>entrada</dt><dd>4,1k</dd></div><div><dt>cache</dt><dd><span class="cache" data-cache="hit"><svg class="tick" viewBox="0 0 12 12" role="img" aria-label="leu"><path d="M1.5 6.5l3 3 6-7" fill="none" stroke-width="1.6"/></svg> 3,9k · gravou 0,2k</span></dd></div><div><dt>saída</dt><dd>64</dd></div><div><dt>custo</dt><dd><span data-arrives="PR-16">US$ 0,003 <span class="quiet">· R$ 0,02</span></span></dd></div></dl>
+        </details>
+      </li>
+      <li class="event" id="r2-sent">
+        <time>12:04:13</time>
+        <div class="what"><span class="name">mensagem enviada</span></div>
+      </li>
+        </ol>
+        <p class="said reply">Reservado: 2 × Dipirona 500&nbsp;mg, 10&nbsp;comprimidos. O código é 4K2QHM, e a retirada é até 13/11 às 20:00. É só dizer o código no balcão.</p>
+        <p class="turn-cost-line"><span class="quiet">custo do turno</span> <span data-arrives="PR-16">US$ 0,006 <span class="quiet">· R$ 0,03</span></span></p>
+      </section>
+      <section class="turn" id="turn-3">
+        <h2 class="turn-head"><span class="turn-number">turno 3</span><span class="said">vocês entregam no Santa Tereza?</span><span class="turn-cost">2,6 s</span></h2>
+        <ol class="events">
+      <li class="event" id="r3-received">
+        <time>12:05:02</time>
+        <div class="what"><span class="name">mensagem recebida</span></div>
+      </li>
+      <li class="event" id="r3-model-1">
+        <time>12:05:02</time>
+        <details class="what">
+          <summary><span class="name">modelo</span> <span class="stop">parou em tool_use</span> <span class="figure"><span data-arrives="PR-16">US$ 0,003</span> · 1,0 s</span></summary>
+          <dl class="detail"><div><dt>modelo</dt><dd>claude-opus-5-5</dd></div><div><dt>esforço</dt><dd>medium</dd></div><div><dt>prompt</dt><dd>11,8k caracteres · 9f2c41d0</dd></div><div><dt>entrada</dt><dd>4,4k</dd></div><div><dt>cache</dt><dd><span class="cache" data-cache="hit"><svg class="tick" viewBox="0 0 12 12" role="img" aria-label="leu"><path d="M1.5 6.5l3 3 6-7" fill="none" stroke-width="1.6"/></svg> 4,1k · gravou 0,3k</span></dd></div><div><dt>saída</dt><dd>38</dd></div><div><dt>custo</dt><dd><span data-arrives="PR-16">US$ 0,003 <span class="quiet">· R$ 0,02</span></span></dd></div></dl>
+        </details>
+      </li>
+      <li class="event tool" id="r3-tool">
+        <time>12:05:03</time>
+        <details class="what" open>
+          <summary><span class="name">get_store_info</span> <span class="figure">4 ms</span></summary>
+          <pre class="payload">{"topic":"delivery"}</pre>
+          <pre class="payload raw">{"topic":"delivery","areas":[{"name":"Floresta","fee":"R$ 5,00","time":"até 40 minutos"},{"name":"Santa Tereza","fee":"R$ 7,00","time":"até 50 minutos"},{"name":"Sagrada Família","fee":"R$ 8,00","time":"até 50 minutos"},{"name":"Horto","fee":"R$ 9,00","time":"até 1 hora"}],"hours":"Durante o horário de funcionamento; o último pedido do dia sai 30 minutos antes de fechar.","notes":["Fora desses bairros não fazemos entrega.","Medicamentos que exigem receita não vão por entrega; são vendidos no ba…</pre>
+          <p class="outcome">4 bairros <span class="cut">cortado em 500 caracteres</span></p>
+        </details>
+      </li>
+      <li class="event" id="r3-model-2">
+        <time>12:05:03</time>
+        <details class="what">
+          <summary><span class="name">modelo</span> <span class="stop">parou em end_turn</span> <span class="figure"><span data-arrives="PR-16">US$ 0,005</span> · 1,3 s</span></summary>
+          <dl class="detail"><div><dt>modelo</dt><dd>claude-opus-5-5</dd></div><div><dt>esforço</dt><dd>medium</dd></div><div><dt>prompt</dt><dd>11,8k caracteres · 9f2c41d0</dd></div><div><dt>entrada</dt><dd>4,9k</dd></div><div><dt>cache</dt><dd><span class="cache" data-cache="hit"><svg class="tick" viewBox="0 0 12 12" role="img" aria-label="leu"><path d="M1.5 6.5l3 3 6-7" fill="none" stroke-width="1.6"/></svg> 4,4k · gravou 0,5k</span></dd></div><div><dt>saída</dt><dd>71</dd></div><div><dt>custo</dt><dd><span data-arrives="PR-16">US$ 0,005 <span class="quiet">· R$ 0,03</span></span></dd></div></dl>
+        </details>
+      </li>
+      <li class="event" id="r3-sent">
+        <time>12:05:05</time>
+        <div class="what"><span class="name">mensagem enviada</span></div>
+      </li>
+        </ol>
+        <p class="said reply">Entregamos, sim. No Santa Tereza a taxa é de R$ 7,00, e o pedido chega em até 50&nbsp;minutos, durante o horário da loja.</p>
+        <p class="turn-cost-line"><span class="quiet">custo do turno</span> <span data-arrives="PR-16">US$ 0,008 <span class="quiet">· R$ 0,04</span></span></p>
+      </section>
+      <section class="turn" id="turn-4">
+        <h2 class="turn-head"><span class="turn-number">turno 4</span><span class="said">posso dar dipirona pro meu filho de 3 anos?</span><span class="turn-cost">2,0 s</span></h2>
+        <ol class="events">
+      <li class="event" id="r4-received">
+        <time>12:11:30</time>
+        <div class="what"><span class="name">mensagem recebida</span></div>
+      </li>
+      <li class="event" id="r4-model-1">
+        <time>12:11:30</time>
+        <details class="what">
+          <summary><span class="name">modelo</span> <span class="stop">parou em end_turn</span> <span class="figure"><span data-arrives="PR-16">US$ 0,027</span> · 1,9 s</span></summary>
+          <dl class="detail"><div><dt>modelo</dt><dd>claude-opus-5-5</dd></div><div><dt>esforço</dt><dd>medium</dd></div><div><dt>prompt</dt><dd>11,8k caracteres · 9f2c41d0</dd></div><div><dt>entrada</dt><dd>5,1k</dd></div><div><dt>cache</dt><dd><span class="cache" data-cache="miss"><svg class="tick miss" viewBox="0 0 12 12" role="img" aria-label="não leu"><path d="M2 2l8 8M10 2l-8 8" fill="none" stroke-width="1.6"/></svg> nada lido · gravou 5,1k</span></dd></div><div><dt>saída</dt><dd>74</dd></div><div><dt>custo</dt><dd><span data-arrives="PR-16">US$ 0,027 <span class="quiet">· R$ 0,15</span></span></dd></div></dl>
+        </details>
+      </li>
+      <li class="event" id="r4-sent">
+        <time>12:11:32</time>
+        <div class="what"><span class="name">mensagem enviada</span>
+          <dl class="detail"><div><dt>linha fixa</dt><dd>oferta do farmacêutico</dd></div></dl></div>
+      </li>
+        </ol>
+        <p class="said reply">Sobre dar remédio a uma criança, e em que dose, quem orienta é o farmacêutico; por aqui eu não posso responder.<br>O farmacêutico responsável atende no balcão durante todo o horário de funcionamento, ou pelo telefone (31)&nbsp;1234-5678.</p>
+        <p class="turn-cost-line"><span class="quiet">custo do turno</span> <span data-arrives="PR-16">US$ 0,027 <span class="quiet">· R$ 0,15</span></span></p>
+      </section>
+      <section class="turn" id="turn-5">
+        <h2 class="turn-head"><span class="turn-number">turno 5</span><span class="said">como você funciona?</span><span class="turn-cost">12 ms</span></h2>
+        <ol class="events">
+      <li class="event" id="r5-command">
+        <time>12:12:10</time>
+        <div class="what"><span class="name">comando</span> <span class="value">trace</span> <span class="figure">12 ms</span></div>
+      </li>
+        </ol>
+        <p class="said reply">Veja, passo a passo, como eu funciono nesta conversa: balcao.rafasouza.dev.br/trace/7f3a…</p>
+      </section>
+
+    <dl class="roll-total" id="trace-total">
+      <div><dt>total · 5 turnos</dt><dd><span data-arrives="PR-16">US$ 0,050 <span class="quiet">· R$ 0,27</span></span></dd></div>
+      <div><dt>tokens de entrada</dt><dd>29,2k <span class="quiet">(22,0k lidos do cache)</span></dd></div>
+      <div><dt>tokens de saída</dt><dd>438</dd></div>
+      <div><dt>tempo dos turnos</dt><dd>10,7 s</dd></div>
+    </dl>
+  </div>
+  <footer class="page-foot" id="page-foot">
+    <a id="to-landing" href="landing.html"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M14 8H2.5M7 3.5L2.5 8 7 12.5"/></svg> Início</a>
+    <a id="to-privacy" href="privacy.html">Privacidade</a>
+  </footer>
+</main>
+
+<aside class="notes" lang="en">
+  <h2>Notes</h2>
+  <ul>
+    <li>Route <code>/trace/:token</code>; content and order from the sketch in design §6.8.</li>
+    <li>The same rows as the glass box, at full length, and live: while the conversation goes on the page follows it, a new row or turn arriving in place as in the glass box (for WhatsApp it is the only glass box). Every row is drawn closed by default here, where the glass box keeps the last turn open; the still drawing opens a few to show their contents. Hours are São Paulo's, as everywhere in the instrument. one receipt, torn at the head and at the foot, with the total under a double rule.</li>
+    <li>On the receipt, the words of the conversation stay in the counter's face: the visitor's in italic beside the turn, the reply under the turn's rows.</li>
+    <li>An exhibit (<code>/trace/exhibit-:n</code>) is this page with the line "Conversa de exemplo, gravada pelo operador em &lt;data&gt;." in place of the link's note. An exhibit's title carries no token: "Conversa de exemplo, iniciada em &lt;data&gt;, com N turnos" (FR-22).</li>
+    <li>For a WhatsApp conversation this page is the only glass box.</li>
+    <li>The glass box follows what the server emits (reviewed against it on 2026-11-12): one row per model call, in order, each opening when the call starts and completing in place; closed, a call is one line with where it stopped and its time, and it opens to its model, effort, tokens, cache mark and cost; a tool's result is the raw text the server keeps, cut at 500 characters and marked when cut, with the count beside it; the turn's figure is the time from the message's receipt to the reply.</li>
+    <li>Arriving after the panel's own pull request: every cost figure and the reais beside the dollars come with the usage records (PR-16); until a figure exists the panel shows nothing in its place, never a zero. The guardrail's row comes after the MVP and is drawn in a state of its own.</li>
+    <li>Asked of the server, for the panel's pull request (PR-11): a turn id in each span, so the rows group by turn; the input figure as the sum of plain input, cache read and cache write, as the SDK's own tracer counts it; a tool result's original length and its count, taken before the cut; and the first-visit notice apart from the reply's body, so the page stamps it without matching text.</li>
+    <li>A model call opens to seven lines. The prompt line is the system prompt's size and digest, never its text (SR-12). The cache line says what was read and what was written; the tick means something was read, the cross that nothing was. The example costs follow the dated price table, with a cache write at 1.25 times the input price.</li>
+    <li>Each turn's head carries its time, and its cost closes it; the totals at the foot are the sums of the rows above. The fourth turn comes after more than five idle minutes, so its call misses the cache and writes it: a miss is a story worth telling.</li>
+    <li>The messages on this page come with the trace's own endpoint (PR-11), each with its turn.</li>
+    <li>A command (the trace link, the reset) is a turn of one row: the server matches it before any model call, so it has no received or sent rows, no tokens and no cost, and its reply is a fixed text. Every trace reached from WhatsApp ends with one, since the link is asked for by command. In the glass box the same turn is the same single row.</li>
+    <li>Changed from the sketch: the turn's cost moved from its head to a line at its foot; the foot's p95 gave way to the turns' time; the masthead gained the status link. The page ends as the status page does, with two quiet links under the receipt, home and privacy: the instrument's pages carry these, and the signature stays on the landing and the privacy page. The title gives the day as well as the hour, since the link outlives the day.</li>
+    <li>The fourth turn's reply has two parts. The first sentence is the model's, declining the clinical question. The second is the fixed offer of the MVP (FR-10's note): the pharmacist's line and the phone, read from the store's contact facts, with no tool call; the sent row says so. How the line is attached to the reply, and its locale key, come with the decline texts' pull request (PR-15).</li>
+    <li>Not drawn, for the page's own pull request: the receipt while it loads (the head and the torn edges, no rows) and a failure to load, said in one line where the rows would be. The expired link is a state of its own.</li>
+    <li>The count under a tool's result ("2 resultados", "4 bairros") is shown only where the result is a list; a result that is a single fact shows none. The hours in the instrument are São Paulo's.</li>
+  </ul>
+</aside>
+</body>
+</html>

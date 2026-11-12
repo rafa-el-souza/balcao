@@ -1548,6 +1548,68 @@ MVP from its first day and merges at day 11.
 
 Tracked here until resolved; each resolution becomes an ADR or an edit.
 
+- Note 2026-11-12 (the drawing slice, before PR-10). The public screens are
+  drawn as static HTML and CSS in `docs/prototype/` (open `index.html`): one
+  file per screen and state, one stylesheet, and under each drawing the
+  notes for whoever implements it. The implementation follows the drawings;
+  the token block at the top of `styles.css` becomes
+  `web/src/styles/tokens.css` unchanged. The drawings were reviewed by four
+  independent readers (mechanics, the instrument against the server, the
+  interface against the brief and the checklist, the Portuguese text), and
+  what they found is either fixed or written in the notes. Where the
+  drawings and the §6.8 sketches differ, the drawings win; the differences:
+  - **Direction.** The pharmacy's printed stationery: one green ink on pale
+    green paper for the counter (letterhead, rubber stamps, price tags), a
+    till receipt in near-black on off-white for the instrument. The brief's
+    departures are listed in the prototype's index and in the brief's
+    header.
+  - **The glass box is one row per model call**, as the server emits them
+    (§6.8 drew one row per turn): closed, a call is one line with where it
+    stopped, its cost and its time; open, seven lines (model, effort, the
+    prompt's size and digest per SR-12, input, cache read and written,
+    output, cost in US$ and R$, which FR-12 asks for and the sketch left
+    out). Earlier turns fold into one line. A command is a turn of one row.
+    The summary line at 390 px speaks of the last turn alone.
+  - **Asked of the server**, each written in the notes of the screen that
+    needs it: for PR-11, a turn id in each span, the input figure as the
+    sum of plain input, cache read and cache write (the SDK's own count),
+    a tool result's original length and count before the cut, the
+    first-visit notice apart from the reply's body, the trace's own
+    endpoint with the messages and their turns; for PR-13, a reason code
+    that tells a tool's refusal from its failure; for PR-16, the cost
+    attributes, the R$ rate with its date, and the budget's mode in the
+    session and polling answers. ADR-0003's price table has no cache-write
+    price; the drawn examples use 1.25 times the input price.
+  - **Drawn as the target and hidden until their source exists:** the
+    pharmacist's presence (M2), the mode in the glass box (PR-16), every
+    cost figure (PR-16), the anti-bot line (with Turnstile, FR-18), the
+    booking suggestion (M2), and on the landing the lines of features that
+    come later (bookings M2, voice notes M4, exhibits M5, live numbers M3,
+    the offer M5).
+  - **Texts the requirements ask for and the sketches lacked:** the
+    1,000-character count in the composer, shown past 800 (FR-18); the
+    fourth exclusion of the offer (FR-25); the trace's title with its day.
+    FR-26's sentence is not on the landing yet: what the code guarantees
+    today is narrower than "changing the business is changing these
+    files", and the wording waits for the owner.
+  - **The privacy page** says what each kind of record's clock is (FR-05,
+    FR-15), that backups hold deleted rows for up to seven more days (§8),
+    that on WhatsApp the delete command erases this server's copy alone,
+    that the phone number and the IP address are kept or used, and that a
+    conversation may become a public eval case, rewritten and unidentified.
+  - **The status page** (M3) names the model beside the mode, calls the
+    pipeline's uptime "atendimento no ar", and stamps the exchange rate's
+    date. Open for M3: `daily_aggregate` keeps only counts, so the
+    thirty-day latency line, the percentiles' window and the cost per
+    conversation have no source yet; and which eval suites the page lists.
+  - **States added to the sketches:** a queued message, an expired trace
+    link, a tool's refusal, the demo's limit, deleted data, a long message.
+    States left for each screen's own pull request are named in its notes
+    (loading, failure to load, a send that failed, the strip below its
+    thresholds and without JavaScript).
+  - **Not in this slice:** the calendar page; `docs/visual-identity.md`,
+    which closes the brief once the CSS is applied in the app; English and
+    Spanish for more than the three screens the brief names.
 - Note 2026-11-11 (PR-09, the API). `POST /api/session`, `POST
   /api/messages` and `GET /api/conversations/current` (app/controllers/api/),
   the cable's `ConversationChannel` and `TraceChannel`, the limits at the

@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chat and glass box: the first answer (en) · Balcão prototype</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main class="stage chat">
+  <section class="counter" aria-label="Conversation">
+    <header class="counter-head">
+      <a class="back" id="back" href="landing-en.html"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M14 8H2.5M7 3.5L2.5 8 7 12.5"/></svg> Balcão</a>
+      <nav class="langs counter-langs" id="counter-langs" aria-label="Language">
+        <button class="lang" type="button">PT</button>
+        <span class="lang" aria-current="true">EN</span>
+        <button class="lang" type="button">ES</button>
+      </nav>
+      <span class="presence" id="presence" data-presence="online" data-arrives="M2">
+        <svg class="cross" viewBox="0 0 12 12" aria-hidden="true"><path d="M4 0h4v4h4v4H8v4H4V8H0V4h4z"/></svg>
+        pharmacist online
+      </span>
+    </header>
+
+    <ol class="thread" id="thread">
+      <li class="msg notice stamp" id="msg-notice">
+        <p><strong>Notice:</strong> this is a portfolio demo of a fictional pharmacy. Messages are kept for 7 days, and you can delete them by sending /delete.</p>
+      </li>
+      <li class="msg visitor" id="msg-visitor-1">
+        <p>do you have dipirona?</p>
+      </li>
+      <li class="msg attendant" id="msg-attendant-1">
+        <p>We have two: Dipirona 500 mg, 10 comprimidos, for R$ 7.90, and Dipirona gotas 500 mg/ml, 20 ml, for R$ 9.50. Both are in stock.</p>
+        <p>Shall I reserve one for pickup?</p>
+      </li>
+    </ol>
+
+    <div class="counter-foot">
+    <a class="summary" id="glass-summary" href="#glass">
+      <span class="summary-figures">turn 1 · 5 events · <span data-arrives="PR-16">US$ 0.009</span> · 3.0 s</span>
+      <span class="summary-open"><span class="visually-hidden">open the glass box</span></span>
+    </a>
+
+    <form class="composer" id="composer">
+      <div class="composer-row">
+        <label class="visually-hidden" for="message">Message</label>
+        <textarea id="message" rows="1" placeholder="write here…" autocomplete="off"></textarea>
+        <button class="send" id="send" type="button">Send <svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h11.5M9 3.5L13.5 8 9 12.5"/></svg></button>
+      </div>
+      <p class="suggest" id="suggestions">
+        <span class="suggest-label">Suggestions:</span>
+        <button class="suggestion" type="button">reserve</button>
+        <button class="suggestion" type="button">book</button>
+        <button class="suggestion" type="button">talk to the pharmacist</button>
+      </p>
+      <p class="turnstile" id="turnstile-notice">Anti-bot check: Cloudflare runs it and sees your IP.</p>
+    </form>
+    </div>
+  </section>
+
+  <section class="glass" id="glass" aria-labelledby="glass-title">
+    <header class="glass-head">
+      <h2 id="glass-title">Glass box</h2>
+      <nav class="langs" id="langs" aria-label="Language">
+        <button class="lang" type="button">PT</button>
+        <span class="lang" aria-current="true">EN</span>
+        <button class="lang" type="button">ES</button>
+      </nav>
+      <span class="mode" id="mode" data-mode="normal" data-arrives="PR-16">normal</span>
+      <a class="glass-close" id="glass-close" href="chat-en.html">close</a>
+    </header>
+    <ol class="events" id="events">
+      <li class="event" id="t1-received">
+        <time>12:03:41</time>
+        <div class="what"><span class="name">message received</span></div>
+      </li>
+      <li class="event" id="t1-model-1">
+        <time>12:03:41</time>
+        <details class="what" open>
+          <summary><span class="name">model</span> <span class="stop">stopped at tool_use</span> <span class="figure"><span data-arrives="PR-16">US$ 0.003</span> · 1.1 s</span></summary>
+          <dl class="detail"><div><dt>model</dt><dd>claude-opus-5-5</dd></div><div><dt>effort</dt><dd>medium</dd></div><div><dt>prompt</dt><dd>11.8k characters · 9f2c41d0</dd></div><div><dt>input</dt><dd>3.1k</dd></div><div><dt>cache</dt><dd><span class="cache" data-cache="hit"><svg class="tick" viewBox="0 0 12 12" role="img" aria-label="read"><path d="M1.5 6.5l3 3 6-7" fill="none" stroke-width="1.6"/></svg> 2.8k · wrote 0.3k</span></dd></div><div><dt>output</dt><dd>42</dd></div><div><dt>cost</dt><dd><span data-arrives="PR-16">US$ 0.003 <span class="quiet">· R$ 0.02</span></span></dd></div></dl>
+        </details>
+      </li>
+      <li class="event tool" id="t1-tool">
+        <time>12:03:42</time>
+        <details class="what" open>
+          <summary><span class="name">search_products</span> <span class="figure">38 ms</span></summary>
+          <pre class="payload">{"query":"dipirona"}</pre>
+          <pre class="payload raw">{"query":"dipirona","products":[{"id":"01a1cb3a-c25c-7759-a408-78909fba8f60","name":"Dipirona 500 mg, 10 comprimidos","active_ingredient":"dipirona","price":"R$ 7,90","stock":40,"prescription_required":false,"match":"exact","score":1.0},{"id":"01a1cb3a-c25e-71fd-b0a1-a6dd944df3f2","name":"Dipirona gotas 500 mg/ml, 20 ml","active_ingredient":"dipirona","price":"R$ 9,50","stock":25,"prescription_required":false,"match":"exact","score":1.0}]}</pre>
+          <p class="outcome">2 results</p>
+        </details>
+      </li>
+      <li class="event" id="t1-model-2">
+        <time>12:03:43</time>
+        <details class="what" open>
+          <summary><span class="name">model</span> <span class="stop">stopped at end_turn</span> <span class="figure"><span data-arrives="PR-16">US$ 0.006</span> · 1.6 s</span></summary>
+          <dl class="detail"><div><dt>model</dt><dd>claude-opus-5-5</dd></div><div><dt>effort</dt><dd>medium</dd></div><div><dt>prompt</dt><dd>11.8k characters · 9f2c41d0</dd></div><div><dt>input</dt><dd>3.7k</dd></div><div><dt>cache</dt><dd><span class="cache" data-cache="hit"><svg class="tick" viewBox="0 0 12 12" role="img" aria-label="read"><path d="M1.5 6.5l3 3 6-7" fill="none" stroke-width="1.6"/></svg> 3.1k · wrote 0.6k</span></dd></div><div><dt>output</dt><dd>98</dd></div><div><dt>cost</dt><dd><span data-arrives="PR-16">US$ 0.006 <span class="quiet">· R$ 0.03</span></span></dd></div></dl>
+        </details>
+      </li>
+      <li class="event" id="t1-sent">
+        <time>12:03:44</time>
+        <div class="what"><span class="name">message sent</span></div>
+      </li>
+    </ol>
+    <dl class="totals" id="totals">
+      <div><dt>turn 1</dt><dd>3.0 s</dd></div>
+      <div><dt>turn cost</dt><dd><span data-arrives="PR-16">US$ 0.009 <span class="quiet">· R$ 0.05</span></span></dd></div>
+    </dl>
+    <div class="glass-actions" id="glass-actions">
+      <button class="tool-button" id="reset" type="button"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.2 6.2A5.25 5.25 0 1 1 2.75 8M3 2.5v3.75h3.75"/></svg> restart</button>
+      <button class="tool-button" id="delete" type="button"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4.5h11M6.25 4.25v-1.5h3.5v1.5M4 4.75l.65 8.5h6.7l.65-8.5M6.75 7.25v3.5M9.25 7.25v3.5"/></svg> delete data</button>
+      <a class="tool-button" id="open-trace" href="trace.html"><svg class="icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.75 1.75h8.5v12.5l-1.42-1.25-1.41 1.25L8 13l-1.42 1.25L5.17 13l-1.42 1.25zM6 5.25h4M6 8h4"/></svg> open the trace as a page</a>
+    </div>
+  </section>
+</main>
+
+<aside class="notes" lang="en">
+  <h2>Notes</h2>
+  <ul>
+    <li>The English sibling of <code>chat.html</code>, to see the same screen at this language's lengths; the notes for the implementation are on the Portuguese file.</li>
+    <li>The wording is a draft until the locale files. The first-visit notice is the server's text for this language; product names stay as the catalogue has them; the openers keep their own languages. Numbers take a decimal point here.</li>
+  </ul>
+</aside>
+</body>
+</html>
