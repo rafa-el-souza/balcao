@@ -98,14 +98,31 @@ export interface Api {
   trace(token: string, signal?: AbortSignal): Promise<Outcome<Trace>>;
 }
 
-// The server's clock, as the Date of its last answer gives it (to the
-// second): the page's own rows are dated by it, and a running turn's time is
-// counted against it, since the server's spans carry the server's hours
-// (review finding C3 of pull request #17).
+// The server's clock, as the Date of its answers gives it: the page's own
+// rows are dated by it, and a running turn's time is counted against it,
+// since the server's spans carry the server's hours (review finding C3 of
+// pull request #17). A Date has whole seconds and its answer takes time to
+// arrive, so it only places the server's clock between that second and the
+// next one plus the request's round trip: the page's clock stands while it
+// falls there, and a clock outside is moved to the middle (review finding R2
+// of pull request #17), so a right clock is never pulled a second back.
 export const serverClock = { offset: 0 };
 
 export function serverNow(): number {
   return Date.now() + serverClock.offset;
+}
+
+export function setServerClock(
+  date: string | null,
+  sent: number,
+  received: number,
+): void {
+  const earliest = Date.parse(date ?? "");
+  if (Number.isNaN(earliest)) return;
+  const latest = earliest + 1000 + Math.max(0, received - sent);
+  const now = received + serverClock.offset;
+  if (now >= earliest && now <= latest) return;
+  serverClock.offset = (earliest + latest) / 2 - received;
 }
 
 // A request the server has not answered in this time is given up and counts
@@ -136,6 +153,7 @@ export function createApi(locale: () => Locale): Api {
     let response: Response;
     let json: unknown;
     try {
+      const sent = Date.now();
       response = await fetch(path, {
         method,
         headers,
@@ -143,8 +161,7 @@ export function createApi(locale: () => Locale): Api {
         signal: controller.signal,
         ...(body ? { body: JSON.stringify(body) } : {}),
       });
-      const date = Date.parse(response.headers.get("Date") ?? "");
-      if (!Number.isNaN(date)) serverClock.offset = date - Date.now();
+      setServerClock(response.headers.get("Date"), sent, Date.now());
       json = await response.json().catch(() => null);
     } catch {
       return { kind: "failed" };

@@ -327,6 +327,71 @@ describe("FR-12 the glass box and the clocks", () => {
     ) as HTMLElement;
     expect(within(row).getByText("12:04:02")).toBeInTheDocument();
   });
+
+  // Review finding R2 of pull request #17: a Date has whole seconds, so it
+  // cannot tell a right clock a second off; the browser's clock stands while
+  // the answer allows it, and the row stays under the turn it came after.
+  async function sendInTheSecondOfTurnTwo(answer: {
+    status: number;
+    body: object;
+  }) {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date("2026-11-12T15:05:10.700Z")); // the browser's clock is right
+    const date = { Date: "Thu, 12 Nov 2026 15:05:10 GMT" };
+    const turns = [
+      ...answeredTurn("t1", { minute: 3 }),
+      ...runningTurn("t2", 5).map((span) => ({
+        ...span,
+        started_at: "2026-11-12T15:05:10.300Z",
+      })),
+    ];
+    server.fetch.mockImplementation((path: string, init: RequestInit = {}) => {
+      const sent = init.method === "POST" && path === "/api/messages";
+      const body = sent
+        ? answer.body
+        : path === "/api/session"
+          ? { conversation_id: "1", trace_token: "t1", language: "pt-BR" }
+          : conversation(1, [], true, turns).body;
+      return Promise.resolve(
+        new Response(JSON.stringify(body), {
+          status: sent ? answer.status : 200,
+          headers: { "Content-Type": "application/json", ...date },
+        }),
+      );
+    });
+    renderPage(<Chat />);
+    await waitFor(() => {
+      expect(within(events()).getAllByText("mensagem recebida")).toHaveLength(
+        2,
+      );
+    });
+
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "oi" } });
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+  }
+
+  it("keeps a limit met in the second the turn ahead began under that turn", async () => {
+    await sendInTheSecondOfTurnTwo({
+      status: 429,
+      body: {
+        error: "limit",
+        text: "Você chegou ao limite da demo por agora.",
+      },
+    });
+
+    await within(glass()).findByText("limite da demo");
+    expect(rowsOf(events()).at(-1)).toContain("limite da demo");
+  });
+
+  it("keeps a message queued in the second the turn ahead began after that turn", async () => {
+    await sendInTheSecondOfTurnTwo({
+      status: 202,
+      body: { turn_id: "t3", message_id: "m3", conversation_id: "1" },
+    });
+
+    await within(glass()).findByText("mensagem na fila");
+    expect(rowsOf(events()).at(-1)).toContain("mensagem na fila");
+  });
 });
 
 describe("FR-12 the glass box's own rows", () => {
