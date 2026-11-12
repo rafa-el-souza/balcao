@@ -816,3 +816,159 @@ describe("FR-04 and FR-05 the glass box's commands, pressed twice", () => {
     });
   });
 });
+
+// The fix review of pull request #14 (R1 to R6), over the fixes above.
+describe("FR-18 and FR-21 the fixes' own edges (fix review of pull request #14)", () => {
+  // Holds the load's own GET until the test lets it go.
+  function holdFirstPoll() {
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    vi.stubGlobal("fetch", (path: string, init?: RequestInit) => {
+      const first =
+        path === "/api/conversations/current" && server.polls().length === 0;
+      const answer = server.fetch(path, init);
+      return first ? held.then(() => answer) : answer;
+    });
+    return () => {
+      release();
+    };
+  }
+  const items = () =>
+    within(thread())
+      .getAllByRole("listitem")
+      .map((item) => item.textContent);
+  const earlier = () => [
+    message({ author: "visitor", body: "tem dipirona?" }),
+    message({ author: "bot", body: "Temos duas." }),
+  ];
+
+  // R1: the 24 hours of FR-04 closed the conversation the load read.
+  it("keeps an opener the server accepted into a newer conversation, and shows its reply", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    server.answers.current.push(conversation(1, earlier()));
+    server.answers.messages.push({
+      status: 202,
+      body: { turn_id: 9, message_id: 9, conversation_id: 2 },
+    });
+    const release = holdFirstPoll();
+    window.history.replaceState(null, "", "/chat?say=delivery_es");
+    renderPage(<Chat />);
+    await waitFor(() => {
+      expect(server.sent()).toHaveLength(1);
+    });
+    await act(() => vi.advanceTimersByTimeAsync(50));
+    const id = idOf(server.sent()[0]?.body);
+    server.defaults.current = conversation(2, [
+      message({
+        author: "visitor",
+        body: openers.delivery_es.text,
+        client_id: id,
+        conversation_id: 2,
+      }),
+      message({ author: "bot", body: "Sí, entregamos.", conversation_id: 2 }),
+    ]);
+    release();
+    await elapse(9000);
+
+    expect(within(thread()).getByText("Sí, entregamos.")).toBeInTheDocument();
+  });
+
+  // R2: a message that failed after one still travelling.
+  it("draws a failed message after the earlier one still on its way", async () => {
+    renderPage(<Chat />);
+    await ready();
+    type("primeira");
+    fireEvent.keyDown(field(), { key: "Enter" });
+    await waitFor(() => {
+      expect(server.sent()).toHaveLength(1);
+    });
+    server.answers.messages.push("network");
+    type("segunda");
+    fireEvent.keyDown(field(), { key: "Enter" });
+    await screen.findByRole("button", { name: pt.retry });
+
+    expect(items()[0]).toBe("primeira");
+    expect(items()[1]).toContain("segunda");
+  });
+
+  // R3: an opener refused before the conversation loaded.
+  it("draws a refused opener and its stamp after the history the first snapshot brings", async () => {
+    const text = "Você chegou ao limite da demo por hoje. Volte amanhã.";
+    server.answers.current.push(conversation(1, earlier()));
+    server.answers.messages.push({
+      status: 429,
+      body: { error: "limit", text },
+    });
+    const release = holdFirstPoll();
+    window.history.replaceState(null, "", "/chat?say=delivery_es");
+    renderPage(<Chat />);
+    await within(thread()).findByText(text);
+    release();
+    await within(thread()).findByText("Temos duas.");
+
+    expect(items()).toEqual([
+      "tem dipirona?",
+      "Temos duas.",
+      openers.delivery_es.text,
+      text,
+    ]);
+  });
+
+  // R4: the load's GET timed out after a poll opened the conversation.
+  it("does not say the chat could not open once a poll opened it", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    // The load's own GET hangs until its timeout; later polls answer.
+    vi.stubGlobal("fetch", (path: string, init: RequestInit = {}) => {
+      const answer = server.fetch(path, init);
+      if (path !== "/api/conversations/current" || server.polls().length > 1)
+        return answer;
+      return new Promise<Response>((_, reject) => {
+        init.signal?.addEventListener("abort", () => {
+          reject(new DOMException("timed out", "AbortError"));
+        });
+      });
+    });
+    window.history.replaceState(null, "", "/chat?say=stock_pt");
+    renderPage(<Chat />);
+    await waitFor(() => {
+      expect(server.sent()).toHaveLength(1);
+    });
+    const id = idOf(server.sent()[0]?.body);
+    server.defaults.current = conversation(1, [
+      message({
+        author: "visitor",
+        body: openers.stock_pt.text,
+        client_id: id,
+      }),
+      message({ author: "bot", body: "Temos duas." }),
+    ]);
+    await elapse(20_000);
+
+    expect(within(thread()).getByText("Temos duas.")).toBeInTheDocument();
+    expect(screen.queryByText(pt.loadFailed)).toBeNull();
+  });
+
+  // R2, as the verifier wrote it: a message that met the limit.
+  it("draws a message that met the limit, and its stamp, after the earlier one still on its way", async () => {
+    const text =
+      "Você chegou ao limite da demo por agora. Tente de novo daqui a pouco.";
+    renderPage(<Chat />);
+    await ready();
+    type("primeira");
+    fireEvent.keyDown(field(), { key: "Enter" });
+    await waitFor(() => {
+      expect(server.sent()).toHaveLength(1);
+    });
+    server.answers.messages.push({
+      status: 429,
+      body: { error: "limit", text },
+    });
+    type("segunda");
+    fireEvent.keyDown(field(), { key: "Enter" });
+    await within(thread()).findByText(text);
+
+    expect(items()).toEqual(["primeira", "segunda", text]);
+  });
+});

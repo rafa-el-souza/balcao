@@ -70,7 +70,15 @@ export function useConversation() {
   const sessions = useRef<Promise<unknown>>(Promise.resolve());
   const session = useCallback(
     (locale: Locale) => {
-      const next = sessions.current.then(() => api.session(locale));
+      const next = sessions.current.then(async () => {
+        const opened = await api.session(locale);
+        if (opened.kind === "ok")
+          dispatch({
+            type: "session",
+            conversationId: opened.value.conversation_id,
+          });
+        return opened;
+      });
       sessions.current = next.catch(() => undefined);
       return next;
     },
