@@ -1,22 +1,23 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { useTurnLine } from "../trace/Rows";
 import { Icon } from "../ui/Icon";
-import parts from "../ui/parts.module.css";
 import { LanguageSwitch } from "../ui/LanguageSwitch";
+import parts from "../ui/parts.module.css";
 import styles from "./Chat.module.css";
 import { Composer } from "./Composer";
-import { entriesOf } from "./conversation";
+import { glassOf, GlassRows, useSummary } from "./GlassBox";
 import { Thread } from "./Thread";
 import { useConversation } from "./useConversation";
 
 // The chat, `/chat` (design §6.7, §6.8; docs/prototype/chat*.html): the
-// counter and, beside it, the instrument. This pull request draws the counter
-// whole and the glass box's frame with its two commands; the glass box's rows,
-// its drawer at 390 px and the live stream arrive with PR-11, the "pensando…"
-// state with PR-12 (design §9.1). Hidden until their source exists: the
-// pharmacist's presence (M2), the budget's mode (PR-16), the anti-bot line
-// (Turnstile, after the MVP) and the "agendar" suggestion (FR-08, M2).
+// counter and, beside it, the instrument. The glass box shows the turn's rows
+// as the server traces them (FR-12); at 390 px it folds into one line above
+// the composer, which opens it as a drawer over the lower half. Hidden until
+// their source exists: the pharmacist's presence (M2), the budget's mode and
+// every cost (PR-16), the anti-bot line (Turnstile, after the MVP) and the
+// "agendar" suggestion (FR-08, M2); the "pensando…" state is PR-12's.
 export function Chat() {
   const { t } = useTranslation();
   const {
@@ -29,18 +30,66 @@ export function Chat() {
     retry,
     changeLanguage,
   } = useConversation();
-  const empty = entriesOf(state).length === 0;
+  const glass = glassOf(state);
+  const summary = useSummary(glass);
+  const line = useTurnLine();
+  const empty = glass.last === null && glass.leading.length === 0;
+  const [drawer, setDrawer] = useState(false);
+  const opener = useRef<HTMLButtonElement>(null);
+  const closer = useRef<HTMLButtonElement>(null);
+  const rows = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     document.title = t("chat.title");
   }, [t]);
 
+  // A new row scrolls the glass box to itself.
+  const count = glass.open.reduce(
+    (sum, turn) => sum + turn.rows.length + turn.local.length,
+    glass.earlier.length + glass.leading.length,
+  );
+  useEffect(() => {
+    const last = rows.current?.querySelector("ol")?.lastElementChild;
+    if (last && "scrollIntoView" in last) last.scrollIntoView({ block: "end" });
+  }, [count]);
+
   const command = (name: "resetCommand" | "deleteCommand") => {
     sendCommand(t(`chat.glass.${name}`));
   };
 
+  // The drawer opens over the lower half, so the conversation scrolls its
+  // last entry into the upper one; closing it gives the focus back.
+  const openDrawer = () => {
+    setDrawer(true);
+    window.requestAnimationFrame(() => {
+      closer.current?.focus();
+      const last = [...document.querySelectorAll("[data-voice]")].at(-1);
+      if (last && typeof window.scrollBy === "function") {
+        const { bottom } = last.getBoundingClientRect();
+        window.scrollBy({ top: bottom - window.innerHeight / 2 });
+      }
+    });
+  };
+  const closeDrawer = () => {
+    setDrawer(false);
+    opener.current?.focus();
+  };
+  // Escape closes the open drawer.
+  useEffect(() => {
+    if (!drawer) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setDrawer(false);
+      opener.current?.focus();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [drawer]);
+
   return (
-    <main className={styles.chat}>
+    <main className={styles.chat} {...(drawer ? { "data-drawer": "" } : {})}>
       <section className={styles.counter} aria-labelledby="chat-title">
         <h1 className={parts.visuallyHidden} id="chat-title">
           {t("chat.heading")}
@@ -64,6 +113,24 @@ export function Chat() {
         />
 
         <div className={styles.counterFoot}>
+          <button
+            ref={opener}
+            type="button"
+            className={styles.summary}
+            aria-controls="glass"
+            aria-expanded={drawer}
+            onClick={() => {
+              if (drawer) closeDrawer();
+              else openDrawer();
+            }}
+          >
+            <span>{summary}</span>
+            <span className={styles.summaryOpen}>
+              <span className={parts.visuallyHidden}>
+                {t("chat.glass.open")}
+              </span>
+            </span>
+          </button>
           <Composer
             onSend={(text) => {
               void send({ text }, text);
@@ -72,7 +139,11 @@ export function Chat() {
         </div>
       </section>
 
-      <section className={styles.glass} aria-labelledby="glass-title">
+      <section
+        className={styles.glass}
+        id="glass"
+        aria-labelledby="glass-title"
+      >
         <header className={styles.glassHead}>
           <h2 id="glass-title">{t("chat.glass.title")}</h2>
           <LanguageSwitch
@@ -80,12 +151,30 @@ export function Chat() {
             className={styles.glassLangs}
             onSwitch={changeLanguage}
           />
+          <button
+            ref={closer}
+            type="button"
+            className={styles.glassClose}
+            onClick={closeDrawer}
+          >
+            {t("chat.glass.close")}
+          </button>
         </header>
-        <div className={styles.glassBody}>
-          {empty && (
+        <div className={styles.glassBody} ref={rows}>
+          {empty ? (
             <p className={styles.glassEmpty}>{t("chat.glass.empty")}</p>
+          ) : (
+            <GlassRows glass={glass} />
           )}
         </div>
+        {glass.last && (
+          <dl className={styles.totals}>
+            <div>
+              <dt>{line.number(glass.last)}</dt>
+              <dd>{line.time(glass.last)}</dd>
+            </div>
+          </dl>
+        )}
         <div className={styles.glassActions}>
           <button
             type="button"
@@ -106,6 +195,14 @@ export function Chat() {
           >
             <Icon name="bin" /> {t("chat.glass.delete")}
           </button>
+          {state.traceToken && (
+            <a
+              className={styles.toolButton}
+              href={`/trace/${encodeURIComponent(state.traceToken)}`}
+            >
+              <Icon name="receipt" /> {t("chat.glass.openTrace")}
+            </a>
+          )}
         </div>
       </section>
     </main>

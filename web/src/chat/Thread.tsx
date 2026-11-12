@@ -14,6 +14,18 @@ import { isOpener, openerLang } from "./useConversation";
 // the attendant speaks in the page's own voice, the pharmacist's words carry
 // a rule down their side, and the system's are a stamp.
 
+// FR-01's notice opens with its label ("Aviso:"), which the stamp sets in
+// bold, as the drawing does; the rest is plain text.
+function Notice({ text }: { text: string }) {
+  const colon = text.indexOf(": ");
+  if (colon < 1) return <Text text={text} />;
+  return (
+    <p>
+      <strong>{text.slice(0, colon + 1)}</strong> {text.slice(colon + 2)}
+    </p>
+  );
+}
+
 // Plain text with its line breaks (design §6.9, threat model SR-03): a blank
 // line opens a paragraph, a single one breaks the line. Nothing is markup.
 export function Text({ text }: { text: string }) {
@@ -56,7 +68,7 @@ function Message({
       data-voice={entry.voice}
       {...(entry.lang ? { lang: entry.lang } : {})}
     >
-      <Text text={entry.text} />
+      {entry.notice ? <Notice text={entry.text} /> : <Text text={entry.text} />}
       {failed && (
         <p className={styles.failed}>
           {t("chat.failed")} ·{" "}

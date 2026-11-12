@@ -17,6 +17,10 @@ const PATHS = {
   // The tag's hole is a dot: a square cap on a path of no length.
   clinical: ["M6 2h4v4h4v4h-4v4H6v-4H2V6h4z"],
   speech: ["M2.25 2.75h11.5v8H7.5l-3.25 2.75v-2.75h-2z"],
+  // The till receipt, torn at the foot: "abrir trace em página".
+  receipt: [
+    "M3.75 1.75h8.5v12.5l-1.42-1.25-1.41 1.25L8 13l-1.42 1.25L5.17 13l-1.42 1.25zM6 5.25h4M6 8h4",
+  ],
 } as const;
 
 export type IconName = keyof typeof PATHS;

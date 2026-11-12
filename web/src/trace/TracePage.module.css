@@ -1,0 +1,178 @@
+/* The trace page: the same receipt as the glass box, whole and at full length
+   (docs/prototype/styles.css, "The trace page" and "On a wide window the one block of a page"). */
+
+.page {
+  --page-pad: max(var(--space-6), calc((100vw - var(--page-max)) / 2));
+  padding: 0 var(--page-pad) var(--space-12);
+}
+
+.masthead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: 5px;
+  padding: var(--space-6) 0 var(--space-3);
+}
+
+.pageName {
+  font-style: italic;
+  color: var(--color-ink-2);
+}
+
+.langs {
+  margin-left: auto;
+}
+
+.note {
+  max-width: var(--measure);
+  margin: var(--space-8) 0 var(--space-12);
+}
+
+.note h1 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.note p {
+  margin: 0;
+  color: var(--color-ink-2);
+}
+
+.token {
+  font-family: var(--font-instrument);
+  font-size: var(--text-md);
+}
+
+.start {
+  margin-top: var(--space-4);
+}
+
+.start a,
+.foot a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.roll {
+  max-width: var(--receipt-max);
+  padding: var(--space-6);
+}
+
+.loading {
+  min-height: 6rem;
+}
+
+.failed {
+  margin: 0;
+}
+
+.turn + .turn {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: var(--rule-dash);
+}
+
+.turnHead {
+  display: flex;
+  align-items: baseline;
+  gap: 0;
+  margin: 0 0 var(--space-2);
+  font: inherit;
+}
+
+.turnNumber {
+  flex: none;
+  width: var(--col-time);
+  font-weight: 700;
+}
+
+.turnTime {
+  flex: none;
+  margin-left: auto;
+  padding-left: var(--space-4);
+  font-weight: 700;
+}
+
+/* The words of the conversation, on the receipt, stay in the counter's face. */
+.said {
+  font-family: var(--font-counter);
+  font-size: var(--text-sm);
+  font-style: italic;
+  line-height: 1.5;
+}
+
+.reply {
+  margin: var(--space-2) 0 0 var(--col-time);
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--color-instrument-ink-2);
+  font-style: normal;
+}
+
+.reply p {
+  margin: 0;
+}
+
+.reply p + p {
+  margin-top: var(--space-2);
+}
+
+.total {
+  margin: var(--space-4) 0 0;
+  padding-top: var(--space-3);
+  border-top: 3px double var(--color-instrument-ink);
+}
+
+.total > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.total dd {
+  margin: 0;
+}
+
+.total > div:first-child {
+  font-weight: 700;
+}
+
+/* The foot of a page that carries no signature: quiet links under its block, centred with it. */
+.foot {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-6);
+  max-width: var(--receipt-max);
+  margin: var(--space-8) auto 0;
+  font-size: var(--text-sm);
+}
+
+/* On a wide window the one block of the page stands in the middle. */
+@media (width >= 60rem) {
+  .note,
+  .roll {
+    max-width: var(--receipt-max);
+    margin-inline: auto;
+  }
+}
+
+@media (width < 40rem) {
+  .roll {
+    padding: var(--space-4);
+  }
+
+  .turnHead {
+    flex-wrap: wrap;
+  }
+
+  .turnNumber {
+    width: var(--col-time-narrow);
+  }
+
+  .reply {
+    margin-left: 0;
+  }
+}

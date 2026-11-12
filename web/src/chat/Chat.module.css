@@ -296,12 +296,39 @@
 
 .glassBody {
   flex: 1;
+  padding: var(--space-4) var(--space-6);
 }
 
 .glassEmpty {
   margin: 0;
-  padding: var(--space-4) var(--space-6);
   color: var(--color-instrument-ink-2);
+}
+
+/* The way out of the drawer: only where the glass box is one (under 52rem). */
+.glassClose {
+  display: none;
+}
+
+/* The line that stands for the glass box under 52rem, always in sight above the composer. */
+.summary {
+  display: none;
+}
+
+.totals {
+  margin: 0 var(--space-6);
+  padding: var(--space-2) 0;
+  border-top: var(--rule-dash);
+}
+
+.totals > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  font-weight: 700;
+}
+
+.totals dd {
+  margin: 0;
 }
 
 .glassActions {
@@ -323,6 +350,7 @@
   color: var(--color-instrument-ink);
   font-family: var(--font-instrument);
   font-size: var(--text-xs);
+  text-decoration: none;
   cursor: pointer;
 }
 
@@ -350,13 +378,15 @@
   .counterHead,
   .counterFoot,
   .glassHead,
+  .totals,
   .glassActions {
     flex: none;
   }
 }
 
-/* Stacked, the page scrolls and the composer stays at the foot of the window. The glass box's
-   drawer arrives with its rows (PR-11); until then the switch sits in the conversation's head. */
+/* Stacked, the page scrolls and the composer stays at the foot of the window. The glass box folds
+   into its summary line, which opens it as a drawer over the lower half of the screen; the switch
+   sits in the conversation's head, and the drawer has none of its own. */
 @media (width < 52rem) {
   .chat {
     display: block;
@@ -402,6 +432,112 @@
 
   .glass {
     display: none;
+  }
+
+  .summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    width: 100%;
+    min-height: var(--touch);
+    padding: 0 var(--space-4);
+    border: 0;
+    border-top: var(--rule-dash);
+    border-bottom: var(--rule-dash);
+    border-radius: 0;
+    background: var(--color-paper-2);
+    color: var(--color-instrument-ink);
+    font-family: var(--font-instrument);
+    font-size: var(--text-xs);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .summaryOpen::after {
+    content: "";
+    display: inline-block;
+    width: 0.45rem;
+    height: 0.45rem;
+    margin: 0.3rem var(--space-1) 0 var(--space-2);
+    border-left: 1.5px solid var(--color-instrument-ink);
+    border-top: 1.5px solid var(--color-instrument-ink);
+    transform: rotate(45deg);
+  }
+
+  .chat[data-drawer] .summaryOpen::after {
+    margin-top: 0;
+    margin-bottom: 0.3rem;
+    transform: rotate(225deg);
+  }
+
+  /* The drawer: a sheet over the lower part of the screen; the conversation keeps the upper half. */
+  .chat[data-drawer] .glass {
+    display: flex;
+    position: fixed;
+    z-index: 1;
+    inset: 50vh 0 calc(var(--touch) + 4 * var(--space-2) + 3px);
+    overflow-y: auto;
+    border-left: 0;
+    border-top: 4px solid var(--color-instrument-ink);
+  }
+
+  .chat[data-drawer] .glass > * {
+    flex-shrink: 0;
+  }
+
+  /* With the drawer open the composer stays in reach under it: the field and the button alone. */
+  .chat[data-drawer] .composer {
+    position: fixed;
+    z-index: 2;
+    inset: auto 0 0;
+    max-width: none;
+    padding: var(--space-2) var(--space-4);
+    background: var(--color-paper);
+    border-top: var(--rule-hairline);
+  }
+
+  .chat[data-drawer] .suggest {
+    display: none;
+  }
+
+  .glassHead {
+    padding: 0 var(--space-4);
+  }
+
+  .glassLangs {
+    display: none;
+  }
+
+  .glassClose {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--touch);
+    margin-left: auto;
+    padding: 0 var(--space-2);
+    border: 0;
+    background: none;
+    color: var(--color-instrument-ink);
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
+  .glassBody {
+    padding: var(--space-4);
+  }
+
+  .totals {
+    margin: 0 var(--space-4);
+  }
+
+  .glassActions {
+    padding: var(--space-3) var(--space-4) var(--space-6);
+  }
+
+  .toolButton {
+    min-height: var(--touch);
   }
 }
 

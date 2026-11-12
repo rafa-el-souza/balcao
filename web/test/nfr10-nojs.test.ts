@@ -12,7 +12,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 // give the document its true lang.
 const web = new URL("..", import.meta.url).pathname;
 const LOCALES = ["pt-BR", "en", "es"] as const;
-const PAGES = ["landing", "chat"] as const;
+const PAGES = ["landing", "chat", "trace"] as const;
 
 interface Text {
   landing: {
@@ -30,6 +30,7 @@ interface Text {
     composer: { send: string };
     glass: { title: string };
   };
+  trace: { title: string; pageName: string; loading: string };
 }
 const textOf = (locale: string) =>
   JSON.parse(
@@ -122,6 +123,19 @@ describe("NFR-10 each page's text is in the HTML the server sends, in each langu
     expect(html).toContain(`aria-label="${chat.conversation}"`);
     expect(visibleWithoutJavaScript(html)).toContain(chat.heading);
     expect(visibleWithoutJavaScript(html)).toContain(chat.glass.title);
+  });
+
+  // The trace page reads its link's token in the browser: without a script it
+  // is the receipt's head, in the visitor's language (FR-12).
+  it.each(LOCALES)("carries the trace page's head in %s", (locale) => {
+    const html = shells.get(`shells/trace.${locale}.html`) ?? "";
+    const { trace } = textOf(locale);
+
+    expect(html).toContain(`<html lang="${locale}">`);
+    expect(html).toContain(`<title>${trace.title}</title>`);
+    expect(html).toContain('data-page="trace"');
+    expect(visibleWithoutJavaScript(html)).toContain(trace.pageName);
+    expect(visibleWithoutJavaScript(html)).toContain(trace.loading);
   });
 
   it("names its scripts and styles by hash, from the same origin, with no inline script or style (SR-03)", () => {
