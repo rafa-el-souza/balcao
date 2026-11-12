@@ -16,6 +16,23 @@ class SpaController < ApplicationController
 
   def chat = send_shell("chat")
 
+  # Rails reads the query for its log line before the action runs, and a query
+  # it cannot parse (a value not in UTF-8, a key both a string and a hash,
+  # nesting too deep) raised BadRequest outside any rescue, an empty 400
+  # (review findings C1 and V1 of pull request #14). These pages read no
+  # parameter: the page reads its own query, and an unknown say= sends
+  # nothing (FR-21, SR-34). So the query the server could not read is dropped
+  # and the page is sent.
+  def process_action(*)
+    super
+  rescue ActionController::BadRequest
+    raise if request.query_string.empty?
+
+    request.set_header("QUERY_STRING", "")
+    request.delete_header("action_dispatch.request.query_parameters")
+    super
+  end
+
   private
 
   def send_shell(page)

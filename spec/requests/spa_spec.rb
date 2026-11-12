@@ -22,6 +22,21 @@ RSpec.describe "Design §6.7 the web app's shell is sent fresh on every visit", 
     expect(response.body).to include(%(data-page="chat"))
   end
 
+  # Review findings C1 and V1 of pull request #14: Rails reads the query for
+  # its log line before any action runs, and a query it cannot parse answered
+  # an empty 400. The page reads its own query (an unknown say= sends nothing,
+  # FR-21, SR-34), so the server sends the shell whatever the query.
+  it "sends the page for a query Rails cannot parse" do
+    { "/chat" => "chat", "/" => "landing" }.each do |path, page|
+      [ "?say=%FF", "?say=promo%E7%E3o", "?say=x&say%5Ba%5D=1", "?a#{"%5Ba%5D" * 100}=1" ].each do |query|
+        get "#{path}#{query}"
+
+        expect(response).to have_http_status(:ok), "#{path}#{query}"
+        expect(response.body).to include(%(data-page="#{page}"))
+      end
+    end
+  end
+
   it "has no shell for a path that is not a page" do
     get "/chats"
 
