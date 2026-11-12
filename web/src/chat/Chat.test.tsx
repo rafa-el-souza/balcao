@@ -573,3 +573,31 @@ describe("FR-18 the page stops asking for what the server will not bring", () =>
     expect(server.polls()).toHaveLength(2);
   });
 });
+
+// Review finding C7 of pull request #14: the "could not open" stamp stayed
+// above a conversation that a later snapshot opened.
+describe("FR-18 the chat that could not open, and then could", () => {
+  it("takes the stamp away once a snapshot opens the conversation", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    server.answers.current.push("network");
+    renderPage(<Chat />);
+    await screen.findByText(pt.loadFailed);
+
+    type("tem dipirona?");
+    fireEvent.keyDown(field(), { key: "Enter" });
+    await waitFor(() => {
+      expect(server.sent()).toHaveLength(1);
+    });
+    const id = idOf(server.sent()[0]?.body);
+    server.answers.current.push(
+      conversation(1, [
+        message({ author: "visitor", body: "tem dipirona?", client_id: id }),
+        message({ author: "bot", body: "Temos duas." }),
+      ]),
+    );
+    await act(() => vi.advanceTimersByTimeAsync(3000));
+
+    expect(within(thread()).getByText("Temos duas.")).toBeInTheDocument();
+    expect(screen.queryByText(pt.loadFailed)).toBeNull();
+  });
+});
