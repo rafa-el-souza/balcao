@@ -413,3 +413,104 @@ describe("NFR-10 the chat for assistive technology", () => {
     );
   });
 });
+
+// Review finding C1 of pull request #14: the thread followed where the page
+// first drew a message, so a returning visitor's opener sat above the
+// conversation it joined.
+describe("FR-21 the thread in the server's order", () => {
+  it("puts a returning visitor's opener after the conversation it already has", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const earlier = [
+      message({ author: "visitor", body: "tem dipirona?" }),
+      message({ author: "bot", body: "Temos duas." }),
+    ];
+    server.answers.current.push(conversation(1, earlier));
+    window.history.replaceState(null, "", "/chat?say=delivery_es");
+    renderPage(<Chat />);
+    await ready();
+    await within(thread()).findByText("Temos duas.");
+    const items = () =>
+      within(thread())
+        .getAllByRole("listitem")
+        .map((item) => item.textContent);
+    expect(items()).toEqual([
+      "tem dipirona?",
+      "Temos duas.",
+      openers.delivery_es.text,
+    ]);
+
+    const id = idOf(server.sent()[0]?.body);
+    server.answers.current.push(
+      conversation(1, [
+        ...earlier,
+        message({
+          author: "visitor",
+          body: openers.delivery_es.text,
+          client_id: id,
+        }),
+        message({ author: "bot", body: "Sí, entregamos." }),
+      ]),
+    );
+    await act(() => vi.advanceTimersByTimeAsync(3000));
+
+    expect(items()).toEqual([
+      "tem dipirona?",
+      "Temos duas.",
+      openers.delivery_es.text,
+      "Sí, entregamos.",
+    ]);
+    expect(
+      within(thread()).getByText(openers.delivery_es.text).closest("li"),
+    ).toHaveAttribute("lang", "es");
+  });
+
+  it("puts a message retried after later ones where the server stored it", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    server.answers.messages.push("network");
+    renderPage(<Chat />);
+    await ready();
+
+    type("primeira");
+    fireEvent.keyDown(field(), { key: "Enter" });
+    await screen.findByRole("button", { name: pt.retry });
+    type("segunda");
+    fireEvent.keyDown(field(), { key: "Enter" });
+    await waitFor(() => {
+      expect(server.sent()).toHaveLength(2);
+    });
+    const [first, second] = server.sent().map((request) => idOf(request.body));
+    fireEvent.click(screen.getByRole("button", { name: pt.retry }));
+    await waitFor(() => {
+      expect(server.sent()).toHaveLength(3);
+    });
+
+    server.answers.current.push(
+      conversation(1, [
+        message({
+          author: "visitor",
+          body: "segunda",
+          client_id: second ?? null,
+        }),
+        message({ author: "bot", body: "resposta da segunda" }),
+        message({
+          author: "visitor",
+          body: "primeira",
+          client_id: first ?? null,
+        }),
+        message({ author: "bot", body: "resposta da primeira" }),
+      ]),
+    );
+    await act(() => vi.advanceTimersByTimeAsync(3000));
+
+    expect(
+      within(thread())
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual([
+      "segunda",
+      "resposta da segunda",
+      "primeira",
+      "resposta da primeira",
+    ]);
+  });
+});

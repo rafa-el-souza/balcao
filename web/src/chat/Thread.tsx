@@ -6,7 +6,7 @@ import { cx } from "../ui/cx";
 import parts from "../ui/parts.module.css";
 import styles from "./Chat.module.css";
 import type { Content } from "./api";
-import type { Entry, State } from "./conversation";
+import { type Entry, entriesOf, type State } from "./conversation";
 import { isOpener, openerLang } from "./useConversation";
 
 // The conversation's four voices, told apart by form and never by an avatar
@@ -86,15 +86,16 @@ export function Thread({
 }) {
   const { t } = useTranslation();
   const list = useRef<HTMLOListElement>(null);
+  const entries = entriesOf(state);
   const firstVisit =
-    state.phase === "ready" && !state.deleted && state.entries.length === 0;
+    state.phase === "ready" && state.deleted === null && entries.length === 0;
 
   // A new message scrolls its own column to itself.
   useEffect(() => {
     const last = list.current?.lastElementChild;
     if (last && "scrollIntoView" in last)
       last.scrollIntoView({ block: "end", behavior: "smooth" });
-  }, [state.entries.length]);
+  }, [entries.length]);
 
   return (
     <ol
@@ -138,7 +139,7 @@ export function Thread({
           </li>
         </>
       )}
-      {state.entries.map((entry) => (
+      {entries.map((entry) => (
         <Message key={entry.key} entry={entry} onRetry={onRetry} />
       ))}
     </ol>

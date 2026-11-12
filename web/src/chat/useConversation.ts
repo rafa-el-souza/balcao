@@ -69,7 +69,12 @@ export function useConversation() {
         const session = await api.session(language());
         if (session.kind === "ok") outcome = await api.send(clientId, content);
       }
-      if (outcome.kind === "ok") dispatch({ type: "accepted", clientId });
+      if (outcome.kind === "ok")
+        dispatch({
+          type: "accepted",
+          clientId,
+          conversationId: outcome.value.conversation_id,
+        });
       else if (outcome.kind === "limit")
         dispatch({ type: "limited", clientId, text: outcome.text });
       else dispatch({ type: "failed", clientId });

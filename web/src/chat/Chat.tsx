@@ -6,6 +6,7 @@ import parts from "../ui/parts.module.css";
 import { LanguageSwitch } from "../ui/LanguageSwitch";
 import styles from "./Chat.module.css";
 import { Composer } from "./Composer";
+import { entriesOf } from "./conversation";
 import { Thread } from "./Thread";
 import { useConversation } from "./useConversation";
 
@@ -19,7 +20,7 @@ import { useConversation } from "./useConversation";
 export function Chat() {
   const { t } = useTranslation();
   const { state, send, sendOpener, retry, changeLanguage } = useConversation();
-  const empty = state.entries.length === 0;
+  const empty = entriesOf(state).length === 0;
 
   useEffect(() => {
     document.title = t("chat.title");
