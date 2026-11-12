@@ -65,6 +65,8 @@
   --color-on-accent: #f4f8f0;
 
   /* Meaning colours carry meaning and nothing else. */
+  /* One green ink: "normal" and "success" share the accent's value on purpose (a one-colour
+     print), and never stand alone without a tick or a name. */
   --color-normal: #086f49;
   --color-economy: #845400;
   --color-paused: #595c5b;
