@@ -192,6 +192,79 @@ describe("FR-12 the glass box's rows, one per model call, from the spans", () =>
     });
   });
 
+  // NFR-03: a turn the job tried again has a root per run, every one from the
+  // message's receipt (review finding C7 of pull request #17).
+  describe("a turn run more than once", () => {
+    const broken = (until: string) => [
+      span("balcao.turn", {
+        span_id: `broken-${until}`,
+        at: T("41"),
+        until,
+        attributes: { "error.type": "ActiveRecord::ConnectionFailed" },
+      }),
+      span("anthropic.messages.create", {
+        span_id: `call-${until}`,
+        at: T("41"),
+        until,
+        attributes: { "error.type": "ActiveRecord::ConnectionFailed" },
+      }),
+    ];
+    const gaveUp = [
+      span("balcao.turn", {
+        span_id: "dead",
+        at: T("41"),
+        until: T("50"),
+        attributes: {
+          "balcao.turn.outcome": "dead_letter",
+          "error.type": "ActiveRecord::ConnectionFailed",
+        },
+      }),
+      span("balcao.outbound", { span_id: "fallback", at: T("50") }),
+    ];
+
+    it("takes the outcome and the time from the run that ended last, whatever order the roots came in", () => {
+      for (const spans of [
+        [...broken(T("42")), ...broken(T("46")), ...gaveUp],
+        [...gaveUp, ...broken(T("46")), ...broken(T("42"))],
+      ]) {
+        const [turn] = turnsOf(spans);
+
+        expect(turn?.durationMs).toBe(9000);
+        expect(turn?.running).toBe(false);
+        expect(turn?.rows.at(-1)).toMatchObject({
+          kind: "sent",
+          outcome: "dead_letter",
+        });
+      }
+    });
+
+    it("counts a run still going as the last, so the turn runs", () => {
+      const [turn] = turnsOf([
+        span("balcao.turn", { span_id: "again", at: T("41"), until: null }),
+        ...broken(T("42")),
+      ]);
+
+      expect(turn?.running).toBe(true);
+      expect(turn?.durationMs).toBeNull();
+    });
+
+    it("draws no sent row for a reply a broken run never stored", () => {
+      const [turn] = turnsOf([
+        ...broken(T("42")),
+        span("balcao.outbound", {
+          span_id: "lost",
+          at: T("42"),
+          attributes: { "error.type": "ActiveRecord::ConnectionFailed" },
+        }),
+        ...gaveUp,
+      ]);
+
+      expect(
+        turn?.rows.filter((row) => row.kind === "sent").map((row) => row.key),
+      ).toEqual(["fallback"]);
+    });
+  });
+
   it("draws a command as a turn of one row, with no receipt and no reply", () => {
     const [turn] = turnsOf([
       span("balcao.command", {
