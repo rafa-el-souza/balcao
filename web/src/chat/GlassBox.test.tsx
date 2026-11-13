@@ -807,6 +807,48 @@ describe("FR-18 the conversation's stream, with the polling as its fallback", ()
       });
       expect(within(thread()).queryByText("Temos duas.")).toBeNull();
     });
+
+    // Review finding C1 of pull request #24: the fetch each reply made was
+    // also the poll that answered, and so took away what earlier polls met.
+    describe("ends what the earlier polls met, as an answer of the server", () => {
+      const ask = async (text: string) => {
+        fireEvent.change(screen.getByRole("textbox"), {
+          target: { value: text },
+        });
+        fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+        await within(thread()).findByText(pt.chat.thinking);
+      };
+
+      it("so the next turn shows no limit the edge put on a poll before", async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        const { cable, question } = await asked();
+        const limit = "Você chegou ao limite da demo por agora.";
+        server.answers.current.push({
+          status: 429,
+          body: { error: "limit", text: limit },
+        });
+        await act(() => vi.advanceTimersByTimeAsync(15_000));
+        expect(within(thread()).getByText(limit)).toBeInTheDocument();
+
+        cable.send({ type: "message", message: replyTo(question, "Temos.") });
+        await ask("e de gotas?");
+
+        expect(within(thread()).queryByText(limit)).toBeNull();
+      });
+
+      it("so the next turn does not say the connection is lost", async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        const { cable, question } = await asked();
+        server.answers.current.push("network", "network");
+        await act(() => vi.advanceTimersByTimeAsync(30_000));
+        expect(within(thread()).getByText(pt.chat.offline)).toBeInTheDocument();
+
+        cable.send({ type: "message", message: replyTo(question, "Temos.") });
+        await ask("e de gotas?");
+
+        expect(within(thread()).queryByText(pt.chat.offline)).toBeNull();
+      });
+    });
   });
 
   it("does not ask every 3 s while the stream is live, and asks again every 3 s when it drops", async () => {

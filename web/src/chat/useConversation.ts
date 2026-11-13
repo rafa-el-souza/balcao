@@ -254,9 +254,16 @@ export function useConversation() {
               type: "snapshot",
               answer: { deleted: true, text: data.text },
             });
-          } else if (isServerMessage(data.message))
+          } else if (isServerMessage(data.message)) {
+            // The server answered: what earlier polls met is over, as the
+            // answer of the fetch each reply made used to say (review
+            // finding C1 of pull request #24). A fetch that follows says
+            // its own.
+            setPollDelay(POLL_MS);
+            setPollFailures(0);
+            setPollRefused(null);
             dispatch({ type: "message", message: data.message });
-          else refetch();
+          } else refetch();
         },
       },
     );
