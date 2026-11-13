@@ -1565,6 +1565,24 @@ MVP from its first day and merges at day 11.
 
 Tracked here until resolved; each resolution becomes an ADR or an edit.
 
+- Note 2026-11-13 (the cable slice, outside §9.1's day table; ADR-0015;
+  threat model SR-03, SR-04, SR-32, SR-40, R8). The second of the owner's two
+  security pull requests. `/cable` now has a gate in front of Action Cable
+  (`ApplicationCable::Gate`, mounted in `config/routes.rb`) that refuses a
+  handshake of another WebSocket version or without a key, and a socket past
+  500 per process or 20 per source, before Action Cable takes the socket
+  over; a message is at most 16 KiB, a connection sends at most 20 commands
+  a minute, a cable log line is at most 2 KB, the cable accepts the public
+  origin alone, and Solid Cable keeps its copies 5 minutes. ADR-0015 has the
+  reasons and the measurements. One departure from the plan as the owner
+  approved it: the socket caps were to refuse in the connection's `connect`,
+  after the takeover, and they refuse in the gate, before it, since a socket
+  refused after the takeover stays open for as long as the client keeps it
+  (measured). The page sees the same: a refused socket is tried again by the
+  cable client, and the chat polls while a turn waits (FR-18). The caps
+  count per process; `config/puma.rb` runs one, and a Puma with workers
+  would multiply them.
+
 - Note 2026-11-13 (the edge pull request, outside §9.1's day table; threat
   model SR-03, SR-27, R6, R7). The owner put two security pull requests
   between PR-14 and PR-15, after an analysis of the demo's edge and an
