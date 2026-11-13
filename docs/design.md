@@ -2199,8 +2199,8 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     429); `connect-src` names the cable's `wss:` origin beside `'self'`.
     The answers Rails writes on its own, for a path no route takes or an
     exception, carry no policy and none of Rails' default headers: they are
-    empty, or a `{status, error}` JSON when the request asks for JSON
-    (corrected 2026-11-13, the edge; measured on the demo).
+    empty, or a `{status, error}` body in JSON or XML when the request asks
+    for one (corrected 2026-11-13, the edge; measured on the demo).
   - SR-20's timeouts (review finding C5 of pull request #10): every
     connection has a 5 s statement timeout and a 2 s lock timeout;
     `ConversationLock` lifts both for its wait, in a short transaction of
