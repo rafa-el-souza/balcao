@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import openers from "../openers.json";
@@ -83,11 +83,24 @@ function useSlow(since: string | null): boolean {
 // lamp does, and stays lit and still for reduced motion
 // (docs/prototype/chat-thinking.html); one for the whole wait, however many
 // messages wait (chat-queued.html).
-function Thinking({ since }: { since: string | null }) {
+function Thinking({
+  since,
+  onSlow,
+}: {
+  since: string | null;
+  onSlow: (item: Element | null) => void;
+}) {
   const { t } = useTranslation();
+  const item = useRef<HTMLLIElement>(null);
   const slow = useSlow(since);
+  // The note grows the entry: it is brought into view with it (review
+  // finding C1 of pull request #18).
+  useEffect(() => {
+    if (slow) onSlow(item.current);
+  }, [slow, onSlow]);
   return (
     <li
+      ref={item}
       className={cx(styles.msg, styles.attendant, styles.thinking)}
       data-voice="attendant"
     >
@@ -160,13 +173,20 @@ export function Thread({
   const entries = entriesOf(state);
   const firstVisit =
     state.phase === "ready" && state.deleted === null && entries.length === 0;
+  const waiting = awaiting(state);
 
-  // A new message scrolls its own column to itself.
+  // Brings an entry of the thread into view, in the thread's own column.
+  const reveal = useCallback((element: Element | null | undefined) => {
+    if (element && "scrollIntoView" in element)
+      element.scrollIntoView({ block: "end", behavior: "smooth" });
+  }, []);
+
+  // What the thread ends with scrolls its column to itself: a new message,
+  // and "pensando…" when it appears (review finding C1 of pull request #18).
+  const tail = `${String(entries.length)}:${String(waiting)}`;
   useEffect(() => {
-    const last = list.current?.lastElementChild;
-    if (last && "scrollIntoView" in last)
-      last.scrollIntoView({ block: "end", behavior: "smooth" });
-  }, [entries.length]);
+    reveal(list.current?.lastElementChild);
+  }, [tail, reveal]);
 
   return (
     <ol
@@ -213,7 +233,7 @@ export function Thread({
       {entries.map((entry) => (
         <Message key={entry.key} entry={entry} onRetry={onRetry} />
       ))}
-      {awaiting(state) && <Thinking since={waitingSince(state)} />}
+      {waiting && <Thinking since={waitingSince(state)} onSlow={reveal} />}
       {refused !== null && (
         <li className={cx(styles.msg, VOICE_CLASS.stamp)} data-voice="stamp">
           <p>{refused}</p>

@@ -393,6 +393,52 @@ describe("NFR-03 the turn that waits", () => {
     expect(within(thread()).getByText(pt.slow)).toBeInTheDocument();
   });
 
+  describe("brought into view", () => {
+    // jsdom lays nothing out and has no scrollIntoView: each entry the page
+    // brings into view is recorded with the room the window keeps clear then.
+    const scrolled: { element: Element; padding: string }[] = [];
+    beforeEach(() => {
+      scrolled.length = 0;
+      Object.defineProperty(Element.prototype, "scrollIntoView", {
+        configurable: true,
+        value(this: Element) {
+          scrolled.push({
+            element: this,
+            padding: document.documentElement.style.scrollPaddingBottom,
+          });
+        },
+      });
+    });
+    afterEach(() => {
+      delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+      document.documentElement.style.scrollPaddingBottom = "";
+    });
+    const inThread = () =>
+      scrolled.filter(({ element }) => thread().contains(element));
+
+    // Review finding C1 of pull request #18.
+    it("brings 'pensando…' into view as it appears, and again when the note joins it", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      renderPage(<Chat />);
+      await ready();
+
+      const visitor = await sendAndWait();
+      await within(thread()).findByText(pt.thinking);
+      await waitFor(() => {
+        expect(inThread().at(-1)?.element).toHaveTextContent(pt.thinking);
+      });
+      server.answers.current.push(
+        ...Array.from({ length: 5 }, () => conversation(1, [visitor], true)),
+      );
+      await elapse(9000);
+      const before = inThread().length;
+
+      await elapse(1500);
+      expect(within(thread()).getByText(pt.slow)).toBeInTheDocument();
+      expect(inThread().length).toBeGreaterThan(before);
+      expect(inThread().at(-1)?.element).toHaveTextContent(pt.slow);
+    });
+  });
 });
 
 describe("FR-14 the demo's limit", () => {
