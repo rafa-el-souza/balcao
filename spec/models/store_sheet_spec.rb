@@ -64,6 +64,39 @@ RSpec.describe "FR-03 FR-26 the store fact sheet" do
     end
   end
 
+  # FR-07: "the pickup deadline (end of next business day)": the closing time
+  # of the first day after the reservation's own that has hours, in São Paulo
+  # (design §1.4), whatever the hour the reservation is made.
+  describe "FR-07 the pickup deadline of a reservation" do
+    subject(:sheet) { StoreSheet.current }
+
+    {
+      "a Thursday at noon" => [ [ 2026, 11, 12, 12, 4 ], [ 2026, 11, 13, 20, 0 ] ],
+      "a Friday after closing" => [ [ 2026, 11, 13, 21, 0 ], [ 2026, 11, 14, 14, 0 ] ],
+      "a Saturday, since Sunday is closed" => [ [ 2026, 11, 14, 10, 0 ], [ 2026, 11, 16, 20, 0 ] ],
+      "a Sunday" => [ [ 2026, 11, 15, 10, 0 ], [ 2026, 11, 16, 20, 0 ] ],
+      "a Tuesday before opening" => [ [ 2026, 11, 10, 0, 30 ], [ 2026, 11, 11, 20, 0 ] ]
+    }.each do |made, (at, until_)|
+      it "is the end of the next business day for a reservation made on #{made}" do
+        travel_to Time.zone.local(*at) do
+          expect(sheet.pickup_until(Time.current)).to eq(Time.zone.local(*until_))
+        end
+      end
+    end
+
+    it "reads the day in São Paulo, not in UTC, where it has already turned" do
+      made = Time.utc(2026, 11, 13, 1, 30) # Thursday 22:30 in São Paulo
+
+      expect(sheet.pickup_until(made)).to eq(Time.zone.local(2026, 11, 13, 20, 0))
+    end
+
+    it "follows the hours the file gives (FR-26)" do
+      changed = sheet_with(->(data) { data["hours"]["friday"] = "closed" })
+
+      expect(changed.pickup_until(Time.zone.local(2026, 11, 12, 12))).to eq(Time.zone.local(2026, 11, 14, 14, 0))
+    end
+  end
+
   describe "the business is one file (FR-26)" do
     it "answers with the hours of the file it was loaded from, with no code changed" do
       sheet = sheet_with(->(data) { data["hours"]["saturday"] = { "opens" => "09:00", "closes" => "13:00" } })
@@ -86,6 +119,9 @@ RSpec.describe "FR-03 FR-26 the store fact sheet" do
         ->(data) { data["hours"]["monday"] = { "opens" => "20:00", "closes" => "08:00" } }, /hours\.monday/
       ],
       "a closed day spelt another way" => [ ->(data) { data["hours"]["sunday"] = "fechado" }, /hours\.sunday/ ],
+      "a week without a business day, which leaves a reservation no pickup day (FR-07)" => [
+        ->(data) { data["hours"].transform_values! { "closed" } }, /hours must open on at least one day/
+      ],
       "a delivery fee without the currency format" => [
         ->(data) { data["topics"]["delivery"]["areas"][0]["fee"] = "7" }, /topics\.delivery\.areas\[0\]\.fee/
       ],
