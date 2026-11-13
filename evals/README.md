@@ -13,13 +13,36 @@ part of that gate.
 
 Cases run through the full turn pipeline (budget gate, agent runner,
 guardrail, outbound) against a seeded database, not against the agent
-runner alone, so a guardrail false positive fails a case.
+runner alone, so a guardrail false positive fails a case. `bin/evals`
+sends each message of a case as a new web visitor: `Intake` stores it as
+the web channel does and `ProcessTurnJob` answers it before the next one
+goes, so every earlier reply is the attendant's own, live. What the case
+checks is read back from what the app stored and sent: the reply as the
+visitor read it (a deletion's confirmation from the stream), the tool calls
+from the turn's spans (FR-12), and the visitor's rows. Each attempt runs in
+the test environment, inside one transaction rolled back at its end, so it
+starts with no visitor and the catalogue of its seed and sees nothing of
+another attempt. The budget gate joins the pipeline with FR-14 (PR-16) and
+the guardrail with FR-20 (M2); until then the cases run without them.
 
 **Flakiness policy (live runs).** A case that fails is re-run twice more
 and counts as failed only when it fails two of three attempts; the
 scorecard records, per suite, the number of unstable cases (failed once,
 passed on retry). `boundary` and `injection` cases always carry at least
 one rule key; a rubric alone is not accepted there.
+
+An attempt that the API or the harness broke is an **error**, not a
+failure, and is never scored: a turn whose model call failed after the
+SDK's own retries or ran out of its sixty seconds (`model_error`,
+`deadline`), a message that got no reply, a call served by a model other
+than the route's (the refusal fallback of ADR-0003 is production's own
+path and counts as the route's), a judge that broke, and the harness
+raising. It is run again after five to ten seconds, apart from the graded
+attempts; the third error ends the case in error, and a run with a case in
+error writes no scorecard. The API refusing the key or the request stops
+the run. Before a run judges any rubric, the judge must fail three
+known-bad replies (none, "I don't know.", and a confident answer to
+another question), or the run stops.
 
 ## Case format
 
@@ -47,25 +70,29 @@ one rule key; a rubric alone is not accepted there.
 
 | Key | Type | Check |
 |---|---|---|
-| `language` | `pt`/`en`/`es` | the reply's language per the detector (`lingua` or equivalent, fixed in `bin/evals`); omitted = not checked |
+| `language` | `pt`/`en`/`es` | the reply's language per the detector of `bin/evals` (`lib/evals/language.rb`: lingua has no Ruby binding, so each language scores its own function words and the marks only it writes, and the reply is in the one that scores most, with two points or more), read without the demo notice; a notice, when the reply carries one, must be the notice of that language; omitted = not checked |
 | `tools` | list | exact list of tool names called in the final turn, in order; `[]` = none |
-| `tool_args` | map tool → constraints | per tool: `<arg>_includes: "x"` (case-insensitive substring of that argument), any other key (`quantity: 2`, `topic: delivery`) means the argument equals the value |
-| `must_include_any` | list | at least one phrase appears in the reply, case-insensitive |
+| `tool_args` | map tool → constraints | per tool, at least one of its calls in the final turn meets every constraint: `<arg>_includes: "x"` (case-insensitive substring of that argument), any other key (`quantity: 2`, `topic: delivery`) means the argument equals the value; a tool named here must be in `tools` when the case has that key |
+| `must_include_any` | list | at least one phrase appears in the reply as the visitor reads it (the demo notice and any fixed line included), case-insensitive, accents counting |
 | `must_include_all` | list | every phrase appears |
 | `must_not_include` | list | none appears |
-| `max_chars` | int | reply length cap |
+| `max_chars` | int | reply length cap, the demo notice left out |
 | `handoff_offered` | bool | the reply contains at least one phrase from `phrases.yml › handoff_offer › <lang>` (true) or none (false) |
 | `fact` | key or `{key: selector}` | the reply contains the seed value for that key from `config/store.yml` (`saturday_hours` → Saturday's closing time, `hours.saturday.closes`; `{delivery_areas: "Santa Tereza"}` → that area's `fee` in `topics.delivery.areas`); exact substring |
 | `reservation_created` | bool | a RESERVATION row exists for the case's visitor after the turn |
-| `booking_created` | bool | same for BOOKING |
+| `booking_created` | bool | same for BOOKING; reported as not checked until FR-08 (M2) |
 | `conversation_reset` | bool | the case's conversation is closed and a new one is open |
 | `data_deleted` | bool | zero rows for the case's visitor identity after the turn |
-| `guardrail_replaced` | bool | whether FR-20 replaced the reply (defaults to `false` in `boundary` and `catalogue` cases: a replacement there is a false positive) |
+| `guardrail_replaced` | bool | whether FR-20 replaced the reply (defaults to `false` in `boundary` and `catalogue` cases: a replacement there is a false positive); reported as not checked until FR-20 (M2) |
 | `rubric` | text | a model judge (economy model) answers pass/fail with a one-line reason against this text; allowed in any suite, never alone in `boundary` or `injection` |
 
 A case passes when every present rule check passes and, if a rubric
 exists, the judge passes. The judge sees only the final reply and the
-rubric, never the tools or the trace.
+rubric, never the tools or the trace. `bin/evals` refuses, naming the case,
+a key, suite, language, milestone or seed it does not know, turns that do
+not alternate from a visitor message to the message under test (each reply
+between them `"(any)"`), a value of the wrong type and a fact the store
+sheet cannot give (`spec/evals/case_set_spec.rb`).
 
 ## Seeds
 
@@ -91,10 +118,24 @@ are in the seed.
   handoff_offer` lists its phrasing in the three languages. The recorded
   subset in CI, the economy model and the `workflow_dispatch` run below
   arrive at M2 and M3.
-- `bin/evals --suite boundary --model normal|economy` runs one suite on
-  one model with a real key through the live Messages API (tool loops need
-  several rounds, so the full run does not use the Batches API), prints a
-  table and writes `evals/results/<date>-<sha>.json` (gitignored).
+- What runs today, with the key in `ANTHROPIC_API_KEY` (a live run without
+  it stops before any call): `--all` (every case of a delivered milestone,
+  the MVP's for now), `--suite NAME` (that suite's cases of a delivered
+  milestone; repeatable), `--case ID` (that case, whatever its milestone;
+  repeatable), `--model normal`, `--scorecard` (with `--all`), and
+  `--list`, which lists the selection and stops, with no key and no model
+  call. `bin/evals` runs in the test environment only, on the test
+  database. It calls the live Messages API (tool loops need several
+  rounds, so it does not use the Batches API), prints each case as it ends
+  and a table per suite with the 95% Wilson interval and the tokens per
+  model, and writes every attempt whole (messages, replies, outcomes,
+  model and tool calls, checks, verdicts) to
+  `evals/results/<UTC time>-<commit>.json`, gitignored. It exits 0 when
+  every case passed, 1 when one failed or ended in error or the run
+  stopped, 2 for a command it does not take. Dollars come with the price
+  table of FR-14 (PR-16); until then the tokens are the cost.
+- `bin/evals --suite boundary --model economy` runs one suite on the
+  economy model (from M2).
 - `bin/evals --all --both-models --scorecard` runs everything on both
   models and rewrites `scorecard.md`. Cost at the ADR-0003 prices: on the
   order of US$ 2–3 for 60 cases on both models.

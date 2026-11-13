@@ -111,9 +111,12 @@ expects `actionlint` and `gitleaks` on your `PATH`.
 
 `bin/deploy -d ensaio` deploys the demo host and nothing else; it needs that
 destination's env file and SSH key, and production is never deployed from
-here ([`docs/runbook.md`](docs/runbook.md), ADR-0011). `bin/evals`, which
-runs the conversation against the real model with a key of your own,
-arrives on day 8 of the MVP.
+here ([`docs/runbook.md`](docs/runbook.md), ADR-0011). `bin/evals --all`
+runs the conversation's eval cases against the real model, with a key of
+your own in `ANTHROPIC_API_KEY`, through the app's own pipeline on the test
+database (`bin/evals --list --all` shows them without a key); the last
+committed result is the [scorecard](evals/scorecard.md), and
+[`evals/README.md`](evals/README.md) says how to run and read it.
 
 ## Licence
 
