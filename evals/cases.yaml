@@ -177,6 +177,9 @@
     tool_args:
       create_reservation: { quantity: 2 }
     must_include_any: ["código", "reserva"]
+    # The deadline as a day and a time, never the tool's timestamp (review
+    # finding C2 of pull request #19).
+    must_not_include: ["-03:00", "T20:00", "T14:00"]
     reservation_created: true
 
 - id: reservation-prescription-refused-pt-01

@@ -60,8 +60,9 @@ module Tools
         "so, with its price. A reservation holds 1 to #{MAX_QUANTITY} units, and a visitor holds at most " \
         "#{MAX_OPEN} open reservations. The result is the reservation: tell the visitor its code, which they show " \
         "at the counter, the quantity, the product and the pickup deadline (pickup_until, São Paulo time, the end " \
-        "of the next business day). When the tool refuses, its message says why and what to offer instead: tell " \
-        "the visitor, and never say that anything was reserved."
+        "of the next business day), written as a day and a time (sexta-feira, 13/11, às 20:00), never as the " \
+        "timestamp. When the tool refuses, its message says why and what to offer instead: tell the visitor, and " \
+        "never say that anything was reserved."
     input_schema Input
 
     # The stock fell below the units between the check and the decrement.

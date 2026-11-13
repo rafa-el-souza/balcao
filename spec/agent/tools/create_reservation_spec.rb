@@ -44,6 +44,12 @@ RSpec.describe "FR-07 NFR-02 SR-16 create_reservation, units held for pickup at 
     )
   end
 
+  # Review finding C2 of pull request #19: the prompt has times written as the
+  # tools write them, and pickup_until is a timestamp.
+  it "tells the model to write the deadline as a day and a time, never as the timestamp" do
+    expect(Tools::CreateReservation.doc_string).to include("a day and a time", "never as the timestamp")
+  end
+
   it "tells the model to reserve only what was asked, never a prescription product, and to give the code and the deadline" do
     expect(Tools::CreateReservation.doc_string).to include("search_products", "prescription", "code", "pickup_until",
                                                           "#{Tools::CreateReservation::MAX_QUANTITY} units",
