@@ -1,4 +1,11 @@
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import {
+  Fragment,
+  type RefObject,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 
 import openers from "../openers.json";
@@ -157,12 +164,15 @@ export function Thread({
   state,
   offline,
   refused,
+  foot,
   onOpener,
   onRetry,
 }: {
   state: State;
   offline: boolean;
   refused: string | null;
+  // The composer's foot, which stays over the window's bottom when stacked.
+  foot: RefObject<HTMLElement | null>;
   onOpener: (key: keyof typeof openers) => void;
   onRetry: (clientId: string, content: Content) => void;
 }) {
@@ -173,11 +183,18 @@ export function Thread({
     state.phase === "ready" && state.deleted === null && entries.length === 0;
   const waiting = awaiting(state);
 
-  // Brings an entry of the thread into view, in the thread's own column.
-  const reveal = useCallback((element: Element | null | undefined) => {
-    if (element && "scrollIntoView" in element)
+  // Brings an entry of the thread into view. Beside the glass box the thread
+  // scrolls in its own column; stacked, the window scrolls and the composer's
+  // foot stays over its bottom, so the window keeps the foot's height clear,
+  // which keyboard focus honours too (review finding V1 of pull request #18).
+  const reveal = useCallback(
+    (element: Element | null | undefined) => {
+      if (!element || !("scrollIntoView" in element)) return;
+      document.documentElement.style.scrollPaddingBottom = `${String(foot.current?.offsetHeight ?? 0)}px`;
       element.scrollIntoView({ block: "end", behavior: "smooth" });
-  }, []);
+    },
+    [foot],
+  );
 
   // What the thread ends with scrolls its column to itself: a new message,
   // "pensando…" when it appears (review finding C1 of pull request #18) and

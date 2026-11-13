@@ -41,6 +41,7 @@ export function Chat() {
   const opener = useRef<HTMLButtonElement>(null);
   const closer = useRef<HTMLButtonElement>(null);
   const rows = useRef<HTMLDivElement>(null);
+  const foot = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     document.title = t("chat.title");
@@ -111,11 +112,12 @@ export function Chat() {
           state={state}
           offline={offline}
           refused={refused}
+          foot={foot}
           onOpener={sendOpener}
           onRetry={retry}
         />
 
-        <div className={styles.counterFoot}>
+        <div className={styles.counterFoot} ref={foot}>
           <button
             ref={opener}
             type="button"

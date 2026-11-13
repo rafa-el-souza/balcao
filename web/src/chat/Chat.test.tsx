@@ -452,6 +452,29 @@ describe("NFR-03 the turn that waits", () => {
       expect(within(thread()).getByText(pt.offline)).toBeInTheDocument();
       expect(inThread().at(-1)?.element).toHaveTextContent(pt.offline);
     });
+
+    // Review finding V1 of pull request #18: stacked, the window scrolls and
+    // the composer's foot stays over its bottom.
+    it("keeps the composer's foot clear when it brings an entry into view", async () => {
+      renderPage(<Chat />);
+      await ready();
+      const foot = field().closest("form")?.parentElement;
+      if (!foot) throw new Error("the composer has no foot");
+      Object.defineProperty(foot, "offsetHeight", {
+        configurable: true,
+        value: 240,
+      });
+
+      await sendAndWait();
+      await within(thread()).findByText(pt.thinking);
+
+      await waitFor(() => {
+        expect(inThread().at(-1)?.element).toHaveTextContent(pt.thinking);
+      });
+      expect(inThread().map(({ padding }) => padding)).toEqual(
+        inThread().map(() => "240px"),
+      );
+    });
   });
 });
 
