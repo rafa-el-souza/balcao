@@ -453,6 +453,22 @@ describe("NFR-03 the turn that waits", () => {
       expect(inThread().at(-1)?.element).toHaveTextContent(pt.offline);
     });
 
+    // Review findings R2 and V4 of pull request #18: left on the root, the
+    // padding moved the window whenever a control in the foot took the focus,
+    // and outlived the layout it had measured.
+    it("leaves no scroll padding behind once an entry is in view", async () => {
+      renderPage(<Chat />);
+      await ready();
+
+      await sendAndWait();
+      await within(thread()).findByText(pt.thinking);
+      await waitFor(() => {
+        expect(inThread().at(-1)?.element).toHaveTextContent(pt.thinking);
+      });
+
+      expect(document.documentElement.style.scrollPaddingBottom).toBe("");
+    });
+
     // Review finding V1 of pull request #18: stacked, the window scrolls and
     // the composer's foot stays over its bottom.
     it("keeps the composer's foot clear when it brings an entry into view", async () => {

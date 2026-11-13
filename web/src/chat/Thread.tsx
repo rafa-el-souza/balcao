@@ -185,13 +185,18 @@ export function Thread({
 
   // Brings an entry of the thread into view. Beside the glass box the thread
   // scrolls in its own column; stacked, the window scrolls and the composer's
-  // foot stays over its bottom, so the window keeps the foot's height clear,
-  // which keyboard focus honours too (review finding V1 of pull request #18).
+  // foot stays over its bottom, so the window keeps the foot's height clear
+  // (review finding V1 of pull request #18), for this scroll alone: left on
+  // the root, the padding would move the window whenever a control in the
+  // foot takes the focus, and outlive the layout it measured (R2 and V4). The
+  // scroll keeps the destination it was given when the padding goes.
   const reveal = useCallback(
     (element: Element | null | undefined) => {
       if (!element || !("scrollIntoView" in element)) return;
-      document.documentElement.style.scrollPaddingBottom = `${String(foot.current?.offsetHeight ?? 0)}px`;
+      const root = document.documentElement.style;
+      root.scrollPaddingBottom = `${String(foot.current?.offsetHeight ?? 0)}px`;
       element.scrollIntoView({ block: "end", behavior: "smooth" });
+      root.scrollPaddingBottom = "";
     },
     [foot],
   );
