@@ -14,6 +14,7 @@ import ptBR from "../locales/pt-BR.json";
 import openers from "../openers.json";
 import { conversation, fakeServer, message } from "../test/fakeServer";
 import { renderPage } from "../test/render";
+import { serverClock } from "./api";
 import { Chat } from "./Chat";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -248,6 +249,296 @@ describe("FR-18 the reply arrives by polling", () => {
   });
 });
 
+describe("NFR-03 the turn that waits", () => {
+  const sendAndWait = async (receivedAgoMs = 0) => {
+    type("tem dipirona?");
+    fireEvent.keyDown(field(), { key: "Enter" });
+    await waitFor(() => {
+      expect(server.sent()).toHaveLength(1);
+    });
+    return message({
+      author: "visitor",
+      body: "tem dipirona?",
+      client_id: idOf(server.sent()[0]?.body),
+      created_at: new Date(Date.now() - receivedAgoMs).toISOString(),
+    });
+  };
+
+  it("says it is thinking while the turn runs, and stops once the reply arrives", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderPage(<Chat />);
+    await ready();
+    expect(within(thread()).queryByText(pt.thinking)).toBeNull();
+
+    const visitor = await sendAndWait();
+    expect(await within(thread()).findByText(pt.thinking)).toBeInTheDocument();
+    server.answers.current.push(
+      conversation(1, [visitor], true),
+      conversation(1, [visitor, message({ author: "bot", body: "Temos." })]),
+    );
+
+    await act(() => vi.advanceTimersByTimeAsync(3000));
+    expect(within(thread()).getByText(pt.thinking)).toBeInTheDocument();
+    expect(within(thread()).getAllByRole("listitem").at(-1)).toHaveTextContent(
+      pt.thinking,
+    );
+
+    await act(() => vi.advanceTimersByTimeAsync(3000));
+    expect(within(thread()).getByText("Temos.")).toBeInTheDocument();
+    expect(within(thread()).queryByText(pt.thinking)).toBeNull();
+  });
+
+  it("adds, ten seconds after the server received the message, that the answer is taking longer", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderPage(<Chat />);
+    await ready();
+
+    const visitor = await sendAndWait();
+    server.answers.current.push(
+      ...Array.from({ length: 5 }, () => conversation(1, [visitor], true)),
+    );
+    await elapse(9000);
+    expect(within(thread()).getByText(pt.thinking)).toBeInTheDocument();
+    expect(within(thread()).queryByText(pt.slow)).toBeNull();
+
+    await elapse(1500);
+    expect(within(thread()).getByText(pt.slow)).toBeInTheDocument();
+  });
+
+  it("says at once that the answer is taking longer when the page opens on a turn that waited over ten seconds", async () => {
+    server.answers.current.push(
+      conversation(
+        1,
+        [
+          message({
+            author: "visitor",
+            body: "tem dipirona?",
+            created_at: new Date(Date.now() - 30_000).toISOString(),
+          }),
+        ],
+        true,
+      ),
+    );
+    renderPage(<Chat />);
+    await ready();
+
+    expect(await within(thread()).findByText(pt.slow)).toBeInTheDocument();
+    expect(within(thread()).getByText(pt.thinking)).toBeInTheDocument();
+  });
+
+  it("measures the wait from the oldest message still without its reply", async () => {
+    server.answers.current.push(
+      conversation(
+        1,
+        [
+          message({
+            author: "visitor",
+            body: "oi",
+            turn_id: 1,
+            created_at: new Date(Date.now() - 40_000).toISOString(),
+          }),
+          message({ author: "bot", body: "Olá!", turn_id: 1 }),
+          message({
+            author: "visitor",
+            body: "tem dipirona?",
+            turn_id: 2,
+            created_at: new Date(Date.now() - 12_000).toISOString(),
+          }),
+          message({
+            author: "visitor",
+            body: "e paracetamol?",
+            turn_id: 3,
+            created_at: new Date(Date.now() - 2_000).toISOString(),
+          }),
+        ],
+        true,
+      ),
+    );
+    renderPage(<Chat />);
+    await ready();
+
+    expect(await within(thread()).findByText(pt.slow)).toBeInTheDocument();
+  });
+
+  // Review finding C2 of pull request #18: a timer set for the deadline
+  // itself can fire before it by the server's clock, and was never set again.
+  it("adds the note when the server's clock is the browser's moved by a fraction of a millisecond", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderPage(<Chat />);
+    await ready();
+    serverClock.offset = 0.5;
+
+    const visitor = await sendAndWait();
+    server.answers.current.push(
+      ...Array.from({ length: 10 }, () => conversation(1, [visitor], true)),
+    );
+    await elapse(20_000);
+
+    expect(within(thread()).getByText(pt.slow)).toBeInTheDocument();
+  });
+
+  it("adds the note when a later answer moves the server's clock back", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderPage(<Chat />);
+    await ready();
+
+    const visitor = await sendAndWait();
+    server.answers.current.push(
+      ...Array.from({ length: 10 }, () => conversation(1, [visitor], true)),
+    );
+    await elapse(5000);
+    serverClock.offset = -300;
+    await elapse(15_000);
+
+    expect(within(thread()).getByText(pt.slow)).toBeInTheDocument();
+  });
+
+  describe("brought into view", () => {
+    // jsdom lays nothing out and has no scrollIntoView: each entry the page
+    // brings into view is recorded with the room the window keeps clear then.
+    const scrolled: { element: Element; padding: string }[] = [];
+    beforeEach(() => {
+      scrolled.length = 0;
+      Object.defineProperty(Element.prototype, "scrollIntoView", {
+        configurable: true,
+        value(this: Element) {
+          scrolled.push({
+            element: this,
+            padding: document.documentElement.style.scrollPaddingBottom,
+          });
+        },
+      });
+    });
+    afterEach(() => {
+      delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+      document.documentElement.style.scrollPaddingBottom = "";
+    });
+    const inThread = () =>
+      scrolled.filter(({ element }) => thread().contains(element));
+    // A box from its top to the window's bottom, as jsdom lays out nothing.
+    const box = (top: number) =>
+      ({
+        top,
+        bottom: window.innerHeight,
+        left: 0,
+        right: 390,
+        x: 0,
+        y: top,
+        width: 390,
+        height: window.innerHeight - top,
+        toJSON: () => ({}),
+      }) as DOMRect;
+
+    // Review finding C1 of pull request #18.
+    it("brings 'pensando…' into view as it appears, and again when the note joins it", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      renderPage(<Chat />);
+      await ready();
+
+      const visitor = await sendAndWait();
+      await within(thread()).findByText(pt.thinking);
+      await waitFor(() => {
+        expect(inThread().at(-1)?.element).toHaveTextContent(pt.thinking);
+      });
+      server.answers.current.push(
+        ...Array.from({ length: 5 }, () => conversation(1, [visitor], true)),
+      );
+      await elapse(9000);
+      const before = inThread().length;
+
+      await elapse(1500);
+      expect(within(thread()).getByText(pt.slow)).toBeInTheDocument();
+      expect(inThread().length).toBeGreaterThan(before);
+      expect(inThread().at(-1)?.element).toHaveTextContent(pt.slow);
+    });
+
+    // Review finding V2 of pull request #18.
+    it("brings the stamp of a lost connection into view", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      renderPage(<Chat />);
+      await ready();
+
+      await sendAndWait();
+      server.answers.current.push("network", "network", "network");
+      await elapse(12_000);
+
+      expect(within(thread()).getByText(pt.offline)).toBeInTheDocument();
+      expect(inThread().at(-1)?.element).toHaveTextContent(pt.offline);
+    });
+
+    // Review finding R1 of pull request #18: stacked, the open drawer covers
+    // the window's lower half, where an entry brought into view used to land.
+    it("brings an entry into view above the drawer while the drawer is open", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      renderPage(<Chat />);
+      await ready();
+      const half = window.innerHeight / 2;
+      const drawer = document.getElementById("glass");
+      const foot = field().closest("form")?.parentElement;
+      if (!drawer || !foot) throw new Error("no drawer or foot");
+      drawer.getBoundingClientRect = () => box(half);
+      foot.getBoundingClientRect = () => box(window.innerHeight - 46);
+
+      const visitor = await sendAndWait();
+      await within(thread()).findByText(pt.thinking);
+      server.answers.current.push(
+        ...Array.from({ length: 6 }, () => conversation(1, [visitor], true)),
+      );
+      fireEvent.click(
+        screen.getByRole("button", { name: new RegExp(pt.glass.open) }),
+      );
+      await elapse(1000);
+      const opened = scrolled.length;
+
+      await elapse(10_000);
+      expect(within(thread()).getByText(pt.slow)).toBeInTheDocument();
+      const since = scrolled
+        .slice(opened)
+        .filter(({ element }) => thread().contains(element));
+      expect(since.length).toBeGreaterThan(0);
+      expect(since.map(({ padding }) => padding)).toEqual(
+        since.map(() => `${String(half)}px`),
+      );
+    });
+
+    // Review findings R2 and V4 of pull request #18: left on the root, the
+    // padding moved the window whenever a control in the foot took the focus,
+    // and outlived the layout it had measured.
+    it("leaves no scroll padding behind once an entry is in view", async () => {
+      renderPage(<Chat />);
+      await ready();
+
+      await sendAndWait();
+      await within(thread()).findByText(pt.thinking);
+      await waitFor(() => {
+        expect(inThread().at(-1)?.element).toHaveTextContent(pt.thinking);
+      });
+
+      expect(document.documentElement.style.scrollPaddingBottom).toBe("");
+    });
+
+    // Review finding V1 of pull request #18: stacked, the window scrolls and
+    // the composer's foot stays over its bottom.
+    it("keeps the composer's foot clear when it brings an entry into view", async () => {
+      renderPage(<Chat />);
+      await ready();
+      const foot = field().closest("form")?.parentElement;
+      if (!foot) throw new Error("the composer has no foot");
+      foot.getBoundingClientRect = () => box(window.innerHeight - 240);
+
+      await sendAndWait();
+      await within(thread()).findByText(pt.thinking);
+
+      await waitFor(() => {
+        expect(inThread().at(-1)?.element).toHaveTextContent(pt.thinking);
+      });
+      expect(inThread().map(({ padding }) => padding)).toEqual(
+        inThread().map(() => "240px"),
+      );
+    });
+  });
+});
+
 describe("FR-14 the demo's limit", () => {
   it("keeps the message as sent and stamps the server's text under it", async () => {
     const text =
@@ -264,7 +555,7 @@ describe("FR-14 the demo's limit", () => {
 
     const stamp = await within(thread()).findByText(text);
     const items = within(thread()).getAllByRole("listitem");
-    expect(items.map((item) => item.textContent)).toEqual([
+    expect(items.map((item) => item.textContent.trim())).toEqual([
       "e xarope pra tosse?",
       text,
     ]);
@@ -295,7 +586,7 @@ describe("FR-05 the visitor's data deleted", () => {
     const items = within(
       screen.getByRole("list", { name: es.chat.conversation }),
     ).getAllByRole("listitem");
-    expect(items.map((item) => item.textContent)).toEqual([text]);
+    expect(items.map((item) => item.textContent.trim())).toEqual([text]);
   });
 });
 
@@ -331,7 +622,7 @@ describe("FR-04 starting over", () => {
     expect(
       within(thread())
         .getAllByRole("listitem")
-        .map((item) => item.textContent),
+        .map((item) => item.textContent.trim()),
     ).toEqual(["Pronto, começamos de novo."]);
   });
 });
@@ -440,11 +731,13 @@ describe("FR-21 the thread in the server's order", () => {
     const items = () =>
       within(thread())
         .getAllByRole("listitem")
-        .map((item) => item.textContent);
+        .map((item) => item.textContent.trim());
+    // The opener waits for its reply (NFR-03).
     expect(items()).toEqual([
       "tem dipirona?",
       "Temos duas.",
       openers.delivery_es.text,
+      pt.thinking,
     ]);
 
     const id = idOf(server.sent()[0]?.body);
@@ -513,7 +806,7 @@ describe("FR-21 the thread in the server's order", () => {
     expect(
       within(thread())
         .getAllByRole("listitem")
-        .map((item) => item.textContent),
+        .map((item) => item.textContent.trim()),
     ).toEqual([
       "segunda",
       "resposta da segunda",
@@ -840,7 +1133,7 @@ describe("FR-18 and FR-21 the fixes' own edges (fix review of pull request #14)"
   const items = () =>
     within(thread())
       .getAllByRole("listitem")
-      .map((item) => item.textContent);
+      .map((item) => item.textContent.trim());
   const earlier = () => [
     message({ author: "visitor", body: "tem dipirona?" }),
     message({ author: "bot", body: "Temos duas." }),
@@ -1022,6 +1315,7 @@ describe("FR-18 and FR-21 the fixes' own edges (fix review of pull request #14)"
     fireEvent.keyDown(field(), { key: "Enter" });
     await within(thread()).findByText(text);
 
-    expect(items()).toEqual(["primeira", "segunda", text]);
+    // The first still waits for its reply (NFR-03).
+    expect(items()).toEqual(["primeira", "segunda", text, pt.thinking]);
   });
 });

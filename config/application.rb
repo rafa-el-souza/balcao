@@ -49,6 +49,12 @@ module Balcao
     # Business time is São Paulo's; timestamps are stored in UTC (design §1.4, NFR-02).
     config.time_zone = "America/Sao_Paulo"
 
+    # A deploy stops the job container and kills it after Kamal's 30 s. The
+    # worker waits this long for the turn it runs; one still running then is
+    # handed back to the queue and runs again from its start in the new
+    # container, billed again (design NFR-03, §10 note of 2026-11-13).
+    config.solid_queue.shutdown_timeout = 25.seconds
+
     # The public surface is trilingual and pt-BR is the default (design NFR-09, FR-02).
     config.i18n.available_locales = [ :"pt-BR", :en, :es ]
     config.i18n.default_locale = :"pt-BR"

@@ -2,6 +2,8 @@ require "rails_helper"
 
 RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message to its reply (FR-01, FR-02, FR-12, NFR-02, NFR-03)" do
   include ModelResponses
+  # A retry is enqueued on the test adapter, never run by a thread of its own.
+  include ActiveJob::TestHelper
 
   let(:visitor) { create(:visitor) }
   let(:conversation) { create(:conversation, visitor:) }
@@ -135,6 +137,18 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       expect(spans(turn).first.span_attributes).to include("balcao.turn.outcome" => "model_error")
     end
 
+    # NFR-03's scenario: the three attempts are the SDK's, inside the turn; the
+    # turn ends with its fallback, so the job has nothing to try again.
+    it "is not tried a fourth time by the job after the model's three 529s" do
+      responses.replace(Array.new(3) { error(:overloaded) })
+      turn = inbound("oi")
+
+      perform(turn)
+
+      expect(fake.requests.size).to eq(3)
+      expect(enqueued_jobs).to be_empty
+    end
+
     it "carries the line of a reservation stored before the error" do
       create(:product, sku: "DIP-500")
       allow(AgentRunner).to receive(:new).and_wrap_original { |original, **options| original.call(**options, tools: [ SpecTools::Reserve ]) }
@@ -159,15 +173,156 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       expect(spans(turn).first.span_attributes).to include("balcao.turn.outcome" => "refused")
     end
 
-    it "marks the turn failed, closes its spans and raises when the turn breaks outside the model" do
+    it "marks the turn failed, closes its spans and tries again later when the turn breaks outside the model" do
       turn = inbound("oi")
       allow(Message).to receive(:record_outbound!).and_raise(ActiveRecord::ConnectionFailed, "gone")
 
-      expect { perform(turn) }.to raise_error(ActiveRecord::ConnectionFailed)
+      before = Time.current.to_f
+      perform(turn)
+      after = Time.current.to_f
 
+      retry_job = enqueued_jobs.sole
+      expect(retry_job).to include(job: ProcessTurnJob, args: [ turn.id ])
+      expect(retry_job[:at]).to be_between(before + 3, after + 3.15)
       expect(turn.reload.state).to eq("failed")
       expect(spans(turn).where(finished_at: nil)).to be_empty
       expect(spans(turn).first.span_attributes).to include("error.type" => "ActiveRecord::ConnectionFailed")
+    end
+  end
+
+  describe "the job's attempts and its dead letter (NFR-03)" do
+    # Runs the job and every retry it enqueues, each at once, and answers the
+    # waits it asked for; the last attempt's error, if any, comes out.
+    def run_to_the_end(turn)
+      waits = []
+      record = ->(event) { waits << event.payload[:wait] }
+      ActiveSupport::Notifications.subscribed(record, "enqueue_retry.active_job") do
+        ProcessTurnJob.perform_later(turn.id)
+        perform_enqueued_jobs until enqueued_jobs.empty?
+      end
+      waits
+    end
+
+    def roots(turn) = spans(turn).where(name: "balcao.turn").reorder(:created_at, :id)
+
+    it "answers on a later attempt when the break clears, waiting longer before each" do
+      responses.replace(Array.new(3) { reply("[pt] Olá!") })
+      turn = inbound("oi")
+      calls = 0
+      original = Message.method(:record_outbound!)
+      allow(Message).to receive(:record_outbound!) do |**arguments|
+        calls += 1
+        raise ActiveRecord::ConnectionFailed, "gone" if calls < 3
+
+        original.call(**arguments)
+      end
+
+      waits = run_to_the_end(turn)
+
+      expect(turn.reload).to have_attributes(state: "replied", outbound_message: be_present)
+      expect(waits.size).to eq(2)
+      expect(waits.first).to be_between(3, 3.15)
+      expect(waits.last).to be_between(18, 20.4)
+      expect(roots(turn).map { |root| root.span_attributes["balcao.turn.outcome"] }).to eq([ nil, nil, "replied" ])
+    end
+
+    it "gives up after the third attempt: the visitor gets the fallback, the trace says why, and the job fails for the queue's dead letter" do
+      allow(Rails.logger).to receive(:error)
+      conversation.update!(language: "en")
+      turn = inbound("hello")
+      allow(AgentRunner).to receive(:new).and_raise(RuntimeError, "a bug in the runner")
+      broadcasts = []
+      allow(ActionCable.server).to receive(:broadcast) { |stream, payload| broadcasts << [ stream, payload ] }
+
+      expect { run_to_the_end(turn) }.to raise_error(RuntimeError, "a bug in the runner")
+
+      expect(enqueued_jobs).to be_empty
+      expect(turn.reload.state).to eq("failed")
+      expect(turn.outbound_message.body).to eq(FixedReply.with_notice(FixedReply.fallback("en"), "en"))
+      expect(broadcasts).to include([ "conversation:#{conversation.id}", include(type: "message") ])
+      expect(roots(turn).count).to eq(4)
+      expect(roots(turn).last.span_attributes).to include("balcao.turn.outcome" => "dead_letter", "error.type" => "RuntimeError")
+      expect(spans(turn).where(name: "balcao.outbound").last.span_attributes).to include("balcao.message.author" => "bot")
+      expect(Rails.logger).to have_received(:error)
+        .with(/\Adead letter: ProcessTurnJob [0-9a-f-]{36}, turn #{turn.id}, 3 attempts, RuntimeError\z/)
+    end
+
+    # Active Job's own lines (Retrying, Stopped retrying) carry the error's
+    # message; their masking is PR-16's (SR-30).
+    it "names the error by its class alone in the dead letter's line, never by its message (SR-30)" do
+      lines = []
+      allow(Rails.logger).to receive(:error) { |line = nil| lines << line }
+      turn = inbound("meu cpf é 123.456.789-00")
+      allow(AgentRunner).to receive(:new).and_raise(RuntimeError, "cpf 123.456.789-00")
+
+      expect { run_to_the_end(turn) }.to raise_error(RuntimeError)
+
+      expect(lines.compact.grep(/dead letter/)).to contain_exactly(end_with(", RuntimeError"))
+      expect(lines.compact.join("\n")).not_to include("123.456.789-00")
+    end
+
+    it "keeps the turn's error when the fallback cannot be stored either, and says so in the log" do
+      allow(Rails.logger).to receive(:error)
+      turn = inbound("oi")
+      allow(AgentRunner).to receive(:new).and_raise(RuntimeError, "a bug in the runner")
+      allow(Message).to receive(:record_outbound!).and_raise(ActiveRecord::ConnectionFailed, "gone")
+
+      expect { run_to_the_end(turn) }.to raise_error(RuntimeError, "a bug in the runner")
+
+      expect(turn.reload.outbound_message).to be_nil
+      expect(Rails.logger).to have_received(:error).with(/\Adead letter: turn #{turn.id}: no fallback sent: ActiveRecord::ConnectionFailed\z/)
+    end
+
+    it "carries the line of a reservation the turn stored before it broke (NFR-02)" do
+      turn = inbound("reserva duas dipironas")
+      reservation = create(:reservation, turn:, product: create(:product, sku: "DIP-500"))
+      turn.update!(state: "failed")
+
+      TurnProcessor.new(turn).give_up(RuntimeError.new("a bug"))
+
+      expect(turn.reload.state).to eq("failed")
+      expect(turn.outbound_message.body)
+        .to end_with(FixedReply.with_reservations(FixedReply.fallback("pt-BR"), [ reservation ], "pt-BR"))
+    end
+
+    it "gives up on a turn that has its reply by doing nothing (NFR-02)" do
+      turn = inbound("oi")
+      perform(turn)
+
+      expect { TurnProcessor.new(turn).give_up(RuntimeError.new("late")) }.not_to(change { [ Message.count, TraceEvent.count ] })
+      expect(turn.reload.state).to eq("replied")
+    end
+
+    it "sends nothing for a turn deleted with its visitor while its job waited to try again (FR-05)" do
+      allow(Rails.logger).to receive(:error)
+      turn = inbound("oi")
+      attempts = 0
+      allow(AgentRunner).to receive(:new) do
+        attempts += 1
+        visitor.erase! if attempts == 2
+        raise RuntimeError, "a bug in the runner"
+      end
+
+      expect { run_to_the_end(turn) }.not_to raise_error
+
+      expect(attempts).to eq(2)
+      expect(Message.where(turn_id: turn.id)).to be_empty
+    end
+
+    it "sends the fallback into the conversation a reset moved the turn to while its job waited (FR-04)" do
+      allow(Rails.logger).to receive(:error)
+      turn = inbound("oi")
+      conversation.update!(closed_at: Time.current)
+      opened = create(:conversation, visitor:)
+      allow(AgentRunner).to receive(:new) do
+        Turn.where(id: turn.id).update_all(conversation_id: opened.id)
+        Message.where(id: turn.inbound_message_id).update_all(conversation_id: opened.id)
+        raise RuntimeError, "a bug in the runner"
+      end
+
+      expect { run_to_the_end(turn) }.to raise_error(RuntimeError)
+
+      expect(turn.reload.outbound_message).to have_attributes(conversation_id: opened.id)
     end
   end
 
@@ -305,6 +460,17 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       expect(tool.span_attributes["gen_ai.tool.call.arguments"]).to eq('{"query":"dipirona"}')
     end
 
+    it "stores a reply whose text carries a NUL without it, and the turn is answered (review finding V1 of pull request #18)" do
+      responses.replace([ reply("[pt] Temos\u0000 sim.") ])
+      turn = inbound("tem dipirona?")
+
+      perform(turn)
+
+      expect(turn.reload.state).to eq("replied")
+      expect(turn.outbound_message.body).to end_with("Temos sim.")
+      expect(enqueued_jobs).to be_empty
+    end
+
     # The raw phone and the BSUID join the list with the WhatsApp channel (PR-18).
     it "carries no secret, no identity and no system prompt in any span or broadcast (SR-12)" do
       turn = inbound("tem dipirona?")
@@ -352,15 +518,67 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       expect { perform(first) }.not_to(change { fake.requests.size })
     end
 
-    it "leaves an earlier turn that failed to its own job" do
+    # Review finding C1 of pull request #18: a turn left to its own job's next
+    # attempt was answered after a later turn, blind to that turn's reply.
+    it "answers an earlier turn that failed before its own, so the turns keep their order" do
+      responses.replace([ reply("[pt] Olá!"), reply("[pt] Temos, sim.") ])
       first = inbound("oi", at: 2.seconds.ago)
       first.update!(state: "failed")
       second = inbound("tem dipirona?", at: 1.second.ago)
 
       perform(second)
 
-      expect(first.reload.outbound_message).to be_nil
-      expect(second.reload.state).to eq("replied")
+      expect([ first.reload.state, second.reload.state ]).to eq(%w[replied replied])
+      expect(first.outbound_message.created_at).to be < second.outbound_message.created_at
+      expect(fake.requests.last.body[:messages].map { |message| message[:role] }).to eq(%w[user assistant user])
+    end
+
+    it "never answers again, blind, what a later turn answered (review finding C1 of pull request #18, NFR-02)" do
+      allow(Rails.logger).to receive(:error)
+      responses.replace([ reply("[pt] Temos, sim."), reply("[pt] Temos dipirona, sim."), reply("[pt] Temos, sim.") ])
+      first = inbound("tem dipirona?", at: 3.seconds.ago)
+      second = inbound("?", at: 2.seconds.ago)
+      calls = 0
+      original = Message.method(:record_outbound!)
+      allow(Message).to receive(:record_outbound!) do |**arguments|
+        calls += 1
+        raise ActiveRecord::ConnectionFailed, "gone" if calls == 1
+
+        original.call(**arguments)
+      end
+
+      perform(first)
+      perform(second)
+      perform_enqueued_jobs
+
+      again = fake.requests[2]
+      texts = again && again.body[:messages].flat_map { |message| message[:content].map { |block| block[:text] } }
+      expect(again.nil? || texts.include?("Temos dipirona, sim.")).to be(true)
+      expect(first.reload.outbound_message.created_at).to be < second.reload.outbound_message.created_at
+    end
+
+    # Review finding C2 of pull request #18: an earlier turn whose own job is
+    # gone (its worker died) and whose run by a later turn's job broke was
+    # never run again.
+    it "answers an earlier turn whose job is gone at the next message, even after a run of it broke" do
+      allow(Rails.logger).to receive(:error)
+      responses.replace(Array.new(4) { reply("[pt] Temos, sim.") })
+      first = inbound("tem dipirona?", at: 3.seconds.ago)
+      first.update!(state: "running")
+      second = inbound("?", at: 2.seconds.ago)
+      calls = 0
+      original = Message.method(:record_outbound!)
+      allow(Message).to receive(:record_outbound!) do |**arguments|
+        calls += 1
+        raise ActiveRecord::ConnectionFailed, "gone" if calls == 1
+
+        original.call(**arguments)
+      end
+
+      perform(second)
+      perform(inbound("obrigado"))
+
+      expect(first.reload.outbound_message).to be_present
     end
 
     it "answers its own turn when an earlier one breaks" do

@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import { serverNow } from "../chat/api";
 
+import ptBR from "../locales/pt-BR.json";
 import { cx } from "../ui/cx";
 import {
   formatClock,
@@ -45,20 +46,14 @@ const ERRORS: Partial<Record<string, ErrorWord>> = {
   interrupted: "interrupted",
 };
 
-// A turn's outcome, when its reply is a fixed text (app/agent/agent_runner.rb,
-// app/models/turn_processor.rb); a slice that adds or renames one changes
-// these words in the same pull request (design §10, note of 2026-11-12).
-const OUTCOMES = [
-  "model_error",
-  "deadline",
-  "tool_limit",
-  "incomplete",
-  "refused",
-  "reservations",
-] as const;
-type Outcome = (typeof OUTCOMES)[number];
+// A turn's outcome, when its reply is a fixed text: the server's list
+// (TurnProcessor::OUTCOMES, app/models/turn_processor.rb) is the keys of these
+// words, which spec/models/turn_outcomes_spec.rb holds equal, so a slice that
+// adds or renames an outcome gives it words in the same pull request (design
+// §10, note of 2026-11-12).
+type Outcome = Exclude<keyof typeof ptBR.instrument.outcomes, "other">;
 const isOutcome = (value: string): value is Outcome =>
-  (OUTCOMES as readonly string[]).includes(value);
+  value !== "other" && Object.hasOwn(ptBR.instrument.outcomes, value);
 
 // What a tool's list holds (app/agent/tools), in words.
 const UNITS = ["products", "areas", "methods", "services"] as const;

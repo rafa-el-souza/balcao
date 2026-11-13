@@ -61,6 +61,8 @@
     "offline": "No connection to the server right now. Still trying.",
     "failed": "not sent",
     "retry": "send again",
+    "thinking": "thinking…",
+    "slow": "taking longer than usual",
     "composer": {
       "label": "Message",
       "placeholder": "write here…",
@@ -125,6 +127,7 @@
       "incomplete": "incomplete answer",
       "refused": "the model refused",
       "reservations": "no model",
+      "dead_letter": "the system failed",
       "other": "fixed reply"
     },
     "errors": {

@@ -94,6 +94,13 @@ const between = (from: string, until: string | null) =>
   until === null ? null : Math.max(0, time(until) - time(from));
 const byStart = (a: { started_at: string }, b: { started_at: string }) =>
   time(a.started_at) - time(b.started_at);
+// A span's end, one still open after every closed one.
+const end = (span: Span) =>
+  span.finished_at === null ? Infinity : time(span.finished_at);
+const byEnd = (a: Span, b: Span) => {
+  const [x, y] = [end(a), end(b)];
+  return x === y ? 0 : x < y ? -1 : 1;
+};
 
 function modelRow(span: Span): Row {
   const a = span.attributes;
@@ -142,11 +149,13 @@ function toolRow(span: Span): Row {
 
 function turnOf(id: string, spans: Span[]): Omit<Turn, "number"> | null {
   const sorted = [...spans].sort(byStart);
-  // A turn run again after a crash has a root per run: the first gives the
-  // receipt, the last the outcome and the time.
+  // A turn run again (a crash, the job's next attempt or its dead letter,
+  // NFR-03) has a root per run, each from the message's receipt: the first
+  // gives the receipt, and the run that ended last, or still runs, the
+  // outcome and the time (review finding C7 of pull request #17).
   const roots = sorted.filter((span) => ROOTS.has(span.name));
   const first = roots[0];
-  const last = roots.at(-1);
+  const last = [...roots].sort(byEnd).at(-1);
   if (!first || !last) return null;
 
   const rows: Row[] = [];
@@ -169,7 +178,11 @@ function turnOf(id: string, spans: Span[]): Omit<Turn, "number"> | null {
     for (const span of sorted) {
       if (span.name === MODEL_CALL) rows.push(modelRow(span));
       else if (span.name.startsWith(TOOL_CALL)) rows.push(toolRow(span));
-      else if (span.name === "balcao.outbound")
+      // A run that broke while it stored its reply sent nothing.
+      else if (
+        span.name === "balcao.outbound" &&
+        str(span.attributes, "error.type") === null
+      )
         rows.push({
           kind: "sent",
           key: span.span_id,

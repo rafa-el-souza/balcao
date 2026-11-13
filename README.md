@@ -76,9 +76,11 @@ Design complete and independently reviewed (2026-11-02, 30 findings;
 TLS; since day 5 a conversation runs there over the HTTP API; since day 6 the
 landing and the chat page are there, in three languages; since day 7 the reply
 and the glass box's rows arrive live over the cable, polling only when the
-socket is down, and each conversation has its trace page. The "pensando…"
-state and the fallback's words arrive next, on day 7 too. See the delivery
-plan in the design document.
+socket is down, and each conversation has its trace page, the chat says
+"pensando…" while a turn runs and that the answer is taking longer past ten
+seconds, and a turn that breaks is tried again twice and then answered with
+the fallback, never left waiting. The reservation arrives next, on day 8. See
+the delivery plan in the design document.
 
 ## Running locally
 

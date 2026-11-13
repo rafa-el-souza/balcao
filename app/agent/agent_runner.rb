@@ -38,7 +38,16 @@ class AgentRunner
 
   # outcome: :replied (text and language set), :refused, :incomplete (cut off
   # or empty), :tool_limit, :deadline or :model_error (error set).
-  Result = Data.define(:outcome, :text, :language, :model_calls, :tool_calls, :error)
+  OUTCOMES = %i[replied refused incomplete tool_limit deadline model_error].freeze
+  Result = Data.define(:outcome, :text, :language, :model_calls, :tool_calls, :error) do
+    # The glass box words each outcome (TurnProcessor::OUTCOMES), so an
+    # unlisted one never reaches it.
+    def initialize(outcome:, **)
+      raise ArgumentError, "#{outcome.inspect} is not an outcome of AgentRunner::OUTCOMES" unless OUTCOMES.include?(outcome)
+
+      super
+    end
+  end
 
   class DeadlineExceeded < StandardError; end
 

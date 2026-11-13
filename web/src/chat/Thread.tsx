@@ -1,12 +1,19 @@
-import { Fragment, useEffect, useRef } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import openers from "../openers.json";
 import { cx } from "../ui/cx";
+import { Cross } from "../ui/Icon";
 import parts from "../ui/parts.module.css";
 import styles from "./Chat.module.css";
-import type { Content } from "./api";
-import { type Entry, entriesOf, type State } from "./conversation";
+import { type Content, serverNow } from "./api";
+import {
+  awaiting,
+  type Entry,
+  entriesOf,
+  type State,
+  waitingSince,
+} from "./conversation";
 import { isOpener, openerLang } from "./useConversation";
 
 // The conversation's four voices, told apart by form and never by an avatar
@@ -42,6 +49,65 @@ export function Text({ text }: { text: string }) {
         ))}
       </p>
     ));
+}
+
+// NFR-03: past ten seconds of waiting (NFR-01's p95), the attendant says the
+// answer is taking longer.
+export const SLOW_MS = 10_000;
+
+// How often the page reads the server's clock while the note is due. A
+// timer set for the deadline itself could fire before it by that clock, which
+// is the browser's moved by a fraction of a millisecond that a timer drops, or
+// moved back by a later answer (review finding C2 of pull request #18).
+const SLOW_CHECK_MS = 250;
+
+// Whether the wait that began at `since` has passed SLOW_MS, by the server's
+// clock, read every SLOW_CHECK_MS until it has.
+function useSlow(since: string | null): boolean {
+  const due = since === null ? null : Date.parse(since) + SLOW_MS;
+  const [now, setNow] = useState(serverNow);
+  const slow = due !== null && now >= due;
+  useEffect(() => {
+    if (due === null || slow) return;
+    const timer = window.setInterval(() => {
+      setNow(serverNow());
+    }, SLOW_CHECK_MS);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [due, slow]);
+  return slow;
+}
+
+// While a turn runs, the pharmacy's cross breathes beside "pensando…" as a
+// lamp does, and stays lit and still for reduced motion
+// (docs/prototype/chat-thinking.html); one for the whole wait, however many
+// messages wait (chat-queued.html).
+function Thinking({
+  since,
+  onSlow,
+}: {
+  since: string | null;
+  onSlow: () => void;
+}) {
+  const { t } = useTranslation();
+  const slow = useSlow(since);
+  // The note grows the entry: the thread's end, with any stamp after it, is
+  // brought into view again (review findings C1 and V2 of pull request #18).
+  useEffect(() => {
+    if (slow) onSlow();
+  }, [slow, onSlow]);
+  return (
+    <li
+      className={cx(styles.msg, styles.attendant, styles.thinking)}
+      data-voice="attendant"
+    >
+      <p>
+        <Cross className={styles.lamp} /> {t("chat.thinking")}
+      </p>
+      {slow && <p>{t("chat.slow")}</p>}
+    </li>
+  );
 }
 
 const VOICE_CLASS = {
@@ -91,12 +157,15 @@ export function Thread({
   state,
   offline,
   refused,
+  covered,
   onOpener,
   onRetry,
 }: {
   state: State;
   offline: boolean;
   refused: string | null;
+  // How much of the window's bottom the page keeps over the thread.
+  covered: () => number;
   onOpener: (key: keyof typeof openers) => void;
   onRetry: (clientId: string, content: Content) => void;
 }) {
@@ -105,13 +174,35 @@ export function Thread({
   const entries = entriesOf(state);
   const firstVisit =
     state.phase === "ready" && state.deleted === null && entries.length === 0;
+  const waiting = awaiting(state);
 
-  // A new message scrolls its own column to itself.
-  useEffect(() => {
-    const last = list.current?.lastElementChild;
-    if (last && "scrollIntoView" in last)
-      last.scrollIntoView({ block: "end", behavior: "smooth" });
-  }, [entries.length]);
+  // Brings an entry of the thread into view. Beside the glass box the thread
+  // scrolls in its own column; stacked, the window scrolls and the composer's
+  // foot, with the drawer while it is open, stays over its bottom, so the
+  // window keeps that height clear (review findings V1 and R1 of pull request
+  // #18), for this scroll alone: left on the root, the padding would move the
+  // window whenever a control in the foot takes the focus, and outlive the
+  // layout it measured (R2 and V4). The scroll keeps the destination it was
+  // given when the padding goes.
+  const reveal = useCallback(
+    (element: Element | null | undefined) => {
+      if (!element || !("scrollIntoView" in element)) return;
+      const root = document.documentElement.style;
+      root.scrollPaddingBottom = `${String(covered())}px`;
+      element.scrollIntoView({ block: "end", behavior: "smooth" });
+      root.scrollPaddingBottom = "";
+    },
+    [covered],
+  );
+
+  // What the thread ends with scrolls its column to itself: a new message,
+  // "pensando…" when it appears (review finding C1 of pull request #18) and
+  // the stamps of a limit or a lost connection (V2).
+  const tail = `${String(entries.length)}:${String(waiting)}:${String(offline)}:${refused ?? ""}`;
+  const revealEnd = useCallback(() => {
+    reveal(list.current?.lastElementChild);
+  }, [reveal]);
+  useEffect(revealEnd, [tail, revealEnd]);
 
   return (
     <ol
@@ -158,6 +249,7 @@ export function Thread({
       {entries.map((entry) => (
         <Message key={entry.key} entry={entry} onRetry={onRetry} />
       ))}
+      {waiting && <Thinking since={waitingSince(state)} onSlow={revealEnd} />}
       {refused !== null && (
         <li className={cx(styles.msg, VOICE_CLASS.stamp)} data-voice="stamp">
           <p>{refused}</p>

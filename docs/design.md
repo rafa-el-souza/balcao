@@ -1554,6 +1554,82 @@ MVP from its first day and merges at day 11.
 
 Tracked here until resolved; each resolution becomes an ADR or an edit.
 
+- Note 2026-11-13 (PR-12, NFR-03: a turn that breaks, the dead letter and
+  the wait). Choices the text left open:
+  - **Two kinds of attempts.** The three attempts of NFR-03's scenario are
+    the SDK's, inside the turn (`AgentRunner::MAX_RETRIES`, PR-06): a turn
+    the model cannot answer ends its run with the fallback, so its job is
+    done and never tried a fourth time. The job's own attempts are for a
+    turn that breaks outside the model (the database, a bug): three in all,
+    after about 3 s and then about 18 s (Active Job's polynomial wait, with
+    its jitter), each a run of its own in the trace.
+  - **The dead letter.** After the third attempt the job writes one line,
+    `dead letter: ProcessTurnJob <job id>, turn <id>, 3 attempts, <error
+    class>`, the class alone, since a message may quote the visitor (SR-30);
+    gives the visitor the fallback under the conversation's lock, followed by
+    the line of any reservation the turn stored (NFR-02); and raises the
+    error on, which Solid Queue keeps as a failed execution, the dead letter
+    FR-16's console reads (M2). The fallback is a run of its own in the
+    trace, a root and the reply, with the outcome `dead_letter` and the
+    error's class, which the panel words as "o sistema falhou". Active Job's
+    own lines (`Retrying`, `Stopped retrying`, `Error performing`) carry the
+    error's message; their masking is PR-16's (SR-30).
+  - **Outcomes.** `TurnProcessor::OUTCOMES` lists every outcome a root can
+    carry: AgentRunner's, `reservations` and `dead_letter`. The panel's
+    words are the keys of `instrument.outcomes` in the web app's locale
+    files (web/src/trace/Rows.tsx reads them there), and
+    spec/models/turn_outcomes_spec.rb holds the two lists equal; an outcome
+    outside the list raises where it is made.
+  - **The panel and the runs.** A turn's runs share the receipt as their
+    start, so the run that ended last, or one still open, gives the outcome
+    and the time (review finding C7 of pull request #17); a reply a broken
+    run never stored draws no "sent" row. While the job waits between
+    attempts no run is open, so the turn's line stands still until the next
+    attempt opens one.
+  - **"pensando…"** follows the thread's last entry while the page waits for
+    a reply (a turn the server holds without one, or a message it accepted
+    and no snapshot has brought yet), one for the whole wait, with the cross
+    breathing as drawn (docs/prototype/chat-thinking.html) and still under
+    reduced motion. The note that the answer is taking longer, which the
+    drawings lack, joins it ten seconds (NFR-01's p95) after the server
+    received the oldest message still without its reply, by the server's
+    clock, so a page opened on a long wait says it at once.
+  - **A deploy.** Kamal stops the job container with SIGTERM and kills it
+    after 30 s (`stop_timeout` falls back to `drain_timeout` for a role
+    without the proxy). Solid Queue waits for the jobs its workers run, 5 s
+    by default; a job still running then is not lost but handed back to the
+    queue, by the worker's deregistration or, after the supervisor's QUIT,
+    by the supervisor's, and its turn runs again from its start in the new
+    container: the model called and billed again, the cut run's spans
+    closed as interrupted (review finding V2 of pull request #18). It now
+    waits 25 s (config/application.rb, spec/deploy/worker_stop_spec.rb),
+    so a turn that ends within them runs once. Open: a worker that dies (a
+    crash, an out-of-memory kill) or a container killed outright leaves its
+    job failed by Solid Queue without its retries; its turn is answered by
+    the conversation's next message or a resend (FR-18), and nothing sweeps
+    it.
+  - **What the review of pull request #18 settled** (its Review section has
+    each finding). The job that holds a conversation's lock runs an earlier
+    turn that failed before its own, as it runs one still waiting or
+    running, so a turn the job tries again is not answered after a later
+    one, blind to its reply (C1); one that breaks again there is left to
+    its own job, and the next message's job answers a turn whose own job is
+    gone (C2). A message's body loses any NUL, which PostgreSQL refuses, so
+    a reply carrying one is stored (V1). On the page the note reads the
+    server's clock every quarter second until it is due, since a timer set
+    for the deadline could fire before it; what the thread ends with
+    ("pensando…", its note, the stamps of a limit or a lost connection)
+    scrolls the thread to it; and, stacked, the window keeps clear for
+    that scroll alone what covers its bottom, the counter's foot and the
+    open drawer, measured by their boxes. Open, for the owner: whether
+    SR-20's six tool calls and sixty seconds span the job's attempts or
+    hold per attempt, as now (C3); a turn answered after a later one, when
+    it broke twice, still reads the conversation only up to itself, so the
+    header rule of ProcessTurnJob, that the model reads the earlier
+    replies, holds only for one break (R3, V4); and nothing bounds how
+    often the next messages' jobs run again a turn left without any reply
+    (R4).
+
 - Note 2026-11-12 (PR-11, the glass box, the trace page and the cable). What
   the drawings asked of the server, the panel, the trace page and the live
   stream. Choices the text left open:

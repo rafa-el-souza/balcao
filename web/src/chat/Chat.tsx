@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useTicking, useTurnLine } from "../trace/Rows";
@@ -17,7 +17,9 @@ import { useConversation } from "./useConversation";
 // the composer, which opens it as a drawer over the lower half. Hidden until
 // their source exists: the pharmacist's presence (M2), the budget's mode and
 // every cost (PR-16), the anti-bot line (Turnstile, after the MVP) and the
-// "agendar" suggestion (FR-08, M2); the "pensando…" state is PR-12's.
+// "agendar" suggestion (FR-08, M2). While a turn waits the thread says
+// "pensando…", and past ten seconds that the answer is taking longer (NFR-03,
+// Thread.tsx).
 export function Chat() {
   const { t } = useTranslation();
   const {
@@ -39,6 +41,26 @@ export function Chat() {
   const opener = useRef<HTMLButtonElement>(null);
   const closer = useRef<HTMLButtonElement>(null);
   const rows = useRef<HTMLDivElement>(null);
+  const foot = useRef<HTMLDivElement>(null);
+  const instrument = useRef<HTMLElement>(null);
+  // Read when the thread scrolls, so the reveal's identity never changes
+  // with the drawer and a toggle scrolls nothing by itself.
+  const drawerOpen = useRef(false);
+  useEffect(() => {
+    drawerOpen.current = drawer;
+  }, [drawer]);
+  // How much of the window's bottom stays over the thread, which the thread
+  // keeps clear when it brings an entry into view: stacked, the counter's
+  // foot, and the drawer while it is open (review findings V1 and R1 of pull
+  // request #18). Beside the glass box neither covers the thread's column.
+  const covered = useCallback(() => {
+    const over = [foot.current, drawerOpen.current ? instrument.current : null]
+      .filter((element) => element !== null)
+      .map((element) => element.getBoundingClientRect().top);
+    return over.length === 0
+      ? 0
+      : Math.max(0, window.innerHeight - Math.min(...over));
+  }, []);
 
   useEffect(() => {
     document.title = t("chat.title");
@@ -109,11 +131,12 @@ export function Chat() {
           state={state}
           offline={offline}
           refused={refused}
+          covered={covered}
           onOpener={sendOpener}
           onRetry={retry}
         />
 
-        <div className={styles.counterFoot}>
+        <div className={styles.counterFoot} ref={foot}>
           <button
             ref={opener}
             type="button"
@@ -141,6 +164,7 @@ export function Chat() {
       </section>
 
       <section
+        ref={instrument}
         className={styles.glass}
         id="glass"
         aria-labelledby="glass-title"
