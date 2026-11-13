@@ -105,7 +105,7 @@ end
 # a release past the advisories published for it, checked on the monthly bump
 # day (docs/runbook.md). The tag stays plain: Kamal reads the running proxy's
 # version back from its image tag, and a digest there stops every deploy.
-RSpec.describe "SR-27 the edge proxy runs a release past its published advisories" do
+RSpec.describe "SR-27 the edge proxy is pinned at a release past its published advisories" do
   include KamalConfigHelpers
 
   it "pins kamal-proxy v0.10.2 in the base file, which the rehearsal inherits" do
@@ -131,6 +131,15 @@ RSpec.describe "SR-27 the edge proxy runs a release past its published advisorie
     runbook = Rails.root.join("docs/runbook.md").read
     expect(runbook).to include(%(kamal server exec -d ensaio "docker pull $DIGEST && docker tag $DIGEST $TAG"))
     expect(runbook).to include(%(docker image inspect $TAG --format '{{json .RepoDigests}}'))
+  end
+
+  # Review finding V1 of pull request #21: a deploy starts the proxy that is
+  # already there, so the release pinned here runs only after the swap. The
+  # deploy's smoke names the proxy that runs, so a swap left undone shows.
+  it "has every deploy's smoke name the proxy that runs, since no deploy swaps it" do
+    flow = Rails.root.join("docs/runbook.md").read[/^## MVP deploy flow.*?(?=^## )/m]
+
+    expect(flow).to include("kamal proxy details -d ensaio")
   end
 end
 

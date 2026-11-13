@@ -135,6 +135,10 @@ Only a green `main` is deployed to the MVP host.
      answers `301` (to HTTPS);
    - `kamal app details -d ensaio` lists one `web` and one `job` container
      at the deployed SHA;
+   - `kamal proxy details -d ensaio` names `basecamp/kamal-proxy` at the tag
+     `proxy.run.version` pins: a deploy starts the proxy that is already
+     there, so another tag means a swap is due ("Swapping the proxy's
+     release", below);
    - a conversation runs over the API (since PR-09): with a cookie jar,
      `POST /api/session` with the header
      `Origin: https://balcao.rafasouza.dev.br` and the body `{}` answers
