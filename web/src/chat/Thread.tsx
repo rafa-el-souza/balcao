@@ -55,24 +55,28 @@ export function Text({ text }: { text: string }) {
 // answer is taking longer.
 export const SLOW_MS = 10_000;
 
+// How often the page reads the server's clock while the note is due. A
+// timer set for the deadline itself could fire before it by that clock, which
+// is the browser's moved by a fraction of a millisecond that a timer drops, or
+// moved back by a later answer (review finding C2 of pull request #18).
+const SLOW_CHECK_MS = 250;
+
 // Whether the wait that began at `since` has passed SLOW_MS, by the server's
-// clock; the page checks again at the moment it does.
+// clock, read every SLOW_CHECK_MS until it has.
 function useSlow(since: string | null): boolean {
   const due = since === null ? null : Date.parse(since) + SLOW_MS;
-  const [checked, setChecked] = useState(serverNow);
+  const [now, setNow] = useState(serverNow);
+  const slow = due !== null && now >= due;
   useEffect(() => {
-    if (due === null) return;
-    const timer = window.setTimeout(
-      () => {
-        setChecked(serverNow());
-      },
-      Math.max(0, due - serverNow()),
-    );
+    if (due === null || slow) return;
+    const timer = window.setInterval(() => {
+      setNow(serverNow());
+    }, SLOW_CHECK_MS);
     return () => {
-      window.clearTimeout(timer);
+      window.clearInterval(timer);
     };
-  }, [due]);
-  return due !== null && checked >= due;
+  }, [due, slow]);
+  return slow;
 }
 
 // While a turn runs, the pharmacy's cross breathes beside "pensando…" as a

@@ -14,6 +14,7 @@ import ptBR from "../locales/pt-BR.json";
 import openers from "../openers.json";
 import { conversation, fakeServer, message } from "../test/fakeServer";
 import { renderPage } from "../test/render";
+import { serverClock } from "./api";
 import { Chat } from "./Chat";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -358,6 +359,40 @@ describe("NFR-03 the turn that waits", () => {
 
     expect(await within(thread()).findByText(pt.slow)).toBeInTheDocument();
   });
+
+  // Review finding C2 of pull request #18: a timer set for the deadline
+  // itself can fire before it by the server's clock, and was never set again.
+  it("adds the note when the server's clock is the browser's moved by a fraction of a millisecond", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderPage(<Chat />);
+    await ready();
+    serverClock.offset = 0.5;
+
+    const visitor = await sendAndWait();
+    server.answers.current.push(
+      ...Array.from({ length: 10 }, () => conversation(1, [visitor], true)),
+    );
+    await elapse(20_000);
+
+    expect(within(thread()).getByText(pt.slow)).toBeInTheDocument();
+  });
+
+  it("adds the note when a later answer moves the server's clock back", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderPage(<Chat />);
+    await ready();
+
+    const visitor = await sendAndWait();
+    server.answers.current.push(
+      ...Array.from({ length: 10 }, () => conversation(1, [visitor], true)),
+    );
+    await elapse(5000);
+    serverClock.offset = -300;
+    await elapse(15_000);
+
+    expect(within(thread()).getByText(pt.slow)).toBeInTheDocument();
+  });
+
 });
 
 describe("FR-14 the demo's limit", () => {
