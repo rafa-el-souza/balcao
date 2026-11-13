@@ -97,6 +97,137 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       expect([ fake.requests.size, Message.count, TraceEvent.count, UsageRecord.count ]).to eq(counts)
     end
 
+    # FR-07's first scenario, through the job: the model reserves, the stock
+    # goes down and the reply carries the code; the turn run again answers
+    # from the stored reservation, never through the model (NFR-02).
+    it "reserves through the model, and a run of the same turn again neither reserves nor calls the model again" do
+      product = create(:product, stock: 10)
+      responses.replace([ tool_turn(tool_use("create_reservation", { product_id: product.id, quantity: 2 })),
+                          reply("[pt] Reservado, o código está abaixo.") ])
+      turn = inbound("reserva duas dipironas")
+
+      perform(turn)
+      reservation = turn.reservations.sole
+      # Review finding V3 of pull request #19: the reply said the code was
+      # below, and nothing followed.
+      expect(turn.outbound_message.body).to end_with(FixedReply.reservations([ reservation ], "pt-BR"))
+      Message.where(turn_id: turn.id).delete_all
+      perform(turn)
+
+      expect(fake.requests.size).to eq(2)
+      expect(product.reload.stock).to eq(8)
+      expect(turn.reservations.sole).to eq(reservation)
+      expect(turn.reload.outbound_message.body).to eq(FixedReply.with_notice(FixedReply.reservations([ reservation ], "pt-BR"), "pt-BR"))
+    end
+
+    # FR-07: "the reply carries a reservation code and the pickup deadline",
+    # whatever the model wrote (review finding C1 of pull request #19): a
+    # reply that leaves out a reservation's code or its pickup time is
+    # followed by the reservation's line.
+    describe "the reservation's code and deadline in the reply" do
+      let(:product) { create(:product, stock: 10) }
+
+      # A Thursday at noon in São Paulo: the pickup is Friday at 20:00.
+      def reserve_and_reply(text)
+        allow(Reservation).to receive(:generate_code).and_return("4K2QHM")
+        responses.replace([ tool_turn(tool_use("create_reservation", { product_id: product.id, quantity: 2 })),
+                            reply("[pt] #{text}") ])
+        turn = inbound("reserva duas caixas", at: Time.zone.local(2026, 11, 12, 12, 4))
+        travel_to(Time.zone.local(2026, 11, 12, 12, 4, 3)) { perform(turn) }
+        turn
+      end
+
+      it "follows a reply that leaves out the code and the deadline with the reservation's line" do
+        turn = reserve_and_reply("Pronto, sua reserva de duas caixas está feita, pode retirar amanhã.")
+
+        reservation = turn.reservations.sole
+        expect(turn.outbound_message.body)
+          .to end_with("Pronto, sua reserva de duas caixas está feita, pode retirar amanhã.\n\n" \
+                       "#{FixedReply.reservations([ reservation ], "pt-BR")}")
+      end
+
+      it "follows a reply that writes the code but not the pickup time with the line" do
+        turn = reserve_and_reply("Reservado! O código é 4K2QHM.")
+
+        expect(turn.outbound_message.body).to end_with(FixedReply.reservations(turn.reservations.to_a, "pt-BR"))
+      end
+
+      it "adds nothing to a reply that writes the code and the pickup day and time" do
+        turn = reserve_and_reply("Reservado! O código é 4K2QHM, e a retirada é até sexta, 13/11, às 20:00.")
+
+        expect(turn.outbound_message.body).to end_with("Reservado! O código é 4K2QHM, e a retirada é até sexta, 13/11, às 20:00.")
+      end
+
+      # Review finding R1 of pull request #19: every weekday closes at 20:00,
+      # so the time alone was any "20:00" in the reply, with no day or the
+      # wrong one.
+      [
+        "Reservado! O código é 4K2QHM. Funcionamos das 08:00 às 20:00.",
+        "Reservado! O código é 4K2QHM, retire até as 20:00.",
+        "Reservado! O código é 4K2QHM, retire até segunda, 16/11, às 20:00."
+      ].each do |text|
+        it "follows a reply that writes the code and 20:00 but not the pickup day with the line: #{text}" do
+          turn = reserve_and_reply(text)
+
+          expect(turn.outbound_message.body).to end_with("#{text}\n\n#{FixedReply.reservations(turn.reservations.to_a, "pt-BR")}")
+        end
+      end
+    end
+
+    # FR-07: "the attendant refuses and lists the open ones". The system lists
+    # them under the reply, whatever the model wrote, and the refusal the
+    # trace keeps carries none of them, since they may be another
+    # conversation's (review findings C5 and N1 of pull request #19; FR-12).
+    describe "the fourth reservation, refused at the cap" do
+      let(:earlier) { create(:conversation, visitor:, closed_at: 1.hour.ago) }
+      # Due at 20:00, as every weekday closes (config/store.yml).
+      let!(:held) do
+        Array.new(3) do
+          create(:reservation, visitor:, product: create(:product), pickup_until: 1.day.from_now.change(hour: 20),
+                               turn: create(:turn, inbound_message: create(:message, conversation: earlier)))
+        end
+      end
+
+      def ask_for_a_fourth
+        responses.replace([ tool_turn(tool_use("create_reservation", { product_id: create(:product).id, quantity: 1 })),
+                            reply("[pt] Você já tem o máximo de reservas abertas.") ])
+        turn = inbound("reserva mais uma caixa")
+        perform(turn)
+        turn
+      end
+
+      it "lists the ones the reply names without their pickup day, on the same terms (review finding R1 of #19)" do
+        responses.replace([ tool_turn(tool_use("create_reservation", { product_id: create(:product).id, quantity: 1 })),
+                            reply("[pt] Você já tem a #{held.first.code}, que sai às 20:00, e mais duas.") ])
+        turn = inbound("reserva mais uma caixa")
+        perform(turn)
+
+        expect(turn.outbound_message.body).to end_with(FixedReply.reservations(held, "pt-BR"))
+      end
+
+      it "lists under the reply the three the visitor holds" do
+        turn = ask_for_a_fourth
+
+        expect(turn.outbound_message.body)
+          .to end_with("Você já tem o máximo de reservas abertas.\n\n#{FixedReply.reservations(held, "pt-BR")}")
+        expect(turn.reservations).to be_empty
+      end
+
+      it "sends the reply with the codes it lists, for the chat to stamp" do
+        expect { ask_for_a_fourth }
+          .to have_broadcasted_to("conversation:#{conversation.id}")
+          .with(hash_including(type: "message", message: hash_including(codes: match_array(held.map(&:code)))))
+      end
+
+      it "keeps the reservations of another conversation out of this one's trace" do
+        turn = ask_for_a_fourth
+
+        tool = spans(turn).find_by(name: "anthropic.custom_tool_use create_reservation")
+        expect(tool.span_attributes).to include("balcao.tool_result.refusal" => "open_limit")
+        held.each { |reservation| expect(tool.span_attributes.to_json).not_to include(reservation.code) }
+      end
+    end
+
     it "answers a turn whose reservation an earlier run stored with the reservation's line, without the model" do
       turn = inbound("quero reservar duas dipironas")
       reservation = create(:reservation, turn:, quantity: 2)
@@ -150,9 +281,9 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
     end
 
     it "carries the line of a reservation stored before the error" do
-      create(:product, sku: "DIP-500")
-      allow(AgentRunner).to receive(:new).and_wrap_original { |original, **options| original.call(**options, tools: [ SpecTools::Reserve ]) }
-      responses.replace([ tool_turn(tool_use("reserve", { text: "DIP-500" })), *Array.new(3) { error(:overloaded) } ])
+      product = create(:product)
+      responses.replace([ tool_turn(tool_use("create_reservation", { product_id: product.id, quantity: 2 })),
+                          *Array.new(3) { error(:overloaded) } ])
       turn = inbound("reserva duas dipironas")
 
       perform(turn)
@@ -447,6 +578,26 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       expect(tool.span_attributes).to include("error.type" => "tool_error",
                                               "balcao.tool_result.characters" => Tools::SearchProducts::EMPTY.length)
       expect(tool.span_attributes.keys).not_to include("balcao.tool_result.count", "balcao.tool_result.unit")
+    end
+
+    # The drawings' reason code (design §10, note of 2026-11-12): the panel
+    # tells a rule the tool enforces from a failure by it, and words it.
+    it "gives a refusal its reason code, which a tool's failure lacks" do
+      responses.replace([ tool_turn(tool_use("search_products", { query: " " })), reply("[pt] Diga o nome."),
+                          tool_turn(tool_use("search_products", { query: "dipirona" })), reply("[pt] Não consegui ver.") ])
+      refused = inbound("tem dipirona?")
+      perform(refused)
+
+      allow(Product).to receive(:search).and_raise(ActiveRecord::StatementInvalid, "gone")
+      allow(Rails.logger).to receive(:error)
+      failed = inbound("e agora?")
+      perform(failed)
+
+      refusal = spans(refused).find_by(name: "anthropic.custom_tool_use search_products").span_attributes
+      failure = spans(failed).find_by(name: "anthropic.custom_tool_use search_products").span_attributes
+      expect(refusal).to include("error.type" => "tool_error", "balcao.tool_result.refusal" => "empty_query")
+      expect(failure).to include("error.type" => "tool_error")
+      expect(failure).not_to have_key("balcao.tool_result.refusal")
     end
 
     it "records a tool call whose input carries a NUL, and the turn completes (review finding C4 of pull request #10)" do

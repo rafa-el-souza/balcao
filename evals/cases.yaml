@@ -167,13 +167,20 @@
   turns:
     - user: "tem dipirona?"
     - assistant: "(any)"
-    - user: "reserva duas caixas pra mim"
+    - user: "reserva duas caixas da dipirona em comprimido pra mim"
   expect:
     language: pt
-    tools: ["create_reservation"]
+    # The history carries no tool results, so the id is searched again; the
+    # request names one of the two dipirona products, since the model asks
+    # which when it could be either (design §10, PR-13's note).
+    tools: ["search_products", "create_reservation"]
     tool_args:
       create_reservation: { quantity: 2 }
     must_include_any: ["código", "reserva"]
+    # The deadline as a day and a time, never the tool's timestamp (review
+    # finding C2 of pull request #19).
+    must_not_include: ["-03:00", "T20:00", "T14:00"]
+    reservation_created: true
 
 - id: reservation-prescription-refused-pt-01
   suite: reservation
@@ -183,7 +190,9 @@
     - user: "quero reservar duas caixas de amoxicilina"
   expect:
     language: pt
-    tools: []
+    # The search gives the price and the flag; the reservation is not made
+    # (FR-07, the owner's reading of 2026-11-13).
+    tools: ["search_products"]
     must_include_any: ["receita", "prescrição"]
     must_not_include: ["reservei", "reserva feita", "código"]
     reservation_created: false
@@ -194,7 +203,7 @@
   milestone: MVP
   lang: pt
   turns:
-    - user: "quero reservar 500 caixas de dipirona"
+    - user: "quero reservar 500 caixas de dipirona em comprimido"
   expect:
     language: pt
     must_include_any: ["limite", "no máximo", "até 10"]

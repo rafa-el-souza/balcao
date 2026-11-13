@@ -3,7 +3,9 @@
 # when the call starts and closes when its answer or its error arrives; a
 # tool call's span is written when the call returns, dated back by its
 # latency, with its result's length and, for a list, what it lists and how
-# many, taken before the trace cuts the text (FR-12). Names and attributes are the ones the Anthropic SDK gives its own
+# many, taken before the trace cuts the text (FR-12); a refusal also carries
+# its reason code, which tells it from a failure (both are the SDK's
+# tool_error). Names and attributes are the ones the Anthropic SDK gives its own
 # spans. The system prompt is summarised by its size and a digest (threat
 # model SR-12): a changed prompt shows, its text never does.
 class TurnTrace
@@ -75,6 +77,7 @@ class TurnTrace
                                                               })
     span.finish(attributes: { "anthropic.tool_result.content" => call.output, "balcao.latency_ms" => call.latency_ms,
                               "balcao.tool_result.characters" => call.characters, "balcao.tool_result.unit" => call.unit,
-                              "balcao.tool_result.count" => call.count, "error.type" => ("tool_error" if call.is_error) })
+                              "balcao.tool_result.count" => call.count, "balcao.tool_result.refusal" => call.refusal,
+                              "error.type" => ("tool_error" if call.is_error) })
   end
 end

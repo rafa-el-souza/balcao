@@ -32,9 +32,10 @@ class AgentRunner
   # Events, in the order they happen; ModelCall and ToolCall are also in the result.
   ModelStarted = Data.define(:model, :effort)
   ModelCall = Data.define(:model, :effort, :stop_reason, :usage, :latency_ms, :error)
-  # characters is the output's length; unit and count say what a list holds
-  # and how many ("products", 2), nil for a single fact (FR-12).
-  ToolCall = Data.define(:name, :input, :output, :is_error, :latency_ms, :characters, :unit, :count)
+  # refusal is the reason code of a refusal (AgentTool), nil for a result or a
+  # failure; characters is the output's length; unit and count say what a list
+  # holds and how many ("products", 2), nil for a single fact (FR-12).
+  ToolCall = Data.define(:name, :input, :output, :is_error, :refusal, :latency_ms, :characters, :unit, :count)
 
   # outcome: :replied (text and language set), :refused, :incomplete (cut off
   # or empty), :tool_limit, :deadline or :model_error (error set).
@@ -178,7 +179,9 @@ class AgentRunner
     # never runs, even inside a batch of parallel calls (SR-20).
     def permit_tool_call
       @tool_runs += 1
-      raise AgentTool::Error, "the turn's limit of #{MAX_TOOL_CALLS} tool calls is reached" if @tool_runs > MAX_TOOL_CALLS
+      return if @tool_runs <= MAX_TOOL_CALLS
+
+      raise AgentTool::Error.new("the turn's limit of #{MAX_TOOL_CALLS} tool calls is reached", reason: "tool_limit")
     end
 
     def remaining = @deadline - @clock.call

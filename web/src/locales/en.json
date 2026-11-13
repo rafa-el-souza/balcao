@@ -141,7 +141,10 @@
       "other": "error"
     },
     "tool": {
-      "failed": "the tool refused or failed",
+      "failed": "the tool failed",
+      "refused": "refused",
+      "refusedFor": "refused: {{reason}}",
+      "reservation": "reservation {{code}}",
       "cut": "cut at {{max}} characters",
       "units": {
         "products_zero": "no results",
@@ -156,6 +159,18 @@
         "services_zero": "no services",
         "services_one": "{{count}} service",
         "services_other": "{{count}} services"
+      },
+      "reasons": {
+        "unknown_topic": "unknown topic",
+        "empty_query": "empty search",
+        "long_query": "search too long",
+        "unknown_product": "product not found",
+        "prescription": "needs a prescription",
+        "invalid_quantity": "invalid quantity",
+        "over_limit": "over 10 units",
+        "open_limit": "3 reservations already open",
+        "low_stock": "less stock than asked",
+        "out_of_stock": "out of stock"
       }
     }
   },

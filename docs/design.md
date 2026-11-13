@@ -238,10 +238,12 @@ prescription is required.
 - Given a visitor with 3 open reservations, When they ask for a fourth, Then
   the attendant refuses and lists the open ones.
 - Given a product that requires a prescription (FR-06), When the visitor
-  asks to reserve it, Then no tool is called and the reply is the fixed
-  refusal: the product is listed with its price, but it is sold only
-  against the prescription presented at the counter, so nothing is
-  reserved (`reservation_created: false`).
+  asks to reserve it, Then `search_products` gives its price and its flag
+  and `create_reservation` is not called: the reply lists the product with
+  its price and says that it is sold only against the prescription
+  presented at the counter, so nothing is reserved (`reservation_created:
+  false`). Called anyway, the tool refuses it (SR-16). (The owner's
+  reading, 2026-11-13; §10, PR-13's note.)
 
 **FR-08 Service appointments.** A visitor can book an in-store service
 (injection administration, blood-pressure check, glucose check) into a
@@ -1553,6 +1555,107 @@ MVP from its first day and merges at day 11.
 ## 10. Open decisions
 
 Tracked here until resolved; each resolution becomes an ADR or an edit.
+
+- Note 2026-11-13 (PR-13, FR-07: the reservation, its limits and the
+  prescription product). Choices the text left open:
+  - **The prescription product (the owner, 2026-11-13).** FR-07 said that no
+    tool is called and that the reply is a fixed refusal giving the price,
+    but the price and the flag exist only in the catalogue, which the model
+    reaches through `search_products`; with no tool the model would guess
+    the flag from its own knowledge, against the prompt's rule on facts,
+    and could give no price. The owner chose the drawing's reading
+    (`docs/prototype/chat-prescription.html`): the search runs,
+    `create_reservation` is not called, and the model words the refusal;
+    called anyway, the tool refuses it (`prescription`). FR-07's scenario
+    and `reservation-prescription-refused-pt-01` (`tools:
+    [search_products]`) now say so.
+  - **The product's id in a later turn.** The history the model reads holds
+    the visitor's messages and the replies, never a turn's tool results
+    (§6.3; PR-06's note), so a reservation asked for in a turn after the
+    search searches again for the product's id, which also reads the stock
+    as it is then. `reservation-ok-pt-01` expected `create_reservation`
+    alone, written before that history was; it now expects
+    `[search_products, create_reservation]` and that the reservation exists,
+    and asks for the tablets by name, since the model asks which dipirona
+    when a request could be either (review findings C4 and V2 of pull
+    request #19, which named the form in `reservation-too-many-pt-01` too).
+  - **The key first.** The tool looks up the turn's reservation of the
+    product before anything else (review finding RN2 of pull request #7)
+    and answers with it, whatever quantity the call asks; then come the
+    product (by its id, listed), its prescription flag, the quantity (a
+    whole number of at least one), the visitor's open reservations, the
+    stock and the limit of 10, each refusing with its message for the model
+    and its reason code. The stock and the cap come before the limit, so the
+    alternative a refusal offers can be had: nothing out of stock, what the
+    stock holds below ten, ten above it (review finding C3 of pull request
+    #19).
+  - **Open reservations** are those open and inside their pickup deadline
+    (`Reservation.held_by`): one past its deadline that the nightly job
+    (PR-16) has not expired yet still holds its units but no longer counts
+    toward the three. The refusal for the cap names none of the three, since
+    they may be another conversation's and the refusal is this
+    conversation's trace (FR-12); the system lists them under the reply with
+    their fixed lines, whatever the model wrote (review findings C5 and N1
+    of pull request #19).
+  - **The stock** leaves by a relative decrement that never goes below
+    zero, in the reservation's own transaction, after the visitor's row is
+    locked, so the cap holds without the conversation's lock; when the units
+    are gone by then, the reservation goes back with the transaction and the
+    tool says how many there are (`low_stock`) or that there are none
+    (`out_of_stock`). This is the decrement the seed's stock step counts on
+    (review finding C4 of pull request #8). SR-16's row said no tool can
+    change stock, against FR-07's decrement; it now says no tool can set
+    stock, `create_reservation` taking the units it reserves and nothing
+    else (a note of the review of pull request #19).
+  - **The pickup deadline** is the closing time of the first day after the
+    reservation's own, in São Paulo, that has hours (`StoreSheet#pickup_until`);
+    the store sheet now refuses a week without a business day.
+  - **The result's keys**, as drawn: `code`, `quantity`, `product` (its
+    name) and `pickup_until` (ISO 8601 with its offset), the same for a
+    reservation found by its key. The description asks for the deadline as
+    a day and a time, never as the timestamp, and `reservation-ok-pt-01`
+    looks for the timestamp in the reply (review finding C2 of pull request
+    #19, which reading the code could not decide).
+  - **The facts in the reply.** FR-07 has the reply carry the code and the
+    deadline. A reply that leaves out a reservation's code or its deadline,
+    the day as day/month and the time as HH:MM, is followed by that
+    reservation's fixed line, as the fallback is, so the visitor always
+    learns the code and the next turn's model reads it in the history
+    (review findings C1 and V3 of pull request #19). The time alone is no
+    deadline, since every weekday closes at 20:00, and a day named without
+    its date ("amanhã", "segunda") cannot be told right from wrong, so such
+    a reply gets the line too, at the cost of saying the deadline twice
+    (findings R1 and V4 of the same review).
+  - **The reason code.** A refusal is the SDK's `tool_error`, as a failure
+    is, and carries `balcao.tool_result.refusal`, its reason. Each tool
+    lists its reasons (`REASONS`), a reason outside the list is a bug, and
+    `spec/agent/tool_refusals_spec.rb` holds the lists and the panel's words
+    (`instrument.tool.reasons` in the web app's locale files) equal. The
+    glass box writes "recusado: <reason>" in the instrument's own ink, "a
+    ferramenta falhou" in the error colour and "reserva <code>" for a
+    reservation made; the gate of SR-20 gives its refusal a reason too
+    (`tool_limit`), though a call it stops draws no row. The refusals stored
+    before the reason code are given theirs by a migration that matches
+    their text, which is the tool's message whole and never a failure's
+    (review finding C2 of pull request #19).
+  - **The code in the chat** is a stamp wherever a reply writes a code of
+    one of the visitor's own reservations, whatever conversation made it:
+    the conversation's stream and the polling endpoint list, for each
+    reply, the codes it writes (`codes`), read from the visitor's
+    reservations and never from the shape of the text (review finding C1 of
+    pull request #19). The trace page stamps nothing.
+  - **Open.** Until the nightly job (PR-16) expires reservations and resets
+    the stock, only a deletion (FR-05) gives units back, so the demo's stock
+    only goes down. A turn left without a reply after two breaks (R3 and V4
+    of pull request #18) leaves its request in the next turn's history,
+    whose model may reserve it again under that turn's key: the key holds
+    one turn, not the conversation. For the owner (review finding N1 of pull
+    request #19): FR-07 has the reply list the open reservations at the cap,
+    and the trace page shows the reply, so a reservation made in an earlier
+    conversation of the visitor's is in this conversation's trace, against
+    FR-12's "never shows ... other conversations"; whether FR-12 means
+    another visitor's conversations, as SR-05 frames it, is the owner's
+    reading.
 
 - Note 2026-11-13 (PR-12, NFR-03: a turn that breaks, the dead letter and
   the wait). Choices the text left open:

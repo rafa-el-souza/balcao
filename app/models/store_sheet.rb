@@ -39,6 +39,17 @@ class StoreSheet
   # with hours (design §1.4).
   def hours_on(date) = @hours.fetch(date.wday)
 
+  # The pickup deadline of a reservation made at this time (FR-07): the end of
+  # the next business day, that is the closing time of the first day after the
+  # reservation's own, in São Paulo (design §1.4), that has hours. The file
+  # opens on at least one day of the week, so there is one within seven.
+  def pickup_until(time)
+    date = time.in_time_zone.to_date
+    day = (1..7).map { |offset| date + offset }.find { |candidate| hours_on(candidate) }
+    hour, minute = hours_on(day).closes.split(":").map(&:to_i)
+    Time.zone.local(day.year, day.month, day.day, hour, minute)
+  end
+
   # The week from Monday, as the system prompt lists it: [day, Hours or nil].
   def week = WEEKDAYS.each_index.map { |wday| [ WEEKDAYS[wday], @hours[wday] ] }.rotate(1)
 
@@ -58,7 +69,11 @@ class StoreSheet
     require_mapping(hours, "hours")
     raise Invalid, "hours must name the seven days, #{WEEKDAYS.join(", ")}" unless hours.keys.sort == WEEKDAYS.sort
 
-    WEEKDAYS.map { |day| check_day(hours[day], "hours.#{day}") }
+    week = WEEKDAYS.map { |day| check_day(hours[day], "hours.#{day}") }
+    # A reservation is picked up on a business day (FR-07).
+    raise Invalid, "hours must open on at least one day of the week" if week.none?
+
+    week
   end
 
   def check_day(day, path)

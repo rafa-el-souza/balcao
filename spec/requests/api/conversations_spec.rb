@@ -28,7 +28,7 @@ RSpec.describe "FR-18 SR-05 GET /api/conversations/current, the polling fallback
       expect(json["messages"]).to eq [ {
         "id" => inbound.id, "client_id" => inbound.external_id, "conversation_id" => conversation.id,
         "turn_id" => turn.id, "author" => "visitor", "notice" => nil, "body" => "¿tienen dipirona?",
-        "created_at" => inbound.created_at.iso8601(3)
+        "codes" => [], "created_at" => inbound.created_at.iso8601(3)
       } ]
       expect(json["spans"]).to eq [ TraceRecorder.payload(
         span.attributes.symbolize_keys.merge(attributes: span.span_attributes)
@@ -43,9 +43,24 @@ RSpec.describe "FR-18 SR-05 GET /api/conversations/current, the polling fallback
 
       expect(json["messages"].last).to eq(
         "id" => reply.id, "client_id" => nil, "conversation_id" => conversation.id, "turn_id" => turn.id,
-        "author" => "bot", "notice" => nil, "body" => "Sí, tenemos.", "created_at" => reply.created_at.iso8601(3)
+        "author" => "bot", "notice" => nil, "body" => "Sí, tenemos.", "codes" => [],
+        "created_at" => reply.created_at.iso8601(3)
       )
       expect(json["pending"]).to be false
+    end
+
+    # FR-07: the chat stamps a reservation's code where a reply writes it
+    # (docs/prototype/chat-reservation.html), from the codes the server lists:
+    # the visitor's own reservations, whatever conversation made them, and no
+    # other visitor's (SR-05; review finding C1 of pull request #19).
+    it "lists the codes of the visitor's own reservations a reply writes, and no other visitor's" do
+      create(:reservation, visitor:, turn: nil, code: "4K2QHM")
+      create(:reservation, code: "7NPX3R")
+      Message.record_outbound!(turn:, body: "Reserva 4K2QHM: 2 × Dipirona. E 7NPX3R, que não é sua.")
+
+      get "/api/conversations/current"
+
+      expect(json["messages"].map { |message| message["codes"] }).to eq([ [], [ "4K2QHM" ] ])
     end
 
     # Review finding N1 of pull request #17: the notice was told apart by

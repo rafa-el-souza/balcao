@@ -151,3 +151,49 @@ export function commandTurn(turn: string, name: string, minute = 12) {
     ),
   ];
 }
+
+// A tool call's attributes, for answeredTurn's `tool`: a reservation made
+// (app/agent/tools/create_reservation.rb), a refusal with its reason code and
+// a failure, both the SDK's tool_error (app/models/turn_trace.rb).
+export function reservationTool(code: string) {
+  const result = JSON.stringify({
+    code,
+    quantity: 2,
+    product: "Dipirona 500 mg, 10 comprimidos",
+    pickup_until: "2026-11-13T20:00:00-03:00",
+  });
+  return {
+    "gen_ai.tool.name": "create_reservation",
+    "gen_ai.tool.call.arguments":
+      '{"product_id":"01a1cb3a-c25c-7759-a408-78909fba8f60","quantity":2}',
+    "anthropic.tool_result.content": result,
+    "balcao.tool_result.characters": result.length,
+    "balcao.latency_ms": 61,
+  };
+}
+
+export function refusedTool(name: string, reason: string, content: string) {
+  return {
+    "gen_ai.tool.name": name,
+    "gen_ai.tool.call.arguments":
+      '{"product_id":"01a1cb3a-c25c-7759-a408-78909fba8f60","quantity":20}',
+    "anthropic.tool_result.content": content,
+    "balcao.tool_result.characters": content.length,
+    "balcao.tool_result.refusal": reason,
+    "balcao.latency_ms": 9,
+    "error.type": "tool_error",
+  };
+}
+
+export function failedTool(name: string) {
+  const content =
+    "The tool failed. Tell the visitor you could not check this right now.";
+  return {
+    "gen_ai.tool.name": name,
+    "gen_ai.tool.call.arguments": '{"query":"dipirona"}',
+    "anthropic.tool_result.content": content,
+    "balcao.tool_result.characters": content.length,
+    "balcao.latency_ms": 12,
+    "error.type": "tool_error",
+  };
+}

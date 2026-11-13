@@ -48,10 +48,14 @@ class Message < ApplicationRecord
   # The message as the conversation's stream and the polling endpoint carry
   # it (FR-18): the turn of an inbound message is the caller's to give, and a
   # web message carries the id its client generated, so the page can match
-  # it to the one it sent.
-  def stream_payload(turn_id: self.turn_id, first_reply: first_reply?)
+  # it to the one it sent. A reply lists the codes it writes of the visitor's
+  # own reservations, the caller's to give, whatever conversation made them,
+  # which the chat stamps (FR-07; docs/prototype/chat-reservation.html;
+  # review finding C1 of pull request #19); the visitor's own words list none.
+  def stream_payload(turn_id: self.turn_id, first_reply: first_reply?, reservation_codes: [])
     { id:, client_id: (external_id if inbound? && channel == "web"), conversation_id:, turn_id:,
-      **trace_payload(turn_id:, first_reply:).slice(:author, :notice, :body, :created_at) }
+      **trace_payload(turn_id:, first_reply:).slice(:author, :notice, :body, :created_at),
+      codes: outbound? ? reservation_codes.select { |code| body.include?(code) } : [] }
   end
 
   # The message as a trace page shows it (FR-12), to any holder of the link:

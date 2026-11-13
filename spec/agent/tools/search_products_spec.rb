@@ -25,6 +25,12 @@ RSpec.describe "FR-06 SR-16 SR-21 search_products, the catalogue lookup" do
     expect(Tools::SearchProducts.doc_string).to include("active ingredient", "brand", "Portuguese")
   end
 
+  # The history carries no tool results, so a reservation asked for in a
+  # later turn searches again for the id (FR-07; design §10, PR-13's note).
+  it "tells the model that each product's id is what create_reservation takes, never shown to the visitor" do
+    expect(Tools::SearchProducts.doc_string).to include("id", "create_reservation", "never show")
+  end
+
   it "answers each product with its id, price as the visitor reads it, stock and prescription flag" do
     product = Product.find_by!(sku: "amoxicilina-500mg-21caps")
 
@@ -79,6 +85,11 @@ RSpec.describe "FR-06 SR-16 SR-21 search_products, the catalogue lookup" do
     expect { search(query: "  ") }.to raise_error(AgentTool::Error, /query is empty/)
     expect { search(query: { name: "dipirona" }) }.to raise_error(AgentTool::Error, /query is empty/)
     expect { search(query: "dipirona " * 12) }.to raise_error(AgentTool::Error, /100 characters/)
+  end
+
+  it "gives each refusal its reason code, for the glass box (FR-12)" do
+    expect { search(query: "  ") }.to raise_error(an_object_having_attributes(reason: "empty_query"))
+    expect { search(query: "dipirona " * 12) }.to raise_error(an_object_having_attributes(reason: "long_query"))
   end
 
   it "reads control characters in the query as spaces" do

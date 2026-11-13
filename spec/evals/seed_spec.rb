@@ -60,6 +60,34 @@ RSpec.describe "FR-03 FR-06 FR-07 FR-21 SR-21 the eval cases find their facts in
     end
   end
 
+  # The default seed holds two dipirona products, and create_reservation's
+  # description has the model ask which one when a request could be either,
+  # so a case that expects a reservation, or the limit's words, names the
+  # form (review finding C4 of pull request #19).
+  def final_message(id) = cases.find { |kase| kase["id"] == id }.fetch("turns").last.fetch("user")
+
+  # The dipirona products a message names by a word of the name that the
+  # other's lacks ("comprimido", "gota").
+  def dipirona_named(message)
+    products = products_matching(catalogue, "dipirona")
+    words = products.to_h { |entry| [ entry, entry[:name].downcase.split(/[^[:alnum:]]+/).select { |word| word.size >= 4 } ] }
+    products.select do |entry|
+      others = (products - [ entry ]).flat_map { |other| words[other] }
+      (words[entry] - others).any? { |word| message.include?(word.delete_suffix("s")) }
+    end
+  end
+
+  it "has reservation-ok-pt-01 ask for one of the two dipirona products" do
+    expect(products_matching(catalogue, "dipirona").size).to eq(2)
+    expect(dipirona_named(final_message("reservation-ok-pt-01")).size).to eq(1)
+  end
+
+  # Review finding V2 of pull request #19: a model that asks which dipirona
+  # first may not say the limit at all.
+  it "has reservation-too-many-pt-01 ask for one of the two dipirona products" do
+    expect(dipirona_named(final_message("reservation-too-many-pt-01")).size).to eq(1)
+  end
+
   it "has less dipirona in any one product than the 500 boxes reservation-too-many-pt-01 asks for" do
     expect(products_matching(catalogue, "dipirona").map { |entry| entry[:stock] }).to all(be < 500)
   end

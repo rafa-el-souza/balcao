@@ -12,6 +12,7 @@ module Tools
   class SearchProducts < AgentTool
     MAX_RESULTS = 5
     MAX_QUERY = 100
+    REASONS = %w[empty_query long_query].freeze
 
     class Input < Anthropic::BaseModel
       required :query, String, doc: "A product name or an active ingredient, in Portuguese."
@@ -27,7 +28,8 @@ module Tools
         "by its active ingredient, never by a brand: write the query in Portuguese, turning a brand into its " \
         "active ingredient and an English or Spanish name into the Portuguese one (amoxicillin is amoxicilina). " \
         "Typos are tolerated. Each product comes with its price, its stock (0 is out of stock) and whether it " \
-        "requires a prescription, which is presented at the counter. Each also comes with its match: exact when " \
+        "requires a prescription, which is presented at the counter, and with its id, which create_reservation " \
+        "takes and you never show the visitor. Each also comes with its match: exact when " \
         "every word of the query is in it; close when it only resembles the query; partial when only some words " \
         "of the query are in it, listed only when nothing matches the whole query. A close match may be another " \
         "medicine with a similar name (omeprazol for esomeprazol). Name a close or partial product by its own " \
@@ -42,8 +44,8 @@ module Tools
     def perform(input)
       query = input.to_h[:query]
       query = query.is_a?(String) ? query.gsub(/[[:cntrl:]]/, " ").squish : ""
-      raise Error, EMPTY if query.empty?
-      raise Error, LONG if query.length > MAX_QUERY
+      refuse(EMPTY, "empty_query") if query.empty?
+      refuse(LONG, "long_query") if query.length > MAX_QUERY
 
       products = Product.search(query, limit: limit(input))
       { "query" => query, "products" => products.map { |product| entry(product) } }

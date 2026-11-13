@@ -61,6 +61,15 @@ type Unit = (typeof UNITS)[number];
 const isUnit = (value: string): value is Unit =>
   (UNITS as readonly string[]).includes(value);
 
+// The reason code of a tool's refusal, in words: the tools' lists
+// (REASONS in app/agent/tools) are the keys of these words, which
+// spec/agent/tool_refusals_spec.rb holds equal (docs/prototype/
+// chat-tool-refused.html). A reason the page does not know says only that
+// the tool refused.
+type Reason = keyof typeof ptBR.instrument.tool.reasons;
+const isReason = (value: string): value is Reason =>
+  Object.hasOwn(ptBR.instrument.tool.reasons, value);
+
 function CacheMark({ hit }: { hit: boolean }) {
   const { t } = useTranslation();
   return (
@@ -234,11 +243,25 @@ function ToolRow({
     !row.failed && row.count !== null && row.unit !== null && isUnit(row.unit)
       ? t(`instrument.tool.units.${row.unit}`, { count: row.count })
       : null;
+  // A rule the tool enforces is not a failure: it keeps the instrument's own
+  // ink, and only a failure takes the error colour.
+  const refused = row.failed && row.refusal !== null;
+  const outcome = refused
+    ? row.refusal !== null && isReason(row.refusal)
+      ? t("instrument.tool.refusedFor", {
+          reason: t(`instrument.tool.reasons.${row.refusal}`),
+        })
+      : t("instrument.tool.refused")
+    : row.failed
+      ? t("instrument.tool.failed")
+      : row.reservation !== null
+        ? t("instrument.tool.reservation", { code: row.reservation })
+        : counted;
 
   return (
     <li
       className={cx(styles.event, className)}
-      {...(row.failed ? { "data-state": "refused" } : {})}
+      {...(row.failed ? { "data-state": refused ? "refused" : "error" } : {})}
     >
       <Time at={row.at} />
       <details className={styles.what} open={open}>
@@ -257,9 +280,9 @@ function ToolRow({
             {row.result}
           </pre>
         )}
-        {(counted !== null || cut || row.failed) && (
+        {(outcome !== null || cut) && (
           <p className={styles.outcome}>
-            {row.failed ? t("instrument.tool.failed") : counted}
+            {outcome}
             {cut && (
               <>
                 {" "}

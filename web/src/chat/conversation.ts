@@ -27,6 +27,8 @@ export interface Entry {
   text: string;
   // FR-01's notice, stamped apart from the reply it came with.
   notice?: boolean;
+  // The reservation codes a reply stamps where it writes them (FR-07).
+  marks?: string[];
   // An opener's language, when it is not the page's.
   lang?: string;
   // The page's own message: the id it generated, its state and its content.
@@ -284,11 +286,28 @@ function merge(state: State, answer: Snapshot | Deleted): State {
   };
 }
 
+// A reservation's code as the server draws it (app/models/reservation.rb).
+const CODE = /^[0-9A-Z]+$/;
+
+// The codes a reply stamps: those the server lists, the visitor's own
+// reservations the reply writes, whatever conversation made them, never a
+// word of that shape (docs/prototype/chat-reservation.html; review finding
+// C1 of pull request #19). Each is letters and digits, as a pattern needs.
+function codesOf(message: ServerMessage): string[] {
+  const codes: unknown = message.codes;
+  return Array.isArray(codes)
+    ? codes.filter(
+        (code): code is string => typeof code === "string" && CODE.test(code),
+      )
+    : [];
+}
+
 // The thread as drawn: the server's messages in its order and then the
 // messages still travelling, each followed by what the page anchored after it.
 export function entriesOf(state: State): Entry[] {
   const fromServer = (message: ServerMessage): Entry[] => {
     const lang = message.client_id ? state.langs[message.client_id] : undefined;
+    const marks = message.author === "visitor" ? [] : codesOf(message);
     return [
       // FR-01's notice, which the server sends apart from the reply.
       ...(message.notice
@@ -306,6 +325,7 @@ export function entriesOf(state: State): Entry[] {
         voice: VOICES[message.author],
         text: message.body,
         ...(lang ? { lang } : {}),
+        ...(marks.length > 0 ? { marks } : {}),
       },
     ];
   };
@@ -353,6 +373,7 @@ export function entriesOf(state: State): Entry[] {
       voice,
       text,
       notice,
+      marks,
       lang,
       clientId,
       status,
@@ -364,6 +385,7 @@ export function entriesOf(state: State): Entry[] {
       voice,
       text,
       ...(notice ? { notice } : {}),
+      ...(marks ? { marks } : {}),
       ...(lang ? { lang } : {}),
       ...(clientId ? { clientId } : {}),
       ...(status ? { status } : {}),

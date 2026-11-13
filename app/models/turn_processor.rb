@@ -10,7 +10,10 @@
 # - anything else goes through AgentRunner, whose events become the turn's
 #   spans (FR-12), and its outcome becomes the reply: the model's text, the
 #   refusal's fixed text (SR-19) or the fallback (NFR-03), the last two
-#   followed by the line of any reservation the turn stored;
+#   followed by the line of any reservation the turn stored, and the first by
+#   the line of a reservation whose code or pickup time it left out and, when
+#   the cap of open reservations refused one, by the lines of those the
+#   visitor holds (FR-07);
 # - a turn the job gave up on after its attempts gets the fallback too
 #   (give_up, NFR-03).
 #
@@ -184,13 +187,44 @@ class TurnProcessor
   def reply_of(result)
     language = @conversation.language
     case result.outcome
-    when :replied then [ result.text, "replied" ]
+    when :replied then [ with_facts(result, language), "replied" ]
     when :refused then [ FixedReply.with_reservations(FixedReply.declined(language), reservations, language), "replied" ]
     else [ FixedReply.with_reservations(FixedReply.fallback(language), reservations, language), "failed" ]
     end
   end
 
   def reservations = Reservation.where(turn_id: @turn.id).includes(:product).order(:created_at, :id).to_a
+
+  # FR-07: the reply carries each reservation's code and pickup deadline. The
+  # model is told to write them; a reply that leaves out a reservation's code
+  # or its deadline is followed by that reservation's line, as the fallback
+  # is (review finding C1 of pull request #19), so the visitor always learns
+  # the code, and the next turn's model reads it in the history. When the cap
+  # of open reservations refused one, the ones the visitor holds are listed
+  # the same way, which the refusal leaves to the system, since they may be
+  # another conversation's (findings C5 and N1 of the same review).
+  def with_facts(result, language)
+    text = result.text
+    facts = reservations
+    facts |= held_reservations if result.tool_calls.any? { |call| call.refusal == "open_limit" }
+    FixedReply.with_reservations(text, facts.reject { |reservation| written?(text, reservation) }, language)
+  end
+
+  # The reply writes the reservation's code and its deadline: the day as
+  # day/month and the time as HH:MM, as the description asks. The time alone
+  # is not the deadline, since every weekday closes at the same hour, and a
+  # day named without its date ("amanhã", "segunda") cannot be told right
+  # from wrong, so such a reply gets the line too (finding R1 of the same
+  # review).
+  def written?(text, reservation)
+    pickup = reservation.pickup_until.in_time_zone
+    text.include?(reservation.code) && text.include?(pickup.strftime("%H:%M")) &&
+      text.match?(%r{(?<!\d)0?#{pickup.day}/0?#{pickup.month}(?!\d)})
+  end
+
+  def held_reservations
+    Reservation.held_by(@conversation.visitor).includes(:product).order(:created_at, :id).to_a
+  end
 
   def finish(outcome, state, text, error: nil)
     raise ArgumentError, "#{outcome} is not in TurnProcessor::OUTCOMES" unless OUTCOMES.include?(outcome.to_s)
@@ -225,7 +259,10 @@ class TurnProcessor
     Message.record_outbound!(turn: @turn, body:, conversation:)
   end
 
-  def broadcast_reply(message) = broadcast(type: "message", message: message.stream_payload)
+  def broadcast_reply(message)
+    codes = Reservation.where(visitor_id: @conversation.visitor_id).pluck(:code)
+    broadcast(type: "message", message: message.stream_payload(reservation_codes: codes))
+  end
 
   # On the stream of the turn's conversation, the one the visitor's page
   # follows; a reset's reply names the conversation it opened. A broadcast

@@ -50,12 +50,30 @@ RSpec.describe "SR-16 AgentTool, the base of the attendant's tools (design §6.3
     expect(calls.first).to have_attributes(is_error: true, output: "no such topic")
   end
 
+  # The drawings' reason code (design §10, note of 2026-11-12;
+  # docs/prototype/chat-tool-refused.html): a rule the tool enforces is not a
+  # failure, and the glass box words each reason.
+  it "reports a refusal with its reason code, which tells it from a failure (FR-12)" do
+    expect { tool(SpecTools::Refuse).call(input) }.to raise_error(AgentTool::Error)
+    expect(calls.first).to have_attributes(is_error: true, refusal: "unknown_topic")
+  end
+
+  it "has no refusal without its reason code" do
+    expect { AgentTool::Error.new("no such topic") }.to raise_error(ArgumentError, /reason/)
+  end
+
   it "keeps a bug's message from the model and logs it" do
     allow(Rails.logger).to receive(:error)
 
     expect { tool(SpecTools::Crash).call(input) }.to raise_error(AgentTool::Error, AgentTool::FAILED)
-    expect(calls.first).to have_attributes(is_error: true, output: AgentTool::FAILED)
+    expect(calls.first).to have_attributes(is_error: true, output: AgentTool::FAILED, refusal: nil)
     expect(Rails.logger).to have_received(:error).with(/crash.*RuntimeError/)
+  end
+
+  it "reports a call that answered with no refusal" do
+    tool(SpecTools::Echo).call(input)
+
+    expect(calls.first).to have_attributes(is_error: false, refusal: nil)
   end
 end
 

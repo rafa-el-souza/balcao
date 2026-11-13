@@ -61,6 +61,7 @@ RSpec.describe "FR-03 SR-16 get_store_info, the store sheet's topics" do
   it "re-checks the topic on the server and tells the model what to do with an unknown one (SR-16)" do
     expect { tool.call(input("pet_food")) }
       .to raise_error(AgentTool::Error, /no such topic.*delivery, payment, services, contact, parking.*hours.*do not know/i)
-    expect(calls.first).to have_attributes(name: "get_store_info", input: { "topic" => "pet_food" }, is_error: true)
+    expect(calls.first).to have_attributes(name: "get_store_info", input: { "topic" => "pet_food" }, is_error: true,
+                                           refusal: "unknown_topic")
   end
 end

@@ -300,7 +300,74 @@ describe("FR-12 the glass box's rows, one per model call, from the spans", () =>
 
     const [turn] = turnsOf(spans);
 
-    expect(turn?.rows[2]).toMatchObject({ failed: true });
+    expect(turn?.rows[2]).toMatchObject({ failed: true, refusal: null });
+  });
+
+  // The drawings' reason code (docs/prototype/chat-tool-refused.html): a
+  // rule the tool enforces is told from its failure by the reason the
+  // server gives it.
+  it("gives a tool's refusal its reason code, which a failure lacks", () => {
+    const spans = answered();
+    const tool = spans[2];
+    if (tool)
+      tool.attributes = {
+        ...tool.attributes,
+        "error.type": "tool_error",
+        "balcao.tool_result.refusal": "over_limit",
+      };
+
+    const [turn] = turnsOf(spans);
+
+    expect(turn?.rows[2]).toMatchObject({
+      failed: true,
+      refusal: "over_limit",
+    });
+  });
+
+  // docs/prototype/chat-reservation.html: the row names the reservation,
+  // from the tool's result.
+  it("reads the code of a reservation the tool made from its result", () => {
+    const spans = answered();
+    const tool = spans[2];
+    if (tool)
+      tool.attributes = {
+        "gen_ai.tool.name": "create_reservation",
+        "anthropic.tool_result.content":
+          '{"code":"4K2QHM","quantity":2,"product":"Dipirona 500 mg","pickup_until":"2026-11-13T20:00:00-03:00"}',
+      };
+
+    const [turn] = turnsOf(spans);
+
+    expect(turn?.rows[2]).toMatchObject({ reservation: "4K2QHM" });
+  });
+
+  it("reads no code from a refusal, another tool's result or a result that is not the reservation's", () => {
+    const results: [string, string, string | undefined][] = [
+      ["create_reservation", '{"code":"4K2QHM"}', "tool_error"],
+      ["search_products", '{"code":"4K2QHM"}', undefined],
+      [
+        "create_reservation",
+        '{"code":"4K2QHM","quantity":2,"product":"Dipir',
+        undefined,
+      ],
+      ["create_reservation", '{"code":["4K2QHM"]}', undefined],
+      ["create_reservation", '{"code":"<b>4K</b>"}', undefined],
+      ["create_reservation", "[1]", undefined],
+    ];
+    for (const [name, content, error] of results) {
+      const spans = answered();
+      const tool = spans[2];
+      if (tool)
+        tool.attributes = {
+          "gen_ai.tool.name": name,
+          "anthropic.tool_result.content": content,
+          "error.type": error,
+        };
+
+      const [turn] = turnsOf(spans);
+
+      expect(turn?.rows[2], content).toMatchObject({ reservation: null });
+    }
   });
 
   it("sums a turn's input, cache read and output for the trace page's total", () => {

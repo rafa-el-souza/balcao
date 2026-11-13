@@ -17,6 +17,9 @@ export interface ServerMessage {
   // (FR-01; design §10, note of 2026-11-12).
   notice?: string | null;
   body: string;
+  // The codes of the visitor's own reservations a reply writes, which the
+  // chat stamps (FR-07; app/models/message.rb).
+  codes?: string[];
   created_at: string;
 }
 
