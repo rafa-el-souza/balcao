@@ -40,6 +40,26 @@ RSpec.describe "FR-02 the eval runner tells a reply's language" do
     expect(detection.scores.keys).to match_array(%w[pt en es])
   end
 
+  # Review finding S1 of pull request #20 (and C9, its sister): a word two of
+  # the languages use counts for none, and a Portuguese pronoun joined by a
+  # hyphen ("reservá-la") is not the Spanish article.
+  it "does not read Spanish as Portuguese for the words they share" do
+    expect(detect("Sí, nos quedan dos cajas.")).not_to eq("pt")
+    expect(detect("Tenemos paracetamol e ibuprofeno, y nos quedan dos cajas de cada uno.")).to eq("es")
+  end
+
+  it "scores no Portuguese for English 'do', no English for Portuguese 'for', no Spanish for a Portuguese enclitic" do
+    expect(Evals::Language.detect("Do you want me to reserve it? Do tell me.").scores.fetch("pt")).to eq(0)
+    expect(Evals::Language.detect("Se for preciso, o farmacêutico atende no balcão.").scores.fetch("en")).to eq(0)
+    expect(Evals::Language.detect("Posso reservá-la ou apagá-las para você.").scores.fetch("es")).to eq(0)
+  end
+
+  it "lists no word another of the three languages uses commonly" do
+    shared = %w[dos nos do e da os for]
+
+    expect(Evals::Language::WORDS.values.flat_map(&:to_a) & shared).to be_empty
+  end
+
   it "keeps the three word lists apart, so a word counts for one language only" do
     lists = Evals::Language::WORDS.values
 
