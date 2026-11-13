@@ -14,7 +14,8 @@ production:
     command: "SolidQueue::Job.clear_finished_in_batches(sleep_between_batches: 0.3)"
     schedule: every hour at minute 12
   # The cable's copies past their 5 minutes (config/cable.yml; threat model
-  # SR-32, ADR-0015), whatever the writes.
+  # SR-32, ADR-0015), whatever the writes, all of them each run: Solid Cable's
+  # own TrimJob deletes 100 (review finding C1 of pull request #23).
   trim_solid_cable_messages:
-    class: SolidCable::TrimJob
+    command: "SolidCable::Message.trimmable.in_batches.delete_all"
     schedule: every 5 minutes

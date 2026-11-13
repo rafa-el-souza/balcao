@@ -99,10 +99,12 @@ Rails offers no setting for any of these.
   after.
 - **Origin:** `allow_same_origin_as_host` is off, so the cable accepts the
   public origin alone and no longer leans on production's host check.
-- **Solid Cable keeps a copy 5 minutes and `SolidCable::TrimJob` runs every
-  5** (`config/recurring.yml`), so a copy outlives its broadcast by about 10
-  minutes; SR-32 names that exception rather than `/apagar` deleting the
-  copies.
+- **Solid Cable keeps a copy 5 minutes, and a recurring task deletes every
+  copy past them every 5** (`config/recurring.yml`), so a copy outlives its
+  broadcast by about 10 minutes; SR-32 names that exception rather than
+  `/apagar` deleting the copies. Solid Cable's own `TrimJob` deletes 100 a
+  run, fewer than a conversation of ten turns writes, so the task deletes
+  them in batches through the gem's `trimmable` scope.
 
 ## Consequences
 
