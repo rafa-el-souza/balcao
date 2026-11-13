@@ -102,6 +102,12 @@ Rails offers no setting for any of these.
   reported it). Specs pin the four methods. On a local Puma with the pub/sub
   subscribing at once, as Solid Cable does, 1,000 sockets opened and closed
   at once left 52 connections in the list and 58 alive before, none after.
+  A channel's stream had the same race, `stream_from` posting its subscribe
+  against a closing that unsubscribes at once (review finding S1, measured
+  by another session at 8 in 1,000 subscribed and closed at once): each
+  stream is kept by the app's channel and let go once its subscribe is done,
+  if the channel or its socket is gone by then. The whole race goes away
+  with Rails' main branch, which runs a connection's tasks one at a time.
 - **Origin:** `allow_same_origin_as_host` is off, so the cable accepts the
   public origin alone and no longer leans on production's host check.
 - **Solid Cable keeps a copy 5 minutes, and a recurring task deletes every

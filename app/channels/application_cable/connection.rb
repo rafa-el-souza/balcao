@@ -14,6 +14,9 @@ module ApplicationCable
       self.source = EdgeLimits.source(request.env)
     end
 
+    # The socket is closed or closing (app/channels/application_cable/channel.rb).
+    def gone? = !websocket.alive?
+
     # Every message the socket reads comes through here, from the event loop,
     # before Action Cable's message buffer and its worker pool, whose queue has
     # no bound (spec/channels/command_limit_spec.rb pins that path). Past the

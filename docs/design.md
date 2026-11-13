@@ -1574,8 +1574,9 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
   over; a message is at most 16 KiB, a connection sends at most 20 commands
   a minute, a cable log line is at most 2 KB, the cable accepts the public
   origin alone, Solid Cable keeps its copies 5 minutes, and a connection
-  whose socket closed while it opened is no longer held by Action Cable for
-  good. ADR-0015 has the reasons and the
+  whose socket closed while it opened, or a channel's stream whose socket
+  closed before its subscribe was done, is no longer held by Action Cable
+  for good. ADR-0015 has the reasons and the
   measurements. One departure from the plan as the owner
   approved it: the socket caps were to refuse in the connection's `connect`,
   after the takeover, and they refuse in the gate, before it, since a socket
