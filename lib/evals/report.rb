@@ -84,12 +84,24 @@ module Evals
 
     # Per model: the attendant's input counts the cache read and written, as
     # the trace does (TurnTrace); the judge's is the API's input plus the same.
+    #
+    # A call the refusal fallback served sums its attempts in its span; each
+    # attempt is counted at its own model, from the iterations the trace
+    # keeps (TurnTrace; review finding C5 of pull request #20).
     def usage
       totals = Hash.new { |hash, model| hash[model] = Hash.new(0) }
       attempts = @results.flat_map(&:attempts)
       attempts.filter_map(&:run).flat_map(&:turns).flat_map(&:model_calls).each do |call|
-        add(totals[call.model], input_tokens: call.input_tokens, output_tokens: call.output_tokens,
-                                cache_read_tokens: call.cache_read_tokens, cache_write_tokens: call.cache_write_tokens)
+        if call.iterations.present?
+          call.iterations.each do |entry|
+            read, written = entry["cached_tokens"].to_i, entry["cache_creation_tokens"].to_i
+            add(totals[entry["model"]], input_tokens: entry["input_tokens"].to_i + read + written, output_tokens: entry["output_tokens"],
+                                        cache_read_tokens: read, cache_write_tokens: written)
+          end
+        else
+          add(totals[call.model], input_tokens: call.input_tokens, output_tokens: call.output_tokens,
+                                  cache_read_tokens: call.cache_read_tokens, cache_write_tokens: call.cache_write_tokens)
+        end
       end
       (Array(preflight) + attempts.filter_map(&:verdict)).each do |verdict|
         use = verdict.usage
