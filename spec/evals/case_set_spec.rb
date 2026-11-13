@@ -91,6 +91,13 @@ RSpec.describe "NFR-08 SR-18 the eval cases bin/evals reads" do
     expect(refusal("turns" => [ { "assistant" => "(any)" }, { "user" => "oi" } ])).to include("visitor")
   end
 
+  # The web channel takes 1 to 1,000 characters (Api::MessagesController,
+  # review finding C2 of pull request #20).
+  it "refuses a visitor message the web channel would refuse" do
+    expect(refusal("turns" => [ { "user" => "a" * 1_001 } ])).to include("1,000")
+    expect(refusal("turns" => [ { "user" => "a" * 1_000 } ])).to be_nil
+  end
+
   # The runner executes a prior reply live; a scripted one would never be checked.
   it "refuses a prior reply other than (any)" do
     turns = [ { "user" => "oi" }, { "assistant" => "Olá!" }, { "user" => "tem dipirona?" } ]

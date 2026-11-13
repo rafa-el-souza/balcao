@@ -95,6 +95,25 @@ RSpec.describe "NFR-08 SR-18 the eval runner's pipeline" do
       expect(observation.notice).to eq(FixedReply.notice("pt-BR"))
     end
 
+    # Review finding C2 of pull request #20: the web channel identifies the
+    # visitor on every message, so one who deleted their data starts over.
+    it "starts over a visitor who writes after deleting their data, as the web channel does" do
+      responses.replace([ reply("[pt] Olá! Em que posso ajudar?") ])
+
+      observation = pipeline.run(kase("apagar meus dados", "oi")).observation
+
+      expect(observation.reply).to eq(FixedReply.with_notice("Olá! Em que posso ajudar?", "pt-BR"))
+      expect(observation.data_deleted).to be(false)
+    end
+
+    it "sends a message as the web channel stores it, without a NUL or the spaces around it" do
+      responses.replace([ reply("[pt] Temos, por R$ 7,90.") ])
+
+      pipeline.run(kase("  tem dipirona?\u0000  "))
+
+      expect(fake.requests.sole.body[:messages].last[:content].last).to eq(type: "text", text: "tem dipirona?")
+    end
+
     it "reads a deletion's confirmation from the stream, since no conversation is left to store it" do
       run = pipeline.run(kase("apagar meus dados"))
 

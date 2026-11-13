@@ -31,9 +31,9 @@ module Evals
       result = nil
       ApplicationRecord.transaction(requires_new: true) do
         prepare(kase.seed)
-        visitor = Visitor.identify!(channel: "web", identity_hash: SecureRandom.hex(32))
-        said = kase.messages.map { |text| say(visitor, text) }
-        result = Run.new(turns: said.map(&:first), observation: observe(visitor, *said.last))
+        identity_hash = SecureRandom.hex(32)
+        said = kase.messages.map { |text| say(identity_hash, text) }
+        result = Run.new(turns: said.map(&:first), observation: observe(identity_hash, *said.last))
         raise ActiveRecord::Rollback
       end
       result
@@ -49,14 +49,19 @@ module Evals
       CatalogueSeed.seed!(CatalogueSeed.entries(overlay:))
     end
 
-    def say(visitor, text)
-      turn = Intake.new(visitor).receive!(external_id: SecureRandom.uuid, body: text)
+    # As the web channel takes a message (Api::MessagesController): the
+    # visitor identified by its token on every message, so one who deleted
+    # their data starts over (FR-05), and the text without a NUL or the
+    # spaces around it (review finding C2 of pull request #20).
+    def say(identity_hash, text)
+      visitor = Visitor.identify!(channel: "web", identity_hash:)
+      turn = Intake.new(visitor).receive!(external_id: SecureRandom.uuid, body: text.delete("\u0000").strip)
       stream = "conversation:#{turn.conversation_id}"
       sent = []
       collect = ->(*args) { sent << args.last[:message] if args.last[:broadcasting] == stream }
       ActiveSupport::Notifications.subscribed(collect, "broadcast.action_cable") { ProcessTurnJob.perform_now(turn.id) }
       clear_enqueued_jobs
-      [ record(turn, text, sent), turn.conversation_id ]
+      [ record(turn, text, sent), turn.conversation_id, visitor ]
     end
 
     def record(turn, text, sent)
@@ -107,16 +112,17 @@ module Evals
                    failed: attributes["error.type"] == "tool_error")
     end
 
-    # The last message's reply, the turn's tool calls, and the visitor's
-    # rows: a reservation (FR-07), the case's conversation closed with
-    # another open (FR-04), nothing left of the visitor (FR-05).
-    def observe(visitor, last, conversation_id)
+    # The last message's reply, the turn's tool calls, and the rows of the
+    # visitor who sent it: a reservation (FR-07), the case's conversation
+    # closed with another open (FR-04), nothing left under the visitor's
+    # identity (FR-05).
+    def observe(identity_hash, last, conversation_id, visitor)
       Observation.new(
         reply: last.reply, notice: last.notice, tool_calls: last.tool_calls,
         reservation_created: Reservation.exists?(visitor_id: visitor.id),
         conversation_reset: Conversation.where(id: conversation_id).where.not(closed_at: nil).exists? &&
           Conversation.where(visitor_id: visitor.id, closed_at: nil).where.not(id: conversation_id).exists?,
-        data_deleted: !Visitor.exists?(visitor.id) && !Conversation.exists?(visitor_id: visitor.id) &&
+        data_deleted: !Visitor.exists?(channel: "web", identity_hash:) && !Conversation.exists?(visitor_id: visitor.id) &&
           !Reservation.exists?(visitor_id: visitor.id)
       )
     end

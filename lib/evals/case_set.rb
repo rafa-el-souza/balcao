@@ -91,7 +91,7 @@ module Evals
         role, text = turn.first
         fail_case.call("each turn must be { user: text } or { assistant: \"#{ANY}\" }") unless %w[user assistant].include?(role)
         fail_case.call("a prior reply must be \"#{ANY}\": the runner runs it live") if role == "assistant" && text != ANY
-        fail_case.call("a visitor message must be non-empty text") if role == "user" && !(text.is_a?(String) && text.strip.present?)
+        fail_case.call("a visitor message must be text of 1 to 1,000 characters, as the web channel takes it") if role == "user" && !sendable?(text)
         role
       end
       fail_case.call("turns must start and end with a visitor message") unless roles.first == "user" && roles.last == "user"
@@ -100,6 +100,12 @@ module Evals
       turns.filter_map { |turn| turn["user"] }
     end
     private_class_method :messages
+
+    # Api::MessagesController's bounds, on the text it stores.
+    def self.sendable?(text)
+      text.is_a?(String) && text.delete("\u0000").strip.length.between?(1, Api::MessagesController::MAX_TEXT)
+    end
+    private_class_method :sendable?
 
     def self.expectations(expect, suite, fail_case)
       fail_case.call("expect must name at least one key") unless expect.is_a?(Hash) && expect.any?
