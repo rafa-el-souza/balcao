@@ -48,6 +48,30 @@ module Balcao
     config.middleware.use ActionDispatch::Cookies
     config.middleware.use ActionDispatch::ContentSecurityPolicy::Middleware
 
+    # SR-03: every page and answer denies the browser features the web app
+    # never uses, so a script that got in could not ask for them either. A
+    # literal header beside Rails' defaults: Rails' own middleware for it
+    # (actionpack 8.1) still writes the legacy Feature-Policy name. Each name
+    # is one Chromium knows; an unknown one only warns in the console (Linux
+    # Chromium does not know web-share, so it is left out).
+    config.action_dispatch.default_headers["Permissions-Policy"] = %w[
+      accelerometer autoplay camera display-capture encrypted-media fullscreen
+      geolocation gyroscope hid idle-detection magnetometer microphone midi
+      payment picture-in-picture publickey-credentials-get screen-wake-lock
+      serial usb xr-spatial-tracking
+    ].map { |feature| "#{feature}=()" }.join(", ")
+
+    # SR-03: static files (public/, the web app's hashed scripts and styles)
+    # leave before any controller, so none of the headers above reach them;
+    # nosniff keeps a browser from reading one as another type. Each
+    # environment adds its cache-control to this hash.
+    config.public_file_server.headers = { "x-content-type-options" => "nosniff" }
+
+    # X-Runtime told anyone how long the server took over each request, to
+    # the microsecond and free of the network's noise, which is what a timing
+    # attack measures; nothing reads it.
+    config.middleware.delete Rack::Runtime
+
     # Business time is São Paulo's; timestamps are stored in UTC (design §1.4, NFR-02).
     config.time_zone = "America/Sao_Paulo"
 
