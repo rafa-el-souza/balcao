@@ -1596,13 +1596,18 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     clock, so a page opened on a long wait says it at once.
   - **A deploy.** Kamal stops the job container with SIGTERM and kills it
     after 30 s (`stop_timeout` falls back to `drain_timeout` for a role
-    without the proxy). Solid Queue waited 5 s for the jobs its workers
-    ran, then failed them without their retries (`ProcessExitError`), and
-    the turn waited for the visitor's next message (review finding C1 of
-    pull request #11); it now waits 25 s (config/application.rb,
-    spec/deploy/worker_stop_spec.rb). Open: a turn still running at the
-    25th second, or one whose worker dies, is answered only by the
-    conversation's next message or a resend (FR-18); nothing sweeps it.
+    without the proxy). Solid Queue waits for the jobs its workers run, 5 s
+    by default; a job still running then is not lost but handed back to the
+    queue, by the worker's deregistration or, after the supervisor's QUIT,
+    by the supervisor's, and its turn runs again from its start in the new
+    container: the model called and billed again, the cut run's spans
+    closed as interrupted (review finding V2 of pull request #18). It now
+    waits 25 s (config/application.rb, spec/deploy/worker_stop_spec.rb),
+    so a turn that ends within them runs once. Open: a worker that dies (a
+    crash, an out-of-memory kill) or a container killed outright leaves its
+    job failed by Solid Queue without its retries; its turn is answered by
+    the conversation's next message or a resend (FR-18), and nothing sweeps
+    it.
 
 - Note 2026-11-12 (PR-11, the glass box, the trace page and the cable). What
   the drawings asked of the server, the panel, the trace page and the live
