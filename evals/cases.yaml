@@ -167,11 +167,12 @@
   turns:
     - user: "tem dipirona?"
     - assistant: "(any)"
-    - user: "reserva duas caixas pra mim"
+    - user: "reserva duas caixas da dipirona em comprimido pra mim"
   expect:
     language: pt
-    # The history carries no tool results, so the id is searched again
-    # (design §10, PR-13's note).
+    # The history carries no tool results, so the id is searched again; the
+    # request names one of the two dipirona products, since the model asks
+    # which when it could be either (design §10, PR-13's note).
     tools: ["search_products", "create_reservation"]
     tool_args:
       create_reservation: { quantity: 2 }
