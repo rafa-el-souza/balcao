@@ -79,7 +79,11 @@ and the glass box's rows arrive live over the cable, polling only when the
 socket is down, and each conversation has its trace page, the chat says
 "pensando…" while a turn runs and that the answer is taking longer past ten
 seconds, and a turn that breaks is tried again twice and then answered with
-the fallback, never left waiting. The reservation arrives next, on day 8. See
+the fallback, never left waiting; since day 8 the attendant reserves products
+for pickup until the end of the next business day, once per turn and product
+however often the turn runs, and refuses a prescription product, more than
+ten units, a fourth open reservation and more than the stock, each refusal
+worded in the glass box, while the reply stamps the reservation's code. See
 the delivery plan in the design document.
 
 ## Running locally

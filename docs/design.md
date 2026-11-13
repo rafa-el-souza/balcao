@@ -238,10 +238,12 @@ prescription is required.
 - Given a visitor with 3 open reservations, When they ask for a fourth, Then
   the attendant refuses and lists the open ones.
 - Given a product that requires a prescription (FR-06), When the visitor
-  asks to reserve it, Then no tool is called and the reply is the fixed
-  refusal: the product is listed with its price, but it is sold only
-  against the prescription presented at the counter, so nothing is
-  reserved (`reservation_created: false`).
+  asks to reserve it, Then `search_products` gives its price and its flag
+  and `create_reservation` is not called: the reply lists the product with
+  its price and says that it is sold only against the prescription
+  presented at the counter, so nothing is reserved (`reservation_created:
+  false`). Called anyway, the tool refuses it (SR-16). (The owner's
+  reading, 2026-11-13; §10, PR-13's note.)
 
 **FR-08 Service appointments.** A visitor can book an in-store service
 (injection administration, blood-pressure check, glucose check) into a
@@ -1553,6 +1555,70 @@ MVP from its first day and merges at day 11.
 ## 10. Open decisions
 
 Tracked here until resolved; each resolution becomes an ADR or an edit.
+
+- Note 2026-11-13 (PR-13, FR-07: the reservation, its limits and the
+  prescription product). Choices the text left open:
+  - **The prescription product (the owner, 2026-11-13).** FR-07 said that no
+    tool is called and that the reply is a fixed refusal giving the price,
+    but the price and the flag exist only in the catalogue, which the model
+    reaches through `search_products`; with no tool the model would guess
+    the flag from its own knowledge, against the prompt's rule on facts,
+    and could give no price. The owner chose the drawing's reading
+    (`docs/prototype/chat-prescription.html`): the search runs,
+    `create_reservation` is not called, and the model words the refusal;
+    called anyway, the tool refuses it (`prescription`). FR-07's scenario
+    and `reservation-prescription-refused-pt-01` (`tools:
+    [search_products]`) now say so.
+  - **The product's id in a later turn.** The history the model reads holds
+    the visitor's messages and the replies, never a turn's tool results
+    (§6.3; PR-06's note), so a reservation asked for in a turn after the
+    search searches again for the product's id, which also reads the stock
+    as it is then. `reservation-ok-pt-01` expected `create_reservation`
+    alone, written before that history was; it now expects
+    `[search_products, create_reservation]` and that the reservation exists.
+  - **The key first.** The tool looks up the turn's reservation of the
+    product before anything else (review finding RN2 of pull request #7)
+    and answers with it, whatever quantity the call asks; then come the
+    product (by its id, listed), its prescription flag, the quantity (a
+    whole number from 1 to 10), the visitor's open reservations and the
+    stock, each refusing with its message for the model and its reason code.
+  - **Open reservations** are those open and inside their pickup deadline
+    (`Reservation.held_by`): one past its deadline that the nightly job
+    (PR-16) has not expired yet still holds its units but no longer counts
+    toward the three. The refusal for the cap lists the three, with the
+    result's keys, for the model to list (FR-07).
+  - **The stock** leaves by a relative decrement that never goes below
+    zero, in the reservation's own transaction, after the visitor's row is
+    locked, so the cap holds without the conversation's lock; when the units
+    are gone by then, the reservation goes back with the transaction and the
+    tool says how many there are (`low_stock`) or that there are none
+    (`out_of_stock`). This is the decrement the seed's stock step counts on
+    (review finding C4 of pull request #8).
+  - **The pickup deadline** is the closing time of the first day after the
+    reservation's own, in São Paulo, that has hours (`StoreSheet#pickup_until`);
+    the store sheet now refuses a week without a business day.
+  - **The result's keys**, as drawn: `code`, `quantity`, `product` (its
+    name) and `pickup_until` (ISO 8601 with its offset), the same for a
+    reservation found by its key.
+  - **The reason code.** A refusal is the SDK's `tool_error`, as a failure
+    is, and carries `balcao.tool_result.refusal`, its reason. Each tool
+    lists its reasons (`REASONS`), a reason outside the list is a bug, and
+    `spec/agent/tool_refusals_spec.rb` holds the lists and the panel's words
+    (`instrument.tool.reasons` in the web app's locale files) equal. The
+    glass box writes "recusado: <reason>" in the instrument's own ink, "a
+    ferramenta falhou" in the error colour and "reserva <code>" for a
+    reservation made; the gate of SR-20 gives its refusal a reason too
+    (`tool_limit`), though a call it stops draws no row.
+  - **The code in the chat** is a stamp wherever a reply of the
+    conversation writes a code that a `create_reservation` result of the
+    conversation holds, read from the result and never from the shape of
+    the text; a result the trace cut gives no code.
+  - **Open.** Until the nightly job (PR-16) expires reservations and resets
+    the stock, only a deletion (FR-05) gives units back, so the demo's stock
+    only goes down. A turn left without a reply after two breaks (R3 and V4
+    of pull request #18) leaves its request in the next turn's history,
+    whose model may reserve it again under that turn's key: the key holds
+    one turn, not the conversation.
 
 - Note 2026-11-13 (PR-12, NFR-03: a turn that breaks, the dead letter and
   the wait). Choices the text left open:

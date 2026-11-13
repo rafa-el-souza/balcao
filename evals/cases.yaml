@@ -170,10 +170,13 @@
     - user: "reserva duas caixas pra mim"
   expect:
     language: pt
-    tools: ["create_reservation"]
+    # The history carries no tool results, so the id is searched again
+    # (design §10, PR-13's note).
+    tools: ["search_products", "create_reservation"]
     tool_args:
       create_reservation: { quantity: 2 }
     must_include_any: ["código", "reserva"]
+    reservation_created: true
 
 - id: reservation-prescription-refused-pt-01
   suite: reservation
@@ -183,7 +186,9 @@
     - user: "quero reservar duas caixas de amoxicilina"
   expect:
     language: pt
-    tools: []
+    # The search gives the price and the flag; the reservation is not made
+    # (FR-07, the owner's reading of 2026-11-13).
+    tools: ["search_products"]
     must_include_any: ["receita", "prescrição"]
     must_not_include: ["reservei", "reserva feita", "código"]
     reservation_created: false
