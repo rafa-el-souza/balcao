@@ -1,6 +1,6 @@
 # Balcão — threat model
 
-**Status:** v1.7, 2026-11-09 (night: A3, SR-10, SR-12 and SR-30 cover the WhatsApp BSUID); v1.6, 2026-11-09 (the MVP amendment: A4b, SR-37, SR-38, SR-39 and R5 note the single host until M3; the verification plan has an MVP row); v1.5, 2026-11-04 (night, after three independent reviews:
+**Status:** v1.8, 2026-11-13 (the edge pull request: SR-03 names the headers beside the policy, SR-27 the pinned kamal-proxy; R6 and R7 accepted); v1.7, 2026-11-09 (night: A3, SR-10, SR-12 and SR-30 cover the WhatsApp BSUID); v1.6, 2026-11-09 (the MVP amendment: A4b, SR-37, SR-38, SR-39 and R5 note the single host until M3; the verification plan has an MVP row); v1.5, 2026-11-04 (night, after three independent reviews:
 SR-01, SR-02, SR-11, SR-24, SR-25, SR-26, SR-27, SR-29, SR-31, SR-37,
 SR-38, R3 and the verification plan rewritten; the workstation recipe moved
 to the runbook; v1.4 the same day, testing-strategy review: SR-21 names the
@@ -57,7 +57,7 @@ Each mitigation is a requirement (SR-xx) with a test or a verification step.
 |---|---|---|
 | Unbounded model calls from a script (T2 → A1) | DoS | **SR-01** Visitor token required on every call; the per-visitor and per-IP limits of FR-14 (the single home of the numbers), via Rack::Attack, with IPv6 aggregated by /64 and the IP taken from the trusted proxy (SR-36); the operator console is exempt (the canary runs in-process and never crosses the HTTP edge, FR-17); responses to over-limit are static and cheap, and nothing is stored beyond the counter. Tests: the 21st session from one IP in an hour is refused; the 201st turn in a day is refused; two addresses in one /64 count as one source. **SR-02** Global budget gates (FR-14) apply before any model call, including the daily slice (economy until midnight at cap ÷ 30 × 1.5; with `economy_allowed` false the slice pauses until midnight instead; only the monthly cap pauses the month); tests: reaching the slice switches mode with no model call; with `economy_allowed` false it pauses until midnight and the month continues. |
 | Free visitor identities minted by a script (T2 → A1) | Spoofing / DoS | **SR-39** (ships in the first slice after the MVP, ADR-0012; until then SR-01 alone gates session creation) `POST /api/session` requires a Cloudflare Turnstile token, verified server-side against the `siteverify` endpoint with a 10 s timeout; failure or timeout refuses the session with a retry hint. The site key is public, the secret key is a per-destination Kamal env secret (A4a in production); development, CI and rehearsal hosts use Turnstile's published test keys, so no real verification and no real traffic to Cloudflare happen there. Turnstile needs no Cloudflare DNS. Tests: a session request without a valid token is refused; the test-key path is exercised in CI. Re-verify at implementation: the free tier and widget limits, the test keys, the endpoint, the data the widget collects. |
-| Token theft via XSS | Spoofing | **SR-03** Visitor token in an HttpOnly, Secure, SameSite=Strict cookie read by the API and the cable; state-changing requests checked by Origin; strict Content-Security-Policy (no inline scripts; the only third-party origin is `https://challenges.cloudflare.com` in `script-src` and `frame-src`, for SR-39); React escapes by default and `dangerouslySetInnerHTML` is forbidden by lint; bot text, operator text and transcripts are rendered as plain text. |
+| Token theft via XSS | Spoofing | **SR-03** Visitor token in an HttpOnly, Secure, SameSite=Strict cookie read by the API and the cable; state-changing requests checked by Origin; strict Content-Security-Policy (no inline scripts; the only third-party origin is `https://challenges.cloudflare.com` in `script-src` and `frame-src`, for SR-39) on every answer a controller writes, which also carries a `Permissions-Policy` denying the browser features the web app does not use; `X-Content-Type-Options: nosniff` on those answers and on the static files; no `X-Runtime` on any answer; React escapes by default and `dangerouslySetInnerHTML` is forbidden by lint; bot text, operator text and transcripts are rendered as plain text. |
 | Opener key abused via shared links (FR-21) | Tampering | **SR-34** `{say: key}` is resolved server-side against a fixed allow-list; any other value sends nothing. |
 | Per-IP limits defeated behind the proxy | DoS | **SR-36** The app trusts only kamal-proxy's forwarded header (trusted proxies configured), so Rack::Attack and the console lockout see the client IP; `/api/status` and `/api/calendar` are served from Solid Cache with a 60-second TTL so public hits cost no aggregation; the calendar cache key is busted when a booking is created or cancelled, so FR-08's 5-second visibility holds. |
 | Oversized or malformed payloads | DoS | **SR-04** Body limit 16 KB on the API, message length 1,000 characters, JSON schema validation at the controller. |
@@ -120,7 +120,7 @@ Each mitigation is a requirement (SR-xx) with a test or a verification step.
 
 | Threat | STRIDE | Mitigation |
 |---|---|---|
-| Malicious dependency (T5) | Tampering | **SR-27** `bundler-audit`, `npm audit --omit=dev --omit=optional --audit-level=high` (optional is omitted too because npm keeps toolchain packages that runtime packages list as optional peers; design §10, 2026-11-09) and Dependabot; lockfiles committed; CI fails on known vulnerabilities above low on the Ruby side and at high or above in the runtime npm tree (toolchain advisories do not block unrelated pull requests). |
+| Malicious dependency (T5) | Tampering | **SR-27** `bundler-audit`, `npm audit --omit=dev --omit=optional --audit-level=high` (optional is omitted too because npm keeps toolchain packages that runtime packages list as optional peers; design §10, 2026-11-09) and Dependabot; lockfiles committed; CI fails on known vulnerabilities above low on the Ruby side and at high or above in the runtime npm tree (toolchain advisories do not block unrelated pull requests). The kamal-proxy image, which no audit covers, is pinned by `proxy.run.version` in `config/deploy.yml` (Kamal 2.12's own default, v0.9.2, is affected by GHSA-g8jf-9mcc-x4f2, high) and checked against kamal-proxy's published advisories on the monthly bump day (runbook). |
 | Static issues | — | **SR-28** Brakeman in CI, zero high/medium warnings. |
 | Credentials in CI | Information disclosure | **SR-29** CI holds no cloud or deploy credential and never deploys; the test suite runs on a fake model and recorded responses. The only CI secret is the dev/eval model key (its own Console workspace and spend limit, A4b), stored as a GitHub Environment secret (`evals`, required reviewer the owner, `main` only); the full-eval workflow runs on `workflow_dispatch` only, started by the owner (the agent's token has no Actions permission) at milestone close and on the bump day, never on `pull_request`, and writes the scorecard and `evals/economy_allowed.yml` to a branch; it never deploys and never touches recordings. The agent's GitHub token has no `secrets` or `administration` permission. |
 | Operator executes agent-written code at production deploy (T8) | Elevation of privilege, information disclosure | **SR-38** (from M3; the `bin/deploy` guard spec from the MVP) The production deploy path runs no repository code outside the reviewed deploy-path files: Kamal is installed as a pinned global gem in the operator account (the version recorded in the runbook) and invoked directly, never through `bundle exec` or `bin/` scripts of the repo; `bin/deploy` itself accepts only `-d ensaio` (a spec cited to this identifier shows that any other invocation exits non-zero without invoking `kamal`); the repo ships no `.kamal/hooks` directory (CI fails if one appears). Before each production deploy the operator fetches, reviews the diff of `config/deploy.yml`, `.kamal/`, `Dockerfile`, `.dockerignore`, `package.json`, `package-lock.json`, `.mise.toml`/`.tool-versions` between the deployed SHA and `origin/main`, fast-forwards, and only then runs `kamal deploy`. The runbook carries the checklist; `kamal audit` on the host and `.last-deployed-sha` in the operator checkout are the deploy record. |
@@ -186,13 +186,39 @@ Each mitigation is a requirement (SR-xx) with a test or a verification step.
   MVP) costs the owner hours the MVP does not have. At M3 the production
   host, the operator account and a fresh token take over, and this
   extension ends.
+- **R6** (added 2026-11-13) Compression and BREACH. Thruster compresses
+  the answers, and `GET /api/conversations/current` holds a secret, the
+  trace token, beside the conversation's text: an observer of the traffic
+  who could make the visitor's browser repeat that request many times, with
+  guesses of the attacker's inside the conversation, would read the secret
+  from the compressed lengths. Accepted, compression kept, because nobody
+  else can place the guesses: the cookie is `SameSite=Strict`, so no page
+  of another site sends it, and text enters a conversation only by a
+  `POST` from the exact public origin (SR-03), which no other origin
+  passes, a sibling subdomain's included. Thruster also pads each
+  compressed answer with up to 32 random bytes (its default), and its
+  `GZIP_COMPRESSION_DISABLE_ON_AUTH` would turn compression off for every
+  request with a cookie, the static files' included, if this is reopened.
+- **R7** (added 2026-11-13, until M3) A cookie planted by a sibling
+  subdomain. `dev.br` is a public suffix, so every name under
+  `rafasouza.dev.br` is same-site with the demo and may set a cookie for
+  the whole domain. A compromised sibling could plant a valid
+  `balcao_visitor` cookie of its own with `Path=/api`: the browser sends
+  the cookie with the longer path first and Rack keeps the first of a
+  name, so the visitor would write under an identity the attacker also
+  holds and reads (session fixation). Accepted until M3 because every name
+  under the domain is the owner's and the demo's data is fictional and
+  lives seven days. At M3 the cookie becomes `__Host-balcao_visitor`,
+  which only the demo's own host can set, cut cleanly with no migration
+  (a migration would read the old name and reopen the attack), since the
+  MVP host's data dies with it (design §9.2).
 
 ## 6. Verification plan
 
 | Milestone | Security work |
 |---|---|
-| MVP (days 1–12, design §9.1) | SR-25 (gitignore, scan, boot check), SR-27, SR-28, SR-29 in place and visible in CI; SR-24 verified by the runbook host checklist on the MVP host, created from `ops/cloud-init.yml`; the `bin/deploy` guard spec of SR-38; the deploy green on `balcao.rafasouza.dev.br`; SR-01, SR-02 (the monthly pause), SR-03 (cookie, Origin, CSP without a third party), SR-04, SR-05, SR-11, SR-12, SR-16, SR-17, SR-20, SR-30, SR-32, SR-34, SR-36 with tests; SR-06..10 with tests against the payloads recorded from the test number; SR-21's hostile-product-name seed, an eval overlay on the catalogue (`evals/seeds/hostile_product_name.yml`) |
+| MVP (days 1–12, design §9.1) | SR-25 (gitignore, scan, boot check), SR-27, SR-28, SR-29 in place and visible in CI; SR-24 verified by the runbook host checklist on the MVP host, created from `ops/cloud-init.yml`; the `bin/deploy` guard spec of SR-38; the deploy green on `balcao.rafasouza.dev.br`; SR-01, SR-02 (the monthly pause), SR-03 (cookie, Origin, CSP without a third party, the headers beside it), SR-04, SR-05, SR-11, SR-12, SR-16, SR-17, SR-20, SR-27's pinned kamal-proxy, SR-30, SR-32, SR-34, SR-36 with tests; SR-06..10 with tests against the payloads recorded from the test number; SR-21's hostile-product-name seed, an eval overlay on the catalogue (`evals/seeds/hostile_product_name.yml`) |
 | M4 (voice, first after the MVP) | SR-22, SR-23 with tests |
 | M2 | SR-39 (the first slice), SR-13..15, SR-18, SR-19, SR-21 (`injection` at 10), SR-35 |
-| M3 | SR-02 full (incl. the daily slice and the `economy_allowed` false case), SR-25's static secrets check and the `.kamal/hooks` check in CI, SR-26 (restore drill into a container), SR-31, SR-37 and SR-38 checklists in the runbook, `docs/traceability.yml` for the step-and-measurement ids; an external port scan recorded; the R5 MVP extension closed |
+| M3 | SR-02 full (incl. the daily slice and the `economy_allowed` false case), SR-25's static secrets check and the `.kamal/hooks` check in CI, SR-26 (restore drill into a container), SR-31, SR-37 and SR-38 checklists in the runbook, `docs/traceability.yml` for the step-and-measurement ids; an external port scan recorded; the R5 MVP extension closed; R7 closed by the `__Host-` cookie |
 | M5 | SR-33 (seed names checked); full re-read of this document; an "OWASP LLM Top 10" column added to the SR tables; accepted risks confirmed or closed |

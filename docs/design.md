@@ -1468,7 +1468,8 @@ the cloud firewall; dependency and static analysis in CI.
   10 minutes from M3; email on failure and on recovery; push through the
   owner's ntfy topic from M2.
 - **Updates.** Unattended security upgrades on the host; Dependabot on the
-  repo; monthly manual bump day.
+  repo; monthly manual bump day, which also checks the pinned kamal-proxy
+  against its published advisories (SR-27; §10, note 2026-11-13, the edge).
 - **Runbook.** `docs/runbook.md` (started on day 2 of the MVP with the
   host contract, the host checklist and the MVP deploy flow; the per-slice
   rehearsal flow, including the Certificate Transparency count before a
@@ -1551,7 +1552,7 @@ the order below. Each is shippable; "days" is the unit above.
 |---|---|---|---|---|
 | 1 | M4 Voice | FR-11 voice notes with the ADR-0005 measurement recorded as ADR-0014; the portable QR card for profiles; the Meta policy pass (18+ line) | 2 | J2 works with a voice note on the real number |
 | 2 | M2 Pharmacy work, complete | SR-39 Turnstile (the first slice, ADR-0012); FR-20 guardrail with the two must-not-replace cases and the fixed-reply unit suite (SR-18); FR-08 + bookings list + `calendar` stream, FR-15's slot step; FR-10 state machine with presence toggle + push (SR-35); FR-16 console with auth, lockout, block list, "copy trace as JSON" and "turn into eval case"; FR-09 on the economy model and `economy_allowed` committed; `injection` suite at 10 cases in the seven families; the first full eval run (`workflow_dispatch`, the `evals` environment) and committed scorecard with the unstable count; `bin/traceability` report at milestone close | 10 | J3 works; boundary suite at 100 % on both models |
-| 3 | M3 Operation | FR-13 status page + live strip (cached), with the sources the drawing still lacks (§10, note 2026-11-12); FR-14 modes + daily slice + kill switch + operator notification; FR-17 in-process canary; resource limits in Kamal; nightly `pg_dump` and one restore drill into a throwaway container in the operator account; runbook completed (operator checklist with SR-37 and the SR-38 deploy-path review, roll back, rotations, modes, restore, reset, canary failure, the per-slice rehearsal flow with the Certificate Transparency count); `docs/traceability.yml`; threat-model verification table filled; the two-account deploy of ADR-0011: production host created by the owner from `ops/cloud-init.yml`, the demo name moved to it, the MVP host destroyed, `ensaio.rafasouza.dev.br` on the reserved IP, the Meta token regenerated for the production set; the CI furniture: `bin/evals --recorded` over the `fast` subset with recordings, the NFR-10 gate, the SimpleCov ratchet, actionlint, the static secrets check, the `.kamal/hooks` absence check, rswag OpenAPI | 10 | Shipped on the production host, then the soak passes after 7 consecutive days with canary success ≥ 99 % (NFR-04), no manual restart or deploy, spend within projection, a nightly dump present every night, and one restore drill from a production dump into a throwaway container in the operator account; a failed day restarts the week |
+| 3 | M3 Operation | FR-13 status page + live strip (cached), with the sources the drawing still lacks (§10, note 2026-11-12); FR-14 modes + daily slice + kill switch + operator notification; FR-17 in-process canary; resource limits in Kamal; nightly `pg_dump` and one restore drill into a throwaway container in the operator account; runbook completed (operator checklist with SR-37 and the SR-38 deploy-path review, roll back, rotations, modes, restore, reset, canary failure, the per-slice rehearsal flow with the Certificate Transparency count, which also checks that every certificate logged for the domain's names came from Let's Encrypt, since the domain's DNS service offers no CAA record); the visitor cookie renamed `__Host-balcao_visitor` (threat model R7), a clean cut with no migration, since the MVP host's data dies with it; `docs/traceability.yml`; threat-model verification table filled; the two-account deploy of ADR-0011: production host created by the owner from `ops/cloud-init.yml`, the demo name moved to it, the MVP host destroyed, `ensaio.rafasouza.dev.br` on the reserved IP, the Meta token regenerated for the production set; the CI furniture: `bin/evals --recorded` over the `fast` subset with recordings, the NFR-10 gate, the SimpleCov ratchet, actionlint, the static secrets check, the `.kamal/hooks` absence check, rswag OpenAPI | 10 | Shipped on the production host, then the soak passes after 7 consecutive days with canary success ≥ 99 % (NFR-04), no manual restart or deploy, spend within projection, a nightly dump present every night, and one restore drill from a production dump into a throwaway container in the operator account; a failed day restarts the week |
 | 4 | M5 Polish | FR-22 static exhibits (three committed trace files); FR-23 referrers; landing copy in both registers and three languages with FR-25; Spanish review pass; README sixty-second tour with links to five files (webhook signature check, reservation idempotency test, model policy, boundary eval cases, deploy config), 8-second GIF, social preview image, 30-second video; scorecard at 60 cases (15 `injection`); NFR-10 gate over all six public pages; traceability gate on in CI; an "OWASP LLM Top 10" column in the threat model's SR table; ADR review; the review policy revisited with the PR records (ADR-0013) | 5 | A stranger completes J1 without help |
 
 Total: 12 + 2 + 10 + 10 + 5 = 39 days, plus the soak's calendar week.
@@ -1563,6 +1564,51 @@ MVP from its first day and merges at day 11.
 ## 10. Open decisions
 
 Tracked here until resolved; each resolution becomes an ADR or an edit.
+
+- Note 2026-11-13 (the edge pull request, outside §9.1's day table; threat
+  model SR-03, SR-27, R6, R7). The owner put two security pull requests
+  between PR-14 and PR-15, after an analysis of the demo's edge and an
+  independent review that cut the plan down: this one, then the cable's
+  hardening. What it changes:
+  - **kamal-proxy pinned at v0.10.2** (`proxy.run.version` in
+    `config/deploy.yml`). Kamal 2.12 boots v0.9.2, which sets no timeout on
+    a client's connection (GHSA-g8jf-9mcc-x4f2, high: one client machine
+    can exhaust the proxy, and the demo ran it). v0.10.2 closes a
+    connection whose headers or TLS handshake take over 10 s, an idle
+    keep-alive after 60 s and a stalled body after 60 s, and v0.10.1
+    limited TLS 1.2 to AEAD suites. A WebSocket's upgrade has no body, so
+    the cable is not cut (upstream's `TestServer_AllowsIdleWebSocket`); the
+    routes and certificates v0.9.2 saved load in v0.10.2, whose saved state
+    only adds fields; the forwarded client address (SR-36) and the request
+    log (SR-30) are as before. A deploy never swaps a running proxy, so
+    the runbook has the swap, and its monthly bump day checks the pin
+    against kamal-proxy's advisories, which no audit of CI covers.
+  - **The headers beside the CSP.** The static files leave before any
+    controller, so none of Rails' default headers reached them: they now
+    carry `nosniff`. Every answer a controller writes carries a literal
+    `Permissions-Policy` that denies the browser features the web app does
+    not use; Rails' own middleware for it writes the legacy `Feature-Policy`
+    name in actionpack 8.1.4.1, so it is not used. `Rack::Runtime` is
+    removed, so no answer says how long the server took. A spec reads the
+    three from a production boot too.
+  - **Two sentences of this section were wrong**, and are corrected in
+    their notes: the CSP covers the shells, the API's answers and the
+    edge's refusals, not the bare answers of a path no route takes or an
+    exception (PR-09's note);
+    and `no-store` covers the answers with content and the edge's
+    refusals, not a controller's refusal, which holds only its code (the
+    review of pull request #17, in PR-11's note).
+  - **Accepted, in the threat model:** R6, compression and BREACH, closed by
+    `SameSite=Strict` and the exact Origin; R7, a cookie planted by a
+    sibling subdomain, until M3.
+  - **Moved to M3** (§9.2): the `__Host-balcao_visitor` cookie, which costs
+    no conversation once the MVP host's data is gone, and the issuer check
+    in the Certificate Transparency step. **Left out** by the review:
+    COOP and CORP (no popup and no embed here, and the cookie is Strict),
+    `no-store` on a controller's refusals (no conversation's words to
+    erase), a weekly CI job for advisories and certificates (the bump day
+    carries the first; the second only detects, and M3 has it), HSTS
+    preload.
 
 - Note 2026-11-13 (PR-14, NFR-08: `bin/evals` live and the first
   scorecard). Choices the text left open:
@@ -1915,10 +1961,14 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     the trace page of each of the visitor's conversations, which then says the
     conversation is no longer here (FR-05). The notice is told by its place,
     the first line of a conversation's first reply, not by its wording, in
-    the payloads and in the history the model reads. The API answers
-    `no-store`. The edge counts a path with a repeated or a
-    trailing slash as the router reads it, because Rack::Attack normalizes
-    the path with the router's own utility first; a spec keeps it so. On the
+    the payloads and in the history the model reads. The API's answers
+    carry `no-store`, and so do the edge's refusals (413, 429); a refusal a
+    controller raises (400, 401, 403, 409, 415, 422) skips the
+    `after_action` and goes out with Rails' `no-cache`, holding nothing but
+    its `{error}` code (corrected 2026-11-13, the edge). The edge counts a
+    path with a repeated or a trailing slash as the router reads it,
+    because Rack::Attack normalizes the path with the router's own utility
+    first; a spec keeps it so. On the
     page: a message accepted into a conversation the page does not follow
     moves it and its stream there; a refused subscription is asked for again
     30 s later; a trace fetch that fails keeps the receipt drawn before; the
@@ -2145,8 +2195,12 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     holder of its token. Neither takes a message from the page.
     `GET /api/traces/:token` arrives with the trace page (PR-11).
   - The CSP is Rails' middleware, which API-only apps leave out, so it
-    covers every response; `connect-src` names the cable's `wss:` origin
-    beside `'self'`.
+    covers the shells, the API's answers and the edge's refusals (413,
+    429); `connect-src` names the cable's `wss:` origin beside `'self'`.
+    The answers Rails writes on its own, for a path no route takes or an
+    exception, carry no policy and none of Rails' default headers: they are
+    empty, or a `{status, error}` JSON when the request asks for JSON
+    (corrected 2026-11-13, the edge; measured on the demo).
   - SR-20's timeouts (review finding C5 of pull request #10): every
     connection has a 5 s statement timeout and a 2 s lock timeout;
     `ConversationLock` lifts both for its wait, in a short transaction of
