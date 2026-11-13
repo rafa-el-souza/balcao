@@ -12,7 +12,13 @@ import en from "../locales/en.json";
 import es from "../locales/es.json";
 import ptBR from "../locales/pt-BR.json";
 import openers from "../openers.json";
-import { conversation, fakeServer, message } from "../test/fakeServer";
+import {
+  conversation,
+  fakeServer,
+  message,
+  replyTo,
+  stored,
+} from "../test/fakeServer";
 import { renderPage } from "../test/render";
 import { LIT_ICON, tabIcon } from "../test/tabIcon";
 import { serverClock } from "./api";
@@ -207,18 +213,10 @@ describe("FR-18 the reply arrives by polling", () => {
     await waitFor(() => {
       expect(server.sent()).toHaveLength(1);
     });
-    const id = idOf(server.sent()[0]?.body);
-    const visitor = message({
-      author: "visitor",
-      body: "tem dipirona?",
-      client_id: id,
-    });
+    const visitor = server.copy();
     server.answers.current.push(
       conversation(1, [visitor], true),
-      conversation(1, [
-        visitor,
-        message({ author: "bot", body: "Temos duas." }),
-      ]),
+      conversation(1, [visitor, replyTo(visitor, "Temos duas.")]),
     );
 
     await act(() => vi.advanceTimersByTimeAsync(3000));
@@ -251,18 +249,19 @@ describe("FR-18 the reply arrives by polling", () => {
 });
 
 describe("NFR-03 the turn that waits", () => {
+  // The message as the server stored it, received that long ago.
   const sendAndWait = async (receivedAgoMs = 0) => {
+    server.answers.messages.push((body) =>
+      stored(body, {
+        created_at: new Date(Date.now() - receivedAgoMs).toISOString(),
+      }),
+    );
     type("tem dipirona?");
     fireEvent.keyDown(field(), { key: "Enter" });
     await waitFor(() => {
       expect(server.sent()).toHaveLength(1);
     });
-    return message({
-      author: "visitor",
-      body: "tem dipirona?",
-      client_id: idOf(server.sent()[0]?.body),
-      created_at: new Date(Date.now() - receivedAgoMs).toISOString(),
-    });
+    return server.copy();
   };
 
   it("says it is thinking while the turn runs, and stops once the reply arrives", async () => {
@@ -275,7 +274,7 @@ describe("NFR-03 the turn that waits", () => {
     expect(await within(thread()).findByText(pt.thinking)).toBeInTheDocument();
     server.answers.current.push(
       conversation(1, [visitor], true),
-      conversation(1, [visitor, message({ author: "bot", body: "Temos." })]),
+      conversation(1, [visitor, replyTo(visitor, "Temos.")]),
     );
 
     await act(() => vi.advanceTimersByTimeAsync(3000));
@@ -303,7 +302,7 @@ describe("NFR-03 the turn that waits", () => {
     expect(icon.getAttribute("href")).not.toBe(LIT_ICON);
     server.answers.current.push(
       conversation(1, [visitor], true),
-      conversation(1, [visitor, message({ author: "bot", body: "Temos." })]),
+      conversation(1, [visitor, replyTo(visitor, "Temos.")]),
     );
 
     await act(() => vi.advanceTimersByTimeAsync(3000));
@@ -919,7 +918,15 @@ describe("FR-21 the thread in the server's order", () => {
 
   it("puts a message retried after later ones where the server stored it", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    server.answers.messages.push("network");
+    // The server stores the second message at :41 and its reply at :45, and
+    // the first one only when it is sent again, at :50.
+    const at = (second: number) =>
+      `2026-11-12T12:03:${String(second)}.000-03:00`;
+    server.answers.messages.push(
+      "network",
+      (body) => stored(body, { created_at: at(41) }),
+      (body) => stored(body, { created_at: at(50) }),
+    );
     renderPage(<Chat />);
     await ready();
 
@@ -931,26 +938,18 @@ describe("FR-21 the thread in the server's order", () => {
     await waitFor(() => {
       expect(server.sent()).toHaveLength(2);
     });
-    const [first, second] = server.sent().map((request) => idOf(request.body));
     fireEvent.click(screen.getByRole("button", { name: pt.retry }));
     await waitFor(() => {
       expect(server.sent()).toHaveLength(3);
     });
+    const [second, first] = [server.copy(0), server.copy(1)];
 
     server.answers.current.push(
       conversation(1, [
-        message({
-          author: "visitor",
-          body: "segunda",
-          client_id: second ?? null,
-        }),
-        message({ author: "bot", body: "resposta da segunda" }),
-        message({
-          author: "visitor",
-          body: "primeira",
-          client_id: first ?? null,
-        }),
-        message({ author: "bot", body: "resposta da primeira" }),
+        second,
+        replyTo(second, "resposta da segunda", { created_at: at(45) }),
+        first,
+        replyTo(first, "resposta da primeira", { created_at: at(55) }),
       ]),
     );
     await act(() => vi.advanceTimersByTimeAsync(3000));

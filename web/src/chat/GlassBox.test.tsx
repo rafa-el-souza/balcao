@@ -9,8 +9,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import ptBR from "../locales/pt-BR.json";
 import { fakeCable } from "../test/fakeCable";
-import { conversation, fakeServer, message } from "../test/fakeServer";
+import { conversation, fakeServer, message, replyTo } from "../test/fakeServer";
 import { renderPage } from "../test/render";
+import { LIT_ICON, tabIcon } from "../test/tabIcon";
 import {
   answeredTurn,
   commandTurn,
@@ -665,28 +666,189 @@ describe("FR-18 the conversation's stream, with the polling as its fallback", ()
     expect(server.polls()).toHaveLength(2);
   });
 
-  it("fetches the conversation when a reply arrives on the stream, so the thread keeps the server's order", async () => {
-    const cable = await live();
-    cable.connect();
-    await waitFor(() => {
+  // Design §10, note of 2026-11-13 on the chat's stream: the reply is drawn
+  // from the stream, after the visitor's message the 202 brought as the
+  // server stored it, with no request.
+  describe("a reply the stream brings", () => {
+    const texts = () =>
+      within(thread())
+        .getAllByRole("listitem")
+        .map((item) => item.textContent.trim());
+
+    async function asked(text = "tem dipirona?") {
+      const cable = await live();
+      cable.connect();
+      await waitFor(() => {
+        expect(server.polls()).toHaveLength(2);
+      });
+      fireEvent.change(screen.getByRole("textbox"), {
+        target: { value: text },
+      });
+      fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+      // "pensando…" once the 202 brought the message as the server stored it.
+      await within(thread()).findByText(pt.chat.thinking);
+      return { cable, question: server.copy() };
+    }
+
+    it("is drawn after the visitor's message, without asking the server", async () => {
+      const { cable, question } = await asked();
+
+      cable.send({
+        type: "message",
+        message: replyTo(question, "Temos duas."),
+      });
+
+      expect(texts()).toEqual(["tem dipirona?", "Temos duas."]);
       expect(server.polls()).toHaveLength(2);
     });
-    server.answers.current.push(
-      conversation(1, [
-        message({ author: "visitor", body: "tem dipirona?" }),
-        message({ author: "bot", body: "Temos duas." }),
-      ]),
-    );
 
-    cable.send({
-      type: "message",
-      message: { id: "m2", conversation_id: "1", body: "Temos duas." },
+    it("keeps the visitor's message on the element it was drawn on as it was sent", async () => {
+      const cable = await live();
+      cable.connect();
+      await waitFor(() => {
+        expect(server.polls()).toHaveLength(2);
+      });
+      fireEvent.change(screen.getByRole("textbox"), {
+        target: { value: "tem dipirona?" },
+      });
+      fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+      const sent = within(thread()).getByText("tem dipirona?").closest("li");
+      await within(thread()).findByText(pt.chat.thinking);
+
+      cable.send({
+        type: "message",
+        message: replyTo(server.copy(), "Temos duas."),
+      });
+
+      expect(within(thread()).getByText("Temos duas.")).toBeInTheDocument();
+      expect(within(thread()).getByText("tem dipirona?").closest("li")).toBe(
+        sent,
+      );
     });
 
-    expect(
-      await within(thread()).findByText("Temos duas."),
-    ).toBeInTheDocument();
-    expect(server.polls()).toHaveLength(3);
+    it("stops 'pensando…' and lights the tab's cross again", async () => {
+      const icon = tabIcon();
+      const { cable, question } = await asked();
+      expect(icon.getAttribute("href")).not.toBe(LIT_ICON);
+
+      cable.send({ type: "message", message: replyTo(question, "Temos.") });
+
+      expect(within(thread()).queryByText(pt.chat.thinking)).toBeNull();
+      expect(icon.getAttribute("href")).toBe(LIT_ICON);
+    });
+
+    it("stays when a fetch on its way answers with what was there before", async () => {
+      const { cable, question } = await asked();
+      let release: (value: Response) => void = () => undefined;
+      // A reconnection's fetch, which the server answers late.
+      server.fetch.mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            release = resolve;
+          }),
+      );
+      const calls = server.fetch.mock.calls.length;
+      cable.connect();
+      await waitFor(() => {
+        expect(server.fetch).toHaveBeenCalledTimes(calls + 1);
+      });
+
+      cable.send({ type: "message", message: replyTo(question, "Temos.") });
+      release(
+        new Response(JSON.stringify(conversation(1, [question], true).body), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+      await act(() => Promise.resolve());
+
+      expect(texts()).toEqual(["tem dipirona?", "Temos."]);
+      expect(within(thread()).queryByText(pt.chat.thinking)).toBeNull();
+    });
+
+    it("makes the page ask when it answers a message the page does not hold, another tab's", async () => {
+      const cable = await live();
+      cable.connect();
+      await waitFor(() => {
+        expect(server.polls()).toHaveLength(2);
+      });
+      const other = message({
+        author: "visitor",
+        body: "tem entrega?",
+        client_id: "c0ffee00-0000-4000-8000-000000000001",
+        turn_id: "t7",
+      });
+      const answer = replyTo(other, "Entregamos sim.");
+      server.answers.current.push(conversation(1, [other, answer]));
+
+      cable.send({ type: "message", message: answer });
+
+      expect(
+        await within(thread()).findByText("tem entrega?"),
+      ).toBeInTheDocument();
+      expect(texts()).toEqual(["tem entrega?", "Entregamos sim."]);
+      expect(server.polls()).toHaveLength(3);
+    });
+
+    it("makes the page ask when the message has no known shape", async () => {
+      const cable = await live();
+      cable.connect();
+      await waitFor(() => {
+        expect(server.polls()).toHaveLength(2);
+      });
+
+      cable.send({
+        type: "message",
+        message: { id: "m2", conversation_id: "1", body: "Temos duas." },
+      });
+
+      await waitFor(() => {
+        expect(server.polls()).toHaveLength(3);
+      });
+      expect(within(thread()).queryByText("Temos duas.")).toBeNull();
+    });
+
+    // Review finding C1 of pull request #24: the fetch each reply made was
+    // also the poll that answered, and so took away what earlier polls met.
+    describe("ends what the earlier polls met, as an answer of the server", () => {
+      const ask = async (text: string) => {
+        fireEvent.change(screen.getByRole("textbox"), {
+          target: { value: text },
+        });
+        fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+        await within(thread()).findByText(pt.chat.thinking);
+      };
+
+      it("so the next turn shows no limit the edge put on a poll before", async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        const { cable, question } = await asked();
+        const limit = "Você chegou ao limite da demo por agora.";
+        server.answers.current.push({
+          status: 429,
+          body: { error: "limit", text: limit },
+        });
+        await act(() => vi.advanceTimersByTimeAsync(15_000));
+        expect(within(thread()).getByText(limit)).toBeInTheDocument();
+
+        cable.send({ type: "message", message: replyTo(question, "Temos.") });
+        await ask("e de gotas?");
+
+        expect(within(thread()).queryByText(limit)).toBeNull();
+      });
+
+      it("so the next turn does not say the connection is lost", async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        const { cable, question } = await asked();
+        server.answers.current.push("network", "network");
+        await act(() => vi.advanceTimersByTimeAsync(30_000));
+        expect(within(thread()).getByText(pt.chat.offline)).toBeInTheDocument();
+
+        cable.send({ type: "message", message: replyTo(question, "Temos.") });
+        await ask("e de gotas?");
+
+        expect(within(thread()).queryByText(pt.chat.offline)).toBeNull();
+      });
+    });
   });
 
   it("does not ask every 3 s while the stream is live, and asks again every 3 s when it drops", async () => {
@@ -741,20 +903,17 @@ describe("FR-18 the conversation's stream, with the polling as its fallback", ()
       expect(cable.active()).toHaveLength(1);
     });
     cable.connect();
-    server.answers.current.push(
-      conversation(2, [
-        message({
-          author: "bot",
-          body: "Pronto, começamos de novo.",
-          conversation_id: 2,
-        }),
-      ]),
-    );
-
-    cable.send({
-      type: "message",
-      message: { id: "m9", conversation_id: "2", body: "Pronto" },
+    // The reset's reply opens the next conversation, on the stream of the
+    // one it closed.
+    const opened = message({
+      author: "bot",
+      body: "Pronto, começamos de novo.",
+      conversation_id: 2,
+      turn_id: "t-reset",
     });
+    server.answers.current.push(conversation(2, [opened]));
+
+    cable.send({ type: "message", message: opened });
 
     await waitFor(() => {
       expect(cable.active()[0]?.params).toEqual({
