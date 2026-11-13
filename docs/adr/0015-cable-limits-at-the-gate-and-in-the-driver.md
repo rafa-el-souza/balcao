@@ -88,6 +88,15 @@ Rails offers no setting for any of these.
   trace tokens are filtered. Measured with the branch: 5,000 commands now
   delay another page's subscription 0.13 s, and with 1,000 of 16 KiB the
   whole run wrote 46 KB of log, no line over 2 KB.
+- **Action Cable's own list of connections** kept a connection whose socket
+  closed while it opened: its closing, a task of the same pool, can run
+  before the opening adds it, which the opening does last. A script that
+  opens and closes sockets at once leaks memory that way until the process
+  ends. Added at the owner's word once measured: an override of the private
+  `handle_open` takes out of the list a connection whose socket is gone by
+  the end of its opening, and a spec pins `handle_open` and `handle_close`.
+  1,000 sockets opened and closed at once left 59 entries before, none
+  after.
 - **Origin:** `allow_same_origin_as_host` is off, so the cable accepts the
   public origin alone and no longer leans on production's host check.
 - **Solid Cable keeps a copy 5 minutes and `SolidCable::TrimJob` runs every
