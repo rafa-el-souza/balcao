@@ -17,6 +17,7 @@ amendment, threat model R5). Nothing here deploys production.
 | Tool | Version | Where it is pinned |
 |---|---|---|
 | Kamal | 2.12.0 | A global gem in each deploying account, the same version in both; not in the Gemfile, no `bin/kamal`. `bin/deploy` prints `kamal version` first. |
+| kamal-proxy | v0.10.2 | `proxy.run.version` in `config/deploy.yml`, by tag: Kamal reads the running version back from the image tag, so a digest there stops every deploy. A tag can be pushed again, so the digest it resolved to when pinned is written beside it, and a host gets the image by that digest, under the tag, before Kamal boots the proxy (the swap below). Kamal 2.12 alone boots v0.9.2, which GHSA-g8jf-9mcc-x4f2 (high) affects. A deploy never swaps a running proxy. |
 | Docker on the workstation | rootless | Kamal builds with the engine's own builder (`builder.driver: docker` in `config/deploy.yml`), which fetches no BuildKit image. |
 | Base images | by digest | `Dockerfile` and the Postgres accessory in `config/deploy.yml`; Dependabot proposes new digests. |
 
@@ -50,8 +51,10 @@ from M3.
   through a remote port forward. Docker from Docker's own repository,
   fail2ban on sshd, unattended security upgrades, and `sudo` for exactly
   the two checks below.
-- **What Kamal adds.** `kamal-proxy` on ports 80 and 443, with a Let's
-  Encrypt certificate obtained on the first HTTPS request for the name;
+- **What Kamal adds.** `kamal-proxy` on ports 80 and 443, at the release
+  the table above pins (its image put on the host by digest before Kamal
+  first boots it), with a Let's Encrypt certificate obtained on the
+  first HTTPS request for the name;
   the `web` and `job` containers as uid 1000 on a read-only root filesystem
   with `tmp/` and `/tmp` in memory; Postgres as the accessory `balcao-db`
   on the Kamal network with no published port, its data in
@@ -82,7 +85,9 @@ from M3.
    is finished when `cloud-init status --long` says `status: done` and
    `errors: []`, with only deprecation notices under `recoverable_errors`.
 5. Run the host checklist.
-6. Deploy (next section).
+6. Deploy (next section). `bin/deploy` puts the pinned kamal-proxy on the
+   host by its digest before the first `kamal setup` boots it, so the
+   registry is never asked what the tag means.
 
 ## Host checklist (SR-24)
 
@@ -116,7 +121,11 @@ Only a green `main` is deployed to the MVP host.
    generated with `bin/secrets-example` (it prints only the names not yet
    set) and appended to that file.
 3. `bin/deploy -d ensaio`. It refuses a dirty working tree, prints
-   `kamal version`, runs `kamal setup` (on a fresh host it boots the
+   `kamal version`, puts the pinned kamal-proxy's image on the host by the
+   digest written beside its tag, under that tag (SR-27; Docker runs a tag
+   it holds without asking the registry, where a tag can be pushed again),
+   refusing an image whose own version label names another release (a
+   digest a bump left behind), runs `kamal setup` (on a fresh host it boots the
    accessory first; afterwards it deploys like `kamal deploy`), and always
    ends with `kamal registry remove -d ensaio`. The first run on a fresh
    host took about two and a half minutes.
@@ -129,6 +138,10 @@ Only a green `main` is deployed to the MVP host.
      answers `301` (to HTTPS);
    - `kamal app details -d ensaio` lists one `web` and one `job` container
      at the deployed SHA;
+   - `kamal proxy details -d ensaio` names `basecamp/kamal-proxy` at the tag
+     `proxy.run.version` pins: a deploy starts the proxy that is already
+     there, so another tag means a swap is due ("Swapping the proxy's
+     release", below);
    - a conversation runs over the API (since PR-09): with a cookie jar,
      `POST /api/session` with the header
      `Origin: https://balcao.rafasouza.dev.br` and the body `{}` answers
@@ -146,6 +159,64 @@ Only a green `main` is deployed to the MVP host.
    new deploy of a fixed `main` is the way forward on the MVP host.
 7. Say in the slice's handoff what the demo shows now. `kamal audit -d
    ensaio` on the host is the deploy record.
+
+## Swapping the proxy's release
+
+`kamal deploy` starts the proxy container that is already there, whatever
+`proxy.run.version` says, so a new release runs only after a reboot of the
+proxy. On the MVP host:
+
+1. A pull request changes `proxy.run.version` in `config/deploy.yml`, with
+   the advisory or release note that asks for it and, beside the tag, the
+   digest the tag resolves to then
+   (`docker buildx imagetools inspect basecamp/kamal-proxy:<tag>`, its
+   first `Digest:`); once it is merged, the MVP deploy flow above deploys
+   that `main`, and `bin/deploy` puts the new release's image on the host
+   by that digest, under its tag, before `kamal setup`.
+2. Measure before, from the workstation, what the swap is for (the checks
+   of step 4), so the difference is seen.
+3. `kamal proxy reboot -d ensaio`, with the destination's env file loaded
+   as for a deploy. It asks for confirmation, then stops and removes the
+   proxy container and runs the pinned tag, which the host already holds:
+   the demo is down for a few seconds. The certificates and the routes to
+   the app live in the `kamal-proxy-config` volume, which the new container
+   reads at boot, so nothing is issued again and no deploy is needed.
+4. Check, from the repository, the pin read from its one line:
+
+   ```
+   PIN=$(grep -o '^ *version: v[0-9.]* # basecamp/kamal-proxy@sha256:[0-9a-f]*$' config/deploy.yml)
+   TAG=basecamp/kamal-proxy:$(echo $PIN | cut -d' ' -f2)
+   DIGEST=$(echo $PIN | cut -d' ' -f4)
+   kamal proxy details -d ensaio
+   kamal server exec -d ensaio "docker image inspect $TAG --format '{{json .RepoDigests}}'"
+   kamal server exec -d ensaio "docker exec kamal-proxy kamal-proxy version"
+   ```
+
+   The details name `$TAG`, the image under it lists `$DIGEST` (the
+   content, not only the name), and the running proxy says it is the
+   pinned release (releases from v0.10 have the command). The smoke of the deploy flow passes; and,
+   for the v0.10.2 swap:
+   - `echo | openssl s_client -connect balcao.rafasouza.dev.br:443 -tls1_2 -cipher ECDHE-ECDSA-AES128-SHA`
+     fails the handshake (a CBC suite), and the same with
+     `ECDHE-ECDSA-AES128-GCM-SHA256` connects;
+   - a connection that sends no request, on port 80 or 443, with or without
+     a finished TLS handshake, is closed by the proxy after about 10 s;
+   - a cable socket opened from the public origin is still open after 90 s
+     with no message from the client (Action Cable's pings keep coming);
+   - `kamal app logs -d ensaio` shows a request of yours from your own
+     address, so the app still reads the client's IP from the proxy (SR-36).
+5. Way back: set `proxy.run.version` to the release that ran before in
+   the working tree, with its digest beside it (before this pin,
+   `v0.9.2 # basecamp/kamal-proxy@sha256:826a6f66c6ba26ac26197ac8755804403c9bb617b90cfac25c7972154c5328ab`,
+   the image the MVP host pulled on day 2 and still holds),
+   `kamal proxy reboot -d ensaio`, restore the file, and open a pull request
+   that pins what runs, with the reason. That release reads the state the
+   newer one saved, whose fields it does not know it ignores.
+
+Production (from M3) swaps the same way from the operator account, after
+the deploy-path review of the pull request (SR-38); there is no `bin/deploy`
+there, so the operator checklist puts the image on the host by its digest
+before `kamal deploy`, as `bin/deploy` does.
 
 ## End of a deploy session
 
@@ -172,6 +243,10 @@ M3; until then the monitor URL in the env file stays empty.
 - Dependabot's pull requests (gems, npm, base-image digests, Actions).
 - The pinned Kamal gem: the same new version in both accounts, and this
   file's table.
+- The pinned kamal-proxy, against the advisories kamal-proxy publishes
+  (`gh api repos/basecamp/kamal-proxy/security-advisories --jq '.[] | [.ghsa_id, .severity, .summary] | @tsv'`
+  and its releases); a release that fixes one is pinned, with its digest,
+  and swapped as above.
 - The Postgres accessory's digest: a new image is a deliberate
   `kamal accessory reboot db -d ensaio`, never a side effect of a deploy.
 - `registry:3`, the image Kamal runs for its local registry on the

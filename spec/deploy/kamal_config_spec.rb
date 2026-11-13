@@ -99,6 +99,59 @@ RSpec.describe "SR-38 the rehearsal destination inherits nothing production-spec
   end
 end
 
+# Threat model SR-27: Kamal 2.12 boots kamal-proxy v0.9.2 unless told
+# otherwise, and every release up to v0.10.1 keeps a client's connection open
+# for as long as the client stalls (GHSA-g8jf-9mcc-x4f2, high). The edge pins
+# a release past the advisories published for it, checked on the monthly bump
+# day (docs/runbook.md). The tag stays plain: Kamal reads the running proxy's
+# version back from its image tag, and a digest there stops every deploy.
+RSpec.describe "SR-27 the edge proxy is pinned at a release past its published advisories" do
+  include KamalConfigHelpers
+
+  it "pins kamal-proxy v0.10.2 in the base file, which the rehearsal inherits" do
+    expect(base.dig("proxy", "run", "version")).to eq "v0.10.2"
+    expect(rehearsal_file.dig("proxy", "run")).to be_nil
+    expect(rehearsal.dig("proxy", "run", "version")).to eq "v0.10.2"
+  end
+
+  it "pins only the version, a plain release tag of kamal-proxy's own image: ports, publishing and logging stay Kamal's defaults" do
+    expect(base.dig("proxy", "run").keys).to eq [ "version" ]
+    expect(base.dig("proxy", "run", "version")).to match(/\Av\d+\.\d+\.\d+\z/)
+  end
+
+  # Review findings C1 and R1 of pull request #21: a tag can be pushed again,
+  # and nothing held what the proxy's image is. The digest the tag resolved to
+  # when it was pinned is written beside it, in a file the deploy-path review
+  # reads (SR-38); bin/deploy puts that image on the host under the tag before
+  # Kamal boots the proxy (spec/deploy/bin_deploy_spec.rb), and the swap
+  # checks the content the tag names on the host.
+  it "writes beside the tag the digest of the image a host must run, and the swap checks that content" do
+    version_line = Rails.root.join("config/deploy.yml").read.lines.grep(/^\s*version: /).sole
+    expect(version_line).to match(%r{\A\s*version: v\d+\.\d+\.\d+ # basecamp/kamal-proxy@sha256:[0-9a-f]{64}$})
+
+    swap = Rails.root.join("docs/runbook.md").read[/^## Swapping the proxy's release.*?(?=^## )/m]
+    expect(swap).to include(%(docker image inspect $TAG --format '{{json .RepoDigests}}'))
+  end
+
+  # Review finding R2 of pull request #21: a digest left behind by a bump
+  # passes every check that reads the digest written beside the tag, so the
+  # swap asks the running proxy which release it is.
+  it "has the swap ask the running proxy which release it is" do
+    swap = Rails.root.join("docs/runbook.md").read[/^## Swapping the proxy's release.*?(?=^## )/m]
+
+    expect(swap).to include(%(kamal server exec -d ensaio "docker exec kamal-proxy kamal-proxy version"))
+  end
+
+  # Review finding V1 of pull request #21: a deploy starts the proxy that is
+  # already there, so the release pinned here runs only after the swap. The
+  # deploy's smoke names the proxy that runs, so a swap left undone shows.
+  it "has every deploy's smoke name the proxy that runs, since no deploy swaps it" do
+    flow = Rails.root.join("docs/runbook.md").read[/^## MVP deploy flow.*?(?=^## )/m]
+
+    expect(flow).to include("kamal proxy details -d ensaio")
+  end
+end
+
 RSpec.describe "SR-24 the containers Kamal runs" do
   include KamalConfigHelpers
 

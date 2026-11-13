@@ -45,6 +45,17 @@ proxy:
   # the app trusts from a private address only (SR-36).
   buffering:
     max_request_body: 1000000
+  # The proxy's own release, pinned (threat model SR-27). Kamal 2.12 alone
+  # boots v0.9.2, which keeps a client's connection open for as long as the
+  # client stalls (GHSA-g8jf-9mcc-x4f2, high; fixed in v0.10.2, which also
+  # limits TLS 1.2 to AEAD suites). A deploy never swaps a running proxy:
+  # `kamal proxy reboot` does, as docs/runbook.md says. A plain tag: Kamal reads
+  # the running version back from it, and a digest there stops every deploy.
+  # A tag can be pushed again, so the digest it resolved to when pinned is
+  # written beside it, and a host gets the image by that digest, under the
+  # tag, before Kamal boots the proxy (the runbook's swap).
+  run:
+    version: v0.10.2 # basecamp/kamal-proxy@sha256:a686220c2aa42c4f9bbcfe851b1d21b2cedee0b5c389890c29d205282379da7c
 
 # Kamal's local registry: the image is built in the deploying account and
 # reaches the host through an SSH port forward, so no registry account exists.

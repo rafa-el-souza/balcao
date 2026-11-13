@@ -33,12 +33,38 @@ unless status.strip.empty?
   refuse "the working tree has uncommitted changes; kamal builds the committed HEAD, so commit or stash them first."
 end
 
+# The pinned kamal-proxy (threat model SR-27). Kamal runs it by its tag, and
+# Docker asks the registry for a tag the host lacks (a fresh host, or one whose
+# proxy image was removed), where a tag can be pushed again. So every deploy
+# first puts the image on the host by the digest written beside the tag in
+# config/deploy.yml, under that tag, and Docker then runs the tag it holds
+# (review findings C1 and R1 of pull request #21). The digest is tied to the
+# tag by hand, so the image's own version label, which kamal-proxy's releases
+# set to their tag from v0.10, must name the pinned tag before the image takes
+# it. A label that is no release tag passes: before v0.10 the image only
+# carries its Ubuntu base's (v0.9.2 says 24.04), and v0.9.2 is the way back
+# (review finding R2).
+pin = File.read(File.expand_path("../config/deploy.yml", __dir__))
+  .match(%r{^\s*version: (v\d+\.\d+\.\d+) # (basecamp/kamal-proxy@sha256:\h{64})$})
+refuse "config/deploy.yml pins no kamal-proxy version with its digest beside it (threat model SR-27)." unless pin
+proxy_version, proxy_digest = pin.captures
+release_label = %({{index .Config.Labels "org.opencontainers.image.version"}})
+put_proxy = [
+  "(docker image inspect #{proxy_digest} > /dev/null 2>&1 || docker pull #{proxy_digest})",
+  %(release=$(docker image inspect #{proxy_digest} --format '#{release_label}')),
+  %(case "$release" in v[0-9]*\) [ "$release" = #{proxy_version} ] || ) +
+    %({ echo "kamal-proxy: #{proxy_digest} is release $release, not #{proxy_version}" >&2; false; };; esac),
+  "docker tag #{proxy_digest} basecamp/kamal-proxy:#{proxy_version}"
+].join(" && ")
+
 def kamal(*args)
   puts "== kamal #{args.join(" ")}"
   system("kamal", *args)
 end
 
 kamal("version") || refuse("kamal is not installed (the pinned global gem, see the runbook).")
+kamal("server", "exec", "-d", DESTINATION, put_proxy) ||
+  refuse("the pinned kamal-proxy could not be put on the host by its digest; see kamal's output above (threat model SR-27).")
 
 deployed = false
 begin
