@@ -1608,6 +1608,27 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     job failed by Solid Queue without its retries; its turn is answered by
     the conversation's next message or a resend (FR-18), and nothing sweeps
     it.
+  - **What the review of pull request #18 settled** (its Review section has
+    each finding). The job that holds a conversation's lock runs an earlier
+    turn that failed before its own, as it runs one still waiting or
+    running, so a turn the job tries again is not answered after a later
+    one, blind to its reply (C1); one that breaks again there is left to
+    its own job, and the next message's job answers a turn whose own job is
+    gone (C2). A message's body loses any NUL, which PostgreSQL refuses, so
+    a reply carrying one is stored (V1). On the page the note reads the
+    server's clock every quarter second until it is due, since a timer set
+    for the deadline could fire before it; what the thread ends with
+    ("pensando…", its note, the stamps of a limit or a lost connection)
+    scrolls the thread to it; and, stacked, the window keeps clear for
+    that scroll alone what covers its bottom, the counter's foot and the
+    open drawer, measured by their boxes. Open, for the owner: whether
+    SR-20's six tool calls and sixty seconds span the job's attempts or
+    hold per attempt, as now (C3); a turn answered after a later one, when
+    it broke twice, still reads the conversation only up to itself, so the
+    header rule of ProcessTurnJob, that the model reads the earlier
+    replies, holds only for one break (R3, V4); and nothing bounds how
+    often the next messages' jobs run again a turn left without any reply
+    (R4).
 
 - Note 2026-11-12 (PR-11, the glass box, the trace page and the cable). What
   the drawings asked of the server, the panel, the trace page and the live
