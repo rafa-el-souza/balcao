@@ -119,6 +119,40 @@ RSpec.describe "FR-07 NFR-02 SR-16 create_reservation, units held for pickup at 
       expect(reserve(quantity: 10)).to include("quantity" => 10)
     end
 
+    # Review finding C3 of pull request #19: the limit's refusal offered ten
+    # units before the stock and the cap were read, so the alternative it
+    # offered could not be had.
+    it "offers, past the limit, only units the stock holds" do
+      product.update!(stock: 3)
+
+      error = refusal(quantity: 11)
+
+      expect(error).to have_attributes(reason: "low_stock", message: match(/Only 3 units.*Offer 3 units/))
+      expect(error.message).not_to include("Offer 10 units")
+    end
+
+    it "offers ten past the limit, and no more, when the stock holds more" do
+      error = refusal(quantity: 500)
+
+      expect(error).to have_attributes(reason: "over_limit", message: match(/Offer 10 units/))
+      expect(error.message).not_to include("40 units")
+    end
+
+    it "refuses past the limit at the cap of open reservations for the cap, offering no units" do
+      3.times { open_reservation }
+
+      error = refusal(quantity: 11)
+
+      expect(error).to have_attributes(reason: "open_limit")
+      expect(error.message).not_to include("Offer 10 units")
+    end
+
+    it "refuses past the limit a product out of stock as out of stock" do
+      product.update!(stock: 0)
+
+      expect(refusal(quantity: 15)).to have_attributes(reason: "out_of_stock")
+    end
+
     it "refuses a quantity below one, or one that is not a whole number (SR-16)" do
       [ 0, -2, 2.5, "2", nil ].each do |quantity|
         expect(refusal(quantity:)).to have_attributes(reason: "invalid_quantity"), quantity.inspect
@@ -204,10 +238,28 @@ RSpec.describe "FR-07 NFR-02 SR-16 create_reservation, units held for pickup at 
       expect(product.reload.stock).to eq(5)
     end
 
-    it "keeps nothing when the stock fell below the units between the read and the decrement" do
+    it "refuses on the stock as the reservation's transaction reads it, not as the tool first read it" do
       stock_written_meanwhile(1)
 
       error = refusal(quantity: 2)
+
+      expect(error).to have_attributes(reason: "low_stock", message: match(/Only 1 unit\b/))
+      expect(Reservation.count).to eq(0)
+      expect(product.reload.stock).to eq(1)
+    end
+
+    # Another writer between the check and the decrement: the decrement
+    # never goes below zero, and the reservation goes back with it.
+    it "keeps nothing when the units are gone by the decrement" do
+      product.update!(stock: 1)
+      used = tool
+      allow(used).to receive(:stock_of).and_return(40, 1)
+
+      error = begin
+        used.call(Anthropic::Internal::Type::Converter.coerce(used, { product_id: product.id, quantity: 2 }))
+      rescue AgentTool::Error => e
+        e
+      end
 
       expect(error).to have_attributes(reason: "low_stock", message: match(/Only 1 unit\b/))
       expect(Reservation.count).to eq(0)

@@ -14,8 +14,11 @@ module Tools
   # prescription is never reserved, since it is sold only against the
   # prescription presented at the counter (FR-07, as the owner read it on
   # 2026-11-13: the search gives its price and flag, and the model calls
-  # nothing more); at most MAX_QUANTITY units per reservation and MAX_OPEN
-  # open reservations per visitor; never more than the stock.
+  # nothing more); at most MAX_OPEN open reservations per visitor; at most
+  # MAX_QUANTITY units per reservation and never more than the stock, the
+  # refusal offering what can be had (FR-07's "available alternative"),
+  # so the cap and the stock are read before the limit (review finding C3 of
+  # pull request #19).
   #
   # One transaction holds the visitor's row, counts what it holds, stores the
   # reservation and takes its units by a relative decrement that never goes
@@ -84,7 +87,6 @@ module Tools
     def quantity(input)
       quantity = input.to_h[:quantity]
       refuse(QUANTITY, "invalid_quantity") unless quantity.is_a?(Integer) && quantity.positive?
-      refuse(OVER_LIMIT, "over_limit") if quantity > MAX_QUANTITY
 
       quantity
     end
@@ -94,14 +96,27 @@ module Tools
         visitor = Visitor.lock.find(turn.conversation.visitor_id)
         held = Reservation.held_by(visitor).includes(:product).order(:created_at, :id).to_a
         refuse(format(OPEN_LIMIT, held: JSON.generate(held.map { |reservation| result(reservation) })), "open_limit") if held.size >= MAX_OPEN
+        check_units(quantity, stock_of(product))
 
         reservation = Reservation.create_once!(turn:, product:, quantity:, pickup_until: StoreSheet.current.pickup_until(Time.current))
         take(product, quantity) if reservation.previously_new_record?
         reservation
       end
     rescue Shortage
-      stock = Product.where(id: product.id).pick(:stock).to_i
-      stock.positive? ? refuse(format(LOW_STOCK, units: units(stock)), "low_stock") : refuse(OUT_OF_STOCK, "out_of_stock")
+      check_units(quantity, stock_of(product))
+      raise
+    end
+
+    def stock_of(product) = Product.where(id: product.id).pick(:stock).to_i
+
+    # The units asked against the stock as it is and the limit, refused with
+    # what can be had instead: nothing, the stock, or MAX_QUANTITY.
+    def check_units(quantity, stock)
+      return if quantity <= [ stock, MAX_QUANTITY ].min
+
+      refuse(OUT_OF_STOCK, "out_of_stock") if stock.zero?
+      refuse(OVER_LIMIT, "over_limit") if quantity > MAX_QUANTITY && stock >= MAX_QUANTITY
+      refuse(format(LOW_STOCK, units: units(stock)), "low_stock")
     end
 
     # The units leave the stock as it is in the database, never below zero;
