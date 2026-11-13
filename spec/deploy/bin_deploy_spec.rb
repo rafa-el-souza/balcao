@@ -89,7 +89,35 @@ RSpec.describe "SR-38 bin/deploy deploys only the rehearsal destination" do
     status, _err = deploy("-d", "ensaio")
 
     expect(status).to be_success
-    expect(kamal_calls).to eq [ "kamal version", "kamal setup -d ensaio", "kamal registry remove -d ensaio" ]
+    expect(kamal_calls.grep_v(/\Akamal server exec /)).to eq [ "kamal version", "kamal setup -d ensaio", "kamal registry remove -d ensaio" ]
+  end
+
+  # Review findings C1 and R1 of pull request #21 (threat model SR-27): Kamal
+  # runs the proxy by its tag, and Docker asks the registry for a tag the host
+  # lacks (a fresh host, or one whose proxy image was removed), where a tag can
+  # be pushed again. Every deploy first puts the image on the host by the
+  # digest written beside the tag in config/deploy.yml, under that tag.
+  it "puts the pinned kamal-proxy on the host by its digest, under its tag, before kamal setup" do
+    version, digest = Rails.root.join("config/deploy.yml").read
+      .match(%r{^\s*version: (v\d+\.\d+\.\d+) # (basecamp/kamal-proxy@sha256:\h{64})$}).captures
+
+    status, _err = deploy("-d", "ensaio")
+
+    expect(status).to be_success
+    put = kamal_calls.index do |call|
+      call.start_with?("kamal server exec -d ensaio ") && call.include?("docker pull #{digest}") &&
+        call.include?("docker tag #{digest} basecamp/kamal-proxy:#{version}")
+    end
+    expect(put).not_to be_nil
+    expect(put).to be < kamal_calls.index("kamal setup -d ensaio")
+  end
+
+  it "stops before kamal setup when the proxy's image cannot be put on the host" do
+    status, err = deploy("-d", "ensaio", env: rehearsal_env.merge("KAMAL_SHIM_FAIL_ON" => "server"))
+
+    expect(status).not_to be_success
+    expect(err).to include("kamal-proxy")
+    expect(kamal_calls).not_to include("kamal setup -d ensaio")
   end
 
   it "removes the local registry even when the deploy fails, and exits non-zero" do

@@ -85,10 +85,9 @@ from M3.
    is finished when `cloud-init status --long` says `status: done` and
    `errors: []`, with only deprecation notices under `recoverable_errors`.
 5. Run the host checklist.
-6. Put the pinned kamal-proxy on the host by its digest (step 3 of the
-   swap, below), so the first `kamal setup` boots it without asking the
-   registry what the tag means.
-7. Deploy (next section).
+6. Deploy (next section). `bin/deploy` puts the pinned kamal-proxy on the
+   host by its digest before the first `kamal setup` boots it, so the
+   registry is never asked what the tag means.
 
 ## Host checklist (SR-24)
 
@@ -122,7 +121,10 @@ Only a green `main` is deployed to the MVP host.
    generated with `bin/secrets-example` (it prints only the names not yet
    set) and appended to that file.
 3. `bin/deploy -d ensaio`. It refuses a dirty working tree, prints
-   `kamal version`, runs `kamal setup` (on a fresh host it boots the
+   `kamal version`, puts the pinned kamal-proxy's image on the host by the
+   digest written beside its tag, under that tag (SR-27; Docker runs a tag
+   it holds without asking the registry, where a tag can be pushed again),
+   runs `kamal setup` (on a fresh host it boots the
    accessory first; afterwards it deploys like `kamal deploy`), and always
    ends with `kamal registry remove -d ensaio`. The first run on a fresh
    host took about two and a half minutes.
@@ -168,29 +170,29 @@ proxy. On the MVP host:
    digest the tag resolves to then
    (`docker buildx imagetools inspect basecamp/kamal-proxy:<tag>`, its
    first `Digest:`); once it is merged, the MVP deploy flow above deploys
-   that `main`.
+   that `main`, and `bin/deploy` puts the new release's image on the host
+   by that digest, under its tag, before `kamal setup`.
 2. Measure before, from the workstation, what the swap is for (the checks
-   of step 5), so the difference is seen.
-3. Put the pinned image on the host by its digest, under the tag Kamal
-   runs: Docker runs a tag it already holds without asking the registry, so
-   a tag pushed again later changes nothing here. From the repository, with
-   the destination's env file loaded as for a deploy:
+   of step 4), so the difference is seen.
+3. `kamal proxy reboot -d ensaio`, with the destination's env file loaded
+   as for a deploy. It asks for confirmation, then stops and removes the
+   proxy container and runs the pinned tag, which the host already holds:
+   the demo is down for a few seconds. The certificates and the routes to
+   the app live in the `kamal-proxy-config` volume, which the new container
+   reads at boot, so nothing is issued again and no deploy is needed.
+4. Check, from the repository, the pin read from its one line:
 
    ```
-   DIGEST=$(grep -o 'basecamp/kamal-proxy@sha256:[0-9a-f]*' config/deploy.yml)
-   TAG=basecamp/kamal-proxy:$(grep -o 'version: v[0-9.]*' config/deploy.yml | cut -d' ' -f2)
-   kamal server exec -d ensaio "docker pull $DIGEST && docker tag $DIGEST $TAG"
+   PIN=$(grep -o '^ *version: v[0-9.]* # basecamp/kamal-proxy@sha256:[0-9a-f]*$' config/deploy.yml)
+   TAG=basecamp/kamal-proxy:$(echo $PIN | cut -d' ' -f2)
+   DIGEST=$(echo $PIN | cut -d' ' -f4)
+   kamal proxy details -d ensaio
+   kamal server exec -d ensaio "docker image inspect $TAG --format '{{json .RepoDigests}}'"
    ```
 
-4. `kamal proxy reboot -d ensaio`. It asks for confirmation, then stops
-   and removes the proxy container and runs the pinned release: the demo is
-   down for a few seconds. The certificates and the routes to the app live
-   in the `kamal-proxy-config` volume, which the new container reads at
-   boot, so nothing is issued again and no deploy is needed.
-5. Check: `kamal proxy details -d ensaio` names the pinned tag;
-   `kamal server exec -d ensaio "docker image inspect $TAG --format '{{json .RepoDigests}}'"`
-   lists `$DIGEST`, the content and not only the name; the smoke of the
-   deploy flow passes; and, for the v0.10.2 swap:
+   The details name `$TAG`, and the image under it lists `$DIGEST`: the
+   content, not only the name. The smoke of the deploy flow passes; and,
+   for the v0.10.2 swap:
    - `echo | openssl s_client -connect balcao.rafasouza.dev.br:443 -tls1_2 -cipher ECDHE-ECDSA-AES128-SHA`
      fails the handshake (a CBC suite), and the same with
      `ECDHE-ECDSA-AES128-GCM-SHA256` connects;
@@ -200,14 +202,18 @@ proxy. On the MVP host:
      with no message from the client (Action Cable's pings keep coming);
    - `kamal app logs -d ensaio` shows a request of yours from your own
      address, so the app still reads the client's IP from the proxy (SR-36).
-6. Way back: set `proxy.run.version` to the release that ran before (v0.9.2
-   before this pin, whose image the host still holds) in the working tree,
-   `kamal proxy reboot -d ensaio`, restore the file, and open a pull
-   request that pins what runs, with the reason. That release reads the
-   state the newer one saved, whose fields it does not know it ignores.
+5. Way back: set `proxy.run.version` to the release that ran before in
+   the working tree, with its digest beside it (before this pin,
+   `v0.9.2 # basecamp/kamal-proxy@sha256:826a6f66c6ba26ac26197ac8755804403c9bb617b90cfac25c7972154c5328ab`,
+   the image the MVP host pulled on day 2 and still holds),
+   `kamal proxy reboot -d ensaio`, restore the file, and open a pull request
+   that pins what runs, with the reason. That release reads the state the
+   newer one saved, whose fields it does not know it ignores.
 
 Production (from M3) swaps the same way from the operator account, after
-the deploy-path review of the pull request (SR-38).
+the deploy-path review of the pull request (SR-38); there is no `bin/deploy`
+there, so the operator checklist puts the image on the host by its digest
+before `kamal deploy`, as `bin/deploy` does.
 
 ## End of a deploy session
 

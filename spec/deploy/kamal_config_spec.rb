@@ -119,18 +119,18 @@ RSpec.describe "SR-27 the edge proxy is pinned at a release past its published a
     expect(base.dig("proxy", "run", "version")).to match(/\Av\d+\.\d+\.\d+\z/)
   end
 
-  # Review finding C1 of pull request #21: a tag can be pushed again, and
-  # nothing held what the proxy's image is. The digest the tag resolved to
+  # Review findings C1 and R1 of pull request #21: a tag can be pushed again,
+  # and nothing held what the proxy's image is. The digest the tag resolved to
   # when it was pinned is written beside it, in a file the deploy-path review
-  # reads (SR-38), and a host gets that content by digest, under the tag,
-  # before Kamal boots the proxy, which then runs the tag it already holds.
-  it "writes beside the tag the digest of the image a host must run, and the runbook puts it there by digest" do
+  # reads (SR-38); bin/deploy puts that image on the host under the tag before
+  # Kamal boots the proxy (spec/deploy/bin_deploy_spec.rb), and the swap
+  # checks the content the tag names on the host.
+  it "writes beside the tag the digest of the image a host must run, and the swap checks that content" do
     version_line = Rails.root.join("config/deploy.yml").read.lines.grep(/^\s*version: /).sole
     expect(version_line).to match(%r{\A\s*version: v\d+\.\d+\.\d+ # basecamp/kamal-proxy@sha256:[0-9a-f]{64}$})
 
-    runbook = Rails.root.join("docs/runbook.md").read
-    expect(runbook).to include(%(kamal server exec -d ensaio "docker pull $DIGEST && docker tag $DIGEST $TAG"))
-    expect(runbook).to include(%(docker image inspect $TAG --format '{{json .RepoDigests}}'))
+    swap = Rails.root.join("docs/runbook.md").read[/^## Swapping the proxy's release.*?(?=^## )/m]
+    expect(swap).to include(%(docker image inspect $TAG --format '{{json .RepoDigests}}'))
   end
 
   # Review finding V1 of pull request #21: a deploy starts the proxy that is
