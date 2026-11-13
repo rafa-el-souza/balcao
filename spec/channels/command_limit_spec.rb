@@ -34,6 +34,16 @@ RSpec.describe ApplicationCable::Connection, "SR-40 twenty commands a minute per
     expect(connection).to have_received(:close).with(reason: "limit", reconnect: false).once
   end
 
+  # Review finding V1 of pull request #23 (spec/requests/cable_handshake_spec.rb
+  # holds it over a real socket).
+  it "shuts the socket's driver right after, so nothing the client sends is read" do
+    allow(Balcao::CableDriver).to receive(:shut)
+
+    21.times { connection.on_message(command) }
+
+    expect(Balcao::CableDriver).to have_received(:shut).with(connection.env[Balcao::CableDriver::DRIVER], /commands/).once
+  end
+
   it "counts a new minute from the first command after the last one ended" do
     travel_to Time.zone.local(2026, 11, 13, 21, 0, 0) do
       20.times { connection.on_message(command) }

@@ -132,6 +132,26 @@ RSpec.describe "The cable's handshake at the Rack level" do
     expect(server).to be_closed # what the gate prunes its count by
   end
 
+  # Review finding V1 of pull request #23: the 21st command's close left the
+  # driver closing, where websocket-driver no longer holds a frame to 16 KiB,
+  # and the socket open for as long as the client kept it.
+  it "SR-40 SR-04 closes the socket at the 21st command, and reads nothing after it" do
+    status, client = handshake(source: "198.51.100.41")
+    expect(status).to eq(-1)
+    head(client)
+    command = { command: "unsubscribe", identifier: { channel: "TraceChannel" }.to_json }.to_json
+    huge = [ 0x81, 0xFF ].pack("CC") + [ 1 << 30 ].pack("Q>") + SecureRandom.random_bytes(4) + ("x" * 65_536)
+
+    client.write(Array.new(21) { masked(0x81, command) }.join)
+    begin
+      client.write_nonblock(huge, exception: false)
+    rescue Errno::EPIPE, Errno::ECONNRESET
+      nil # closed already
+    end
+
+    expect(closed_by_server?(client)).to be true
+  end
+
   describe "SR-40 the gate counts the sockets Action Cable holds, until Action Cable closes them" do
     it "refuses a source's 21st socket and lets it in again once the source closes one" do
       opened = Array.new(20) { handshake }

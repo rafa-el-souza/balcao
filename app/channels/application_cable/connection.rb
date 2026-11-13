@@ -24,6 +24,11 @@ module ApplicationCable
 
       logger.info "Closing the connection: more than #{COMMANDS_PER_MINUTE} commands in a minute"
       close(reason: "limit", reconnect: false)
+      # Closing waits for the client's answer, with the socket open and its
+      # driver reading whatever comes, no longer held to 16 KiB a frame; the
+      # socket is shut here instead (review finding V1 of pull request #23).
+      driver = env[Balcao::CableDriver::DRIVER]
+      Balcao::CableDriver.shut(driver, "more than #{COMMANDS_PER_MINUTE} commands in a minute") if driver
     end
 
     private

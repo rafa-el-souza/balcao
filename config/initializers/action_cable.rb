@@ -34,9 +34,14 @@ module Balcao
     # sends. The method is websocket-driver's own, private; a spec pins it.
     def self.shut(driver, reason) = driver.send(:shutdown, 1008, reason)
 
+    # Where a connection finds its socket's driver: the request's env, which
+    # the socket and the connection share (app/channels/application_cable).
+    DRIVER = "balcao.cable.driver"
+
     def rack(socket, options = {})
       driver = super(socket, options.merge(max_length: [ options[:max_length] || MAX_MESSAGE, MAX_MESSAGE ].min))
       %i[ping pong].each { |event| driver.on(event) { CableDriver.shut(driver, "no #{event}s") } }
+      socket.env[DRIVER] = driver if socket.respond_to?(:env)
       driver
     end
   end
