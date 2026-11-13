@@ -10,7 +10,14 @@
 # - anything else goes through AgentRunner, whose events become the turn's
 #   spans (FR-12), and its outcome becomes the reply: the model's text, the
 #   refusal's fixed text (SR-19) or the fallback (NFR-03), the last two
-#   followed by the line of any reservation the turn stored.
+#   followed by the line of any reservation the turn stored;
+# - a turn the job gave up on after its attempts gets the fallback too
+#   (give_up, NFR-03).
+#
+# Every way a turn ends is an outcome on its root span, which the glass box
+# words (web/src/locales, instrument.outcomes): OUTCOMES. A slice that adds or
+# renames one gives the panel its words in the same change (design §10, note
+# of 2026-11-12); spec/models/turn_outcomes_spec.rb holds the two together.
 #
 # The first reply of a conversation carries the demo notice (FR-01), in the
 # language the reply is in, and the reply's language becomes the
@@ -20,6 +27,9 @@
 # then every turn runs in the normal mode.
 class TurnProcessor
   MODE = "normal".freeze
+  # AgentRunner's, then the two this class adds: a turn answered from its
+  # stored reservations without the model, and one the job gave up on.
+  OUTCOMES = [ *AgentRunner::OUTCOMES.map(&:to_s), "reservations", "dead_letter" ].freeze
 
   def initialize(turn, commands: CommandPhrases.current)
     @turn = turn
@@ -40,6 +50,27 @@ class TurnProcessor
     when :trace then trace
     else answer
     end
+  end
+
+  # NFR-03: the job's last attempt failed (ProcessTurnJob's dead letter), so
+  # the turn is answered with the fallback, followed by the line of any
+  # reservation it stored (NFR-02), rather than left waiting for good. It is a
+  # run of its own in the trace, with no model call: the root from the
+  # message's receipt, the reply, the outcome dead_letter and the error's
+  # class.
+  def give_up(error)
+    return if Message.exists?(turn_id: @turn.id)
+
+    TraceRecorder.close_interrupted(@turn)
+    @recorder = TraceRecorder.new(@turn)
+    @root = @recorder.start_span("balcao.turn", started_at: @inbound.created_at, attributes: {
+      "balcao.channel" => @inbound.channel, "balcao.message.source" => @inbound.source
+    })
+    language = @conversation.language
+    finish("dead_letter", "failed", FixedReply.with_reservations(FixedReply.fallback(language), reservations, language), error:)
+  rescue StandardError => e
+    @recorder&.abandon(e.class.name)
+    raise
   end
 
   private
@@ -162,6 +193,8 @@ class TurnProcessor
   def reservations = Reservation.where(turn_id: @turn.id).includes(:product).order(:created_at, :id).to_a
 
   def finish(outcome, state, text, error: nil)
+    raise ArgumentError, "#{outcome} is not in TurnProcessor::OUTCOMES" unless OUTCOMES.include?(outcome.to_s)
+
     outbound = @recorder.start_span("balcao.outbound", parent: @root, attributes: { "balcao.message.author" => "bot" })
     message = store_reply(text, language: @conversation.language)
     outbound.finish(attributes: { "balcao.message.characters" => message.body.length })

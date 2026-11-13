@@ -162,6 +162,23 @@ describe("FR-12 the glass box draws the turn as the server traced it", () => {
     ).toBeInTheDocument();
   });
 
+  it("says why the job gave up on a turn, after its attempts, in the sent row (NFR-03)", async () => {
+    server.answers.current.push(
+      conversation(
+        1,
+        [],
+        false,
+        answeredTurn("t1", { error: "RuntimeError", outcome: "dead_letter" }),
+      ),
+    );
+    renderPage(<Chat />);
+    await ready();
+
+    expect(
+      await within(glass()).findByText("o sistema falhou"),
+    ).toBeInTheDocument();
+  });
+
   it("draws a command as a turn of one row", async () => {
     server.answers.current.push(
       conversation(1, [], false, [

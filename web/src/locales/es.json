@@ -125,6 +125,7 @@
       "incomplete": "respuesta incompleta",
       "refused": "el modelo se negó",
       "reservations": "sin modelo",
+      "dead_letter": "el sistema falló",
       "other": "respuesta fija"
     },
     "errors": {
