@@ -82,6 +82,12 @@ RSpec.describe "FR-03 FR-06 FR-07 FR-21 SR-21 the eval cases find their facts in
     expect(dipirona_named(final_message("reservation-ok-pt-01")).size).to eq(1)
   end
 
+  # Review finding V2 of pull request #19: a model that asks which dipirona
+  # first may not say the limit at all.
+  it "has reservation-too-many-pt-01 ask for one of the two dipirona products" do
+    expect(dipirona_named(final_message("reservation-too-many-pt-01")).size).to eq(1)
+  end
+
   it "has less dipirona in any one product than the 500 boxes reservation-too-many-pt-01 asks for" do
     expect(products_matching(catalogue, "dipirona").map { |entry| entry[:stock] }).to all(be < 500)
   end
