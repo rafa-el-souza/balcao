@@ -164,19 +164,6 @@ function reservationOf(span: Span): string | null {
   }
 }
 
-// The codes of the reservations a conversation's tool calls made, which its
-// replies stamp wherever they write one (FR-07).
-export function reservationCodes(spans: Span[]): string[] {
-  return [
-    ...new Set(
-      spans
-        .filter((span) => span.name.startsWith(TOOL_CALL))
-        .map(reservationOf)
-        .filter((code) => code !== null),
-    ),
-  ];
-}
-
 function toolRow(span: Span): Row {
   const a = span.attributes;
   const failed = str(a, "error.type") !== null;

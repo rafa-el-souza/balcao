@@ -14,7 +14,6 @@ import ptBR from "../locales/pt-BR.json";
 import openers from "../openers.json";
 import { conversation, fakeServer, message } from "../test/fakeServer";
 import { renderPage } from "../test/render";
-import { answeredTurn, refusedTool, reservationTool } from "../test/spans";
 import { serverClock } from "./api";
 import { Chat } from "./Chat";
 
@@ -702,100 +701,127 @@ describe("Threat model SR-03 the attendant's words are text", () => {
 
 // docs/prototype/chat-reservation.html: a reservation's code is a small stamp
 // in the instrument's face, since it is what the visitor shows at the
-// counter, and the chat marks it from the tool's result, not from the shape
-// of the text.
+// counter. The chat marks the codes the server lists for each reply, the
+// codes of the visitor's own reservations the reply writes, whatever
+// conversation made them, never a word of that shape (review finding C1 of
+// pull request #19).
 describe("FR-07 a reservation's code in the reply", () => {
-  const reply = (body: string, turn = 1) =>
-    message({ author: "bot", body, turn_id: turn });
+  const reply = (body: string, codes: string[], turn = 1) =>
+    message({ author: "bot", body, codes, turn_id: turn });
+  const stampsIn = (item: Element | null) =>
+    [...(item?.querySelectorAll("strong") ?? [])].map(
+      (stamp) => stamp.textContent,
+    );
 
-  it("stamps the code the turn's reservation holds, and no other word of that shape", async () => {
+  it("stamps the code the server lists, wherever the reply writes it, and no other word of that shape", async () => {
     server.answers.current.push(
-      conversation(
-        1,
-        [
-          message({ author: "visitor", body: "reserva duas caixas" }),
-          reply(
-            "Reservado: 2 × Dipirona 500 mg. O código é 4K2QHM, e a retirada é até 13/11 às 20:00.\nGUARDE o 4K2QHM.",
-          ),
-        ],
-        false,
-        answeredTurn("1", { tool: reservationTool("4K2QHM") }),
-      ),
+      conversation(1, [
+        message({ author: "visitor", body: "reserva duas caixas" }),
+        reply(
+          "Reservado: 2 × Dipirona 500 mg. O código é 4K2QHM, e a retirada é até 13/11 às 20:00.\nGUARDE o 4K2QHM, não o ABCDEF.",
+          ["4K2QHM"],
+        ),
+      ]),
     );
     renderPage(<Chat />);
     await ready();
 
     const answer = (await within(thread()).findByText(/Reservado:/)).closest(
       "li",
-    ) as HTMLElement;
-    const stamps = answer.querySelectorAll("strong");
-    expect([...stamps].map((stamp) => stamp.textContent)).toEqual([
-      "4K2QHM",
-      "4K2QHM",
-    ]);
+    );
+    expect(stampsIn(answer)).toEqual(["4K2QHM", "4K2QHM"]);
     expect(answer).toHaveTextContent(
       "Reservado: 2 × Dipirona 500 mg. O código é 4K2QHM, e a retirada é até 13/11 às 20:00.",
     );
-    expect(within(answer).getByText(/GUARDE/).tagName).toBe("P");
+    expect(within(answer as HTMLElement).getByText(/GUARDE/).tagName).toBe("P");
   });
 
-  it("stamps nothing in a reply whose turn made no reservation, whatever its words", async () => {
+  it("stamps nothing the server does not list, whatever the reply's words", async () => {
     server.answers.current.push(
-      conversation(
-        1,
-        [
-          message({ author: "visitor", body: "reserva 20 caixas" }),
-          reply(
-            "Consigo reservar até 10 unidades. O código 4K2QHM não existe.",
-          ),
-        ],
-        false,
-        answeredTurn("1", {
-          tool: refusedTool("create_reservation", "over_limit", "Over."),
-        }),
-      ),
+      conversation(1, [
+        message({ author: "visitor", body: "reserva 20 caixas" }),
+        reply(
+          "Consigo reservar até 10 unidades. O código 4K2QHM não existe.",
+          [],
+        ),
+      ]),
     );
     renderPage(<Chat />);
     await ready();
 
     const answer = (
       await within(thread()).findByText(/Consigo reservar/)
-    ).closest("li") as HTMLElement;
-    expect(answer.querySelector("strong")).toBeNull();
+    ).closest("li");
+    expect(stampsIn(answer)).toEqual([]);
   });
 
-  it("stamps the code again in a later reply that repeats it", async () => {
+  // The cap's refusal: the system lists the three under the reply, and two of
+  // them were made in an earlier conversation.
+  it("stamps the codes of reservations another conversation made, which the reply lists", async () => {
+    const lines =
+      "Reserva 4K2QHM: 2 × Dipirona 500 mg, 10 comprimidos, retirada até 14/11 às 14:00.\n" +
+      "Reserva 7NPX3R: 1 × Paracetamol 750 mg, 20 comprimidos, retirada até 14/11 às 14:00.\n" +
+      "Reserva Z9WQ2D: 1 × Loratadina 10 mg, 12 comprimidos, retirada até 14/11 às 14:00.";
     server.answers.current.push(
-      conversation(
-        1,
-        [
-          message({ author: "visitor", body: "reserva", turn_id: 1 }),
-          reply("O código é 4K2QHM.", 1),
-          message({ author: "visitor", body: "e o código?", turn_id: 2 }),
-          reply("Era 4K2QHM.", 2),
-        ],
-        false,
-        answeredTurn("1", { tool: reservationTool("4K2QHM") }),
-      ),
+      conversation(1, [
+        message({ author: "visitor", body: "reserva mais uma" }),
+        reply(`Você já tem 3 reservas abertas.\n\n${lines}`, [
+          "4K2QHM",
+          "7NPX3R",
+          "Z9WQ2D",
+        ]),
+      ]),
     );
     renderPage(<Chat />);
     await ready();
 
-    const first = (await within(thread()).findByText(/O código é/)).closest(
-      "li",
-    ) as HTMLElement;
-    const second = within(thread())
-      .getByText(/Era/)
-      .closest("li") as HTMLElement;
-    expect(first.querySelector("strong")).toHaveTextContent("4K2QHM");
-    expect(second.querySelector("strong")).toHaveTextContent("4K2QHM");
-    // The visitor's own words are never stamped.
+    const answer = (
+      await within(thread()).findByText(/3 reservas abertas/)
+    ).closest("li");
+    expect(stampsIn(answer)).toEqual(["4K2QHM", "7NPX3R", "Z9WQ2D"]);
+  });
+
+  it("stamps the code again in a later reply that repeats it, and never the visitor's own words", async () => {
+    server.answers.current.push(
+      conversation(1, [
+        message({ author: "visitor", body: "reserva", turn_id: 1 }),
+        reply("O código é 4K2QHM.", ["4K2QHM"], 1),
+        message({
+          author: "visitor",
+          body: "e o 4K2QHM?",
+          codes: ["4K2QHM"],
+          turn_id: 2,
+        }),
+        reply("Era 4K2QHM.", ["4K2QHM"], 2),
+      ]),
+    );
+    renderPage(<Chat />);
+    await ready();
+
     expect(
-      within(thread())
-        .getByText("e o código?")
-        .closest("li")
-        ?.querySelector("strong"),
-    ).toBeNull();
+      stampsIn((await within(thread()).findByText(/O código é/)).closest("li")),
+    ).toEqual(["4K2QHM"]);
+    expect(stampsIn(within(thread()).getByText(/Era/).closest("li"))).toEqual([
+      "4K2QHM",
+    ]);
+    expect(
+      stampsIn(within(thread()).getByText("e o 4K2QHM?").closest("li")),
+    ).toEqual([]);
+  });
+
+  it("takes as a code only letters and digits, whatever the server lists", async () => {
+    server.answers.current.push(
+      conversation(1, [
+        message({ author: "visitor", body: "reserva" }),
+        reply("Código (4K.*) e 4K2QHM.", ["(4K.*)", "", "4K2QHM"]),
+      ]),
+    );
+    renderPage(<Chat />);
+    await ready();
+
+    const answer = (await within(thread()).findByText(/Código/)).closest("li");
+    expect(stampsIn(answer)).toEqual(["4K2QHM"]);
+    expect(answer).toHaveTextContent("Código (4K.*) e 4K2QHM.");
   });
 });
 

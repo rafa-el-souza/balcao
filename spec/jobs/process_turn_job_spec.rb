@@ -188,6 +188,12 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
         expect(turn.reservations).to be_empty
       end
 
+      it "sends the reply with the codes it lists, for the chat to stamp" do
+        expect { ask_for_a_fourth }
+          .to have_broadcasted_to("conversation:#{conversation.id}")
+          .with(hash_including(type: "message", message: hash_including(codes: match_array(held.map(&:code)))))
+      end
+
       it "keeps the reservations of another conversation out of this one's trace" do
         turn = ask_for_a_fourth
 

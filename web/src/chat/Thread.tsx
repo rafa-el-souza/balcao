@@ -35,9 +35,9 @@ function Notice({ text }: { text: string }) {
 
 // A reservation's code where a reply writes it, as a small stamp in the
 // instrument's face, since it is what the visitor shows at the counter
-// (FR-07; docs/prototype/chat-reservation.html). The codes are the
-// reservation tool's results (reservationCodes), letters and digits alone, so
-// each is its own pattern; a code inside a longer word is not one.
+// (FR-07; docs/prototype/chat-reservation.html). The codes are those the
+// server lists for the reply (codesOf in conversation.ts), letters and digits
+// alone, so each is its own pattern; a code inside a longer word is not one.
 function stamped(line: string, marks: readonly string[]) {
   if (marks.length === 0) return line;
   return line

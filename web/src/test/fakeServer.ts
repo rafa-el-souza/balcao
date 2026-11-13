@@ -25,6 +25,8 @@ export interface ServerMessage {
   author: "visitor" | "bot" | "operator" | "system";
   notice?: string | null;
   body: string;
+  // The codes of the visitor's own reservations the message writes.
+  codes?: string[];
   created_at: string;
 }
 

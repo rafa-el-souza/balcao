@@ -251,7 +251,10 @@ class TurnProcessor
     Message.record_outbound!(turn: @turn, body:, conversation:)
   end
 
-  def broadcast_reply(message) = broadcast(type: "message", message: message.stream_payload)
+  def broadcast_reply(message)
+    codes = Reservation.where(visitor_id: @conversation.visitor_id).pluck(:code)
+    broadcast(type: "message", message: message.stream_payload(reservation_codes: codes))
+  end
 
   # On the stream of the turn's conversation, the one the visitor's page
   # follows; a reset's reply names the conversation it opened. A broadcast

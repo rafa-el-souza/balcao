@@ -1,4 +1,4 @@
-import { reservationCodes, withSpans } from "../trace/model";
+import { withSpans } from "../trace/model";
 import type { Content, Deleted, ServerMessage, Snapshot, Span } from "./api";
 
 // The conversation on the page (design §6.9: a React reducer, not server
@@ -286,15 +286,28 @@ function merge(state: State, answer: Snapshot | Deleted): State {
   };
 }
 
+// A reservation's code as the server draws it (app/models/reservation.rb).
+const CODE = /^[0-9A-Z]+$/;
+
+// The codes a reply stamps: those the server lists, the visitor's own
+// reservations the reply writes, whatever conversation made them, never a
+// word of that shape (docs/prototype/chat-reservation.html; review finding
+// C1 of pull request #19). Each is letters and digits, as a pattern needs.
+function codesOf(message: ServerMessage): string[] {
+  const codes: unknown = message.codes;
+  return Array.isArray(codes)
+    ? codes.filter(
+        (code): code is string => typeof code === "string" && CODE.test(code),
+      )
+    : [];
+}
+
 // The thread as drawn: the server's messages in its order and then the
 // messages still travelling, each followed by what the page anchored after it.
 export function entriesOf(state: State): Entry[] {
-  // The codes come from the reservation tool's results, never from the shape
-  // of a reply's text (docs/prototype/chat-reservation.html).
-  const codes = reservationCodes(state.spans);
   const fromServer = (message: ServerMessage): Entry[] => {
     const lang = message.client_id ? state.langs[message.client_id] : undefined;
-    const marks = message.author === "bot" && codes.length > 0 ? codes : null;
+    const marks = message.author === "visitor" ? [] : codesOf(message);
     return [
       // FR-01's notice, which the server sends apart from the reply.
       ...(message.notice
@@ -312,7 +325,7 @@ export function entriesOf(state: State): Entry[] {
         voice: VOICES[message.author],
         text: message.body,
         ...(lang ? { lang } : {}),
-        ...(marks ? { marks } : {}),
+        ...(marks.length > 0 ? { marks } : {}),
       },
     ];
   };

@@ -6,7 +6,6 @@ import {
   formatDuration,
   formatTokens,
   placeLocal,
-  reservationCodes,
   turnsOf,
 } from "./model";
 
@@ -369,26 +368,6 @@ describe("FR-12 the glass box's rows, one per model call, from the spans", () =>
 
       expect(turn?.rows[2], content).toMatchObject({ reservation: null });
     }
-  });
-
-  it("lists the codes of the reservations the conversation's tool calls made", () => {
-    const first = answered("t1");
-    const second = answered("t2");
-    const reserve = (span: Span | undefined, code: string) => {
-      if (span)
-        span.attributes = {
-          "gen_ai.tool.name": "create_reservation",
-          "anthropic.tool_result.content": JSON.stringify({ code }),
-        };
-    };
-    reserve(first[2], "4K2QHM");
-    reserve(second[2], "7TXN3P");
-
-    expect(reservationCodes([...first, ...second])).toEqual([
-      "4K2QHM",
-      "7TXN3P",
-    ]);
-    expect(reservationCodes(answered("t3"))).toEqual([]);
   });
 
   it("sums a turn's input, cache read and output for the trace page's total", () => {
