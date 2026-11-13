@@ -55,6 +55,14 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
       expect(err.string).to include("--all")
     end
 
+    # Review finding C4 of pull request #20: a second --case forgotten ran
+    # one case and exited 0, as if both had passed.
+    it "refuses a word that is not an option's" do
+      expect(evals("--list", "--case", "greeting-pt-01", "greeting-en-01")).to eq(2)
+      expect(err.string).to include("greeting-en-01")
+      expect(evals("--all", "boundary")).to eq(2)
+    end
+
     it "names a suite or a case it does not know" do
       expect(evals("--suite", "smalltalk")).to eq(2)
       expect(evals("--case", "boundary-pt-99")).to eq(2)

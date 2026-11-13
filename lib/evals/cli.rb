@@ -69,7 +69,9 @@ module Evals
         LATER.each_key { |flag| opts.on(flag) { options[:later] = flag } }
         opts.on("-h", "--help") { options[:help] = parser }
       end
-      parser.parse(@argv)
+      stray = parser.parse(@argv)
+      raise Usage, "#{stray.join(" ")}: not an option's value; each case and suite takes its own --case or --suite" if stray.any?
+
       check(options)
     end
 
