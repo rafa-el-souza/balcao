@@ -28,6 +28,18 @@ module ApplicationCable
 
     private
 
+    # Action Cable runs a socket's opening and its closing as two tasks of its
+    # worker pool, and the opening adds the connection to the server's list of
+    # connections at its very end: a socket closed right after its 101 may see
+    # its closing run first, find nothing to remove, and leave the connection
+    # in the list until the process ends (measured: 59 of 1,000). One whose
+    # socket is gone by the end of its opening leaves the list here
+    # (spec/channels/connection_list_spec.rb pins the two methods).
+    def handle_open
+      super
+      server.remove_connection(self) unless websocket.alive?
+    end
+
     # A minute starts at the first command after the last one ended, as the
     # edge's limits count (app/models/edge_limits.rb).
     def over_command_limit?

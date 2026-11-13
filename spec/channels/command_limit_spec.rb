@@ -57,12 +57,7 @@ RSpec.describe ApplicationCable::Connection, "SR-40 twenty commands a minute per
   # path of every message the socket reads: if Rails changes either, this
   # breaks, and the count must be read again against the new code.
   describe "the methods of Action Cable the count relies on" do
-    def source_of(owner, name)
-      file, line = owner.instance_method(name).source_location
-      lines = File.readlines(file).drop(line - 1)
-      indent = lines.first[/\A */]
-      lines.take(lines.index { _1 == "#{indent}end\n" } + 1).map { _1.delete_prefix(indent) }.join
-    end
+    include LibrarySource
 
     it "reads each message of the socket through the connection's on_message" do
       expect(source_of(ActionCable::Connection::ClientSocket, :receive_message)).to eq <<~RUBY
