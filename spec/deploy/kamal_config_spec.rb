@@ -133,6 +133,15 @@ RSpec.describe "SR-27 the edge proxy is pinned at a release past its published a
     expect(swap).to include(%(docker image inspect $TAG --format '{{json .RepoDigests}}'))
   end
 
+  # Review finding R2 of pull request #21: a digest left behind by a bump
+  # passes every check that reads the digest written beside the tag, so the
+  # swap asks the running proxy which release it is.
+  it "has the swap ask the running proxy which release it is" do
+    swap = Rails.root.join("docs/runbook.md").read[/^## Swapping the proxy's release.*?(?=^## )/m]
+
+    expect(swap).to include(%(kamal server exec -d ensaio "docker exec kamal-proxy kamal-proxy version"))
+  end
+
   # Review finding V1 of pull request #21: a deploy starts the proxy that is
   # already there, so the release pinned here runs only after the swap. The
   # deploy's smoke names the proxy that runs, so a swap left undone shows.

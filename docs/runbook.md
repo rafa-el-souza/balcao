@@ -124,7 +124,8 @@ Only a green `main` is deployed to the MVP host.
    `kamal version`, puts the pinned kamal-proxy's image on the host by the
    digest written beside its tag, under that tag (SR-27; Docker runs a tag
    it holds without asking the registry, where a tag can be pushed again),
-   runs `kamal setup` (on a fresh host it boots the
+   refusing an image whose own version label names another release (a
+   digest a bump left behind), runs `kamal setup` (on a fresh host it boots the
    accessory first; afterwards it deploys like `kamal deploy`), and always
    ends with `kamal registry remove -d ensaio`. The first run on a fresh
    host took about two and a half minutes.
@@ -188,10 +189,12 @@ proxy. On the MVP host:
    DIGEST=$(echo $PIN | cut -d' ' -f4)
    kamal proxy details -d ensaio
    kamal server exec -d ensaio "docker image inspect $TAG --format '{{json .RepoDigests}}'"
+   kamal server exec -d ensaio "docker exec kamal-proxy kamal-proxy version"
    ```
 
-   The details name `$TAG`, and the image under it lists `$DIGEST`: the
-   content, not only the name. The smoke of the deploy flow passes; and,
+   The details name `$TAG`, the image under it lists `$DIGEST` (the
+   content, not only the name), and the running proxy says it is the
+   pinned release (releases from v0.10 have the command). The smoke of the deploy flow passes; and,
    for the v0.10.2 swap:
    - `echo | openssl s_client -connect balcao.rafasouza.dev.br:443 -tls1_2 -cipher ECDHE-ECDSA-AES128-SHA`
      fails the handshake (a CBC suite), and the same with

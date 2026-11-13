@@ -120,6 +120,61 @@ RSpec.describe "SR-38 bin/deploy deploys only the rehearsal destination" do
     expect(kamal_calls).not_to include("kamal setup -d ensaio")
   end
 
+  # Review finding R2 of pull request #21: the digest is tied to the tag by
+  # hand, so a bump that left the previous digest behind would put the
+  # previous release under the new tag. The image's own version label, which
+  # kamal-proxy's releases set to their tag from v0.10, must name the pinned
+  # tag before the image takes it; a label that is no release tag passes,
+  # since v0.9.2, the way back, carries only its Ubuntu base's "24.04". The
+  # command bin/deploy sends to the host runs here, under sh, against a docker
+  # shim.
+  describe "the command that puts the proxy's image on the host" do
+    let(:host) { Dir.mktmpdir("bin-deploy-host") }
+    let(:docker_log) { File.join(host, "docker.log") }
+    let(:version) { Rails.root.join("config/deploy.yml").read[/^\s*version: (v\d+\.\d+\.\d+) #/, 1] }
+
+    after { FileUtils.remove_entry(host) }
+
+    def run_on_host(label:)
+      deploy("-d", "ensaio")
+      command = kamal_calls.find { |call| call.start_with?("kamal server exec -d ensaio ") }.delete_prefix("kamal server exec -d ensaio ")
+      docker = File.join(host, "docker")
+      File.write(docker, <<~RUBY)
+        #!/usr/bin/env ruby
+        File.open(#{docker_log.inspect}, "a") { |file| file.puts(ARGV.join(" ")) }
+        print(#{label.inspect}) if ARGV.include?("--format")
+      RUBY
+      File.chmod(0o755, docker)
+      out, status = Open3.capture2e({ "PATH" => "#{host}#{File::PATH_SEPARATOR}#{ENV.fetch("PATH")}" }, "sh", "-c", command)
+      [ status, out, File.exist?(docker_log) ? File.readlines(docker_log, chomp: true) : [] ]
+    end
+
+    it "tags the image when its version label names the pinned tag" do
+      status, _out, docker = run_on_host(label: version)
+
+      expect(status).to be_success
+      expect(docker.last).to match(/\Atag \S+ basecamp\/kamal-proxy:#{Regexp.escape(version)}\z/)
+    end
+
+    it "tags an image whose label is no release tag: none, or its base image's, as before v0.10" do
+      [ "", "24.04" ].each do |label|
+        FileUtils.rm_f(docker_log)
+        status, _out, docker = run_on_host(label:)
+
+        expect(status).to be_success, label.inspect
+        expect(docker.grep(/\Atag /).size).to eq(1), label.inspect
+      end
+    end
+
+    it "refuses, without tagging, an image whose label names another release, and says which" do
+      status, out, docker = run_on_host(label: "v0.0.1")
+
+      expect(status).not_to be_success
+      expect(docker.grep(/\Atag /)).to be_empty
+      expect(out).to include("v0.0.1", version)
+    end
+  end
+
   it "removes the local registry even when the deploy fails, and exits non-zero" do
     status, _err = deploy("-d", "ensaio", env: rehearsal_env.merge("KAMAL_SHIM_FAIL_ON" => "setup"))
 

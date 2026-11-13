@@ -1585,8 +1585,10 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     against kamal-proxy's advisories, which no audit of CI covers. Kamal
     takes only a tag there, and a tag can be pushed again, so the digest it
     resolved to is written beside it and `bin/deploy` puts that image on
-    the host, under the tag, before every `kamal setup` (review findings
-    C1 and R1 of this pull request).
+    the host, under the tag, before every `kamal setup`, refusing an image
+    whose own version label names another release, so a digest a bump left
+    behind stops the deploy (review findings C1, R1 and R2 of this pull
+    request).
   - **The headers beside the CSP.** The static files leave before any
     controller, so none of Rails' default headers reached them: they now
     carry `nosniff`. Every answer a controller writes carries a literal
