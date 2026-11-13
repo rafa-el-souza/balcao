@@ -14,6 +14,7 @@ import ptBR from "../locales/pt-BR.json";
 import openers from "../openers.json";
 import { conversation, fakeServer, message } from "../test/fakeServer";
 import { renderPage } from "../test/render";
+import { LIT_ICON, tabIcon } from "../test/tabIcon";
 import { serverClock } from "./api";
 import { Chat } from "./Chat";
 
@@ -286,6 +287,31 @@ describe("NFR-03 the turn that waits", () => {
     await act(() => vi.advanceTimersByTimeAsync(3000));
     expect(within(thread()).getByText("Temos.")).toBeInTheDocument();
     expect(within(thread()).queryByText(pt.thinking)).toBeNull();
+  });
+
+  // Design §10, note of 2026-11-13: the tab's cross dims as the cross beside
+  // "pensando…" does, so a visitor reading another tab sees it light again.
+  it("dims the tab's cross while the turn runs, and lights it once the reply arrives", async () => {
+    const icon = tabIcon();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderPage(<Chat />);
+    await ready();
+    expect(icon.getAttribute("href")).toBe(LIT_ICON);
+
+    const visitor = await sendAndWait();
+    await within(thread()).findByText(pt.thinking);
+    expect(icon.getAttribute("href")).not.toBe(LIT_ICON);
+    server.answers.current.push(
+      conversation(1, [visitor], true),
+      conversation(1, [visitor, message({ author: "bot", body: "Temos." })]),
+    );
+
+    await act(() => vi.advanceTimersByTimeAsync(3000));
+    expect(icon.getAttribute("href")).not.toBe(LIT_ICON);
+
+    await act(() => vi.advanceTimersByTimeAsync(3000));
+    expect(within(thread()).getByText("Temos.")).toBeInTheDocument();
+    expect(icon.getAttribute("href")).toBe(LIT_ICON);
   });
 
   it("adds, ten seconds after the server received the message, that the answer is taking longer", async () => {

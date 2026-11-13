@@ -5,6 +5,7 @@ import openers from "../openers.json";
 import { cx } from "../ui/cx";
 import { Cross } from "../ui/Icon";
 import parts from "../ui/parts.module.css";
+import { useTabLamp } from "../ui/tabLamp";
 import styles from "./Chat.module.css";
 import { type Content, serverNow } from "./api";
 import {
@@ -209,6 +210,8 @@ export function Thread({
   const firstVisit =
     state.phase === "ready" && state.deleted === null && entries.length === 0;
   const waiting = awaiting(state);
+  // The tab's cross dims with the one beside "pensando…" (design §10).
+  useTabLamp(waiting);
 
   // Brings an entry of the thread into view. Beside the glass box the thread
   // scrolls in its own column; stacked, the window scrolls and the composer's

@@ -7,6 +7,7 @@ import { cx } from "../ui/cx";
 import { Cross, Icon } from "../ui/Icon";
 import { LanguageSwitch } from "../ui/LanguageSwitch";
 import parts from "../ui/parts.module.css";
+import { useTabLamp } from "../ui/tabLamp";
 import {
   formatDuration,
   formatTokens,
@@ -134,9 +135,11 @@ export function TracePage() {
   const { t, i18n } = useTranslation();
   const token = useToken();
   const view = useTrace(token);
-  useTicking(
-    view.kind === "ok" && turnsOf(view.spans).some((turn) => turn.running),
-  );
+  const running =
+    view.kind === "ok" && turnsOf(view.spans).some((turn) => turn.running);
+  useTicking(running);
+  // The tab's cross dims while a turn runs, as on the chat (design §10).
+  useTabLamp(running);
 
   useEffect(() => {
     document.title = t("trace.title");
