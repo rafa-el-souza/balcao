@@ -26,7 +26,9 @@ module Balcao
   module TraceTokenFilter
     PATH = %r{\A(/+(?:api/+traces|trace)/+)[^/?]+}
     STREAM = /\b(trace:)[^\s"\\)]+/
-    PARAM = /(\\?"token\\?"\s*(?::|=>)\s*\\?")[^"\\]*/
+    # Escaped once in an identifier, twice when Action Cable inspects a whole
+    # message it dropped (review finding C4 of pull request #23).
+    PARAM = /(\\*"token\\*"\s*(?::|=>)\s*\\*")[^"\\]*/
 
     module_function
 
@@ -40,12 +42,39 @@ module Balcao
     def filtered_path = TraceTokenFilter.path(super)
   end
 
-  # Action Cable's logger, through which every line of the cable passes.
+  # Action Cable's logger, through which every line of the cable passes. Each
+  # message is cut at 2 KB once its tokens are filtered: Action Cable writes a
+  # refused command whole into its line, up to the 16 KiB a message may carry,
+  # line breaks a client put in it included (threat model SR-40, ADR-0015;
+  # review finding R1 of pull request #23). A backtrace, which Action Cable
+  # logs as a message of its own, a frame a line, is cut line by line, so it
+  # keeps every frame (N4); no message carrying a client's text starts like a
+  # frame, since Action Cable writes its own words first. The mark of the cut
+  # is ASCII, which a line of raw bytes, as Puma hands a header over, takes
+  # too.
+  #
+  # A message that is not a backtrace is written on one line: its control
+  # characters, a client's line breaks among them, are escaped ("\x0A"), so
+  # no client's text starts a line that could pass for one of the app's
+  # (review finding V7 of pull request #23).
   class CableLogger < SimpleDelegator
+    LINE = 2048
+    FRAME = /\A\S+:\d+:in / # Ruby's "path:line:in 'method'"
+    CONTROL = /[\x00-\x08\x0A-\x1F\x7F]/
+
+    def self.cut(text)
+      unless text.match?(FRAME)
+        return text.gsub(CONTROL) { |character| format("\\x%02X", character.ord) }.truncate_bytes(LINE, omission: "...")
+      end
+
+      text.each_line.map { |line| line.chomp.truncate_bytes(LINE, omission: "...") + line[/\R\z/].to_s }.join
+    end
+
     %i[debug info warn error fatal unknown].each do |level|
       define_method(level) do |message = nil, &block|
         message = block.call if message.nil? && block
-        __getobj__.public_send(level, message.is_a?(String) ? TraceTokenFilter.line(message) : message)
+        message = CableLogger.cut(TraceTokenFilter.line(message)) if message.is_a?(String)
+        __getobj__.public_send(level, message)
       end
     end
   end

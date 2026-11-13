@@ -8,12 +8,17 @@ development:
 test:
   adapter: test
 
+# Each broadcast is a row of the cable database, the copy its listeners read:
+# a conversation's replies, spans and deletion word. They are kept 5 minutes
+# and trimmed every 5 (config/recurring.yml), so a copy outlives its broadcast
+# by about 10 minutes at most, the exception threat model SR-32 names; Solid
+# Cable alone trims only on writes (ADR-0015).
 production:
   adapter: solid_cable
   connects_to:
     database:
       writing: cable
   polling_interval: 0.1.seconds
-  message_retention: 1.day
+  message_retention: 5.minutes
   writer_batch_size: 4
   writer_batch_delay: 0.001.seconds

@@ -5,7 +5,13 @@ Rails.application.routes.draw do
   # Can be used by load balancers and uptime monitors to verify that the app is live.
   get "up" => "rails/health#show", as: :rails_health_check
 
-  # The public API (design §6.6); the cable is mounted at /cable by Action Cable.
+  # The cable (design §6.6), behind its gate, which refuses a handshake that is
+  # not RFC 6455's and a socket past the caps before Action Cable takes the
+  # socket over (ADR-0015). Action Cable's own mount is off
+  # (config/initializers/action_cable.rb); these are its options.
+  mount ApplicationCable::Gate.new(ActionCable.server) => "/cable", internal: true, anchor: true
+
+  # The public API (design §6.6).
   # No format extension: each endpoint has one path, the one the edge limits
   # count (review finding C1 of pull request #12, threat model SR-01).
   namespace :api, defaults: { format: :json }, format: false do

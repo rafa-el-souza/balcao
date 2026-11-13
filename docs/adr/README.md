@@ -22,3 +22,4 @@ line gains the pointer ("superseded by", "extended by").
 | [0011](0011-rehearsal-destination-and-human-only-production-deploys.md) | Rehearsal destination, production VM from M3, human-only production deploys | accepted; amended 2026-11-09 (the `ensaio` destination serves the demo until M3) |
 | [0012](0012-daily-budget-slice-per-ip-limits-and-turnstile.md) | Daily budget slice, per-IP limits and Turnstile at session creation | accepted; amended 2026-11-09 (Turnstile in the first slice after the MVP) |
 | [0013](0013-review-policy-own-finder-verifier-reach-triage.md) | Review policy: the project's own finder, a verifier on risk-list PRs, triage by reach, the PR as the record | accepted |
+| [0015](0015-cable-limits-at-the-gate-and-in-the-driver.md) | The cable's limits: a gate before the takeover, a size in the driver, a count per connection | accepted |
