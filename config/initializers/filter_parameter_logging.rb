@@ -43,16 +43,24 @@ module Balcao
   end
 
   # Action Cable's logger, through which every line of the cable passes. Each
-  # line is cut at 2 KB once its tokens are filtered: Action Cable writes a
-  # refused command whole into its line, up to the 16 KiB a message may carry
-  # (threat model SR-40, ADR-0015). A message of several lines, an
-  # exception's backtrace, is cut line by line, so it keeps every frame
-  # (review finding N4 of pull request #23). The mark of the cut is ASCII,
-  # which a line of raw bytes, as Puma hands a header over, takes too.
+  # message is cut at 2 KB once its tokens are filtered: Action Cable writes a
+  # refused command whole into its line, up to the 16 KiB a message may carry,
+  # line breaks a client put in it included (threat model SR-40, ADR-0015;
+  # review finding R1 of pull request #23). A backtrace, which Action Cable
+  # logs as a message of its own, a frame a line, is cut line by line, so it
+  # keeps every frame (N4); no message carrying a client's text starts like a
+  # frame, since Action Cable writes its own words first. The mark of the cut
+  # is ASCII, which a line of raw bytes, as Puma hands a header over, takes
+  # too.
   class CableLogger < SimpleDelegator
     LINE = 2048
+    FRAME = /\A\S+:\d+:in / # Ruby's "path:line:in 'method'"
 
-    def self.cut(text) = text.each_line.map { |line| line.chomp.truncate_bytes(LINE, omission: "...") + line[/\R\z/].to_s }.join
+    def self.cut(text)
+      return text.truncate_bytes(LINE, omission: "...") unless text.match?(FRAME)
+
+      text.each_line.map { |line| line.chomp.truncate_bytes(LINE, omission: "...") + line[/\R\z/].to_s }.join
+    end
 
     %i[debug info warn error fatal unknown].each do |level|
       define_method(level) do |message = nil, &block|

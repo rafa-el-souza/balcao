@@ -42,16 +42,27 @@ RSpec.describe "SR-40 the cable writes at most 2 KB a line" do
   end
 
   # Review finding N4 of pull request #23: Action Cable logs an exception's
-  # backtrace as one message, a line per frame, which the cut took whole.
-  it "cuts each line of a message, so a backtrace keeps every frame" do
+  # backtrace as one message of its own, a line per frame, which the cut took
+  # whole.
+  it "cuts a backtrace line by line, so it keeps every frame" do
     backtrace = Array.new(60) { "/usr/local/bundle/gems/actioncable-8.1.4.1/lib/action_cable/server/worker.rb:#{_1}:in 'invoke'" }
 
     logger.error(backtrace.join("\n"))
-    logger.error("#{"y" * 3000}\nand a short one")
 
-    expect(io.string.lines.size).to eq 62
+    expect(io.string.lines.size).to eq 60
     expect(io.string.lines.map(&:bytesize).max).to be <= 2049
-    expect(io.string.lines.last.chomp).to eq "and a short one"
+  end
+
+  # Review finding R1 of pull request #23: a command's identifier may carry
+  # line breaks, which Action Cable writes raw ("Unsubscribing from channel:
+  # …"), so cutting each line let a client's text past 2 KB again.
+  it "cuts any other message whole, line breaks and all" do
+    identifier = Array.new(8) { "x" * 1_900 }.join("\n")
+
+    logger.info("Unsubscribing from channel: #{identifier}")
+
+    expect(io.string.bytesize).to be <= 2049
+    expect(io.string).to start_with("Unsubscribing from channel: xxx")
   end
 
   it "leaves a line within 2 KB as it is, and the block form too" do
