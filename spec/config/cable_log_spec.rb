@@ -12,7 +12,16 @@ RSpec.describe "SR-40 the cable writes at most 2 KB a line" do
     logger.error("Could not execute command from (#{"x" * 16_000})")
 
     expect(io.string.chomp.bytesize).to be <= 2048
-    expect(io.string.chomp).to start_with("Could not execute command from (xxx").and end_with("…")
+    expect(io.string.chomp).to start_with("Could not execute command from (xxx").and end_with("...")
+  end
+
+  # Puma hands the headers over as raw bytes, and Action Cable writes a
+  # refused Origin into its line as it came.
+  it "cuts a long line of raw bytes, as a header's are, without raising" do
+    logger.error("Request origin not allowed: #{"\xFF".b * 3000}")
+
+    expect(io.string.chomp.bytesize).to be <= 2048
+    expect(io.string.chomp).to start_with("Request origin not allowed: ").and end_with("...")
   end
 
   it "cuts between characters, never inside one" do

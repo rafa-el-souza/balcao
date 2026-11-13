@@ -43,14 +43,15 @@ module Balcao
   # Action Cable's logger, through which every line of the cable passes. Each
   # line is cut at 2 KB once its tokens are filtered: Action Cable writes a
   # refused command whole into its line, up to the 16 KiB a message may carry
-  # (threat model SR-40, ADR-0015).
+  # (threat model SR-40, ADR-0015). The mark of the cut is ASCII, which a line
+  # of raw bytes, as Puma hands a header over, takes too.
   class CableLogger < SimpleDelegator
     LINE = 2048
 
     %i[debug info warn error fatal unknown].each do |level|
       define_method(level) do |message = nil, &block|
         message = block.call if message.nil? && block
-        message = TraceTokenFilter.line(message).truncate_bytes(LINE) if message.is_a?(String)
+        message = TraceTokenFilter.line(message).truncate_bytes(LINE, omission: "...") if message.is_a?(String)
         __getobj__.public_send(level, message)
       end
     end
