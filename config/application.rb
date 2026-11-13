@@ -27,7 +27,9 @@ module Balcao
     # Please, add to the `ignore` list any other `lib` subdirectories that do
     # not contain `.rb` files, or that should not be reloaded or eager loaded.
     # Common ones are `templates`, `generators`, or `middleware`, for example.
-    config.autoload_lib(ignore: %w[assets middleware tasks])
+    # lib/evals is bin/evals' own code, required by it and by its specs, so
+    # the app process never loads it (evals/README.md, Running).
+    config.autoload_lib(ignore: %w[assets middleware tasks evals])
 
     # Configuration for the application, engines, and railties goes here.
     #
