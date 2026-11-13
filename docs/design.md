@@ -1605,6 +1605,18 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     end: its stream carries spans, not words, and putting the words there
     would add copies of the visitor's messages to Solid Cable's table,
     which `/apagar` does not reach (threat model SR-32).
+  - **The fetch each reply made did two more things**, kept apart now: its
+    answer ended what earlier polls met (a limit, a lost connection, the
+    backoff), which a valid stream message now does (review finding C1 of
+    pull request #24); and it brought any span whose broadcast had failed,
+    which now waits for the next (re)connection or load (C2, theoretical:
+    a failed broadcast is logged and nobody drives it).
+  - **FR-14's per-IP limit stays at 60 requests a minute**, as the owner
+    decided: it is sized by the fallback's polls (20 a minute for a page
+    that waits with its socket down) and by visitors who share an address
+    (an office, a carrier's NAT; a chat's load counts about five requests),
+    not by the fetch per reply, so what this change saves is their
+    headroom; to be looked at again with real traffic at M3.
 
 - Note 2026-11-13 (the tab's icon, outside §9.1's day table; §6.7, NFR-03,
   NFR-10, FR-12). The owner asked for a tab icon that impresses without
