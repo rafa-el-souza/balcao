@@ -108,13 +108,55 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
 
       perform(turn)
       reservation = turn.reservations.sole
+      # Review finding V3 of pull request #19: the reply said the code was
+      # below, and nothing followed.
+      expect(turn.outbound_message.body).to end_with(FixedReply.reservations([ reservation ], "pt-BR"))
       Message.where(turn_id: turn.id).delete_all
       perform(turn)
 
       expect(fake.requests.size).to eq(2)
       expect(product.reload.stock).to eq(8)
       expect(turn.reservations.sole).to eq(reservation)
-      expect(turn.outbound_message.body).to eq(FixedReply.with_notice(FixedReply.reservations([ reservation ], "pt-BR"), "pt-BR"))
+      expect(turn.reload.outbound_message.body).to eq(FixedReply.with_notice(FixedReply.reservations([ reservation ], "pt-BR"), "pt-BR"))
+    end
+
+    # FR-07: "the reply carries a reservation code and the pickup deadline",
+    # whatever the model wrote (review finding C1 of pull request #19): a
+    # reply that leaves out a reservation's code or its pickup time is
+    # followed by the reservation's line.
+    describe "the reservation's code and deadline in the reply" do
+      let(:product) { create(:product, stock: 10) }
+
+      # A Thursday at noon in São Paulo: the pickup is Friday at 20:00.
+      def reserve_and_reply(text)
+        allow(Reservation).to receive(:generate_code).and_return("4K2QHM")
+        responses.replace([ tool_turn(tool_use("create_reservation", { product_id: product.id, quantity: 2 })),
+                            reply("[pt] #{text}") ])
+        turn = inbound("reserva duas caixas", at: Time.zone.local(2026, 11, 12, 12, 4))
+        travel_to(Time.zone.local(2026, 11, 12, 12, 4, 3)) { perform(turn) }
+        turn
+      end
+
+      it "follows a reply that leaves out the code and the deadline with the reservation's line" do
+        turn = reserve_and_reply("Pronto, sua reserva de duas caixas está feita, pode retirar amanhã.")
+
+        reservation = turn.reservations.sole
+        expect(turn.outbound_message.body)
+          .to end_with("Pronto, sua reserva de duas caixas está feita, pode retirar amanhã.\n\n" \
+                       "#{FixedReply.reservations([ reservation ], "pt-BR")}")
+      end
+
+      it "follows a reply that writes the code but not the pickup time with the line" do
+        turn = reserve_and_reply("Reservado! O código é 4K2QHM.")
+
+        expect(turn.outbound_message.body).to end_with(FixedReply.reservations(turn.reservations.to_a, "pt-BR"))
+      end
+
+      it "adds nothing to a reply that writes the code and the pickup time" do
+        turn = reserve_and_reply("Reservado! O código é 4K2QHM, e a retirada é até amanhã às 20:00.")
+
+        expect(turn.outbound_message.body).to end_with("Reservado! O código é 4K2QHM, e a retirada é até amanhã às 20:00.")
+      end
     end
 
     it "answers a turn whose reservation an earlier run stored with the reservation's line, without the model" do

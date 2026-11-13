@@ -10,7 +10,8 @@
 # - anything else goes through AgentRunner, whose events become the turn's
 #   spans (FR-12), and its outcome becomes the reply: the model's text, the
 #   refusal's fixed text (SR-19) or the fallback (NFR-03), the last two
-#   followed by the line of any reservation the turn stored;
+#   followed by the line of any reservation the turn stored, and the first by
+#   the line of a reservation whose code or pickup time it left out (FR-07);
 # - a turn the job gave up on after its attempts gets the fallback too
 #   (give_up, NFR-03).
 #
@@ -184,13 +185,26 @@ class TurnProcessor
   def reply_of(result)
     language = @conversation.language
     case result.outcome
-    when :replied then [ result.text, "replied" ]
+    when :replied then [ with_facts(result.text, language), "replied" ]
     when :refused then [ FixedReply.with_reservations(FixedReply.declined(language), reservations, language), "replied" ]
     else [ FixedReply.with_reservations(FixedReply.fallback(language), reservations, language), "failed" ]
     end
   end
 
   def reservations = Reservation.where(turn_id: @turn.id).includes(:product).order(:created_at, :id).to_a
+
+  # FR-07: the reply carries each reservation's code and pickup deadline. The
+  # model is told to write them; a reply that leaves out a reservation's code
+  # or its pickup time (HH:MM, as the prompt has times written) is followed by
+  # that reservation's line, as the fallback is (review finding C1 of pull
+  # request #19), so the visitor always learns the code, and the next turn's
+  # model reads it in the history.
+  def with_facts(text, language)
+    missing = reservations.reject do |reservation|
+      text.include?(reservation.code) && text.include?(reservation.pickup_until.in_time_zone.strftime("%H:%M"))
+    end
+    FixedReply.with_reservations(text, missing, language)
+  end
 
   def finish(outcome, state, text, error: nil)
     raise ArgumentError, "#{outcome} is not in TurnProcessor::OUTCOMES" unless OUTCOMES.include?(outcome.to_s)
