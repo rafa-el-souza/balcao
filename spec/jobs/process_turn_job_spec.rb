@@ -557,6 +557,30 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       expect(first.reload.outbound_message.created_at).to be < second.reload.outbound_message.created_at
     end
 
+    # Review finding C2 of pull request #18: an earlier turn whose own job is
+    # gone (its worker died) and whose run by a later turn's job broke was
+    # never run again.
+    it "answers an earlier turn whose job is gone at the next message, even after a run of it broke" do
+      allow(Rails.logger).to receive(:error)
+      responses.replace(Array.new(4) { reply("[pt] Temos, sim.") })
+      first = inbound("tem dipirona?", at: 3.seconds.ago)
+      first.update!(state: "running")
+      second = inbound("?", at: 2.seconds.ago)
+      calls = 0
+      original = Message.method(:record_outbound!)
+      allow(Message).to receive(:record_outbound!) do |**arguments|
+        calls += 1
+        raise ActiveRecord::ConnectionFailed, "gone" if calls == 1
+
+        original.call(**arguments)
+      end
+
+      perform(second)
+      perform(inbound("obrigado"))
+
+      expect(first.reload.outbound_message).to be_present
+    end
+
     it "answers its own turn when an earlier one breaks" do
       allow(Rails.logger).to receive(:error)
       first = inbound("oi", at: 2.seconds.ago)
