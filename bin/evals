@@ -1,0 +1,26 @@
+#!/usr/bin/env ruby
+# Runs the eval cases live on the normal model through the app's own turn
+# pipeline, writes every attempt to evals/results/ and, with --all
+# --scorecard, rewrites evals/scorecard.md (evals/README.md, Running).
+#
+#   bin/evals --all --model normal --scorecard
+#   bin/evals --suite boundary
+#   bin/evals --case reservation-ok-pt-01
+#   bin/evals --list --all
+#
+# A live run reads the dev/eval key from ANTHROPIC_API_KEY. It runs in the
+# test environment and nowhere else: each attempt works in the test database,
+# the suite's scratch space, inside a transaction rolled back at its end, with
+# the test adapters of Active Job and Action Cable, so it neither touches the
+# development data nor reaches a worker or a page.
+
+if ENV.key?("RAILS_ENV") && ENV["RAILS_ENV"] != "test"
+  warn "bin/evals: it runs in the test environment only, not #{ENV["RAILS_ENV"]}; unset RAILS_ENV."
+  exit 2
+end
+ENV["RAILS_ENV"] = "test"
+
+require_relative "../config/environment"
+require_relative "../lib/evals/cli"
+
+exit Evals::CLI.new(ARGV).run
