@@ -460,6 +460,17 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       expect(tool.span_attributes["gen_ai.tool.call.arguments"]).to eq('{"query":"dipirona"}')
     end
 
+    it "stores a reply whose text carries a NUL without it, and the turn is answered (review finding V1 of pull request #18)" do
+      responses.replace([ reply("[pt] Temos\u0000 sim.") ])
+      turn = inbound("tem dipirona?")
+
+      perform(turn)
+
+      expect(turn.reload.state).to eq("replied")
+      expect(turn.outbound_message.body).to end_with("Temos sim.")
+      expect(enqueued_jobs).to be_empty
+    end
+
     # The raw phone and the BSUID join the list with the WhatsApp channel (PR-18).
     it "carries no secret, no identity and no system prompt in any span or broadcast (SR-12)" do
       turn = inbound("tem dipirona?")

@@ -14,6 +14,12 @@ class Message < ApplicationRecord
   enum :status, { pending: "pending", sent: "sent", delivered: "delivered", read: "read", failed: "failed" },
        prefix: true, validate: { allow_nil: true }
 
+  # PostgreSQL refuses a NUL in text: a body loses it, whoever wrote it, so a
+  # model's reply carrying one is stored rather than breaking its turn on every
+  # attempt (review finding V1 of pull request #18). The web intake drops it
+  # already (Api::MessagesController).
+  normalizes :body, with: ->(body) { body.delete("\u0000") }
+
   before_validation { self.channel ||= conversation&.visitor&.channel }
 
   validates :channel, inclusion: { in: Visitor::CHANNELS.values }

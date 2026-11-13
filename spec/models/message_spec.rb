@@ -89,6 +89,15 @@ RSpec.describe "NFR-02 outbound message, one per turn" do
     expect(message).to have_attributes(conversation: fresh, turn:)
   end
 
+  # Review finding V1 of pull request #18: PostgreSQL refuses a NUL in text,
+  # so a reply carrying one could never be stored and its turn broke on every
+  # attempt.
+  it "stores a body without the NUL characters a model's reply may carry" do
+    message = Message.record_outbound!(turn:, body: "Temos\u0000, sim.\u0000")
+
+    expect(message.reload.body).to eq("Temos, sim.")
+  end
+
   it "refuses a turn on an inbound message (a turn is keyed on the turn table)" do
     message = build(:message, conversation: turn.conversation, turn:)
 
