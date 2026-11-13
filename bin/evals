@@ -23,4 +23,6 @@ ENV["RAILS_ENV"] = "test"
 require_relative "../config/environment"
 require_relative "../lib/evals/cli"
 
+# Each case's line as it ends, also into a file or a pipe.
+$stdout.sync = true
 exit Evals::CLI.new(ARGV).run
