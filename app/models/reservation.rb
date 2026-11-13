@@ -15,6 +15,10 @@ class Reservation < ApplicationRecord
   validates :code, :pickup_until, presence: true
   validates :quantity, numericality: { only_integer: true, greater_than: 0 }
 
+  # What a visitor holds: open and still inside its pickup deadline, which
+  # the nightly job expires (FR-15). FR-07's cap of three counts these.
+  scope :held_by, ->(visitor) { open.where(visitor_id: visitor.id).where("pickup_until > ?", Time.current) }
+
   # Creates the reservation that this turn asks for of this product, for the
   # turn's visitor. The turn and the product are the key (NFR-02): a turn run
   # again after a model error, a timeout or a deploy calls the model again,

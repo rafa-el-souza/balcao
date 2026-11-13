@@ -97,6 +97,26 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       expect([ fake.requests.size, Message.count, TraceEvent.count, UsageRecord.count ]).to eq(counts)
     end
 
+    # FR-07's first scenario, through the job: the model reserves, the stock
+    # goes down and the reply carries the code; the turn run again answers
+    # from the stored reservation, never through the model (NFR-02).
+    it "reserves through the model, and a run of the same turn again neither reserves nor calls the model again" do
+      product = create(:product, stock: 10)
+      responses.replace([ tool_turn(tool_use("create_reservation", { product_id: product.id, quantity: 2 })),
+                          reply("[pt] Reservado, o código está abaixo.") ])
+      turn = inbound("reserva duas dipironas")
+
+      perform(turn)
+      reservation = turn.reservations.sole
+      Message.where(turn_id: turn.id).delete_all
+      perform(turn)
+
+      expect(fake.requests.size).to eq(2)
+      expect(product.reload.stock).to eq(8)
+      expect(turn.reservations.sole).to eq(reservation)
+      expect(turn.outbound_message.body).to eq(FixedReply.with_notice(FixedReply.reservations([ reservation ], "pt-BR"), "pt-BR"))
+    end
+
     it "answers a turn whose reservation an earlier run stored with the reservation's line, without the model" do
       turn = inbound("quero reservar duas dipironas")
       reservation = create(:reservation, turn:, quantity: 2)
@@ -150,9 +170,9 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
     end
 
     it "carries the line of a reservation stored before the error" do
-      create(:product, sku: "DIP-500")
-      allow(AgentRunner).to receive(:new).and_wrap_original { |original, **options| original.call(**options, tools: [ SpecTools::Reserve ]) }
-      responses.replace([ tool_turn(tool_use("reserve", { text: "DIP-500" })), *Array.new(3) { error(:overloaded) } ])
+      product = create(:product)
+      responses.replace([ tool_turn(tool_use("create_reservation", { product_id: product.id, quantity: 2 })),
+                          *Array.new(3) { error(:overloaded) } ])
       turn = inbound("reserva duas dipironas")
 
       perform(turn)
