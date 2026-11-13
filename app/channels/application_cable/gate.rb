@@ -14,8 +14,11 @@ module ApplicationCable
   #   socket open for as long as the client keeps it.
   #
   # The caps count the sockets Action Cable took over and has not closed yet,
-  # by the socket itself: Action Cable's own list of connections keeps one now
-  # and then that closed as it opened (measured: 21 of 300).
+  # by the socket itself: Action Cable's own list of connections kept one now
+  # and then that closed as it opened (measured: 21 of 300). A handshake
+  # holds its place from the check until the cable has taken its socket or
+  # not, so handshakes at once never share the last place (review finding C3
+  # of pull request #23).
   class Gate
     VERSION = "13"
     # Per process: config/puma.rb runs one, with no workers.
@@ -31,6 +34,7 @@ module ApplicationCable
       @per_source = per_source
       @lock = Mutex.new
       @sockets = {}.compare_by_identity # each socket taken over => its source
+      @pending = Hash.new(0) # source => handshakes between the check and the takeover
     end
 
     def call(env)
@@ -39,12 +43,7 @@ module ApplicationCable
       return refuse(400, "key") if env["HTTP_SEC_WEBSOCKET_KEY"].to_s.strip.empty?
 
       source = EdgeLimits.source(env)
-      full = @lock.synchronize do
-        @sockets.delete_if { |socket, _| socket.closed? }
-        if @sockets.size >= @max then :busy
-        elsif @sockets.count { |_, holder| holder == source } >= @per_source then :limit
-        end
-      end
+      full = hold_place(source)
       return refuse(full == :busy ? 503 : 429, full.to_s) if full
 
       take_over(env, source)
@@ -52,15 +51,33 @@ module ApplicationCable
 
     private
 
-    # Calls the cable, keeping the socket it takes over, if it does.
+    # Answers :busy or :limit past a cap; otherwise holds a place for the
+    # source until take_over lets it go.
+    def hold_place(source)
+      @lock.synchronize do
+        @sockets.delete_if { |socket, _| socket.closed? }
+        if @sockets.size + @pending.sum { |_, count| count } >= @max then :busy
+        elsif @sockets.count { |_, holder| holder == source } + @pending[source] >= @per_source then :limit
+        else
+          @pending[source] += 1
+          nil
+        end
+      end
+    end
+
+    # Calls the cable, keeping the socket it takes over, if it does, in the
+    # place its handshake held.
     def take_over(env, source)
       socket = nil
       if (hijack = env["rack.hijack"])
         env["rack.hijack"] = -> { socket = hijack.call }
       end
-      response = @cable.call(env)
-      @lock.synchronize { @sockets[socket] = source } if socket && !socket.closed?
-      response
+      @cable.call(env)
+    ensure
+      @lock.synchronize do
+        @pending.delete(source) if (@pending[source] -= 1).zero?
+        @sockets[socket] = source if socket && !socket.closed?
+      end
     end
 
     def refuse(status, error, headers = {})

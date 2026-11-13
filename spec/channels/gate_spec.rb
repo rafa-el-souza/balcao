@@ -102,6 +102,33 @@ RSpec.describe ApplicationCable::Gate, type: :channel do
       expect(statuses).to eq [ -1, -1, -1, 503 ]
     end
 
+    # Review finding C3 of pull request #23: the caps were checked in one lock
+    # and the socket recorded in another, with the takeover between them.
+    it "holds a place from the check, so two handshakes at once never share the last one" do
+      inside = Queue.new
+      release = Queue.new
+      first = true
+      slow = lambda do |env|
+        taken << env["rack.hijack"].call
+        if first
+          first = false
+          inside << true
+          release.pop
+        end
+        [ -1, {}, [] ]
+      end
+      gate = described_class.new(slow, per_source: 1)
+
+      waiting = Thread.new { gate.call(handshake).first }
+      inside.pop
+      second = gate.call(handshake).first
+      release << true
+
+      expect([ waiting.value, second ]).to eq [ -1, 429 ]
+      expect(taken.size).to eq 1
+      expect(gate.call(handshake).first).to eq 429
+    end
+
     it "counts only the sockets the cable took over: a handshake it refused, for its origin say, holds none" do
       refuses = ->(_env) { [ 404, {}, [ "Page not found" ] ] }
       gate = described_class.new(refuses)
