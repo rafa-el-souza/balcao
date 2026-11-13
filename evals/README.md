@@ -89,7 +89,8 @@ attempt's is.
 
 A case passes when every present rule check passes and, if a rubric
 exists, the judge passes. The judge sees only the final reply and the
-rubric, never the tools or the trace. `bin/evals` refuses, naming the case,
+rubric, never the tools or the trace, and reads it only when every rule
+check passed, since only then can its verdict change the outcome. `bin/evals` refuses, naming the case,
 a key, suite, language, milestone or seed it does not know, turns that do
 not alternate from a visitor message to the message under test (each reply
 between them `"(any)"`), a value of the wrong type and a fact the store

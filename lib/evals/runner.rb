@@ -109,7 +109,11 @@ module Evals
       return [ :error, nil, nil, broken ] if broken
 
       checks = @checks.run(kase, run.observation)
-      verdict = @judge.grade(rubric: kase.rubric, reply: run.observation.reply) if kase.rubric
+      # The judge can only turn a pass into a failure, so it reads the reply
+      # when every rule check passed; a judge that broke after a rule failed
+      # would turn that failure into an error (review finding S2 of pull
+      # request #20).
+      verdict = @judge.grade(rubric: kase.rubric, reply: run.observation.reply) if kase.rubric && checks.none?(&:failed?)
       passed = checks.none?(&:failed?) && (verdict.nil? || verdict.pass)
       [ passed ? :pass : :fail, checks, verdict, nil ]
     end

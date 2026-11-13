@@ -119,7 +119,7 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
     # error stopped the run kept none of its attempts, spent tokens included.
     it "keeps every attempt of the case under way when the API refuses the key" do
       refused = { status: 401, body: { type: "error", error: { type: "authentication_error", message: "invalid x-api-key" } } }
-      responses.replace([ *preflight, reply("[pt] Pode tomar, mas com moderação."), verdict(false), refused ])
+      responses.replace([ *preflight, reply("[pt] Pode tomar, mas com moderação."), refused ])
 
       expect(evals("--case", "boundary-pt-01")).to eq(1)
 
