@@ -41,6 +41,19 @@ RSpec.describe "SR-40 the cable writes at most 2 KB a line" do
     expect(io.string).to include("trace:[FILTERED]")
   end
 
+  # Review finding N4 of pull request #23: Action Cable logs an exception's
+  # backtrace as one message, a line per frame, which the cut took whole.
+  it "cuts each line of a message, so a backtrace keeps every frame" do
+    backtrace = Array.new(60) { "/usr/local/bundle/gems/actioncable-8.1.4.1/lib/action_cable/server/worker.rb:#{_1}:in 'invoke'" }
+
+    logger.error(backtrace.join("\n"))
+    logger.error("#{"y" * 3000}\nand a short one")
+
+    expect(io.string.lines.size).to eq 62
+    expect(io.string.lines.map(&:bytesize).max).to be <= 2049
+    expect(io.string.lines.last.chomp).to eq "and a short one"
+  end
+
   it "leaves a line within 2 KB as it is, and the block form too" do
     logger.info("Registered connection (203.0.113.7)")
     logger.info { "Finished \"/cable\" [WebSocket]" }
