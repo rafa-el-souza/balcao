@@ -1617,11 +1617,15 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     looks for the timestamp in the reply (review finding C2 of pull request
     #19, which reading the code could not decide).
   - **The facts in the reply.** FR-07 has the reply carry the code and the
-    deadline. A reply that leaves out a reservation's code or its pickup
-    time (HH:MM) is followed by that reservation's fixed line, as the
-    fallback is, so the visitor always learns the code and the next turn's
-    model reads it in the history (review findings C1 and V3 of pull
-    request #19).
+    deadline. A reply that leaves out a reservation's code or its deadline,
+    the day as day/month and the time as HH:MM, is followed by that
+    reservation's fixed line, as the fallback is, so the visitor always
+    learns the code and the next turn's model reads it in the history
+    (review findings C1 and V3 of pull request #19). The time alone is no
+    deadline, since every weekday closes at 20:00, and a day named without
+    its date ("amanhã", "segunda") cannot be told right from wrong, so such
+    a reply gets the line too, at the cost of saying the deadline twice
+    (findings R1 and V4 of the same review).
   - **The reason code.** A refusal is the SDK's `tool_error`, as a failure
     is, and carries `balcao.tool_result.refusal`, its reason. Each tool
     lists its reasons (`REASONS`), a reason outside the list is a bug, and
