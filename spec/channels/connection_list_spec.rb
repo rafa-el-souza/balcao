@@ -36,6 +36,30 @@ RSpec.describe ApplicationCable::Connection, "SR-40 a connection leaves Action C
     expect(ActionCable.server.connections).to include(connection)
   end
 
+  # Found by another session at the owner's word, on the list fix: the
+  # closing that ran first found no internal channel to leave, and the opening
+  # then subscribed one whose callback holds the connection, so it outlived
+  # the list. The pub/sub here is Action Cable's inline adapter, run at once
+  # (the test adapter posts its subscribe again, after the leave); in
+  # production Solid Cable subscribes at once in the event loop's task.
+  it "leaves its internal channel too, so a remote disconnect no longer reaches it" do
+    server = ActionCable::Server::Base.new(config: ActionCable.server.config.dup.tap { _1.cable = { "adapter" => "inline" } })
+    at_once = Object.new.tap { |loop| def loop.post = yield }
+    allow(server).to receive(:event_loop).and_return(at_once)
+    env = Rack::MockRequest.env_for("/cable", "HTTP_CONNECTION" => "Upgrade", "HTTP_UPGRADE" => "websocket",
+                                              "HTTP_SEC_WEBSOCKET_VERSION" => "13", "REMOTE_ADDR" => "203.0.113.7",
+                                              "HTTP_SEC_WEBSOCKET_KEY" => Base64.strict_encode64("the sample nonce"))
+    gone = described_class.new(server, env)
+    allow(gone.send(:websocket)).to receive(:alive?).and_return(false)
+    allow(gone).to receive(:close)
+
+    gone.send(:handle_close)
+    gone.send(:handle_open)
+    server.pubsub.broadcast("action_cable/203.0.113.7", { type: "disconnect" }.to_json)
+
+    expect(gone).not_to have_received(:close)
+  end
+
   it "relies on the opening adding it at its end, and the closing removing it first" do
     expect(source_of(ActionCable::Connection::Base, :handle_open)).to eq <<~RUBY
       def handle_open
@@ -60,6 +84,25 @@ RSpec.describe ApplicationCable::Connection, "SR-40 a connection leaves Action C
         unsubscribe_from_internal_channel
 
         disconnect if respond_to?(:disconnect)
+      end
+    RUBY
+    expect(source_of(ActionCable::Connection::InternalChannel, :subscribe_to_internal_channel)).to eq <<~RUBY
+      def subscribe_to_internal_channel
+        if connection_identifier.present?
+          callback = -> (message) { process_internal_message decode(message) }
+          @_internal_subscriptions ||= []
+          @_internal_subscriptions << [ internal_channel, callback ]
+
+          server.event_loop.post { pubsub.subscribe(internal_channel, callback) }
+          logger.info "Registered connection (\#{connection_identifier})"
+        end
+      end
+    RUBY
+    expect(source_of(ActionCable::Connection::InternalChannel, :unsubscribe_from_internal_channel)).to eq <<~RUBY
+      def unsubscribe_from_internal_channel
+        if @_internal_subscriptions.present?
+          @_internal_subscriptions.each { |channel, callback| server.event_loop.post { pubsub.unsubscribe(channel, callback) } }
+        end
       end
     RUBY
   end

@@ -37,13 +37,24 @@ module ApplicationCable
     # worker pool, and the opening adds the connection to the server's list of
     # connections at its very end: a socket closed right after its 101 may see
     # its closing run first, find nothing to remove, and leave the connection
-    # in the list until the process ends (measured: 59 of 1,000). One whose
+    # in the list until the process ends (measured: 52 of 1,000). One whose
     # socket is gone by the end of its opening leaves the list here
-    # (spec/channels/connection_list_spec.rb pins the two methods).
+    # (spec/channels/connection_list_spec.rb pins the methods).
     def handle_open
       super
       server.remove_connection(self) unless websocket.alive?
     end
+
+    # The opening also subscribes the connection's internal channel, whose
+    # only use is to disconnect it from another process, which this app never
+    # does; its callback holds the connection. Action Cable posts the subscribe
+    # and the closing's unsubscribe to a pool of threads with no order between
+    # them, so a socket closed at once left the subscription, and the
+    # connection, in the pub/sub until the process ended (measured: 49 of
+    # 1,000; reported by another session on the list fix). No internal
+    # channel is subscribed. Whoever needs a remote disconnect removes this,
+    # and that race comes back with it.
+    def subscribe_to_internal_channel = nil
 
     # A minute starts at the first command after the last one ended, as the
     # edge's limits count (app/models/edge_limits.rb).
