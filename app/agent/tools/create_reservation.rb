@@ -27,6 +27,7 @@ module Tools
     MAX_QUANTITY = 10
     MAX_OPEN = 3
     ID = /\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/
+    REASONS = %w[unknown_product prescription invalid_quantity over_limit open_limit low_stock out_of_stock].freeze
 
     class Input < Anthropic::BaseModel
       required :product_id, String, doc: "The id of the product, as search_products returned it."

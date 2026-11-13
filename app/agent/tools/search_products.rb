@@ -12,6 +12,7 @@ module Tools
   class SearchProducts < AgentTool
     MAX_RESULTS = 5
     MAX_QUERY = 100
+    REASONS = %w[empty_query long_query].freeze
 
     class Input < Anthropic::BaseModel
       required :query, String, doc: "A product name or an active ingredient, in Portuguese."

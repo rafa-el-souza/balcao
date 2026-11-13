@@ -14,6 +14,7 @@ import ptBR from "../locales/pt-BR.json";
 import openers from "../openers.json";
 import { conversation, fakeServer, message } from "../test/fakeServer";
 import { renderPage } from "../test/render";
+import { answeredTurn, refusedTool, reservationTool } from "../test/spans";
 import { serverClock } from "./api";
 import { Chat } from "./Chat";
 
@@ -696,6 +697,105 @@ describe("Threat model SR-03 the attendant's words are text", () => {
     expect(reply?.querySelectorAll("p")).toHaveLength(2);
     expect(reply?.querySelectorAll("br")).toHaveLength(1);
     expect(reply).toHaveAttribute("data-voice", "attendant");
+  });
+});
+
+// docs/prototype/chat-reservation.html: a reservation's code is a small stamp
+// in the instrument's face, since it is what the visitor shows at the
+// counter, and the chat marks it from the tool's result, not from the shape
+// of the text.
+describe("FR-07 a reservation's code in the reply", () => {
+  const reply = (body: string, turn = 1) =>
+    message({ author: "bot", body, turn_id: turn });
+
+  it("stamps the code the turn's reservation holds, and no other word of that shape", async () => {
+    server.answers.current.push(
+      conversation(
+        1,
+        [
+          message({ author: "visitor", body: "reserva duas caixas" }),
+          reply(
+            "Reservado: 2 × Dipirona 500 mg. O código é 4K2QHM, e a retirada é até 13/11 às 20:00.\nGUARDE o 4K2QHM.",
+          ),
+        ],
+        false,
+        answeredTurn("1", { tool: reservationTool("4K2QHM") }),
+      ),
+    );
+    renderPage(<Chat />);
+    await ready();
+
+    const answer = (await within(thread()).findByText(/Reservado:/)).closest(
+      "li",
+    ) as HTMLElement;
+    const stamps = answer.querySelectorAll("strong");
+    expect([...stamps].map((stamp) => stamp.textContent)).toEqual([
+      "4K2QHM",
+      "4K2QHM",
+    ]);
+    expect(answer).toHaveTextContent(
+      "Reservado: 2 × Dipirona 500 mg. O código é 4K2QHM, e a retirada é até 13/11 às 20:00.",
+    );
+    expect(within(answer).getByText(/GUARDE/).tagName).toBe("P");
+  });
+
+  it("stamps nothing in a reply whose turn made no reservation, whatever its words", async () => {
+    server.answers.current.push(
+      conversation(
+        1,
+        [
+          message({ author: "visitor", body: "reserva 20 caixas" }),
+          reply(
+            "Consigo reservar até 10 unidades. O código 4K2QHM não existe.",
+          ),
+        ],
+        false,
+        answeredTurn("1", {
+          tool: refusedTool("create_reservation", "over_limit", "Over."),
+        }),
+      ),
+    );
+    renderPage(<Chat />);
+    await ready();
+
+    const answer = (
+      await within(thread()).findByText(/Consigo reservar/)
+    ).closest("li") as HTMLElement;
+    expect(answer.querySelector("strong")).toBeNull();
+  });
+
+  it("stamps the code again in a later reply that repeats it", async () => {
+    server.answers.current.push(
+      conversation(
+        1,
+        [
+          message({ author: "visitor", body: "reserva", turn_id: 1 }),
+          reply("O código é 4K2QHM.", 1),
+          message({ author: "visitor", body: "e o código?", turn_id: 2 }),
+          reply("Era 4K2QHM.", 2),
+        ],
+        false,
+        answeredTurn("1", { tool: reservationTool("4K2QHM") }),
+      ),
+    );
+    renderPage(<Chat />);
+    await ready();
+
+    const first = (await within(thread()).findByText(/O código é/)).closest(
+      "li",
+    ) as HTMLElement;
+    const second = within(thread())
+      .getByText(/Era/)
+      .closest("li") as HTMLElement;
+    expect(first.querySelector("strong")).toHaveTextContent("4K2QHM");
+    expect(second.querySelector("strong")).toHaveTextContent("4K2QHM");
+    // The visitor's own words are never stamped.
+    expect(
+      within(thread())
+        .getByText("e o código?")
+        .closest("li")
+        ?.querySelector("strong"),
+    ).toBeNull();
   });
 });
 

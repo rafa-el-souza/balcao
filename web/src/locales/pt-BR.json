@@ -141,7 +141,10 @@
       "other": "erro"
     },
     "tool": {
-      "failed": "a ferramenta recusou ou falhou",
+      "failed": "a ferramenta falhou",
+      "refused": "recusado",
+      "refusedFor": "recusado: {{reason}}",
+      "reservation": "reserva {{code}}",
       "cut": "cortado em {{max}} caracteres",
       "units": {
         "products_zero": "nenhum resultado",
@@ -156,6 +159,18 @@
         "services_zero": "nenhum serviço",
         "services_one": "{{count}} serviço",
         "services_other": "{{count}} serviços"
+      },
+      "reasons": {
+        "unknown_topic": "assunto desconhecido",
+        "empty_query": "busca vazia",
+        "long_query": "busca longa demais",
+        "unknown_product": "produto não encontrado",
+        "prescription": "exige receita",
+        "invalid_quantity": "quantidade inválida",
+        "over_limit": "acima de 10 unidades",
+        "open_limit": "já há 3 reservas abertas",
+        "low_stock": "estoque menor que o pedido",
+        "out_of_stock": "sem estoque"
       }
     }
   },

@@ -1,4 +1,4 @@
-import { withSpans } from "../trace/model";
+import { reservationCodes, withSpans } from "../trace/model";
 import type { Content, Deleted, ServerMessage, Snapshot, Span } from "./api";
 
 // The conversation on the page (design §6.9: a React reducer, not server
@@ -27,6 +27,8 @@ export interface Entry {
   text: string;
   // FR-01's notice, stamped apart from the reply it came with.
   notice?: boolean;
+  // The reservation codes a reply stamps where it writes them (FR-07).
+  marks?: string[];
   // An opener's language, when it is not the page's.
   lang?: string;
   // The page's own message: the id it generated, its state and its content.
@@ -287,8 +289,12 @@ function merge(state: State, answer: Snapshot | Deleted): State {
 // The thread as drawn: the server's messages in its order and then the
 // messages still travelling, each followed by what the page anchored after it.
 export function entriesOf(state: State): Entry[] {
+  // The codes come from the reservation tool's results, never from the shape
+  // of a reply's text (docs/prototype/chat-reservation.html).
+  const codes = reservationCodes(state.spans);
   const fromServer = (message: ServerMessage): Entry[] => {
     const lang = message.client_id ? state.langs[message.client_id] : undefined;
+    const marks = message.author === "bot" && codes.length > 0 ? codes : null;
     return [
       // FR-01's notice, which the server sends apart from the reply.
       ...(message.notice
@@ -306,6 +312,7 @@ export function entriesOf(state: State): Entry[] {
         voice: VOICES[message.author],
         text: message.body,
         ...(lang ? { lang } : {}),
+        ...(marks ? { marks } : {}),
       },
     ];
   };
@@ -353,6 +360,7 @@ export function entriesOf(state: State): Entry[] {
       voice,
       text,
       notice,
+      marks,
       lang,
       clientId,
       status,
@@ -364,6 +372,7 @@ export function entriesOf(state: State): Entry[] {
       voice,
       text,
       ...(notice ? { notice } : {}),
+      ...(marks ? { marks } : {}),
       ...(lang ? { lang } : {}),
       ...(clientId ? { clientId } : {}),
       ...(status ? { status } : {}),

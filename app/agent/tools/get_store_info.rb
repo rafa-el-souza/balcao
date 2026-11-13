@@ -4,6 +4,8 @@ module Tools
   # hours. The topic is an enum in the strict schema and is checked again here
   # (SR-16), so a topic outside the five gets FR-03's answer, never a lookup.
   class GetStoreInfo < AgentTool
+    REASONS = %w[unknown_topic].freeze
+
     class Input < Anthropic::BaseModel
       required :topic, Anthropic::EnumOf[*StoreSheet::TOPICS.map(&:to_sym)], doc: "The one topic to look up."
     end

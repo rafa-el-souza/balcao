@@ -33,9 +33,36 @@ function Notice({ text }: { text: string }) {
   );
 }
 
+// A reservation's code where a reply writes it, as a small stamp in the
+// instrument's face, since it is what the visitor shows at the counter
+// (FR-07; docs/prototype/chat-reservation.html). The codes are the
+// reservation tool's results (reservationCodes), letters and digits alone, so
+// each is its own pattern; a code inside a longer word is not one.
+function stamped(line: string, marks: readonly string[]) {
+  if (marks.length === 0) return line;
+  return line
+    .split(new RegExp(`\\b(${marks.join("|")})\\b`))
+    .map((part, index) =>
+      index % 2 === 1 ? (
+        <strong key={index} className={styles.code}>
+          {part}
+        </strong>
+      ) : (
+        part
+      ),
+    );
+}
+
 // Plain text with its line breaks (design §6.9, threat model SR-03): a blank
-// line opens a paragraph, a single one breaks the line. Nothing is markup.
-export function Text({ text }: { text: string }) {
+// line opens a paragraph, a single one breaks the line. Nothing is markup;
+// only the codes given are stamped.
+export function Text({
+  text,
+  marks = [],
+}: {
+  text: string;
+  marks?: readonly string[];
+}) {
   return text
     .split(/\n{2,}/)
     .filter((paragraph) => paragraph.trim() !== "")
@@ -44,7 +71,7 @@ export function Text({ text }: { text: string }) {
         {paragraph.split("\n").map((line, at) => (
           <Fragment key={at}>
             {at > 0 && <br />}
-            {line}
+            {stamped(line, marks)}
           </Fragment>
         ))}
       </p>
@@ -134,7 +161,14 @@ function Message({
       data-voice={entry.voice}
       {...(entry.lang ? { lang: entry.lang } : {})}
     >
-      {entry.notice ? <Notice text={entry.text} /> : <Text text={entry.text} />}
+      {entry.notice ? (
+        <Notice text={entry.text} />
+      ) : (
+        <Text
+          text={entry.text}
+          {...(entry.marks ? { marks: entry.marks } : {})}
+        />
+      )}
       {failed && (
         <p className={styles.failed}>
           {t("chat.failed")} ·{" "}

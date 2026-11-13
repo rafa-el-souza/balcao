@@ -9,12 +9,16 @@
 # A tool refuses with refuse(message, reason): the message is for the model
 # ("no such topic"), the reason a code the trace carries and the glass box
 # words ("unknown_topic"), since a rule the tool enforces is not a failure
-# (design §10, the drawings' reason code). Any other exception is a bug: it
-# is logged, and the model gets FAILED, never the exception's message, with
-# no reason. Before every call the runner's gate may refuse it, which is how
+# (design §10, the drawings' reason code). Each tool lists its reasons in
+# REASONS, which the panel's words are held to (spec/agent/
+# tool_refusals_spec.rb), and a reason outside the list is a bug. Any other
+# exception is a bug: it is logged, and the model gets FAILED, never the
+# exception's message, with no reason. Before every call the runner's gate may refuse it, which is how
 # no call beyond the turn's sixth ever runs (threat model SR-20).
 class AgentTool < Anthropic::BaseTool
   FAILED = "The tool failed. Tell the visitor you could not check this right now.".freeze
+  # The reason codes a tool refuses with; a tool that refuses lists its own.
+  REASONS = [].freeze
 
   # A refusal: its message for the model, its reason code for the trace.
   class Error < StandardError
@@ -69,7 +73,11 @@ class AgentTool < Anthropic::BaseTool
 
   private
 
-  def refuse(message, reason) = raise(Error.new(message, reason:))
+  def refuse(message, reason)
+    raise ArgumentError, "#{reason} is not in #{self.class.name}::REASONS" unless self.class::REASONS.include?(reason)
+
+    raise Error.new(message, reason:)
+  end
 
   # The output, or the error the model reads: a refusal's own, FAILED for a bug.
   def run(input)

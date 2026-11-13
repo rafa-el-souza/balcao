@@ -15,10 +15,12 @@ module SpecTools
 
   # Fails the way a tool refuses on purpose: its message is for the model.
   class Refuse < AgentTool
+    REASONS = %w[unknown_topic].freeze
+
     doc "Always refuses."
     input_schema EchoInput
 
-    def perform(_input) = raise(AgentTool::Error.new("no such topic", reason: "unknown_topic"))
+    def perform(_input) = refuse("no such topic", "unknown_topic")
   end
 
   # Fails the way a bug does: its message is not for the model.

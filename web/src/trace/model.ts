@@ -41,7 +41,12 @@ export type Row =
       characters: number | null;
       count: number | null;
       unit: string | null;
+      // A refusal and a failure are both the SDK's tool_error; a refusal
+      // also carries the reason code of the rule that refused (design §10).
       failed: boolean;
+      refusal: string | null;
+      // The code of the reservation the call made (create_reservation).
+      reservation: string | null;
     }
   // A fixed reply's sent row carries the turn's outcome.
   | { kind: "sent"; key: string; at: string; outcome: string | null }
@@ -128,14 +133,59 @@ function modelRow(span: Span): Row {
   };
 }
 
+const toolName = (span: Span) =>
+  str(span.attributes, "gen_ai.tool.name") ?? span.name.slice(TOOL_CALL.length);
+
+// A reservation's code as the server draws it (app/models/reservation.rb).
+const CODE = /^[0-9A-Z]+$/;
+
+// The code of the reservation a create_reservation call made, read from its
+// result (app/agent/tools/create_reservation.rb), never from the shape of a
+// text (docs/prototype/chat-reservation.html): none for a refusal, a failure,
+// another tool or a result the trace cut.
+function reservationOf(span: Span): string | null {
+  const a = span.attributes;
+  const result = str(a, "anthropic.tool_result.content");
+  if (
+    toolName(span) !== "create_reservation" ||
+    str(a, "error.type") !== null ||
+    result === null
+  )
+    return null;
+  try {
+    const parsed: unknown = JSON.parse(result);
+    const code =
+      typeof parsed === "object" && parsed !== null && "code" in parsed
+        ? parsed.code
+        : null;
+    return typeof code === "string" && CODE.test(code) ? code : null;
+  } catch {
+    return null;
+  }
+}
+
+// The codes of the reservations a conversation's tool calls made, which its
+// replies stamp wherever they write one (FR-07).
+export function reservationCodes(spans: Span[]): string[] {
+  return [
+    ...new Set(
+      spans
+        .filter((span) => span.name.startsWith(TOOL_CALL))
+        .map(reservationOf)
+        .filter((code) => code !== null),
+    ),
+  ];
+}
+
 function toolRow(span: Span): Row {
   const a = span.attributes;
+  const failed = str(a, "error.type") !== null;
   return {
     kind: "tool",
     key: span.span_id,
     at: span.started_at,
     running: span.finished_at === null,
-    name: str(a, "gen_ai.tool.name") ?? span.name.slice(TOOL_CALL.length),
+    name: toolName(span),
     latencyMs:
       num(a, "balcao.latency_ms") ?? between(span.started_at, span.finished_at),
     args: str(a, "gen_ai.tool.call.arguments"),
@@ -143,7 +193,9 @@ function toolRow(span: Span): Row {
     characters: num(a, "balcao.tool_result.characters"),
     count: num(a, "balcao.tool_result.count"),
     unit: str(a, "balcao.tool_result.unit"),
-    failed: str(a, "error.type") !== null,
+    failed,
+    refusal: failed ? str(a, "balcao.tool_result.refusal") : null,
+    reservation: reservationOf(span),
   };
 }
 

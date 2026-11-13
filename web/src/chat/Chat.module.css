@@ -586,3 +586,17 @@
     opacity: 0;
   }
 }
+
+/* A reservation's code: a small stamp in the instrument's face, since it is
+   what the visitor shows at the counter (docs/prototype/chat-reservation.html). */
+.code {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border: var(--rule-stamp);
+  color: var(--color-accent);
+  font-family: var(--font-instrument);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.5;
+}

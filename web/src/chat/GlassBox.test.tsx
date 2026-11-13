@@ -11,7 +11,14 @@ import ptBR from "../locales/pt-BR.json";
 import { fakeCable } from "../test/fakeCable";
 import { conversation, fakeServer, message } from "../test/fakeServer";
 import { renderPage } from "../test/render";
-import { answeredTurn, commandTurn, runningTurn } from "../test/spans";
+import {
+  answeredTurn,
+  commandTurn,
+  failedTool,
+  refusedTool,
+  reservationTool,
+  runningTurn,
+} from "../test/spans";
 import { Chat } from "./Chat";
 
 const pt = ptBR;
@@ -201,6 +208,72 @@ describe("FR-12 the glass box draws the turn as the server traced it", () => {
     await within(glass()).findByText("search_products");
 
     expect(glass().textContent).not.toMatch(/US\$|R\$|custo/);
+  });
+});
+
+// docs/prototype/chat-reservation.html and chat-tool-refused.html: the row
+// names the reservation a call made, and a rule the tool enforces is told
+// from a failure by the reason code the server gives it (design §10).
+describe("FR-07 FR-12 a tool's reservation, refusal and failure in the glass box", () => {
+  async function toolRow(tool: Record<string, unknown>) {
+    server.answers.current.push(
+      conversation(1, [], false, answeredTurn("t1", { tool })),
+    );
+    renderPage(<Chat />);
+    await ready();
+    const name = tool["gen_ai.tool.name"] as string;
+    return (await within(glass()).findByText(name)).closest(
+      "li",
+    ) as HTMLElement;
+  }
+
+  it("names the reservation a call made, from its result", async () => {
+    const row = await toolRow(reservationTool("4K2QHM"));
+
+    expect(within(row).getByText("reserva 4K2QHM")).toBeInTheDocument();
+    expect(row).not.toHaveAttribute("data-state");
+  });
+
+  it("words a refusal by its reason, in the instrument's own ink, since a rule at work is no failure", async () => {
+    const row = await toolRow(
+      refusedTool(
+        "create_reservation",
+        "over_limit",
+        "The quantity is over the limit of 10 units per reservation. Offer 10 units, or the pharmacist on duty for a larger order.",
+      ),
+    );
+
+    expect(
+      within(row).getByText("recusado: acima de 10 unidades"),
+    ).toBeInTheDocument();
+    expect(row).toHaveAttribute("data-state", "refused");
+    expect(within(row).queryByText(/reserva /)).toBeNull();
+  });
+
+  it("says only that the tool refused when the page has no word for the reason", async () => {
+    const row = await toolRow(
+      refusedTool("create_reservation", "brand_new", "No."),
+    );
+
+    expect(within(row).getByText("recusado")).toBeInTheDocument();
+    expect(row).toHaveAttribute("data-state", "refused");
+  });
+
+  it("says the tool failed, in the error colour, when no rule refused", async () => {
+    const row = await toolRow(failedTool("search_products"));
+
+    expect(within(row).getByText("a ferramenta falhou")).toBeInTheDocument();
+    expect(row).toHaveAttribute("data-state", "error");
+  });
+
+  it("has a word for every reason in each of the three languages", async () => {
+    const { default: en } = await import("../locales/en.json");
+    const { default: es } = await import("../locales/es.json");
+    const keys = Object.keys(pt.instrument.tool.reasons).sort();
+
+    expect(keys.length).toBeGreaterThan(0);
+    expect(Object.keys(en.instrument.tool.reasons).sort()).toEqual(keys);
+    expect(Object.keys(es.instrument.tool.reasons).sort()).toEqual(keys);
   });
 });
 
