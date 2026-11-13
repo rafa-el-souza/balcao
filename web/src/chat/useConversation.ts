@@ -17,6 +17,7 @@ import {
   createApi,
   type Content,
   type Deleted,
+  isServerMessage,
   type Outcome,
   serverNow,
   type Snapshot,
@@ -28,10 +29,15 @@ import { awaiting, initialState, reduce } from "./conversation";
 // conversation's stream; while the socket is unavailable the page asks
 // GET /api/conversations/current every 3 s instead, as long as a turn waits.
 // Three seconds keep a waiting page at 20 of the 60 requests a minute FR-14
-// allows a visitor. The endpoint is a TanStack Query query (design §6.9): the
-// cable's spans go into the conversation's reducer as they come, and a reply
-// on the cable makes the query fetch, so the thread keeps the server's order
-// ("cable invalidates, query fetches").
+// allows a visitor. The endpoint is a TanStack Query query (design §6.9). The
+// cable's spans and replies go into the conversation's reducer as they come:
+// a reply is drawn in the server's order by the time and id it carries, after
+// the visitor's message, which the 202 brought as the server stored it, so a
+// reply costs no request. The query fetches when the page loads, when the
+// stream (re)connects, while a turn waits as below, and when the stream
+// brings what the page cannot place: a reset's reply, the reply to another
+// tab's message, a message of no known shape (design §10, note of 2026-11-13
+// on the chat's stream).
 export const POLL_MS = 3000;
 // A poll that fails, the edge's refusal included (which the edge counts too),
 // doubles the wait, up to half a minute; one that answers brings it back to
@@ -207,6 +213,13 @@ export function useConversation() {
   useEffect(() => {
     following.current = conversationId;
   }, [conversationId]);
+  // A reply the stream brought that the page could not place: the
+  // conversation's answer brings it, with what it answers.
+  const unplaced = state.unplaced;
+  useEffect(() => {
+    if (unplaced > 0) void queryClient.invalidateQueries({ queryKey: CURRENT });
+  }, [unplaced, queryClient]);
+
   // A refused subscription is asked for again a while later.
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
@@ -241,7 +254,9 @@ export function useConversation() {
               type: "snapshot",
               answer: { deleted: true, text: data.text },
             });
-          } else refetch();
+          } else if (isServerMessage(data.message))
+            dispatch({ type: "message", message: data.message });
+          else refetch();
         },
       },
     );
@@ -269,12 +284,14 @@ export function useConversation() {
       }
       const at = new Date(serverNow()).toISOString();
       if (outcome.kind === "ok") {
+        const { message } = outcome.value;
         dispatch({
           type: "accepted",
           clientId,
           conversationId: outcome.value.conversation_id,
           turnId: outcome.value.turn_id,
           at,
+          ...(isServerMessage(message) ? { message } : {}),
         });
         // Accepted into a conversation the page does not follow (FR-04's 24
         // hours, a reset): the conversation's answer moves the page and its
