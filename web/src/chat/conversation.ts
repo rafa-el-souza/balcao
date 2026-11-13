@@ -5,16 +5,25 @@ import type { Content, Deleted, ServerMessage, Snapshot, Span } from "./api";
 // cache). Two parts, drawn as one thread:
 //
 // - the server's messages of the current conversation, in the server's own
-//   order, as the last snapshot gave them;
-// - the page's own entries: a message on its way or accepted but not yet in a
-//   snapshot (drawn after everything the server has), and what the server
-//   never stored, a message that failed or met a limit and the limit's stamp
-//   (drawn after the entry that was the last one drawn when it happened, the
-//   server's or the page's).
+//   order (each message's time, then its id): those the snapshots gave, the
+//   page's own as the 202 answered it, and the replies the stream brought;
+// - the page's own entries: a message on its way or accepted but not yet
+//   held as the server stored it (drawn after everything the server has), and
+//   what the server never stored, a message that failed or met a limit and
+//   the limit's stamp (drawn after the entry that was the last one drawn when
+//   it happened, the server's or the page's).
 //
-// A message the page sent leaves its own part when a snapshot holds it,
-// matched by the id the page generated (client_id), so it takes the server's
-// place in the order (review finding C1 of pull request #14).
+// A message the page sent leaves its own part when the server's copy is
+// held, matched by the id the page generated (client_id), so it takes the
+// server's place in the order (review finding C1 of pull request #14), still
+// drawn under the key it had, so its element stays.
+//
+// A reply the stream brings is drawn at once when the page holds the message
+// it answers; otherwise the page asks for the conversation (unplaced). A
+// snapshot of the conversation the page shows adds to what it holds, by id,
+// so one taken before a reply the stream brought never takes the reply away;
+// another conversation's replaces it (design §10, note of 2026-11-13 on the
+// chat's stream).
 //
 // Beside the thread, the conversation's spans, which the glass box draws
 // (FR-12): the snapshot's and those the cable brings, one per span id.
@@ -57,8 +66,10 @@ export interface State {
   traceToken: string | null;
   // FR-05's confirmation, when the visitor's data is gone.
   deleted: string | null;
-  pending: boolean;
   server: ServerMessage[];
+  // Counts the replies the stream brought that the page could not place: each
+  // makes the page ask for the conversation.
+  unplaced: number;
   own: Own[];
   spans: Span[];
   // The languages of the openers the page sent, by client id.
@@ -90,11 +101,15 @@ export type Action =
       conversationId: string;
       turnId?: string;
       at?: string;
+      // The message as the server stored it (the 202's answer).
+      message?: ServerMessage;
     }
   | { type: "failed"; clientId: string }
   | { type: "limited"; clientId: string | null; text: string; at?: string }
   | { type: "retrying"; clientId: string }
   | { type: "snapshot"; answer: Snapshot | Deleted }
+  // A message the stream brought: a reply (FR-18).
+  | { type: "message"; message: ServerMessage }
   // A span the cable brought, started or finished (FR-12).
   | { type: "span"; span: Span };
 
@@ -103,8 +118,8 @@ export const initialState: State = {
   conversationId: null,
   traceToken: null,
   deleted: null,
-  pending: false,
   server: [],
+  unplaced: 0,
   own: [],
   spans: [],
   langs: {},
@@ -144,6 +159,63 @@ function update(state: State, clientId: string, change: Partial<Own>): State {
   };
 }
 
+// The server's order (app/controllers/api/conversations_controller.rb): a
+// message's time, then its id. The time comes to the millisecond and the
+// server orders by the microsecond, so two messages of one millisecond are
+// ordered here by their ids, which the server does only when their times
+// are equal to the microsecond.
+function serverOrder(a: ServerMessage, b: ServerMessage): number {
+  return (
+    Date.parse(a.created_at) - Date.parse(b.created_at) ||
+    (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+  );
+}
+
+// The messages held and those that came, one per id, the copy that came
+// last kept, in the server's order.
+function withMessages(
+  held: ServerMessage[],
+  incoming: ServerMessage[],
+): ServerMessage[] {
+  const byId = new Map(held.map((message) => [message.id, message]));
+  for (const message of incoming) byId.set(message.id, message);
+  return [...byId.values()].sort(serverOrder);
+}
+
+// The key a server's message is drawn under: the page's own message keeps the
+// one it had on its way, so its element stays when the server's copy takes
+// its place.
+const keyOf = (message: ServerMessage) =>
+  message.client_id ? `l${message.client_id}` : `s${message.id}`;
+
+// The server's copies join the thread, and take the place of the page's own
+// messages they hold.
+function place(state: State, messages: ServerMessage[]): State {
+  const held = new Set(messages.map((message) => message.client_id));
+  return {
+    ...state,
+    server: withMessages(state.server, messages),
+    own: state.own.filter(
+      (entry) => entry.clientId === undefined || !held.has(entry.clientId),
+    ),
+  };
+}
+
+// A reply the page draws as the stream brings it: in the conversation the
+// page shows, answering a message the page holds. Any other message is left
+// to a fetch of the conversation: a reset's reply, which opens the next
+// conversation (FR-04), or the reply to a message another tab sent.
+function answersHeld(state: State, message: ServerMessage): boolean {
+  return (
+    message.conversation_id === state.conversationId &&
+    message.author !== "visitor" &&
+    message.turn_id !== null &&
+    state.server.some(
+      (held) => held.author === "visitor" && held.turn_id === message.turn_id,
+    )
+  );
+}
+
 export function reduce(state: State, action: Action): State {
   switch (action.type) {
     case "session":
@@ -176,13 +248,22 @@ export function reduce(state: State, action: Action): State {
           ? { ...state.langs, [action.clientId]: action.lang }
           : state.langs,
       };
-    case "accepted":
-      return update(state, action.clientId, {
+    case "accepted": {
+      const accepted = update(state, action.clientId, {
         status: "sent",
         conversationId: action.conversationId,
         ...(action.turnId ? { turnId: action.turnId } : {}),
         ...(action.at ? { at: action.at } : {}),
       });
+      // Into the conversation the page shows, the server's copy takes the
+      // message's place at once; into another, the fetch that follows it
+      // moves the page there.
+      const copy = action.message;
+      return copy?.client_id === action.clientId &&
+        copy.conversation_id === state.conversationId
+        ? place(accepted, [copy])
+        : accepted;
+    }
     case "failed":
       return update(state, action.clientId, {
         status: "failed",
@@ -215,6 +296,10 @@ export function reduce(state: State, action: Action): State {
     }
     case "snapshot":
       return merge(state, action.answer);
+    case "message":
+      return answersHeld(state, action.message)
+        ? place(state, [action.message])
+        : { ...state, unplaced: state.unplaced + 1 };
     case "span":
       return { ...state, spans: withSpans(state.spans, [action.span]) };
   }
@@ -228,7 +313,6 @@ function merge(state: State, answer: Snapshot | Deleted): State {
       conversationId: null,
       traceToken: null,
       deleted: answer.text,
-      pending: false,
       server: [],
       spans: [],
       own: state.own.filter((entry) => entry.status === "sending"),
@@ -237,16 +321,22 @@ function merge(state: State, answer: Snapshot | Deleted): State {
   }
 
   const id = answer.conversation.id;
-  const held = new Set(answer.messages.map((message) => message.client_id));
   // A conversation the page showed, replaced (a reset, FR-04's 24 hours) or
   // gone (FR-05); not the first one the page learns of.
   const changed =
     state.deleted !== null ||
     (state.conversationId !== null && state.conversationId !== id);
+  // The same conversation's snapshot adds to what the page holds: one taken
+  // before a reply the stream brought must not take the reply away. A
+  // message never leaves a conversation the page still shows: a reset moves
+  // the messages after it out of the one it closes, and its reply moves the
+  // page to the next (FR-04).
+  const server = withMessages(changed ? [] : state.server, answer.messages);
+  const held = new Set(server.map((message) => message.client_id));
   // What the page drew before it knew the history follows the history
   // (review finding R3).
-  const last = answer.messages.at(-1);
-  const start = last ? `s${last.id}` : null;
+  const last = server.at(-1);
+  const start = last ? keyOf(last) : null;
   const own = state.own
     .filter((entry) => {
       // The server has it: its copy takes the entry's place.
@@ -275,8 +365,7 @@ function merge(state: State, answer: Snapshot | Deleted): State {
     conversationId: id,
     traceToken: answer.conversation.trace_token,
     deleted: null,
-    pending: answer.pending,
-    server: answer.messages,
+    server,
     own,
     // A conversation the page did not show starts its glass box empty: after a
     // reset the new one has its own trace (FR-04, FR-12).
@@ -321,7 +410,7 @@ export function entriesOf(state: State): Entry[] {
           ]
         : []),
       {
-        key: `s${message.id}`,
+        key: keyOf(message),
         voice: VOICES[message.author],
         text: message.body,
         ...(lang ? { lang } : {}),
@@ -329,19 +418,15 @@ export function entriesOf(state: State): Entry[] {
       },
     ];
   };
-  // A page message the server holds is drawn as the server's copy.
-  const copies = new Map<string, string>(
-    state.server.flatMap((message): [string, string][] =>
-      message.client_id ? [[`l${message.client_id}`, `s${message.id}`]] : [],
-    ),
-  );
-  const resolve = (key: string | null) =>
-    key === null ? null : (copies.get(key) ?? key);
-  const terminal = state.own.filter((entry) => !travelling(entry));
+  // A page message the server holds is drawn as the server's copy, under the
+  // same key, so what the page anchored after it follows the copy.
+  const copies = new Set(state.server.map(keyOf));
+  const own = state.own.filter((entry) => !copies.has(entry.key));
+  const terminal = own.filter((entry) => !travelling(entry));
   const placed = new Set<string>();
   const follow = (key: string | null): Entry[] =>
     terminal
-      .filter((entry) => resolve(entry.after) === key)
+      .filter((entry) => entry.after === key)
       .flatMap((entry) => {
         placed.add(entry.key);
         return [entry, ...follow(entry.key)];
@@ -351,11 +436,9 @@ export function entriesOf(state: State): Entry[] {
   const body = [
     ...state.server.flatMap((message) => [
       ...fromServer(message),
-      ...follow(`s${message.id}`),
+      ...follow(keyOf(message)),
     ]),
-    ...state.own
-      .filter(travelling)
-      .flatMap((entry) => [entry, ...follow(entry.key)]),
+    ...own.filter(travelling).flatMap((entry) => [entry, ...follow(entry.key)]),
   ];
   // Anchored after an entry no longer drawn: first, in the page's order.
   const stray = terminal.filter((entry) => !placed.has(entry.key));
@@ -396,33 +479,40 @@ export function entriesOf(state: State): Entry[] {
   );
 }
 
-// While the server holds a turn without its reply, or a message it accepted
-// has not come back in a snapshot yet, the page asks again.
-export function awaiting(state: State): boolean {
-  return state.pending || state.own.some((entry) => entry.status === "sent");
-}
-
-// NFR-03: since when the visitor waits for an answer, by the server's clock:
-// the receipt of the oldest of their messages still without its reply (a
-// reply carries its turn's id), or the moment the server accepted one the
-// page has not seen in a snapshot yet, whichever is older. Null when nothing
-// waits, or when no time is known.
-export function waitingSince(state: State): string | null {
-  if (!awaiting(state)) return null;
+// The visitor's messages the thread holds without their reply: a reply
+// carries its turn's id. The thread tells it, not the snapshot's flag, which
+// a reply the stream brought after the snapshot would leave behind.
+function unanswered(state: State): ServerMessage[] {
   const answered = new Set(
     state.server
       .filter((message) => message.author !== "visitor")
       .map((message) => message.turn_id),
   );
+  return state.server.filter(
+    (message) =>
+      message.author === "visitor" &&
+      message.turn_id !== null &&
+      !answered.has(message.turn_id),
+  );
+}
+
+// While a message of the visitor's waits for its reply, or one the server
+// accepted is not yet held as the server stored it, the page asks again.
+export function awaiting(state: State): boolean {
+  return (
+    unanswered(state).length > 0 ||
+    state.own.some((entry) => entry.status === "sent")
+  );
+}
+
+// NFR-03: since when the visitor waits for an answer, by the server's clock:
+// the receipt of the oldest of their messages still without its reply, or
+// the moment the server accepted one the page does not hold as stored yet,
+// whichever is older. Null when nothing waits, or when no time is known.
+export function waitingSince(state: State): string | null {
+  if (!awaiting(state)) return null;
   const times = [
-    ...(state.pending
-      ? state.server
-          .filter(
-            (message) =>
-              message.author === "visitor" && !answered.has(message.turn_id),
-          )
-          .map((message) => message.created_at)
-      : []),
+    ...unanswered(state).map((message) => message.created_at),
     ...state.own.flatMap((entry) =>
       entry.status === "sent" && entry.at ? [entry.at] : [],
     ),

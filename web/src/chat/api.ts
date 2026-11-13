@@ -42,6 +42,31 @@ export interface Session {
   language: string;
 }
 
+const AUTHORS: readonly unknown[] = ["visitor", "bot", "operator", "system"];
+
+// A message in the shape the server writes it (app/models/message.rb), as the
+// stream and the 202 carry it. Anything else is not drawn: the page asks for
+// the conversation instead. The codes are read where they are stamped.
+export function isServerMessage(value: unknown): value is ServerMessage {
+  if (typeof value !== "object" || value === null) return false;
+  const message = value as Record<string, unknown>;
+  const nullableString = (field: unknown) =>
+    field === null || typeof field === "string";
+  return (
+    typeof message.id === "string" &&
+    typeof message.conversation_id === "string" &&
+    nullableString(message.client_id) &&
+    nullableString(message.turn_id) &&
+    AUTHORS.includes(message.author) &&
+    typeof message.body === "string" &&
+    typeof message.created_at === "string" &&
+    !Number.isNaN(Date.parse(message.created_at)) &&
+    (message.notice === undefined || nullableString(message.notice))
+  );
+}
+
+// The endpoint also says whether a turn waits (`pending`), which the page
+// reads from the thread instead (conversation.ts).
 export interface Snapshot {
   conversation: {
     id: string;
@@ -51,7 +76,6 @@ export interface Snapshot {
   };
   messages: ServerMessage[];
   spans: Span[];
-  pending: boolean;
 }
 
 // A message as a trace page shows it: its words and its turn (FR-12).
@@ -91,6 +115,8 @@ export type Outcome<T> =
 export interface Accepted {
   turn_id: string;
   conversation_id: string;
+  // The message as the server stored it; the page checks its shape.
+  message?: unknown;
 }
 
 export interface Api {

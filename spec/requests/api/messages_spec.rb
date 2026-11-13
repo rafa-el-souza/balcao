@@ -26,8 +26,24 @@ RSpec.describe "FR-18 POST /api/messages stores the message and enqueues its tur
                                          source: "text", body: "tem dipirona?", external_id: id)
       turn = Turn.sole
       expect(turn).to have_attributes(inbound_message: message, conversation:, state: "received")
-      expect(json).to eq("turn_id" => turn.id, "message_id" => message.id, "conversation_id" => conversation.id)
+      expect(json.except("message")).to eq("turn_id" => turn.id, "message_id" => message.id,
+                                           "conversation_id" => conversation.id)
       expect(ProcessTurnJob).to have_been_enqueued.with(turn.id)
+    end
+
+    # The page draws a reply the stream brings without asking for the
+    # conversation, so it needs its own message as the server stored it: its
+    # place in the server's order, its turn, the words kept (design §10, note
+    # of 2026-11-13 on the chat's stream).
+    it "answers with the message as the stream and the conversation's endpoint carry it" do
+      send_text("  tem dipirona?\u0000 ")
+
+      message = Message.sole
+      expect(json["message"]).to eq(
+        "id" => message.id, "client_id" => id, "conversation_id" => conversation.id, "turn_id" => Turn.sole.id,
+        "author" => "visitor", "notice" => nil, "body" => "tem dipirona?",
+        "created_at" => message.created_at.iso8601(3), "codes" => []
+      )
     end
 
     it "marks the visitor seen, which keeps it out of the seven-day purge (FR-15)" do
