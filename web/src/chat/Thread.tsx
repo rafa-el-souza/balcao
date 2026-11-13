@@ -1,12 +1,19 @@
-import { Fragment, useEffect, useRef } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import openers from "../openers.json";
 import { cx } from "../ui/cx";
+import { Cross } from "../ui/Icon";
 import parts from "../ui/parts.module.css";
 import styles from "./Chat.module.css";
-import type { Content } from "./api";
-import { type Entry, entriesOf, type State } from "./conversation";
+import { type Content, serverNow } from "./api";
+import {
+  awaiting,
+  type Entry,
+  entriesOf,
+  type State,
+  waitingSince,
+} from "./conversation";
 import { isOpener, openerLang } from "./useConversation";
 
 // The conversation's four voices, told apart by form and never by an avatar
@@ -42,6 +49,50 @@ export function Text({ text }: { text: string }) {
         ))}
       </p>
     ));
+}
+
+// NFR-03: past ten seconds of waiting (NFR-01's p95), the attendant says the
+// answer is taking longer.
+export const SLOW_MS = 10_000;
+
+// Whether the wait that began at `since` has passed SLOW_MS, by the server's
+// clock; the page checks again at the moment it does.
+function useSlow(since: string | null): boolean {
+  const due = since === null ? null : Date.parse(since) + SLOW_MS;
+  const [checked, setChecked] = useState(serverNow);
+  useEffect(() => {
+    if (due === null) return;
+    const timer = window.setTimeout(
+      () => {
+        setChecked(serverNow());
+      },
+      Math.max(0, due - serverNow()),
+    );
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [due]);
+  return due !== null && checked >= due;
+}
+
+// While a turn runs, the pharmacy's cross breathes beside "pensando…" as a
+// lamp does, and stays lit and still for reduced motion
+// (docs/prototype/chat-thinking.html); one for the whole wait, however many
+// messages wait (chat-queued.html).
+function Thinking({ since }: { since: string | null }) {
+  const { t } = useTranslation();
+  const slow = useSlow(since);
+  return (
+    <li
+      className={cx(styles.msg, styles.attendant, styles.thinking)}
+      data-voice="attendant"
+    >
+      <p>
+        <Cross className={styles.lamp} /> {t("chat.thinking")}
+      </p>
+      {slow && <p>{t("chat.slow")}</p>}
+    </li>
+  );
 }
 
 const VOICE_CLASS = {
@@ -158,6 +209,7 @@ export function Thread({
       {entries.map((entry) => (
         <Message key={entry.key} entry={entry} onRetry={onRetry} />
       ))}
+      {awaiting(state) && <Thinking since={waitingSince(state)} />}
       {refused !== null && (
         <li className={cx(styles.msg, VOICE_CLASS.stamp)} data-voice="stamp">
           <p>{refused}</p>

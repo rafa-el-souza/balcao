@@ -61,6 +61,8 @@
     "offline": "No connection to the server right now. Still trying.",
     "failed": "not sent",
     "retry": "send again",
+    "thinking": "thinking…",
+    "slow": "taking longer than usual",
     "composer": {
       "label": "Message",
       "placeholder": "write here…",

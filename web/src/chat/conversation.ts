@@ -379,3 +379,35 @@ export function entriesOf(state: State): Entry[] {
 export function awaiting(state: State): boolean {
   return state.pending || state.own.some((entry) => entry.status === "sent");
 }
+
+// NFR-03: since when the visitor waits for an answer, by the server's clock:
+// the receipt of the oldest of their messages still without its reply (a
+// reply carries its turn's id), or the moment the server accepted one the
+// page has not seen in a snapshot yet, whichever is older. Null when nothing
+// waits, or when no time is known.
+export function waitingSince(state: State): string | null {
+  if (!awaiting(state)) return null;
+  const answered = new Set(
+    state.server
+      .filter((message) => message.author !== "visitor")
+      .map((message) => message.turn_id),
+  );
+  const times = [
+    ...(state.pending
+      ? state.server
+          .filter(
+            (message) =>
+              message.author === "visitor" && !answered.has(message.turn_id),
+          )
+          .map((message) => message.created_at)
+      : []),
+    ...state.own.flatMap((entry) =>
+      entry.status === "sent" && entry.at ? [entry.at] : [],
+    ),
+  ].filter((time) => !Number.isNaN(Date.parse(time)));
+  return times.reduce<string | null>(
+    (oldest, time) =>
+      oldest === null || Date.parse(time) < Date.parse(oldest) ? time : oldest,
+    null,
+  );
+}

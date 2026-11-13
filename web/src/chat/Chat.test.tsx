@@ -248,6 +248,118 @@ describe("FR-18 the reply arrives by polling", () => {
   });
 });
 
+describe("NFR-03 the turn that waits", () => {
+  const sendAndWait = async (receivedAgoMs = 0) => {
+    type("tem dipirona?");
+    fireEvent.keyDown(field(), { key: "Enter" });
+    await waitFor(() => {
+      expect(server.sent()).toHaveLength(1);
+    });
+    return message({
+      author: "visitor",
+      body: "tem dipirona?",
+      client_id: idOf(server.sent()[0]?.body),
+      created_at: new Date(Date.now() - receivedAgoMs).toISOString(),
+    });
+  };
+
+  it("says it is thinking while the turn runs, and stops once the reply arrives", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderPage(<Chat />);
+    await ready();
+    expect(within(thread()).queryByText(pt.thinking)).toBeNull();
+
+    const visitor = await sendAndWait();
+    expect(await within(thread()).findByText(pt.thinking)).toBeInTheDocument();
+    server.answers.current.push(
+      conversation(1, [visitor], true),
+      conversation(1, [visitor, message({ author: "bot", body: "Temos." })]),
+    );
+
+    await act(() => vi.advanceTimersByTimeAsync(3000));
+    expect(within(thread()).getByText(pt.thinking)).toBeInTheDocument();
+    expect(within(thread()).getAllByRole("listitem").at(-1)).toHaveTextContent(
+      pt.thinking,
+    );
+
+    await act(() => vi.advanceTimersByTimeAsync(3000));
+    expect(within(thread()).getByText("Temos.")).toBeInTheDocument();
+    expect(within(thread()).queryByText(pt.thinking)).toBeNull();
+  });
+
+  it("adds, ten seconds after the server received the message, that the answer is taking longer", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderPage(<Chat />);
+    await ready();
+
+    const visitor = await sendAndWait();
+    server.answers.current.push(
+      ...Array.from({ length: 5 }, () => conversation(1, [visitor], true)),
+    );
+    await elapse(9000);
+    expect(within(thread()).getByText(pt.thinking)).toBeInTheDocument();
+    expect(within(thread()).queryByText(pt.slow)).toBeNull();
+
+    await elapse(1500);
+    expect(within(thread()).getByText(pt.slow)).toBeInTheDocument();
+  });
+
+  it("says at once that the answer is taking longer when the page opens on a turn that waited over ten seconds", async () => {
+    server.answers.current.push(
+      conversation(
+        1,
+        [
+          message({
+            author: "visitor",
+            body: "tem dipirona?",
+            created_at: new Date(Date.now() - 30_000).toISOString(),
+          }),
+        ],
+        true,
+      ),
+    );
+    renderPage(<Chat />);
+    await ready();
+
+    expect(await within(thread()).findByText(pt.slow)).toBeInTheDocument();
+    expect(within(thread()).getByText(pt.thinking)).toBeInTheDocument();
+  });
+
+  it("measures the wait from the oldest message still without its reply", async () => {
+    server.answers.current.push(
+      conversation(
+        1,
+        [
+          message({
+            author: "visitor",
+            body: "oi",
+            turn_id: 1,
+            created_at: new Date(Date.now() - 40_000).toISOString(),
+          }),
+          message({ author: "bot", body: "Olá!", turn_id: 1 }),
+          message({
+            author: "visitor",
+            body: "tem dipirona?",
+            turn_id: 2,
+            created_at: new Date(Date.now() - 12_000).toISOString(),
+          }),
+          message({
+            author: "visitor",
+            body: "e paracetamol?",
+            turn_id: 3,
+            created_at: new Date(Date.now() - 2_000).toISOString(),
+          }),
+        ],
+        true,
+      ),
+    );
+    renderPage(<Chat />);
+    await ready();
+
+    expect(await within(thread()).findByText(pt.slow)).toBeInTheDocument();
+  });
+});
+
 describe("FR-14 the demo's limit", () => {
   it("keeps the message as sent and stamps the server's text under it", async () => {
     const text =
@@ -264,7 +376,7 @@ describe("FR-14 the demo's limit", () => {
 
     const stamp = await within(thread()).findByText(text);
     const items = within(thread()).getAllByRole("listitem");
-    expect(items.map((item) => item.textContent)).toEqual([
+    expect(items.map((item) => item.textContent.trim())).toEqual([
       "e xarope pra tosse?",
       text,
     ]);
@@ -295,7 +407,7 @@ describe("FR-05 the visitor's data deleted", () => {
     const items = within(
       screen.getByRole("list", { name: es.chat.conversation }),
     ).getAllByRole("listitem");
-    expect(items.map((item) => item.textContent)).toEqual([text]);
+    expect(items.map((item) => item.textContent.trim())).toEqual([text]);
   });
 });
 
@@ -331,7 +443,7 @@ describe("FR-04 starting over", () => {
     expect(
       within(thread())
         .getAllByRole("listitem")
-        .map((item) => item.textContent),
+        .map((item) => item.textContent.trim()),
     ).toEqual(["Pronto, começamos de novo."]);
   });
 });
@@ -440,11 +552,13 @@ describe("FR-21 the thread in the server's order", () => {
     const items = () =>
       within(thread())
         .getAllByRole("listitem")
-        .map((item) => item.textContent);
+        .map((item) => item.textContent.trim());
+    // The opener waits for its reply (NFR-03).
     expect(items()).toEqual([
       "tem dipirona?",
       "Temos duas.",
       openers.delivery_es.text,
+      pt.thinking,
     ]);
 
     const id = idOf(server.sent()[0]?.body);
@@ -513,7 +627,7 @@ describe("FR-21 the thread in the server's order", () => {
     expect(
       within(thread())
         .getAllByRole("listitem")
-        .map((item) => item.textContent),
+        .map((item) => item.textContent.trim()),
     ).toEqual([
       "segunda",
       "resposta da segunda",
@@ -840,7 +954,7 @@ describe("FR-18 and FR-21 the fixes' own edges (fix review of pull request #14)"
   const items = () =>
     within(thread())
       .getAllByRole("listitem")
-      .map((item) => item.textContent);
+      .map((item) => item.textContent.trim());
   const earlier = () => [
     message({ author: "visitor", body: "tem dipirona?" }),
     message({ author: "bot", body: "Temos duas." }),
@@ -1022,6 +1136,7 @@ describe("FR-18 and FR-21 the fixes' own edges (fix review of pull request #14)"
     fireEvent.keyDown(field(), { key: "Enter" });
     await within(thread()).findByText(text);
 
-    expect(items()).toEqual(["primeira", "segunda", text]);
+    // The first still waits for its reply (NFR-03).
+    expect(items()).toEqual(["primeira", "segunda", text, pt.thinking]);
   });
 });

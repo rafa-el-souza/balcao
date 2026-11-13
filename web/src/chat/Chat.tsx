@@ -17,7 +17,9 @@ import { useConversation } from "./useConversation";
 // the composer, which opens it as a drawer over the lower half. Hidden until
 // their source exists: the pharmacist's presence (M2), the budget's mode and
 // every cost (PR-16), the anti-bot line (Turnstile, after the MVP) and the
-// "agendar" suggestion (FR-08, M2); the "pensando…" state is PR-12's.
+// "agendar" suggestion (FR-08, M2). While a turn waits the thread says
+// "pensando…", and past ten seconds that the answer is taking longer (NFR-03,
+// Thread.tsx).
 export function Chat() {
   const { t } = useTranslation();
   const {

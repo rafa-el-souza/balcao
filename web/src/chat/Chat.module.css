@@ -114,6 +114,34 @@
   max-width: 33rem;
 }
 
+/* The attendant thinking: quiet, with the pharmacy's cross breathing as a lamp does, dimming and
+   returning without a step; reduced motion leaves it lit and still. */
+.thinking {
+  font-style: italic;
+  color: var(--color-ink-2);
+}
+
+.lamp {
+  margin-right: var(--space-1);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .lamp {
+    animation: lamp 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes lamp {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
+}
+
 .openers {
   margin-top: var(--space-3);
 }
