@@ -16,4 +16,14 @@ RSpec.describe "Design §6.7 the tab's icon at the site's root", type: :request 
     widths = response.body.unpack("@6C@22C")
     expect(widths).to eq [ 16, 32 ]
   end
+
+  # public/ is cached for a year, so the page's link asks for the .ico by its
+  # content (web/index.html, review finding C1 of pull request #22); the
+  # query only names the version, and the file is the same.
+  it "sends the same file for the version the page's link names" do
+    get "/favicon.ico?v=ada79c53"
+
+    expect(response).to have_http_status(:ok)
+    expect(response.body).to eq File.binread(Rails.public_path.join("favicon.ico"))
+  end
 end

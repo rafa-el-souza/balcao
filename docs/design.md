@@ -1580,7 +1580,12 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     its corners and fills a transparent one with black; and the 16 and
     32 px `/favicon.ico`, a file of `public/` at the site's root, for a
     browser without SVG icons (Safari before 26) and for every answer that
-    names no icon, each of which was a 404 until now. No web manifest: the
+    names no icon, each of which was a 404 until now. `public/` is cached
+    for a year, so the page's link asks for the `.ico` by its content
+    (`?v=` and the first eight hex digits of its SHA-256, which a test holds
+    to the file) and a changed mark is fetched anew; only a request that
+    reads no page keeps an old one (review finding C1 of pull request #22).
+    No web manifest: the
     demo is not an app to install. An icon cannot read the page's custom
     properties, so the SVG writes the tokens' values, and a spec holds them
     to `tokens.css`.

@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
@@ -12,9 +13,16 @@ const text = (path: string) => read(path).toString("utf8");
 describe("Design §6.7 the tab's icon in every page", () => {
   it("names the .ico at the site's root, the SVG cross and the phone's icon", () => {
     const html = text("../index.html");
+    // The .ico keeps its name at the site's root, where public/'s year of
+    // cache holds it, so the page asks for it by its content: a changed mark
+    // is fetched anew (review finding C1 of pull request #22).
+    const version = createHash("sha256")
+      .update(read("../../public/favicon.ico"))
+      .digest("hex")
+      .slice(0, 8);
 
     expect(html).toContain(
-      '<link rel="icon" href="/favicon.ico" sizes="32x32" vite-ignore />',
+      `<link rel="icon" href="/favicon.ico?v=${version}" sizes="32x32" vite-ignore />`,
     );
     expect(html).toContain(
       '<link rel="icon" href="/src/favicon/icon.svg" type="image/svg+xml" />',
