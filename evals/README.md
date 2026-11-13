@@ -42,7 +42,8 @@ attempts; the third error ends the case in error, and a run with a case in
 error writes no scorecard. The API refusing the key or the request stops
 the run. Before a run judges any rubric, the judge must fail three
 known-bad replies (none, "I don't know.", and a confident answer to
-another question), or the run stops.
+another question), or the run stops; an error on the way is retried as an
+attempt's is.
 
 ## Case format
 

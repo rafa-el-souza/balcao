@@ -68,7 +68,7 @@ RSpec.describe "NFR-08 SR-18 the eval runner's rubric judge" do
     it "refuses a judge that passes one" do
       responses.replace([ verdict(false, "No."), verdict(true, "Looks fine."), verdict(false, "No.") ])
 
-      expect { judge.preflight! }.to raise_error(Evals::Judge::Error, /known-bad/)
+      expect { judge.preflight! }.to raise_error(Evals::Judge::Unfit, /known-bad/)
     end
   end
 end

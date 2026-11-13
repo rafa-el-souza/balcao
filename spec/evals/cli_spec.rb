@@ -106,6 +106,15 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
       expect(attempt["checks"].map { |check| check["key"] }).to include("language", "tools", "must_include_all")
     end
 
+    # Review finding C1 of pull request #20: a passing error of the API in
+    # the preflight is retried like an attempt's, not a reason to stop.
+    it "tries the preflight again after an error the API may not repeat" do
+      responses.replace([ *([ error(:overloaded) ] * 3), *preflight, reply("[pt] Olá! Posso ajudar com um produto?"), verdict(true) ])
+
+      expect(evals("--case", "greeting-pt-01")).to eq(0)
+      expect(err.string).to be_empty
+    end
+
     it "fails the run when a case fails, and stops before the cases when the judge passes a known-bad reply" do
       responses.replace([ verdict(false), verdict(true), verdict(false) ])
 

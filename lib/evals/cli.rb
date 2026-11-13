@@ -124,18 +124,36 @@ module Evals
       @out.puts("bin/evals: #{selected.size} #{"case".pluralize(selected.size)} on #{route.model} (effort #{route.effort}), judged by #{judge.model}")
 
       begin
-        report.preflight = judge.preflight! if selected.any?(&:rubric)
+        report.preflight = preflight(judge) if selected.any?(&:rubric)
         @out.puts("judge: failed the #{Judge::KNOWN_BAD.size} known-bad replies, as it must") if report.preflight
         runner = Runner.new(pipeline: Pipeline.new, checks: Checks.new(phrases:), judge:, route:, pause: @pause)
         runner.call(selected) do |result|
           report.results << result
           @out.puts(outcome(result))
         end
-      rescue Judge::Error, Runner::Fatal, Anthropic::Errors::APIError => e
+      rescue Judge::Unfit, Judge::Error, Runner::Fatal, Anthropic::Errors::APIError => e
         report.stopped = "#{e.class}: #{e.message}"
         @err.puts("bin/evals: the run stopped: #{report.stopped}")
       end
       finish(report, cases, scorecard:)
+    end
+
+    # The preflight meets the API as an attempt does: a broken verdict or an
+    # error the API may not repeat is tried again after the runner's wait,
+    # three tries in all; a refused key or request stops the run, and so does
+    # a judge that passes a known-bad reply (review finding C1 of pull
+    # request #20).
+    def preflight(judge)
+      tries = 0
+      begin
+        judge.preflight!
+      rescue Judge::Error, Anthropic::Errors::APIError => e
+        tries += 1
+        raise if Runner::FATAL_ERRORS.include?(e.class.name) || tries >= Runner::ERRORS
+
+        @pause.call(rand(Runner::RETRY_WAIT))
+        retry
+      end
     end
 
     def finish(report, cases, scorecard:)

@@ -29,7 +29,10 @@ module Evals
 
     Verdict = Data.define(:pass, :reason, :model, :usage)
 
+    # A verdict that could not be had: retried like any broken attempt.
     class Error < StandardError; end
+    # A judge that passed a reply every rubric fails: the run stops.
+    class Unfit < StandardError; end
 
     # Every rubric fails these: no reply, a non-answer, and a confident answer
     # to another question.
@@ -54,11 +57,11 @@ module Evals
       verdict_of(message)
     end
 
-    # Raises Error when the judge passes a reply that must fail.
+    # Raises Unfit when the judge passes a reply that must fail.
     def preflight!
       verdicts = KNOWN_BAD.map { |reply| grade(rubric: PREFLIGHT_RUBRIC, reply:) }
       passed = KNOWN_BAD.zip(verdicts).select { |_, verdict| verdict.pass }
-      raise Error, "the judge passed known-bad replies: #{passed.map { |reply, verdict| "#{reply.inspect} (#{verdict.reason})" }.join("; ")}" if passed.any?
+      raise Unfit, "the judge passed known-bad replies: #{passed.map { |reply, verdict| "#{reply.inspect} (#{verdict.reason})" }.join("; ")}" if passed.any?
 
       verdicts
     end
