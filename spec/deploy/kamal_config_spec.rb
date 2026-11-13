@@ -99,6 +99,27 @@ RSpec.describe "SR-38 the rehearsal destination inherits nothing production-spec
   end
 end
 
+# Threat model SR-27: Kamal 2.12 boots kamal-proxy v0.9.2 unless told
+# otherwise, and every release up to v0.10.1 keeps a client's connection open
+# for as long as the client stalls (GHSA-g8jf-9mcc-x4f2, high). The edge pins
+# a release past the advisories published for it, checked on the monthly bump
+# day (docs/runbook.md). The tag stays plain: Kamal reads the running proxy's
+# version back from its image tag, and a digest there stops every deploy.
+RSpec.describe "SR-27 the edge proxy runs a release past its published advisories" do
+  include KamalConfigHelpers
+
+  it "pins kamal-proxy v0.10.2 in the base file, which the rehearsal inherits" do
+    expect(base.dig("proxy", "run", "version")).to eq "v0.10.2"
+    expect(rehearsal_file.dig("proxy", "run")).to be_nil
+    expect(rehearsal.dig("proxy", "run", "version")).to eq "v0.10.2"
+  end
+
+  it "pins only the version, a plain release tag of kamal-proxy's own image: ports, publishing and logging stay Kamal's defaults" do
+    expect(base.dig("proxy", "run").keys).to eq [ "version" ]
+    expect(base.dig("proxy", "run", "version")).to match(/\Av\d+\.\d+\.\d+\z/)
+  end
+end
+
 RSpec.describe "SR-24 the containers Kamal runs" do
   include KamalConfigHelpers
 

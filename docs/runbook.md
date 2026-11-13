@@ -17,6 +17,7 @@ amendment, threat model R5). Nothing here deploys production.
 | Tool | Version | Where it is pinned |
 |---|---|---|
 | Kamal | 2.12.0 | A global gem in each deploying account, the same version in both; not in the Gemfile, no `bin/kamal`. `bin/deploy` prints `kamal version` first. |
+| kamal-proxy | v0.10.2 | `proxy.run.version` in `config/deploy.yml`, by tag: Kamal reads the running version back from the image tag, so a digest there stops every deploy. Kamal 2.12 alone boots v0.9.2, which GHSA-g8jf-9mcc-x4f2 (high) affects. A deploy never swaps a running proxy; the swap is below. |
 | Docker on the workstation | rootless | Kamal builds with the engine's own builder (`builder.driver: docker` in `config/deploy.yml`), which fetches no BuildKit image. |
 | Base images | by digest | `Dockerfile` and the Postgres accessory in `config/deploy.yml`; Dependabot proposes new digests. |
 
@@ -50,8 +51,9 @@ from M3.
   through a remote port forward. Docker from Docker's own repository,
   fail2ban on sshd, unattended security upgrades, and `sudo` for exactly
   the two checks below.
-- **What Kamal adds.** `kamal-proxy` on ports 80 and 443, with a Let's
-  Encrypt certificate obtained on the first HTTPS request for the name;
+- **What Kamal adds.** `kamal-proxy` on ports 80 and 443, at the release
+  the table above pins, with a Let's Encrypt certificate obtained on the
+  first HTTPS request for the name;
   the `web` and `job` containers as uid 1000 on a read-only root filesystem
   with `tmp/` and `/tmp` in memory; Postgres as the accessory `balcao-db`
   on the Kamal network with no published port, its data in
@@ -147,6 +149,42 @@ Only a green `main` is deployed to the MVP host.
 7. Say in the slice's handoff what the demo shows now. `kamal audit -d
    ensaio` on the host is the deploy record.
 
+## Swapping the proxy's release
+
+`kamal deploy` starts the proxy container that is already there, whatever
+`proxy.run.version` says, so a new release runs only after a reboot of the
+proxy. On the MVP host:
+
+1. A pull request changes `proxy.run.version` in `config/deploy.yml`, with
+   the advisory or release note that asks for it; once it is merged, the
+   MVP deploy flow above deploys that `main`.
+2. Measure before, from the workstation, what the swap is for (the checks
+   of step 4), so the difference is seen.
+3. `kamal proxy reboot -d ensaio`, with the destination's env file loaded
+   as for a deploy. It asks for confirmation, then stops and removes the
+   proxy container and runs the pinned release: the demo is down for a few
+   seconds. The certificates and the routes to the app live in the
+   `kamal-proxy-config` volume, which the new container reads at boot, so
+   nothing is issued again and no deploy is needed.
+4. Check: `kamal proxy details -d ensaio` names the pinned image; the
+   smoke of the deploy flow passes; and, for the v0.10.2 swap:
+   - `echo | openssl s_client -connect balcao.rafasouza.dev.br:443 -tls1_2 -cipher ECDHE-ECDSA-AES128-SHA`
+     fails the handshake (a CBC suite), and the same with
+     `ECDHE-ECDSA-AES128-GCM-SHA256` connects;
+   - a connection that sends no request, on port 80 or 443, with or without
+     a finished TLS handshake, is closed by the proxy after about 10 s;
+   - a cable socket opened from the public origin is still open after 90 s
+     with no message from the client (Action Cable's pings keep coming);
+   - `kamal app logs -d ensaio` shows a request of yours from your own
+     address, so the app still reads the client's IP from the proxy (SR-36).
+5. Way back: set `proxy.run.version` to the release that ran before (v0.9.2
+   before this pin) in the working tree, `kamal proxy reboot -d ensaio`,
+   restore the file, and open a pull request that pins what runs, with the
+   reason.
+
+Production (from M3) swaps the same way from the operator account, after
+the deploy-path review of the pull request (SR-38).
+
 ## End of a deploy session
 
 - **No registry left behind:** `docker ps -a --filter name=kamal-docker-registry`
@@ -172,6 +210,10 @@ M3; until then the monitor URL in the env file stays empty.
 - Dependabot's pull requests (gems, npm, base-image digests, Actions).
 - The pinned Kamal gem: the same new version in both accounts, and this
   file's table.
+- The pinned kamal-proxy, against the advisories kamal-proxy publishes
+  (`gh api repos/basecamp/kamal-proxy/security-advisories --jq '.[] | [.ghsa_id, .severity, .summary] | @tsv'`
+  and its releases); a release that fixes one is pinned and swapped as
+  above.
 - The Postgres accessory's digest: a new image is a deliberate
   `kamal accessory reboot db -d ensaio`, never a side effect of a deploy.
 - `registry:3`, the image Kamal runs for its local registry on the
