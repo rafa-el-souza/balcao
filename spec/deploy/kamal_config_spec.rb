@@ -118,6 +118,20 @@ RSpec.describe "SR-27 the edge proxy runs a release past its published advisorie
     expect(base.dig("proxy", "run").keys).to eq [ "version" ]
     expect(base.dig("proxy", "run", "version")).to match(/\Av\d+\.\d+\.\d+\z/)
   end
+
+  # Review finding C1 of pull request #21: a tag can be pushed again, and
+  # nothing held what the proxy's image is. The digest the tag resolved to
+  # when it was pinned is written beside it, in a file the deploy-path review
+  # reads (SR-38), and a host gets that content by digest, under the tag,
+  # before Kamal boots the proxy, which then runs the tag it already holds.
+  it "writes beside the tag the digest of the image a host must run, and the runbook puts it there by digest" do
+    version_line = Rails.root.join("config/deploy.yml").read.lines.grep(/^\s*version: /).sole
+    expect(version_line).to match(%r{\A\s*version: v\d+\.\d+\.\d+ # basecamp/kamal-proxy@sha256:[0-9a-f]{64}$})
+
+    runbook = Rails.root.join("docs/runbook.md").read
+    expect(runbook).to include(%(kamal server exec -d ensaio "docker pull $DIGEST && docker tag $DIGEST $TAG"))
+    expect(runbook).to include(%(docker image inspect $TAG --format '{{json .RepoDigests}}'))
+  end
 end
 
 RSpec.describe "SR-24 the containers Kamal runs" do
