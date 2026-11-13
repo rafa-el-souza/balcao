@@ -129,6 +129,29 @@ RSpec.describe ApplicationCable::Gate, type: :channel do
       expect(gate.call(handshake).first).to eq 429
     end
 
+    # The fix review of pull request #23: the process's cap counted the held
+    # places with no example to say so.
+    it "holds the process's place too, whatever the source of the next handshake" do
+      inside = Queue.new
+      release = Queue.new
+      slow = lambda do |env|
+        taken << env["rack.hijack"].call
+        if taken.size == 1
+          inside << true
+          release.pop
+        end
+        [ -1, {}, [] ]
+      end
+      gate = described_class.new(slow, max: 1)
+
+      waiting = Thread.new { gate.call(handshake(source: "198.51.100.1")).first }
+      inside.pop
+      other = gate.call(handshake(source: "198.51.100.2")).first
+      release << true
+
+      expect([ waiting.value, other ]).to eq [ -1, 503 ]
+    end
+
     it "counts only the sockets the cable took over: a handshake it refused, for its origin say, holds none" do
       refuses = ->(_env) { [ 404, {}, [ "Page not found" ] ] }
       gate = described_class.new(refuses)
