@@ -507,15 +507,43 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       expect { perform(first) }.not_to(change { fake.requests.size })
     end
 
-    it "leaves an earlier turn that failed to its own job" do
+    # Review finding C1 of pull request #18: a turn left to its own job's next
+    # attempt was answered after a later turn, blind to that turn's reply.
+    it "answers an earlier turn that failed before its own, so the turns keep their order" do
+      responses.replace([ reply("[pt] Olá!"), reply("[pt] Temos, sim.") ])
       first = inbound("oi", at: 2.seconds.ago)
       first.update!(state: "failed")
       second = inbound("tem dipirona?", at: 1.second.ago)
 
       perform(second)
 
-      expect(first.reload.outbound_message).to be_nil
-      expect(second.reload.state).to eq("replied")
+      expect([ first.reload.state, second.reload.state ]).to eq(%w[replied replied])
+      expect(first.outbound_message.created_at).to be < second.outbound_message.created_at
+      expect(fake.requests.last.body[:messages].map { |message| message[:role] }).to eq(%w[user assistant user])
+    end
+
+    it "never answers again, blind, what a later turn answered (review finding C1 of pull request #18, NFR-02)" do
+      allow(Rails.logger).to receive(:error)
+      responses.replace([ reply("[pt] Temos, sim."), reply("[pt] Temos dipirona, sim."), reply("[pt] Temos, sim.") ])
+      first = inbound("tem dipirona?", at: 3.seconds.ago)
+      second = inbound("?", at: 2.seconds.ago)
+      calls = 0
+      original = Message.method(:record_outbound!)
+      allow(Message).to receive(:record_outbound!) do |**arguments|
+        calls += 1
+        raise ActiveRecord::ConnectionFailed, "gone" if calls == 1
+
+        original.call(**arguments)
+      end
+
+      perform(first)
+      perform(second)
+      perform_enqueued_jobs
+
+      again = fake.requests[2]
+      texts = again && again.body[:messages].flat_map { |message| message[:content].map { |block| block[:text] } }
+      expect(again.nil? || texts.include?("Temos dipirona, sim.")).to be(true)
+      expect(first.reload.outbound_message.created_at).to be < second.reload.outbound_message.created_at
     end
 
     it "answers its own turn when an earlier one breaks" do

@@ -6,8 +6,12 @@
 # short messages are answered one by one). An earlier turn still running is
 # one a crash or a deploy interrupted, since no other job can run it while
 # this one holds the lock, so it is answered too (review finding C1 of pull
-# request #11). An earlier turn that already ran and failed is left to its
-# own job, so one broken turn never holds the conversation.
+# request #11). So is one that failed and waits for its own job's next
+# attempt: answered later, it would come after the later turns' replies, and
+# its model, reading the conversation only up to it, would answer again what
+# they had answered (review finding C1 of pull request #18). One that breaks
+# again is left to its own job, so one broken turn never holds the
+# conversation.
 #
 # A job run again for a turn that has its reply calls, bills and traces
 # nothing (NFR-02).
@@ -66,15 +70,16 @@ class ProcessTurnJob < ApplicationJob
   end
 
   def waiting_before(turn)
-    Turn.where(conversation_id: turn.conversation_id, state: %w[received running])
+    Turn.where(conversation_id: turn.conversation_id, state: %w[received running failed])
         .where("(turns.created_at, turns.id) < (?, ?)", turn.created_at, turn.id)
         .where.missing(:outbound_message)
         .order(:created_at, :id)
   end
 
   # An earlier turn that breaks is marked failed by TurnProcessor and left to
-  # its own job's retry; this job goes on to its own turn. One that a reset
-  # among them moved belongs to another lock now.
+  # its own job's next attempt, or to the next turn's job when its own is gone;
+  # this job goes on to its own turn. One that a reset among them moved
+  # belongs to another lock now.
   def run_earlier(turn_id, conversation_id)
     turn = Turn.find_by(id: turn_id)
     return if turn.nil? || turn.conversation_id != conversation_id
