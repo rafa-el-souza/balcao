@@ -31,7 +31,7 @@ module Tools
 
     def perform(input)
       topic = input.to_h[:topic].to_s
-      facts = StoreSheet.current.topic(topic) or raise Error, UNKNOWN
+      facts = StoreSheet.current.topic(topic) or refuse(UNKNOWN, "unknown_topic")
 
       { "topic" => topic }.merge(facts)
     end

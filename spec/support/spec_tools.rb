@@ -31,7 +31,7 @@ module SpecTools
     doc "Always refuses."
     input_schema EchoInput
 
-    def perform(_input) = raise(AgentTool::Error, "no such topic")
+    def perform(_input) = raise(AgentTool::Error.new("no such topic", reason: "unknown_topic"))
   end
 
   # Fails the way a bug does: its message is not for the model.

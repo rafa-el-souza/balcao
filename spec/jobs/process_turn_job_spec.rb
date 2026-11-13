@@ -449,6 +449,26 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       expect(tool.span_attributes.keys).not_to include("balcao.tool_result.count", "balcao.tool_result.unit")
     end
 
+    # The drawings' reason code (design §10, note of 2026-11-12): the panel
+    # tells a rule the tool enforces from a failure by it, and words it.
+    it "gives a refusal its reason code, which a tool's failure lacks" do
+      responses.replace([ tool_turn(tool_use("search_products", { query: " " })), reply("[pt] Diga o nome."),
+                          tool_turn(tool_use("search_products", { query: "dipirona" })), reply("[pt] Não consegui ver.") ])
+      refused = inbound("tem dipirona?")
+      perform(refused)
+
+      allow(Product).to receive(:search).and_raise(ActiveRecord::StatementInvalid, "gone")
+      allow(Rails.logger).to receive(:error)
+      failed = inbound("e agora?")
+      perform(failed)
+
+      refusal = spans(refused).find_by(name: "anthropic.custom_tool_use search_products").span_attributes
+      failure = spans(failed).find_by(name: "anthropic.custom_tool_use search_products").span_attributes
+      expect(refusal).to include("error.type" => "tool_error", "balcao.tool_result.refusal" => "empty_query")
+      expect(failure).to include("error.type" => "tool_error")
+      expect(failure).not_to have_key("balcao.tool_result.refusal")
+    end
+
     it "records a tool call whose input carries a NUL, and the turn completes (review finding C4 of pull request #10)" do
       responses[0] = tool_turn(tool_use("search_products", { query: "dipirona\u0000" }))
       turn = inbound("tem dipirona?")

@@ -6,15 +6,30 @@
 # `perform`, whose result reaches the model as JSON. The tool's name is its
 # class name in snake case (GetStoreInfo is get_store_info).
 #
-# A tool refuses with AgentTool::Error, whose message is for the model ("no
-# such topic"). Any other exception is a bug: it is logged, and the model
-# gets FAILED, never the exception's message. Before every call the runner's
-# gate may refuse it, which is how no call beyond the turn's sixth ever runs
-# (threat model SR-20).
+# A tool refuses with refuse(message, reason): the message is for the model
+# ("no such topic"), the reason a code the trace carries and the glass box
+# words ("unknown_topic"), since a rule the tool enforces is not a failure
+# (design §10, the drawings' reason code). Any other exception is a bug: it
+# is logged, and the model gets FAILED, never the exception's message, with
+# no reason. Before every call the runner's gate may refuse it, which is how
+# no call beyond the turn's sixth ever runs (threat model SR-20).
 class AgentTool < Anthropic::BaseTool
   FAILED = "The tool failed. Tell the visitor you could not check this right now.".freeze
 
-  class Error < StandardError; end
+  # A refusal: its message for the model, its reason code for the trace.
+  class Error < StandardError
+    attr_reader :reason
+
+    def initialize(message, reason:)
+      super(message)
+      @reason = reason
+    end
+  end
+
+  # What the model reads of a bug: FAILED, and no reason, since no rule refused.
+  class Failure < Error
+    def initialize = super(FAILED, reason: nil)
+  end
 
   tool_options strict: true
 
@@ -38,7 +53,7 @@ class AgentTool < Anthropic::BaseTool
     @gate&.call
     started = monotonic
     output, error, tally = run(input)
-    report(input, error ? error.message : output, !error.nil?, started, tally)
+    report(input, error ? error.message : output, error, started, tally)
     raise error if error
 
     output
@@ -54,6 +69,8 @@ class AgentTool < Anthropic::BaseTool
 
   private
 
+  def refuse(message, reason) = raise(Error.new(message, reason:))
+
   # The output, or the error the model reads: a refusal's own, FAILED for a bug.
   def run(input)
     result = perform(input)
@@ -62,7 +79,7 @@ class AgentTool < Anthropic::BaseTool
     [ nil, e ]
   rescue StandardError => e
     Rails.logger.error("tool #{name} failed: #{e.class}: #{e.message}")
-    [ nil, Error.new(FAILED) ]
+    [ nil, Failure.new ]
   end
 
   def encode(output) = output.is_a?(String) ? output : JSON.generate(output)
@@ -78,11 +95,11 @@ class AgentTool < Anthropic::BaseTool
     nil
   end
 
-  def report(input, output, is_error, started, tally)
+  def report(input, output, error, started, tally)
     return unless @on_call
 
     @on_call.call(AgentRunner::ToolCall.new(
-      name:, input: JSON.parse(JSON.generate(input.to_h)), output:, is_error:,
+      name:, input: JSON.parse(JSON.generate(input.to_h)), output:, is_error: !error.nil?, refusal: error&.reason,
       latency_ms: ((monotonic - started) * 1000).round, characters: output.to_s.length,
       unit: tally&.fetch(:unit), count: tally&.fetch(:count)
     ))

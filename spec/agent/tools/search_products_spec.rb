@@ -81,6 +81,11 @@ RSpec.describe "FR-06 SR-16 SR-21 search_products, the catalogue lookup" do
     expect { search(query: "dipirona " * 12) }.to raise_error(AgentTool::Error, /100 characters/)
   end
 
+  it "gives each refusal its reason code, for the glass box (FR-12)" do
+    expect { search(query: "  ") }.to raise_error(an_object_having_attributes(reason: "empty_query"))
+    expect { search(query: "dipirona " * 12) }.to raise_error(an_object_having_attributes(reason: "long_query"))
+  end
+
   it "reads control characters in the query as spaces" do
     expect(search(query: "dipirona\u0000\ngotas")).to include("query" => "dipirona gotas")
   end

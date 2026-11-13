@@ -42,8 +42,8 @@ module Tools
     def perform(input)
       query = input.to_h[:query]
       query = query.is_a?(String) ? query.gsub(/[[:cntrl:]]/, " ").squish : ""
-      raise Error, EMPTY if query.empty?
-      raise Error, LONG if query.length > MAX_QUERY
+      refuse(EMPTY, "empty_query") if query.empty?
+      refuse(LONG, "long_query") if query.length > MAX_QUERY
 
       products = Product.search(query, limit: limit(input))
       { "query" => query, "products" => products.map { |product| entry(product) } }
