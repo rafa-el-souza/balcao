@@ -11,7 +11,9 @@
 #   spans (FR-12), and its outcome becomes the reply: the model's text, the
 #   refusal's fixed text (SR-19) or the fallback (NFR-03), the last two
 #   followed by the line of any reservation the turn stored, and the first by
-#   the line of a reservation whose code or pickup time it left out (FR-07);
+#   the line of a reservation whose code or pickup time it left out and, when
+#   the cap of open reservations refused one, by the lines of those the
+#   visitor holds (FR-07);
 # - a turn the job gave up on after its attempts gets the fallback too
 #   (give_up, NFR-03).
 #
@@ -185,7 +187,7 @@ class TurnProcessor
   def reply_of(result)
     language = @conversation.language
     case result.outcome
-    when :replied then [ with_facts(result.text, language), "replied" ]
+    when :replied then [ with_facts(result, language), "replied" ]
     when :refused then [ FixedReply.with_reservations(FixedReply.declined(language), reservations, language), "replied" ]
     else [ FixedReply.with_reservations(FixedReply.fallback(language), reservations, language), "failed" ]
     end
@@ -198,12 +200,22 @@ class TurnProcessor
   # or its pickup time (HH:MM, as the prompt has times written) is followed by
   # that reservation's line, as the fallback is (review finding C1 of pull
   # request #19), so the visitor always learns the code, and the next turn's
-  # model reads it in the history.
-  def with_facts(text, language)
-    missing = reservations.reject do |reservation|
+  # model reads it in the history. When the cap of open reservations refused
+  # one, the ones the visitor holds are listed the same way, which the
+  # refusal leaves to the system, since they may be another conversation's
+  # (findings C5 and N1 of the same review).
+  def with_facts(result, language)
+    text = result.text
+    facts = reservations
+    facts |= held_reservations if result.tool_calls.any? { |call| call.refusal == "open_limit" }
+    missing = facts.reject do |reservation|
       text.include?(reservation.code) && text.include?(reservation.pickup_until.in_time_zone.strftime("%H:%M"))
     end
     FixedReply.with_reservations(text, missing, language)
+  end
+
+  def held_reservations
+    Reservation.held_by(@conversation.visitor).includes(:product).order(:created_at, :id).to_a
   end
 
   def finish(outcome, state, text, error: nil)

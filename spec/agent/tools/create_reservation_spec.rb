@@ -170,13 +170,17 @@ RSpec.describe "FR-07 NFR-02 SR-16 create_reservation, units held for pickup at 
       nothing_reserved
     end
 
-    it "refuses a fourth open reservation and lists the three the visitor holds" do
+    # The system lists the three under the reply (TurnProcessor), so the
+    # refusal carries none of them: a reservation of another conversation
+    # never enters this one's trace (review findings C5 and N1 of pull
+    # request #19; FR-12).
+    it "refuses a fourth open reservation, leaving the list of the three to the system" do
       held = Array.new(3) { open_reservation }
 
       error = refusal
 
-      expect(error).to have_attributes(reason: "open_limit", message: match(/3 open reservations/))
-      held.each { |reservation| expect(error.message).to include(reservation.code, reservation.product.name) }
+      expect(error).to have_attributes(reason: "open_limit", message: match(/3 open reservations.*listed after your reply/))
+      held.each { |reservation| expect(error.message).not_to include(reservation.code) }
       nothing_reserved
     end
 

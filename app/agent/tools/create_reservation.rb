@@ -49,7 +49,8 @@ module Tools
                    "pharmacist on duty.".freeze
     LOW_STOCK = "Only %<units>s in stock, fewer than asked, so nothing was reserved. Offer %<units>s.".freeze
     OPEN_LIMIT = "The visitor already holds #{MAX_OPEN} open reservations, the most allowed, so nothing was " \
-                 "reserved. Tell the visitor, and list the ones they hold: %<held>s".freeze
+                 "reserved. Tell the visitor so. The reservations they hold are listed after your reply, so do not " \
+                 "list them yourself.".freeze
 
     doc "Reserve units of one catalogue product for the visitor to pick up at the counter. Call it only when the " \
         "visitor asks to reserve, with the id of the product they chose from search_products (search first when " \
@@ -93,9 +94,11 @@ module Tools
 
     def reserve(product, quantity)
       Reservation.transaction do
+        # The ones held may be another conversation's, so the refusal names
+        # none of them: TurnProcessor lists them under the reply, out of this
+        # conversation's trace (review findings C5 and N1 of pull request #19).
         visitor = Visitor.lock.find(turn.conversation.visitor_id)
-        held = Reservation.held_by(visitor).includes(:product).order(:created_at, :id).to_a
-        refuse(format(OPEN_LIMIT, held: JSON.generate(held.map { |reservation| result(reservation) })), "open_limit") if held.size >= MAX_OPEN
+        refuse(OPEN_LIMIT, "open_limit") if Reservation.held_by(visitor).count >= MAX_OPEN
         check_units(quantity, stock_of(product))
 
         reservation = Reservation.create_once!(turn:, product:, quantity:, pickup_until: StoreSheet.current.pickup_until(Time.current))

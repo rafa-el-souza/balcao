@@ -159,6 +159,44 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       end
     end
 
+    # FR-07: "the attendant refuses and lists the open ones". The system lists
+    # them under the reply, whatever the model wrote, and the refusal the
+    # trace keeps carries none of them, since they may be another
+    # conversation's (review findings C5 and N1 of pull request #19; FR-12).
+    describe "the fourth reservation, refused at the cap" do
+      let(:earlier) { create(:conversation, visitor:, closed_at: 1.hour.ago) }
+      let!(:held) do
+        Array.new(3) do
+          create(:reservation, visitor:, product: create(:product),
+                               turn: create(:turn, inbound_message: create(:message, conversation: earlier)))
+        end
+      end
+
+      def ask_for_a_fourth
+        responses.replace([ tool_turn(tool_use("create_reservation", { product_id: create(:product).id, quantity: 1 })),
+                            reply("[pt] Você já tem o máximo de reservas abertas.") ])
+        turn = inbound("reserva mais uma caixa")
+        perform(turn)
+        turn
+      end
+
+      it "lists under the reply the three the visitor holds" do
+        turn = ask_for_a_fourth
+
+        expect(turn.outbound_message.body)
+          .to end_with("Você já tem o máximo de reservas abertas.\n\n#{FixedReply.reservations(held, "pt-BR")}")
+        expect(turn.reservations).to be_empty
+      end
+
+      it "keeps the reservations of another conversation out of this one's trace" do
+        turn = ask_for_a_fourth
+
+        tool = spans(turn).find_by(name: "anthropic.custom_tool_use create_reservation")
+        expect(tool.span_attributes).to include("balcao.tool_result.refusal" => "open_limit")
+        held.each { |reservation| expect(tool.span_attributes.to_json).not_to include(reservation.code) }
+      end
+    end
+
     it "answers a turn whose reservation an earlier run stored with the reservation's line, without the model" do
       turn = inbound("quero reservar duas dipironas")
       reservation = create(:reservation, turn:, quantity: 2)
