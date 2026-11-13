@@ -1625,6 +1625,30 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
       expectations and stay as they are until the owner decides.
     - PR-13's open question (its review's C2): `reservation-ok-pt-01`
       passed, the reply writing "sábado, 14/11, às 14:00", no timestamp.
+  The review of pull request #20 found (reach as triaged in the pull
+  request; a second finder, at the owner's word, read what the first had
+  not):
+  - C1, C3 (`dono`): an error the API may not repeat in the judge's
+    preflight stopped the run, and an error that stops it lost the case
+    under way. The preflight is retried as an attempt is, the stopped case
+    keeps its attempts, and an interruption writes what ran.
+  - C2 (`dono`): each message identifies the visitor as the web channel
+    does, so one who deleted their data starts over (FR-05), and its text is
+    taken as the channel takes it.
+  - C4, C5 (`dono`): a word no option takes is refused; the tokens of a call
+    the refusal fallback served are counted at each attempt's model.
+  - S1 (`dono`, with C9): Spanish "nos" and "dos" scored for Portuguese
+    ("Sí, nos quedan dos cajas" read as Portuguese). A word another of the
+    languages uses commonly counts for none, and a hyphened word is one
+    word, so "reservá-la" is not Spanish; the run's 35 language checks
+    decide as before.
+  - S2 (`dono`): the judge reads a reply only when every rule check passed,
+    since only then can it change the outcome, so a judge that breaks never
+    turns a failure into an error.
+  - Left for the owner (`teorico`): C6, a key skipped until M2 counts as a
+    rule key; C7 and S3, the attempt's transaction lets the app's own
+    blocks join it rather than nest (`joinable: false` would nest them);
+    C8, the README's default `guardrail_replaced: false` waits for FR-20.
 
 - Note 2026-11-13 (PR-13, FR-07: the reservation, its limits and the
   prescription product). Choices the text left open:
