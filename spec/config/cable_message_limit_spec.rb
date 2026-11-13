@@ -58,6 +58,26 @@ RSpec.describe "SR-04 a cable message over 16 KiB closes the socket" do
     expect(closes).to eq [ 1009 ]
   end
 
+  # Review finding C2 of pull request #23: websocket-driver answers a ping at
+  # once, into Action Cable's write buffer, which has no bound when the client
+  # does not read, and neither frame reaches the count of commands. A browser
+  # sends neither: the cable's pings are messages of its own.
+  [ [ "ping", 0x89 ], [ "pong", 0x8A ] ].each do |name, byte0|
+    it "SR-40 fails the connection at a #{name} from the client, with 1008, and reads nothing after" do
+      driver = WebSocket::Driver.rack(socket, protocols: ActionCable::INTERNAL[:protocols])
+      events = []
+      driver.on(:message) { events << :message }
+      driver.on(:close) { events << [ :close, _1.code ] }
+      driver.start
+      mask = SecureRandom.random_bytes(4)
+
+      driver.parse([ byte0, 0x80 ].pack("CC") + mask + frame("a command after it"))
+
+      expect(events).to eq [ [ :close, 1008 ] ]
+      expect(driver.state).to eq :closed
+    end
+  end
+
   it "keeps a smaller limit a caller asks for" do
     driver = WebSocket::Driver.rack(socket, max_length: 1024)
     closes = []

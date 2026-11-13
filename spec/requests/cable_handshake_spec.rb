@@ -1,6 +1,7 @@
 require "rails_helper"
 require "socket"
 require "open3"
+require "websocket/driver"
 require_relative "../../config/required_environment"
 
 # The cable's handshake through the whole app, as Puma hands it over: the
@@ -28,6 +29,25 @@ RSpec.describe "The cable's handshake at the Rack level" do
     status = Rails.application.call(env).first
     sockets << [ status, server, client ]
     [ status, client ]
+  end
+
+  # A client's frame: masked, as RFC 6455 requires of a client.
+  def masked(byte0, payload = "")
+    mask = SecureRandom.random_bytes(4)
+    [ byte0, 0x80 | payload.bytesize ].pack("CC") + mask + WebSocket::Mask.mask(payload.b, mask)
+  end
+
+  # Reads what the server writes until it closes the socket: true when it did
+  # within the wait, false while it keeps the socket open.
+  def closed_by_server?(client, wait = 2)
+    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + wait
+    loop do
+      left = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      return false if left <= 0 || !client.wait_readable(left)
+      return true if client.read_nonblock(65_536, exception: false).nil?
+    end
+  rescue Errno::ECONNRESET
+    true
   end
 
   # What the server wrote on the socket it took over, up to the end of its head.
@@ -95,6 +115,21 @@ RSpec.describe "The cable's handshake at the Rack level" do
     expect(status).to be_success, err
     expect(JSON.parse(out.lines.last)).to eq("hixie" => 426, "foreign" => 404, "own_host" => 403,
                                              "mount" => nil, "same_origin_as_host" => false)
+  end
+
+  # Review finding C2 of pull request #23: nothing counted a ping, and each
+  # was answered into a write buffer with no bound.
+  it "SR-40 closes the socket at a ping from the client, and frees its place" do
+    status, client = handshake(source: "198.51.100.40")
+    expect(status).to eq(-1)
+    head(client)
+
+    client.write(masked(0x89))
+
+    expect(closed_by_server?(client)).to be true
+    server = sockets.last[1]
+    20.times { break if server.closed?; sleep 0.05 }
+    expect(server).to be_closed # what the gate prunes its count by
   end
 
   describe "SR-40 the gate counts the sockets Action Cable holds, until Action Cable closes them" do
