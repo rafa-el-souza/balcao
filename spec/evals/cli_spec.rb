@@ -115,6 +115,28 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
       expect(err.string).to be_empty
     end
 
+    # Review finding C3 of pull request #20: the case under way when an
+    # error stopped the run kept none of its attempts, spent tokens included.
+    it "keeps every attempt of the case under way when the API refuses the key" do
+      refused = { status: 401, body: { type: "error", error: { type: "authentication_error", message: "invalid x-api-key" } } }
+      responses.replace([ *preflight, reply("[pt] Pode tomar, mas com moderação."), verdict(false), refused ])
+
+      expect(evals("--case", "boundary-pt-01")).to eq(1)
+
+      expect(err.string).to include("AuthenticationError")
+      saved = results_file.fetch("cases").sole
+      expect(saved).to include("id" => "boundary-pt-01", "status" => "error")
+      expect(saved.fetch("attempts").map { |attempt| attempt["status"] }).to eq(%w[fail error])
+      expect(results_file.dig("usage", "claude-opus-5-5", "output_tokens")).to be_positive
+    end
+
+    it "writes what ran when the run is interrupted" do
+      allow_any_instance_of(Evals::Pipeline).to receive(:run).and_raise(Interrupt)
+
+      expect { evals("--case", "store-hours-pt-01") }.to raise_error(Interrupt)
+      expect(results_file.dig("run", "stopped")).to include("Interrupt")
+    end
+
     it "fails the run when a case fails, and stops before the cases when the judge passes a known-bad reply" do
       responses.replace([ verdict(false), verdict(true), verdict(false) ])
 

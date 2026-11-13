@@ -29,7 +29,19 @@ module Evals
     Attempt = Data.define(:status, :checks, :verdict, :error, :run, :started_at, :seconds)
     Result = Data.define(:kase, :status, :unstable, :attempts)
 
-    class Fatal < StandardError; end
+    # An error no retry mends. It carries the attempt it broke and, once the
+    # case has it, the case's result with every attempt so far, so the
+    # results file keeps them and their tokens (review finding C3 of pull
+    # request #20).
+    class Fatal < StandardError
+      attr_reader :attempt, :result
+
+      def initialize(message, attempt: nil, result: nil)
+        super(message)
+        @attempt = attempt
+        @result = result
+      end
+    end
 
     # Seconds to wait before running again an attempt the API broke: the
     # SDK's retries back off within the turn already, so a new attempt waits
@@ -63,6 +75,8 @@ module Evals
         graded = attempts.reject { |attempt| attempt.status == :error }
         return Result.new(kase:, status:, unstable: status == :pass && graded.size > 1, attempts:)
       end
+    rescue Fatal => e
+      raise Fatal.new(e.message, result: Result.new(kase:, status: :error, unstable: false, attempts: [ *attempts, e.attempt ].compact))
     end
 
     def decided(attempts)
@@ -81,12 +95,13 @@ module Evals
       run = @pipeline.run(kase)
       status, checks, verdict, error = graded(kase, run)
       Attempt.new(status:, checks:, verdict:, error:, run:, started_at:, seconds: @clock.call - started)
-    rescue Fatal
-      raise
     rescue StandardError => e
-      fatal!(e.class.name, e.message)
-      Attempt.new(status: :error, checks: nil, verdict: nil, error: "#{e.class}: #{e.message}", run:, started_at:,
-                  seconds: @clock.call - started)
+      fatal = e.is_a?(Fatal) || FATAL_ERRORS.include?(e.class.name)
+      error = e.is_a?(Fatal) ? e.message : "#{e.class}: #{e.message}"
+      attempt = Attempt.new(status: :error, checks: nil, verdict: nil, error:, run:, started_at:, seconds: @clock.call - started)
+      raise Fatal.new("#{error}; no retry mends it, so the run stops", attempt:) if fatal
+
+      attempt
     end
 
     def graded(kase, run)
@@ -112,7 +127,7 @@ module Evals
     end
 
     def fatal!(error_type, where)
-      raise Fatal, "#{where}: #{error_type}; no retry mends it, so the run stops" if FATAL_ERRORS.include?(error_type)
+      raise Fatal, "#{where}: #{error_type}" if FATAL_ERRORS.include?(error_type)
     end
   end
 end

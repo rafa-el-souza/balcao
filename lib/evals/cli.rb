@@ -132,10 +132,25 @@ module Evals
           @out.puts(outcome(result))
         end
       rescue Judge::Unfit, Judge::Error, Runner::Fatal, Anthropic::Errors::APIError => e
-        report.stopped = "#{e.class}: #{e.message}"
-        @err.puts("bin/evals: the run stopped: #{report.stopped}")
+        stopped(report, e)
+      rescue Interrupt, StandardError => e
+        # What ran is written before the interruption or the bug goes on.
+        stopped(report, e)
+        finish(report, cases, scorecard: false)
+        raise
       end
       finish(report, cases, scorecard:)
+    end
+
+    # The case under way when the run stopped, with its attempts (review
+    # finding C3 of pull request #20).
+    def stopped(report, error)
+      if error.is_a?(Runner::Fatal) && error.result
+        report.results << error.result
+        @out.puts(outcome(error.result))
+      end
+      report.stopped = "#{error.class}: #{error.message}"
+      @err.puts("bin/evals: the run stopped: #{report.stopped}")
     end
 
     # The preflight meets the API as an attempt does: a broken verdict or an

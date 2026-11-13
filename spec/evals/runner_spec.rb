@@ -150,7 +150,10 @@ RSpec.describe "NFR-08 SR-18 the eval runner's attempts" do
   it "stops the run on an error no retry can mend" do
     script.replace([ run_with(FixedReply.fallback("pt-BR"), outcome: "model_error", error_type: "Anthropic::Errors::AuthenticationError") ])
 
-    expect { runner.call([ kase, kase ]) }.to raise_error(Evals::Runner::Fatal, /AuthenticationError/)
+    expect { runner.call([ kase, kase ]) }.to raise_error(Evals::Runner::Fatal, /AuthenticationError/) { |error|
+      expect(error.result).to have_attributes(kase:, status: :error)
+      expect(error.result.attempts.map(&:status)).to eq([ :error ])
+    }
   end
 
   it "reports each case as it ends" do
