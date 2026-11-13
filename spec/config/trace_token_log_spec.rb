@@ -28,6 +28,20 @@ RSpec.describe "SR-30 SR-11 the cable's log never names a trace's token" do
     expect(io.string).to include("TraceChannel is streaming from trace:[FILTERED]", "[203.0.113.7]")
   end
 
+  # Review finding C4 of pull request #23: Action Cable writes a message it
+  # took off the socket after the socket closed through inspect, which escapes
+  # the identifier's quotes twice (a trace page's unsubscribe, sent right
+  # before its close).
+  it "writes [FILTERED] in a message Action Cable dropped after the socket closed, its quotes escaped twice" do
+    logger = Balcao::CableLogger.new(ActiveSupport::Logger.new(io))
+    message = { command: "unsubscribe", identifier: { channel: "TraceChannel", token: }.to_json }.to_json
+
+    logger.error("Ignoring message processed after the WebSocket was closed: #{message.inspect})")
+
+    expect(io.string).not_to include(token)
+    expect(io.string).to include("[FILTERED]")
+  end
+
   it "leaves the conversations' streams and every other line as they are" do
     logger = Balcao::CableLogger.new(ActiveSupport::Logger.new(io))
 

@@ -26,7 +26,9 @@ module Balcao
   module TraceTokenFilter
     PATH = %r{\A(/+(?:api/+traces|trace)/+)[^/?]+}
     STREAM = /\b(trace:)[^\s"\\)]+/
-    PARAM = /(\\?"token\\?"\s*(?::|=>)\s*\\?")[^"\\]*/
+    # Escaped once in an identifier, twice when Action Cable inspects a whole
+    # message it dropped (review finding C4 of pull request #23).
+    PARAM = /(\\*"token\\*"\s*(?::|=>)\s*\\*")[^"\\]*/
 
     module_function
 
