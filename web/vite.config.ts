@@ -9,7 +9,8 @@ import { type CSSOptions, type Plugin, createServer, defineConfig } from "vite";
 // The SPA (ADR-0001). `vite build` writes web/dist: the image serves the
 // page shells under shells/ through Rails with no-cache and the hashed files
 // under assets/ as static files (Dockerfile, design §6.7). In development, bin/dev runs
-// this server beside Rails and it forwards the API, the cable and /up.
+// this server beside Rails and it forwards the API, the cable, /up and the
+// tab's .ico.
 const RAILS = "http://127.0.0.1:3000";
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const SHELL_ROOT = '<div id="root"></div>';
@@ -116,6 +117,8 @@ export default defineConfig({
       "/api": RAILS,
       "/up": RAILS,
       "/cable": { target: RAILS, ws: true },
+      // The tab's .ico is a file of Rails' public/ (index.html, design §10).
+      "/favicon.ico": RAILS,
     },
   },
   test: {

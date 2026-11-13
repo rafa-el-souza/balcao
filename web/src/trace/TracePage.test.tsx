@@ -9,6 +9,7 @@ import { fakeCable } from "../test/fakeCable";
 import { fakeServer } from "../test/fakeServer";
 import { renderPage } from "../test/render";
 import { answeredTurn, commandTurn, runningTurn } from "../test/spans";
+import { LIT_ICON, tabIcon } from "../test/tabIcon";
 import { TracePage } from "./TracePage";
 
 // A link of the shape the server draws (24 characters of base58).
@@ -284,6 +285,35 @@ describe("FR-12 the trace page follows the conversation live", () => {
     });
     await waitFor(() => {
       expect(server.traces()).toHaveLength(3);
+    });
+  });
+
+  // Design §10, note of 2026-11-13: the tab's cross dims while a turn of the
+  // conversation runs, as it does on the chat, a WhatsApp turn included.
+  it("dims the tab's cross while a turn runs, and lights it once the turn ends", async () => {
+    const icon = tabIcon();
+    server.defaults.trace = trace(answeredTurn("t1"));
+    const cable = fakeCable();
+    renderPage(<TracePage />, "pt-BR", cable.cable);
+    await screen.findByRole("region", { name: pt.roll });
+    await waitFor(() => {
+      expect(cable.active()).toHaveLength(1);
+    });
+    expect(icon.getAttribute("href")).toBe(LIT_ICON);
+
+    const [root, call] = runningTurn("t3", 9);
+    cable.send({ type: "span", span: root });
+    cable.send({ type: "span", span: call });
+    await waitFor(() => {
+      expect(icon.getAttribute("href")).not.toBe(LIT_ICON);
+    });
+
+    cable.send({
+      type: "span",
+      span: { ...root, finished_at: "2026-11-12T15:09:14.000Z" },
+    });
+    await waitFor(() => {
+      expect(icon.getAttribute("href")).toBe(LIT_ICON);
     });
   });
 });

@@ -1583,6 +1583,43 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
   count per process; `config/puma.rb` runs one, and a Puma with workers
   would multiply them.
 
+- Note 2026-11-13 (the tab's icon, outside §9.1's day table; §6.7, NFR-03,
+  NFR-10, FR-12). The owner asked for a tab icon that impresses without
+  overdoing it, and chose its drawing among variants drawn for him:
+  - **The mark.** The header's cross, in thirds, on the counter's paper
+    inside a one-pixel border of the rule's green (`--color-rule`), on a
+    16 px grid, so every edge is a whole pixel. The tile carries its own
+    ground and reads alike on a light and on a dark tab strip; a bare cross
+    sank into a dark strip, and the shelf tag's cut corners blurred at
+    16 px.
+  - **The files.** `web/index.html` names them for every shell: the SVG,
+    which Vite hashes under `assets/`; the 180 px PNG a phone keeps when
+    the page is saved to its home screen, opaque, since the system rounds
+    its corners and fills a transparent one with black; and the 16 and
+    32 px `/favicon.ico`, a file of `public/` at the site's root, for a
+    browser without SVG icons (Safari before 26) and for every answer that
+    names no icon, each of which was a 404 until now. `public/` is cached
+    for a year, so the page's link asks for the `.ico` by its content
+    (`?v=` and the first eight hex digits of its SHA-256, which a test holds
+    to the file) and a changed mark is fetched anew; only a request that
+    reads no page keeps an old one (review finding C1 of pull request #22).
+    No web manifest: the
+    demo is not an app to install. An icon cannot read the page's custom
+    properties, so the SVG writes the tokens' values, and a spec holds them
+    to `tokens.css`.
+  - **The lamp.** While an answer is on its way the tab's cross dims to
+    30%, as the cross beside "pensando…" does at its faintest, and lights
+    again once the answer is in: on the chat while it awaits a reply, on
+    the trace page while a turn of its conversation runs, a WhatsApp turn
+    included. Two still pictures and never a motion: of the major browsers
+    only Firefox animates an SVG icon, and Chrome runs a hidden tab's
+    timers at most once a second, so a breath would show as a blink just
+    when the tab is hidden; the owner left the breathing out. The swap
+    follows the reply, which the cable brings to a hidden tab too. A
+    browser that shows the `.ico` keeps the lit cross.
+  - **Left out:** a count in the title, a sound, the mode's colour on the
+    status page's tab, any change on the landing.
+
 - Note 2026-11-13 (the edge pull request, outside §9.1's day table; threat
   model SR-03, SR-27, R6, R7). The owner put two security pull requests
   between PR-14 and PR-15, after an analysis of the demo's edge and an
