@@ -28,7 +28,8 @@ module Tools
         "by its active ingredient, never by a brand: write the query in Portuguese, turning a brand into its " \
         "active ingredient and an English or Spanish name into the Portuguese one (amoxicillin is amoxicilina). " \
         "Typos are tolerated. Each product comes with its price, its stock (0 is out of stock) and whether it " \
-        "requires a prescription, which is presented at the counter. Each also comes with its match: exact when " \
+        "requires a prescription, which is presented at the counter, and with its id, which create_reservation " \
+        "takes and you never show the visitor. Each also comes with its match: exact when " \
         "every word of the query is in it; close when it only resembles the query; partial when only some words " \
         "of the query are in it, listed only when nothing matches the whole query. A close match may be another " \
         "medicine with a similar name (omeprazol for esomeprazol). Name a close or partial product by its own " \
