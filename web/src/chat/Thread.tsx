@@ -88,19 +88,17 @@ function Thinking({
   onSlow,
 }: {
   since: string | null;
-  onSlow: (item: Element | null) => void;
+  onSlow: () => void;
 }) {
   const { t } = useTranslation();
-  const item = useRef<HTMLLIElement>(null);
   const slow = useSlow(since);
-  // The note grows the entry: it is brought into view with it (review
-  // finding C1 of pull request #18).
+  // The note grows the entry: the thread's end, with any stamp after it, is
+  // brought into view again (review findings C1 and V2 of pull request #18).
   useEffect(() => {
-    if (slow) onSlow(item.current);
+    if (slow) onSlow();
   }, [slow, onSlow]);
   return (
     <li
-      ref={item}
       className={cx(styles.msg, styles.attendant, styles.thinking)}
       data-voice="attendant"
     >
@@ -182,11 +180,13 @@ export function Thread({
   }, []);
 
   // What the thread ends with scrolls its column to itself: a new message,
-  // and "pensando…" when it appears (review finding C1 of pull request #18).
-  const tail = `${String(entries.length)}:${String(waiting)}`;
-  useEffect(() => {
+  // "pensando…" when it appears (review finding C1 of pull request #18) and
+  // the stamps of a limit or a lost connection (V2).
+  const tail = `${String(entries.length)}:${String(waiting)}:${String(offline)}:${refused ?? ""}`;
+  const revealEnd = useCallback(() => {
     reveal(list.current?.lastElementChild);
-  }, [tail, reveal]);
+  }, [reveal]);
+  useEffect(revealEnd, [tail, revealEnd]);
 
   return (
     <ol
@@ -233,7 +233,7 @@ export function Thread({
       {entries.map((entry) => (
         <Message key={entry.key} entry={entry} onRetry={onRetry} />
       ))}
-      {waiting && <Thinking since={waitingSince(state)} onSlow={reveal} />}
+      {waiting && <Thinking since={waitingSince(state)} onSlow={revealEnd} />}
       {refused !== null && (
         <li className={cx(styles.msg, VOICE_CLASS.stamp)} data-voice="stamp">
           <p>{refused}</p>

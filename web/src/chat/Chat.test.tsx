@@ -438,6 +438,20 @@ describe("NFR-03 the turn that waits", () => {
       expect(inThread().length).toBeGreaterThan(before);
       expect(inThread().at(-1)?.element).toHaveTextContent(pt.slow);
     });
+
+    // Review finding V2 of pull request #18.
+    it("brings the stamp of a lost connection into view", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      renderPage(<Chat />);
+      await ready();
+
+      await sendAndWait();
+      server.answers.current.push("network", "network", "network");
+      await elapse(12_000);
+
+      expect(within(thread()).getByText(pt.offline)).toBeInTheDocument();
+      expect(inThread().at(-1)?.element).toHaveTextContent(pt.offline);
+    });
   });
 });
 
