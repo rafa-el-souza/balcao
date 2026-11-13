@@ -65,6 +65,17 @@ RSpec.describe "SR-40 the cable writes at most 2 KB a line" do
     expect(io.string).to start_with("Unsubscribing from channel: xxx")
   end
 
+  # Review finding V7 of pull request #23: a client's line break, decoded
+  # from its command, started a line of its own in the log, which could pass
+  # for one of the app's (log forging), and each such line cost the log a
+  # record.
+  it "writes a client's line breaks and other control characters escaped, on the message's one line" do
+    logger.info("Unsubscribing from channel: x\nStarted GET \"/console\" for 203.0.113.9\r\e[2J")
+
+    expect(io.string.lines.size).to eq 1
+    expect(io.string).to include("x\\x0AStarted GET", "203.0.113.9\\x0D\\x1B[2J")
+  end
+
   it "leaves a line within 2 KB as it is, and the block form too" do
     logger.info("Registered connection (203.0.113.7)")
     logger.info { "Finished \"/cable\" [WebSocket]" }

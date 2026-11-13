@@ -52,12 +52,20 @@ module Balcao
   # frame, since Action Cable writes its own words first. The mark of the cut
   # is ASCII, which a line of raw bytes, as Puma hands a header over, takes
   # too.
+  #
+  # A message that is not a backtrace is written on one line: its control
+  # characters, a client's line breaks among them, are escaped ("\x0A"), so
+  # no client's text starts a line that could pass for one of the app's
+  # (review finding V7 of pull request #23).
   class CableLogger < SimpleDelegator
     LINE = 2048
     FRAME = /\A\S+:\d+:in / # Ruby's "path:line:in 'method'"
+    CONTROL = /[\x00-\x08\x0A-\x1F\x7F]/
 
     def self.cut(text)
-      return text.truncate_bytes(LINE, omission: "...") unless text.match?(FRAME)
+      unless text.match?(FRAME)
+        return text.gsub(CONTROL) { |character| format("\\x%02X", character.ord) }.truncate_bytes(LINE, omission: "...")
+      end
 
       text.each_line.map { |line| line.chomp.truncate_bytes(LINE, omission: "...") + line[/\R\z/].to_s }.join
     end
