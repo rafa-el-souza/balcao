@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useTicking, useTurnLine } from "../trace/Rows";
@@ -42,6 +42,25 @@ export function Chat() {
   const closer = useRef<HTMLButtonElement>(null);
   const rows = useRef<HTMLDivElement>(null);
   const foot = useRef<HTMLDivElement>(null);
+  const instrument = useRef<HTMLElement>(null);
+  // Read when the thread scrolls, so the reveal's identity never changes
+  // with the drawer and a toggle scrolls nothing by itself.
+  const drawerOpen = useRef(false);
+  useEffect(() => {
+    drawerOpen.current = drawer;
+  }, [drawer]);
+  // How much of the window's bottom stays over the thread, which the thread
+  // keeps clear when it brings an entry into view: stacked, the counter's
+  // foot, and the drawer while it is open (review findings V1 and R1 of pull
+  // request #18). Beside the glass box neither covers the thread's column.
+  const covered = useCallback(() => {
+    const over = [foot.current, drawerOpen.current ? instrument.current : null]
+      .filter((element) => element !== null)
+      .map((element) => element.getBoundingClientRect().top);
+    return over.length === 0
+      ? 0
+      : Math.max(0, window.innerHeight - Math.min(...over));
+  }, []);
 
   useEffect(() => {
     document.title = t("chat.title");
@@ -112,7 +131,7 @@ export function Chat() {
           state={state}
           offline={offline}
           refused={refused}
-          foot={foot}
+          covered={covered}
           onOpener={sendOpener}
           onRetry={retry}
         />
@@ -145,6 +164,7 @@ export function Chat() {
       </section>
 
       <section
+        ref={instrument}
         className={styles.glass}
         id="glass"
         aria-labelledby="glass-title"

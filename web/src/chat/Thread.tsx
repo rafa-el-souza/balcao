@@ -1,11 +1,4 @@
-import {
-  Fragment,
-  type RefObject,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import openers from "../openers.json";
@@ -164,15 +157,15 @@ export function Thread({
   state,
   offline,
   refused,
-  foot,
+  covered,
   onOpener,
   onRetry,
 }: {
   state: State;
   offline: boolean;
   refused: string | null;
-  // The composer's foot, which stays over the window's bottom when stacked.
-  foot: RefObject<HTMLElement | null>;
+  // How much of the window's bottom the page keeps over the thread.
+  covered: () => number;
   onOpener: (key: keyof typeof openers) => void;
   onRetry: (clientId: string, content: Content) => void;
 }) {
@@ -185,20 +178,21 @@ export function Thread({
 
   // Brings an entry of the thread into view. Beside the glass box the thread
   // scrolls in its own column; stacked, the window scrolls and the composer's
-  // foot stays over its bottom, so the window keeps the foot's height clear
-  // (review finding V1 of pull request #18), for this scroll alone: left on
-  // the root, the padding would move the window whenever a control in the
-  // foot takes the focus, and outlive the layout it measured (R2 and V4). The
-  // scroll keeps the destination it was given when the padding goes.
+  // foot, with the drawer while it is open, stays over its bottom, so the
+  // window keeps that height clear (review findings V1 and R1 of pull request
+  // #18), for this scroll alone: left on the root, the padding would move the
+  // window whenever a control in the foot takes the focus, and outlive the
+  // layout it measured (R2 and V4). The scroll keeps the destination it was
+  // given when the padding goes.
   const reveal = useCallback(
     (element: Element | null | undefined) => {
       if (!element || !("scrollIntoView" in element)) return;
       const root = document.documentElement.style;
-      root.scrollPaddingBottom = `${String(foot.current?.offsetHeight ?? 0)}px`;
+      root.scrollPaddingBottom = `${String(covered())}px`;
       element.scrollIntoView({ block: "end", behavior: "smooth" });
       root.scrollPaddingBottom = "";
     },
-    [foot],
+    [covered],
   );
 
   // What the thread ends with scrolls its column to itself: a new message,

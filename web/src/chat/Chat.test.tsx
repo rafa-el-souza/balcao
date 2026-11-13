@@ -415,6 +415,19 @@ describe("NFR-03 the turn that waits", () => {
     });
     const inThread = () =>
       scrolled.filter(({ element }) => thread().contains(element));
+    // A box from its top to the window's bottom, as jsdom lays out nothing.
+    const box = (top: number) =>
+      ({
+        top,
+        bottom: window.innerHeight,
+        left: 0,
+        right: 390,
+        x: 0,
+        y: top,
+        width: 390,
+        height: window.innerHeight - top,
+        toJSON: () => ({}),
+      }) as DOMRect;
 
     // Review finding C1 of pull request #18.
     it("brings 'pensando…' into view as it appears, and again when the note joins it", async () => {
@@ -453,6 +466,41 @@ describe("NFR-03 the turn that waits", () => {
       expect(inThread().at(-1)?.element).toHaveTextContent(pt.offline);
     });
 
+    // Review finding R1 of pull request #18: stacked, the open drawer covers
+    // the window's lower half, where an entry brought into view used to land.
+    it("brings an entry into view above the drawer while the drawer is open", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      renderPage(<Chat />);
+      await ready();
+      const half = window.innerHeight / 2;
+      const drawer = document.getElementById("glass");
+      const foot = field().closest("form")?.parentElement;
+      if (!drawer || !foot) throw new Error("no drawer or foot");
+      drawer.getBoundingClientRect = () => box(half);
+      foot.getBoundingClientRect = () => box(window.innerHeight - 46);
+
+      const visitor = await sendAndWait();
+      await within(thread()).findByText(pt.thinking);
+      server.answers.current.push(
+        ...Array.from({ length: 6 }, () => conversation(1, [visitor], true)),
+      );
+      fireEvent.click(
+        screen.getByRole("button", { name: new RegExp(pt.glass.open) }),
+      );
+      await elapse(1000);
+      const opened = scrolled.length;
+
+      await elapse(10_000);
+      expect(within(thread()).getByText(pt.slow)).toBeInTheDocument();
+      const since = scrolled
+        .slice(opened)
+        .filter(({ element }) => thread().contains(element));
+      expect(since.length).toBeGreaterThan(0);
+      expect(since.map(({ padding }) => padding)).toEqual(
+        since.map(() => `${String(half)}px`),
+      );
+    });
+
     // Review findings R2 and V4 of pull request #18: left on the root, the
     // padding moved the window whenever a control in the foot took the focus,
     // and outlived the layout it had measured.
@@ -476,10 +524,7 @@ describe("NFR-03 the turn that waits", () => {
       await ready();
       const foot = field().closest("form")?.parentElement;
       if (!foot) throw new Error("the composer has no foot");
-      Object.defineProperty(foot, "offsetHeight", {
-        configurable: true,
-        value: 240,
-      });
+      foot.getBoundingClientRect = () => box(window.innerHeight - 240);
 
       await sendAndWait();
       await within(thread()).findByText(pt.thinking);
