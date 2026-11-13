@@ -152,10 +152,25 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
         expect(turn.outbound_message.body).to end_with(FixedReply.reservations(turn.reservations.to_a, "pt-BR"))
       end
 
-      it "adds nothing to a reply that writes the code and the pickup time" do
-        turn = reserve_and_reply("Reservado! O código é 4K2QHM, e a retirada é até amanhã às 20:00.")
+      it "adds nothing to a reply that writes the code and the pickup day and time" do
+        turn = reserve_and_reply("Reservado! O código é 4K2QHM, e a retirada é até sexta, 13/11, às 20:00.")
 
-        expect(turn.outbound_message.body).to end_with("Reservado! O código é 4K2QHM, e a retirada é até amanhã às 20:00.")
+        expect(turn.outbound_message.body).to end_with("Reservado! O código é 4K2QHM, e a retirada é até sexta, 13/11, às 20:00.")
+      end
+
+      # Review finding R1 of pull request #19: every weekday closes at 20:00,
+      # so the time alone was any "20:00" in the reply, with no day or the
+      # wrong one.
+      [
+        "Reservado! O código é 4K2QHM. Funcionamos das 08:00 às 20:00.",
+        "Reservado! O código é 4K2QHM, retire até as 20:00.",
+        "Reservado! O código é 4K2QHM, retire até segunda, 16/11, às 20:00."
+      ].each do |text|
+        it "follows a reply that writes the code and 20:00 but not the pickup day with the line: #{text}" do
+          turn = reserve_and_reply(text)
+
+          expect(turn.outbound_message.body).to end_with("#{text}\n\n#{FixedReply.reservations(turn.reservations.to_a, "pt-BR")}")
+        end
       end
     end
 
@@ -165,9 +180,10 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
     # conversation's (review findings C5 and N1 of pull request #19; FR-12).
     describe "the fourth reservation, refused at the cap" do
       let(:earlier) { create(:conversation, visitor:, closed_at: 1.hour.ago) }
+      # Due at 20:00, as every weekday closes (config/store.yml).
       let!(:held) do
         Array.new(3) do
-          create(:reservation, visitor:, product: create(:product),
+          create(:reservation, visitor:, product: create(:product), pickup_until: 1.day.from_now.change(hour: 20),
                                turn: create(:turn, inbound_message: create(:message, conversation: earlier)))
         end
       end
@@ -178,6 +194,15 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
         turn = inbound("reserva mais uma caixa")
         perform(turn)
         turn
+      end
+
+      it "lists the ones the reply names without their pickup day, on the same terms (review finding R1 of #19)" do
+        responses.replace([ tool_turn(tool_use("create_reservation", { product_id: create(:product).id, quantity: 1 })),
+                            reply("[pt] Você já tem a #{held.first.code}, que sai às 20:00, e mais duas.") ])
+        turn = inbound("reserva mais uma caixa")
+        perform(turn)
+
+        expect(turn.outbound_message.body).to end_with(FixedReply.reservations(held, "pt-BR"))
       end
 
       it "lists under the reply the three the visitor holds" do

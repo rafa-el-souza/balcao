@@ -197,21 +197,29 @@ class TurnProcessor
 
   # FR-07: the reply carries each reservation's code and pickup deadline. The
   # model is told to write them; a reply that leaves out a reservation's code
-  # or its pickup time (HH:MM, as the prompt has times written) is followed by
-  # that reservation's line, as the fallback is (review finding C1 of pull
-  # request #19), so the visitor always learns the code, and the next turn's
-  # model reads it in the history. When the cap of open reservations refused
-  # one, the ones the visitor holds are listed the same way, which the
-  # refusal leaves to the system, since they may be another conversation's
-  # (findings C5 and N1 of the same review).
+  # or its deadline is followed by that reservation's line, as the fallback
+  # is (review finding C1 of pull request #19), so the visitor always learns
+  # the code, and the next turn's model reads it in the history. When the cap
+  # of open reservations refused one, the ones the visitor holds are listed
+  # the same way, which the refusal leaves to the system, since they may be
+  # another conversation's (findings C5 and N1 of the same review).
   def with_facts(result, language)
     text = result.text
     facts = reservations
     facts |= held_reservations if result.tool_calls.any? { |call| call.refusal == "open_limit" }
-    missing = facts.reject do |reservation|
-      text.include?(reservation.code) && text.include?(reservation.pickup_until.in_time_zone.strftime("%H:%M"))
-    end
-    FixedReply.with_reservations(text, missing, language)
+    FixedReply.with_reservations(text, facts.reject { |reservation| written?(text, reservation) }, language)
+  end
+
+  # The reply writes the reservation's code and its deadline: the day as
+  # day/month and the time as HH:MM, as the description asks. The time alone
+  # is not the deadline, since every weekday closes at the same hour, and a
+  # day named without its date ("amanhã", "segunda") cannot be told right
+  # from wrong, so such a reply gets the line too (finding R1 of the same
+  # review).
+  def written?(text, reservation)
+    pickup = reservation.pickup_until.in_time_zone
+    text.include?(reservation.code) && text.include?(pickup.strftime("%H:%M")) &&
+      text.match?(%r{(?<!\d)0?#{pickup.day}/0?#{pickup.month}(?!\d)})
   end
 
   def held_reservations
