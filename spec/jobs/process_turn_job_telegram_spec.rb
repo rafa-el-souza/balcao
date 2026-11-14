@@ -37,6 +37,24 @@ RSpec.describe "FR-19 FR-05 NFR-03 ProcessTurnJob on Telegram, the reply on its 
     expect(turn.outbound_message.reload.status).to eq "sent"
   end
 
+  # Review finding C1 of pull request #33: a job that answers the earlier
+  # turns still waiting sent their replies only after its own turn's model.
+  it "sends an earlier turn's reply before the later turn's model works, when the later job answers both (NFR-01)" do
+    responses.replace([ reply("[pt] Olá! Em que posso ajudar?"), reply("[pt] Temos, sim.") ])
+    first = inbound("oi")
+    second = inbound("Vocês têm dipirona?")
+    sent_when_second_ran = nil
+    allow_any_instance_of(AgentRunner).to receive(:run).and_wrap_original do |original, turn, **options, &block|
+      sent_when_second_ran = sent.size if turn.id == second.id
+      original.call(turn, **options, &block)
+    end
+
+    perform(second) # its job holds the lock first and answers the first turn too
+
+    expect(sent_when_second_ran).to eq 1
+    expect(sent.map { |body| body["text"] }).to eq([ first.reload.outbound_message.body, second.reload.outbound_message.body ])
+  end
+
   it "shows no typing status for a command, whose reply is at once" do
     turn = inbound("/trace")
 

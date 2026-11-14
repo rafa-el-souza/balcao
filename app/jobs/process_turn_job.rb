@@ -16,11 +16,12 @@
 # A job run again for a turn that has its reply calls, bills and traces
 # nothing (NFR-02).
 #
-# On Telegram (FR-19), once the lock is let go, the visitor's stored replies
-# still pending leave for the chat, oldest first (Telegram::Outbound), this
-# turn's among them; so does one a job stopped between storing and sending,
-# when the job runs again. The sends wait outside the conversation's lock, so
-# a 429's wait never holds the conversation's next turn.
+# On Telegram (FR-19), after each turn the job answers, the visitor's stored
+# replies still pending leave for the chat, oldest first (Telegram::Outbound),
+# so an earlier turn's reply never waits for a later turn's model (review
+# finding C1 of pull request #33); so does one a job stopped between storing
+# and sending, when the job runs again. No send waits: a reply Telegram asks
+# to wait for is tried again by TelegramReplyJob at its time.
 #
 # NFR-03: a turn the model cannot answer ends with the fallback text inside
 # its run, so the job has nothing to try again (the three attempts of a model
@@ -43,7 +44,10 @@ class ProcessTurnJob < ApplicationJob
   def perform(turn_id)
     visitor_id = visitor_of(turn_id)
     under_lock(turn_id) do |turn|
-      waiting_before(turn).each { |earlier| run_earlier(earlier.id, turn.conversation_id) }
+      waiting_before(turn).each do |earlier|
+        run_earlier(earlier.id, turn.conversation_id)
+        deliver(visitor_id)
+      end
       # An earlier turn may have been a deletion that took this one (FR-05),
       # or a reset that moved it.
       settled(turn) { |own| TurnProcessor.new(own).call }
