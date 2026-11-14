@@ -12,8 +12,8 @@ line and ADR-0013's risk list.
 ADR-0002 chose the official WhatsApp Cloud API, and ADR-0004 ran it as a
 lane beside the web channel with a fallback written down: if Meta never
 approves, the project stands on the web channel and an ADR records why. On
-2026-11-14 Meta did not approve the business account that held the demo
-number, and disabled it. Whatever the reason behind that one decision,
+2026-11-14 Meta did not approve the account opened for the demo's WhatsApp
+setup, and disabled it. Whatever the reason behind that one decision,
 Meta's published rules close the official route for this project, not only
 for this account:
 

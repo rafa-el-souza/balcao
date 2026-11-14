@@ -1581,7 +1581,7 @@ registered, display name, Live mode) closed on 2026-11-14 (ADR-0016).
 Tracked here until resolved; each resolution becomes an ADR or an edit.
 
 - Note 2026-11-14 (ADR-0016; FR-19 and what follows it). Meta did not
-  approve the business account that held the demo number, and disabled it.
+  approve the account opened for the demo's WhatsApp setup, and disabled it.
   The same day, after a survey kept outside the repository, the owner
   decided that Telegram's Bot API replaces the WhatsApp Cloud API; ADR-0016
   gives the options, the rules that closed the official WhatsApp route and
