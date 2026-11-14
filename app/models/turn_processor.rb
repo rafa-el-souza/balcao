@@ -37,8 +37,11 @@
 # (NFR-02), and sent to the conversation's stream; a turn that already has it
 # is left alone.
 #
-# Every model call the turn makes is charged to the month (Budget), the calls
-# of a run that broke included: they were paid for (FR-14).
+# Every model call the turn makes is charged to the month (Budget) as its
+# answer arrives, so a run that breaks later, or a worker a deploy stops
+# mid-turn, keeps the charge of each call it made: they were paid for (FR-14;
+# review finding V3 of pull request #29: a transaction left for the end of the
+# run is rolled back when its thread is killed).
 class TurnProcessor
   # AgentRunner's, then the three this class adds: a turn answered from its
   # stored reservations without the model, one the budget paused and one the
@@ -200,23 +203,13 @@ class TurnProcessor
     @turn.update!(mode:, model: ModelPolicy.route(mode).model)
     @root.attributes["balcao.turn.mode"] = mode
     events = TurnTrace.new(@recorder, @root)
-    result = charged do |calls|
-      AgentRunner.new.run(@turn, mode:) do |event|
-        calls << event if event.is_a?(AgentRunner::ModelCall)
-        events.on(event)
-      end
+    result = AgentRunner.new.run(@turn, mode:) do |event|
+      Budget.charge!(@turn, event.usage) if event.is_a?(AgentRunner::ModelCall)
+      events.on(event)
     end
     @conversation.update!(language: result.language) if result.language
     text, state = reply_of(result)
     finish(result.outcome, state, text, error: result.error)
-  end
-
-  # Charges the model calls the block's run made, as it returns or breaks.
-  def charged
-    calls = []
-    yield calls
-  ensure
-    Budget.charge!(@turn, calls.flat_map(&:usage))
   end
 
   def reply_of(result)

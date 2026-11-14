@@ -75,6 +75,47 @@ RSpec.describe "FR-14 SR-02 FR-12 the budget in a turn: the pause before the mod
       expect(month.spent_usd).to eq(BigDecimal("0.007"))
     end
 
+    # The silent-failure review of pull request #29: a run that breaks
+    # between two model calls, past the point where `charged` would already
+    # have returned in a run that ends.
+    it "charges the call a run made before it broke on its next call" do
+      product = create(:product, name: "Dipirona 500 mg", active_ingredient: "dipirona")
+      allow(Rails.logger).to receive(:error)
+      responses.replace([ tool_turn(tool_use("search_products", { query: product.active_ingredient })) ])
+      turn = inbound("tem dipirona?")
+      allow(fake).to receive(:call).and_wrap_original do |original, request, nxt|
+        raise ArgumentError, "a bug after the first call" if fake.requests.size == 1
+
+        original.call(request, nxt)
+      end
+
+      expect { perform(turn) }.to have_enqueued_job(ProcessTurnJob)
+
+      expect(turn.usage_records.count).to eq(1)
+    end
+
+    # Review finding V3 of pull request #29: a deploy stops the worker while a
+    # turn runs; its thread is killed, and the calls it made are still charged.
+    it "charges the calls a run made before its thread was killed" do
+      waiting = Queue.new
+      responses.replace([ tool_turn(tool_use("search_products", { query: "dipirona" })) ])
+      allow(fake).to receive(:call).and_wrap_original do |original, request, nxt|
+        if fake.requests.size == 1
+          waiting << true
+          sleep
+        end
+        original.call(request, nxt)
+      end
+      turn = inbound("tem dipirona?")
+
+      worker = Thread.new { perform(turn) }
+      waiting.pop(timeout: 10)
+      worker.kill.join(10)
+
+      expect(turn.usage_records.count).to eq(1)
+      expect(month.spent_usd).to eq(BigDecimal("0.007"))
+    end
+
     it "charges nothing for a turn run again once it has its reply (NFR-02)" do
       turn = inbound("oi")
 
