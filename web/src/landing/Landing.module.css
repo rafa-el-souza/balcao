@@ -139,15 +139,19 @@
 
 /* The QR keeps its own colours, dark modules on a light ground of its own, even where a
    high-contrast theme forces the receipt's ground to the system's canvas, dark in a dark theme:
-   a QR drawn in forced colours cannot be read (review finding W1 of pull request #33). */
+   a QR drawn in forced colours cannot be read (review finding W1 of pull request #33). Its 29
+   modules (25 and the quiet zone) take 4 px each, a whole number of pixels at a density of 1,
+   1.25, 1.5 and 2, and its edges keep to the pixel grid: at 120 px a module was 4.14 px, drawn with
+   grey edges and uneven widths. */
 .qr {
   display: block;
-  width: 7.5rem;
-  height: 7.5rem;
+  width: 7.25rem;
+  height: 7.25rem;
   margin: var(--space-1) auto;
   fill: var(--color-instrument-ink);
   background-color: var(--color-paper-2);
   forced-color-adjust: none;
+  shape-rendering: crispEdges;
 }
 
 .bot .why {
@@ -225,9 +229,10 @@
   }
 }
 
-/* Between the phone and the desk: two columns. The bot's receipt under the chips, in the second
-   column, where the drawing puts it beside the live numbers (M3); the two sections of text side
-   by side; and the last receipt beside the warning and the signature. */
+/* Between the phone and the desk: two columns. The chips in the first column and the bot's
+   receipt beside them, under the headline (design §6.8 draws the QR beside the chips; the
+   prototype puts the live numbers there at M3, the receipt beside them above the chips); the two
+   sections of text side by side; and the last receipt beside the warning and the signature. */
 @media (40rem <= width < 60rem) {
   .landing {
     display: grid;
@@ -240,8 +245,8 @@
     grid-column: 1 / -1;
   }
 
-  /* The main block spans the rows of the hero, the bot's receipt, the pair and the last receipt;
-     the footer takes the last receipt's row, in the column it leaves. */
+  /* The main block spans four rows: the headline, the chips beside the bot's receipt, the pair and
+     the last receipt; the footer takes the last receipt's row, in the column it leaves. */
   .main {
     grid-column: 1 / -1;
     grid-row: 2 / span 4;
@@ -250,16 +255,30 @@
     grid-template-rows: subgrid;
   }
 
+  /* The hero takes the first two rows on the page's two columns: the pitch across both, the chips
+     under it in the first; the bot's receipt, the next section, fills the second column's cell. */
   .hero {
     grid-column: 1 / -1;
-    grid-row: 1;
+    grid-row: 1 / span 2;
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-template-rows: subgrid;
     padding: var(--space-12) 0 var(--space-8);
+  }
+
+  .pitch {
+    grid-column: 1 / -1;
+  }
+
+  .say {
+    grid-column: 1;
+    grid-row: 2;
   }
 
   .bot {
     grid-column: 2;
     grid-row: 2;
-    margin: 0 0 var(--space-6);
+    margin: var(--space-8) 0;
   }
 
   .does {
@@ -287,8 +306,10 @@
   }
 }
 
-/* The desk: three columns. The bot's receipt beside the hero, where the drawing puts it under the
-   live numbers (M3), and the receipt of "Como é feito" beside the two sections of text. */
+/* The desk: three columns. The third holds the two receipts, one after the other: the bot's
+   beside the hero, where the drawing puts it under the live numbers (M3), and "Como é feito"
+   right under it, whole in the first screen of a large desk (the owner, 2026-11-14), where it
+   stood beside the two sections of text and the fold cut it. */
 @media (width >= 60rem) {
   .landing {
     display: grid;
@@ -301,15 +322,20 @@
     grid-column: 1 / -1;
   }
 
+  /* Three rows. The bot's receipt sizes the first; the hero spans the first two, and the height it
+     needs beyond the first goes to the second, since the first cannot grow past its receipt;
+     "Como é feito" spans the second and the third, so it follows the bot's receipt whatever the
+     hero's height; the two sections of text take the third, right under the hero. */
   .main {
     grid-column: 1 / -1;
     display: grid;
     grid-template-columns: subgrid;
+    grid-template-rows: auto auto auto;
   }
 
   .hero {
     grid-column: 1 / span 2;
-    grid-row: 1;
+    grid-row: 1 / span 2;
     padding: var(--space-16) 0 var(--space-12);
   }
 
@@ -328,7 +354,7 @@
 
   .does,
   .business {
-    grid-row: 2;
+    grid-row: 3;
     padding-top: var(--space-6);
     border-top: var(--rule-hairline);
   }
@@ -336,12 +362,12 @@
   .bot {
     grid-column: 3;
     grid-row: 1;
-    margin: calc(var(--space-16) + var(--space-2)) 0 var(--space-12);
+    margin: calc(var(--space-16) + var(--space-2)) 0 var(--space-8);
   }
 
   .built {
     grid-column: 3;
-    grid-row: 2;
+    grid-row: 2 / span 2;
     margin: 0;
   }
 
@@ -359,5 +385,23 @@
   .signature {
     margin: 0 0 var(--space-2);
     justify-self: center;
+  }
+}
+
+/* A short desk, a laptop's window: less air above the headline and above the chips, so the chips,
+   the way into the chat, stay in the first screen (whole at 1280 × 720 and 1536 × 730, their first
+   row at 1366 × 650); the type keeps its size, and the bot's receipt keeps its top level with the
+   headline's. */
+@media (width >= 60rem) and (height < 48rem) {
+  .hero {
+    padding-top: var(--space-8);
+  }
+
+  .say {
+    margin-top: var(--space-8);
+  }
+
+  .bot {
+    margin-top: calc(var(--space-8) + var(--space-2));
   }
 }

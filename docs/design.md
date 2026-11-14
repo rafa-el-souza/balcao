@@ -1758,6 +1758,39 @@ registered, display name, Live mode) closed on 2026-11-14 (ADR-0016).
 
 Tracked here until resolved; each resolution becomes an ADR or an edit.
 
+- Note 2026-11-14 (the landing's layout, a side slice outside §9.1's day
+  table, asked by the owner; FR-19, FR-21, NFR-10, §6.8). Screenshots from
+  320 to 2560 px in the three languages, with the blocks' positions
+  measured, found four faults. All four are fixed in the landing's
+  stylesheet alone: the page's elements and their order, which is the
+  wireframe's and the reading order, do not change.
+  - **Between 40 and 60rem** (half a desk's screen, a tablet held upright)
+    the bot's receipt stood alone in the second column under the chips,
+    beside an empty first column kept for the live numbers (M3). Now the
+    chips take the first column and the receipt stands beside them, under
+    the headline, as the wireframe (§6.8) draws the QR beside the chips;
+    at 945 px the page is 160 px shorter. PR-19's note below ("takes the
+    second column under the chips") reads "beside the chips" from here.
+  - **On a desk** "Como é feito" was tied to the row of the two text
+    sections: it began at 782 px, so the fold of a 1920 × 950 window cut
+    it, with 330 px of empty column above it. The owner asked for it whole
+    in a large desk's first screen. The third column now flows on its own:
+    "Como é feito" follows the bot's receipt and ends at 830 px in the
+    three languages (40 px below the fold of a 1440 × 790 window). A
+    keyboard still reaches the e-mail button before the receipt's links,
+    though the links now stand higher. When the live numbers open the
+    third column at M3, whether the receipt still fits is decided there.
+  - **On a short desk** (a window under 48rem tall) the headline filled the
+    first screen and the fold cut the chips, the way into the chat. The
+    hero keeps less air above the headline and the chips (64 to 32 px, 48
+    to 32 px), the type unchanged: the chips are whole at 1280 × 720 and
+    1536 × 730, their first row at 1366 × 650.
+  - **The QR** gave its 29 modules 120 px, 4.14 px each, drawn with grey
+    edges and uneven widths on a screen of density 1. It takes 116 px, 4 px
+    a module (a whole number at densities 1, 1.25, 1.5 and 2), with its
+    edges on the pixel grid; the symbol is the same, and the drawing
+    (`docs/prototype/styles.css`) follows.
+
 - Note 2026-11-14 (PR-19; FR-03, FR-05, FR-12, FR-19, NFR-02, NFR-03,
   SR-03, SR-10, SR-22, SR-25, SR-30, SR-41, SR-43; ADR-0016, ADR-0017).
   Telegram's outbound side, day 12's slice:
