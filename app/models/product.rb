@@ -139,9 +139,10 @@ class Product < ApplicationRecord
   # the note of the catalogue search slice; spec/models/
   # product_search_work_spec.rb).
   #
-  # No index: every call folds and stems every listed product, about 0.7 s at
-  # 10,000 products. A catalogue of thousands would want the folded texts and
-  # stems computed when the catalogue is loaded, with a trigram index on
-  # them: ADR-0009's revisit, not this method's.
+  # No index: every call folds and stems every listed product, about half of
+  # the 0.7 to 1 s a search takes at 10,000 products (design §10). A
+  # catalogue of thousands would want the folded texts and stems computed
+  # when the catalogue is loaded, with a trigram index on them: ADR-0009's
+  # revisit, not this method's.
   def self.search(query, limit: 5) = find_by_sql([ SEARCH, { query:, similarity: SIMILARITY, limit: } ])
 end
