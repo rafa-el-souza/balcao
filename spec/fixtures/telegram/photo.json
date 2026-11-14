@@ -1,0 +1,39 @@
+{
+  "update_id": 734120105,
+  "message": {
+    "message_id": 5,
+    "from": {
+      "id": 7341200001,
+      "is_bot": false,
+      "first_name": "Visitante",
+      "last_name": "Teste",
+      "username": "balcao_visitante_teste",
+      "language_code": "pt-br"
+    },
+    "chat": {
+      "id": 7341200001,
+      "first_name": "Visitante",
+      "last_name": "Teste",
+      "username": "balcao_visitante_teste",
+      "type": "private"
+    },
+    "date": 1763130005,
+    "photo": [
+      {
+        "file_id": "AgACAgEAAxkBAAMFaW_invented_small",
+        "file_unique_id": "AQADinvented01",
+        "file_size": 1203,
+        "width": 90,
+        "height": 67
+      },
+      {
+        "file_id": "AgACAgEAAxkBAAMFaW_invented_large",
+        "file_unique_id": "AQADinvented02",
+        "file_size": 43105,
+        "width": 800,
+        "height": 600
+      }
+    ],
+    "caption": "foto de teste"
+  }
+}

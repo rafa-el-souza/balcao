@@ -1,0 +1,33 @@
+{
+  "update_id": 734120106,
+  "message": {
+    "message_id": 6,
+    "from": {
+      "id": 7341200001,
+      "is_bot": false,
+      "first_name": "Visitante",
+      "last_name": "Teste",
+      "username": "balcao_visitante_teste",
+      "language_code": "pt-br"
+    },
+    "chat": {
+      "id": 7341200001,
+      "first_name": "Visitante",
+      "last_name": "Teste",
+      "username": "balcao_visitante_teste",
+      "type": "private"
+    },
+    "date": 1763130006,
+    "sticker": {
+      "width": 512,
+      "height": 512,
+      "emoji": "👍",
+      "is_animated": false,
+      "is_video": false,
+      "type": "regular",
+      "file_id": "CAACAgIAAxkBAAMGaW_invented",
+      "file_unique_id": "AgADinvented03",
+      "file_size": 21544
+    }
+  }
+}
