@@ -338,26 +338,23 @@ export function formatDuration(ms: number, locale: string): string {
   return `${seconds} s`;
 }
 
-// Money as the drawings write it in every language, the currency's symbol
-// before the figure: dollars to three decimals and reais to two, one more
-// where a small figure would round to nothing (docs/prototype/chat.html).
-const MONEY = {
-  usd: { symbol: "US$", digits: 3 },
-  brl: { symbol: "R$", digits: 2 },
-} as const;
+// A sum of money's figure as the drawings write it, in the page's locale:
+// dollars to three decimals and reais to two, one more where a small figure
+// would round to nothing (docs/prototype/chat.html). The currency's symbol
+// around it is the locale files' (instrument.money; NFR-09).
+const DIGITS = { usd: 3, brl: 2 } as const;
 
 export function formatMoney(
   value: number,
-  currency: keyof typeof MONEY,
+  currency: keyof typeof DIGITS,
   locale: string,
 ): string {
-  const { symbol, digits } = MONEY[currency];
+  const digits = DIGITS[currency];
   const fraction = value > 0 && value < 10 ** -digits ? digits + 1 : digits;
-  const figure = new Intl.NumberFormat(locale, {
+  return new Intl.NumberFormat(locale, {
     minimumFractionDigits: fraction,
     maximumFractionDigits: fraction,
   }).format(value);
-  return `${symbol} ${figure}`;
 }
 
 // The instrument's hours are São Paulo's (design §1.4), whoever reads them.

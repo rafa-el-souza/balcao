@@ -9,6 +9,8 @@ import {
   placeLocal,
   turnsOf,
 } from "./model";
+import modelSource from "./model.ts?raw";
+import rowsSource from "./Rows.tsx?raw";
 
 // Spans as the server sends them (app/models/trace_recorder.rb,
 // app/models/turn_trace.rb), for one answered turn: the root from the
@@ -469,12 +471,18 @@ describe("FR-12 the instrument's figures", () => {
   });
 
   it("writes dollars to three decimals and reais to two, more where a small figure would round to zero", () => {
-    expect(formatMoney(0.009, "usd", "pt-BR")).toBe("US$ 0,009");
-    expect(formatMoney(0.0495, "usd", "en")).toBe("US$ 0.050");
-    expect(formatMoney(0.0002, "usd", "es")).toBe("US$ 0,0002");
-    expect(formatMoney(0.009 * 5.6518, "brl", "pt-BR")).toBe("R$ 0,05");
-    expect(formatMoney(0.0002 * 5.6518, "brl", "pt-BR")).toBe("R$ 0,001");
-    expect(formatMoney(1.234, "usd", "pt-BR")).toBe("US$ 1,234");
+    expect(formatMoney(0.009, "usd", "pt-BR")).toBe("0,009");
+    expect(formatMoney(0.0495, "usd", "en")).toBe("0.050");
+    expect(formatMoney(0.0002, "usd", "es")).toBe("0,0002");
+    expect(formatMoney(0.009 * 5.6518, "brl", "pt-BR")).toBe("0,05");
+    expect(formatMoney(0.0002 * 5.6518, "brl", "pt-BR")).toBe("0,001");
+    expect(formatMoney(1.234, "usd", "pt-BR")).toBe("1,234");
+  });
+
+  // Review finding C6 of pull request #29 (NFR-09): the symbols are the
+  // locale files' words, which the figure fills.
+  it("leaves the currency's symbol to the locale files", () => {
+    expect(`${modelSource}\n${rowsSource}`).not.toMatch(/"(US|R)\$/);
   });
 
   it("writes the hour in São Paulo, wherever the visitor is", () => {

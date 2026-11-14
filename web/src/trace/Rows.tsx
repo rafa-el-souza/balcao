@@ -31,14 +31,16 @@ export const RateContext = createContext<number | null>(null);
 // A cost as the instrument writes it: the dollars, and the reais quieter
 // beside them (docs/prototype/chat.html).
 export function useMoney() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const rate = useContext(RateContext);
+  const money = (currency: "usd" | "brl", value: number) =>
+    t(`instrument.money.${currency}`, {
+      value: formatMoney(value, currency, i18n.language),
+    });
   return {
-    usd: (cost: number) => formatMoney(cost, "usd", i18n.language),
+    usd: (cost: number) => money("usd", cost),
     reais: (cost: number) =>
-      rate === null
-        ? null
-        : `· ${formatMoney(cost * rate, "brl", i18n.language)}`,
+      rate === null ? null : `· ${money("brl", cost * rate)}`,
   };
 }
 

@@ -112,6 +112,10 @@
       "economy": "economía",
       "paused": "en pausa"
     },
+    "money": {
+      "usd": "US$ {{value}}",
+      "brl": "R$ {{value}}"
+    },
     "detail": {
       "model": "modelo",
       "effort": "esfuerzo",
