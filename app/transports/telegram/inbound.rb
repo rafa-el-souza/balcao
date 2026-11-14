@@ -60,7 +60,7 @@ module Telegram
       return limited if limited
 
       visitor = Visitor.find_by(channel: "telegram", identity_hash: identity)
-      visitor ? known(Visitor.identify!(channel: "telegram", identity_hash: identity), event) : unknown(event)
+      visitor && seen(visitor) ? known(visitor, event) : unknown(event)
     end
 
     private
@@ -140,6 +140,14 @@ module Telegram
     end
 
     # --- After the agreement --------------------------------------------------
+
+    # Marks the row seen (FR-15) and answers whether it is still there: a
+    # deletion may commit between its read and now (the person's own delete
+    # command, which runs under the conversation's lock, or the nightly
+    # purge), and a row is never made here, only by the agreement (review
+    # finding C1 of pull request #32). A deletion after this is met by the
+    # foreign keys, and the read is tried again.
+    def seen(visitor) = Visitor.where(id: visitor.id).update_all(last_seen_at: Time.current) == 1
 
     def known(visitor, event)
       language = visitor.conversations.current.pick(:language) || app_language

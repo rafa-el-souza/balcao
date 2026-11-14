@@ -247,6 +247,28 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
       expect(deliver(fixture("photo"))).to have_attributes(reply: FixedReply.not_text("es"))
     end
 
+    # Review finding C1 (T1) of pull request #32: a deletion that commits
+    # between the read of the row and the next step (the person's own
+    # /apagar, run by ProcessTurnJob under the conversation's lock, or the
+    # nightly purge) left a row made again, without the agreement or the chat.
+    it "makes no row again for a person whose row went right after it was read, and asks instead" do
+      erased = false
+      allow(Visitor).to receive(:find_by).and_wrap_original do |original, *args, **kwargs|
+        original.call(*args, **kwargs).tap do |row|
+          next unless row && !erased
+
+          erased = true
+          row.erase!
+        end
+      end
+
+      outcome = deliver(fixture("text"))
+
+      expect(Visitor.where(channel: "telegram")).to be_empty
+      expect(outcome).to have_attributes(name: :ask)
+      expect(enqueued_jobs.map { |job| job["job_class"] }).not_to include("ProcessTurnJob")
+    end
+
     it "marks the visitor seen at every message, which keeps it from the seven-day purge (FR-15)" do
       later = 3.days.from_now
       travel_to(later) { deliver(fixture("sticker")) }
