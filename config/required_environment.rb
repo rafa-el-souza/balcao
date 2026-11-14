@@ -34,8 +34,12 @@ module Balcao
     # and -. A value Telegram would refuse stops the boot, not the webhook's
     # registration.
     WEBHOOK_SECRET = /\A[A-Za-z0-9_-]{1,256}\z/
-    # BotFather's token: the bot's number, a colon and the key.
-    BOT_TOKEN = /\A\d+:[A-Za-z0-9_-]+\z/
+    # BotFather's token: the bot's number, a colon and the key, in the shape
+    # the JSON log writes as [FILTERED] (Balcao::JsonLogFormatter::BOT_TOKEN,
+    # threat model SR-30): five digits or more and a key of thirty characters
+    # or more, so a token that boots is one no log line can carry (review
+    # findings C3 and L5 of pull request #32).
+    BOT_TOKEN = /\A\d{5,}:[A-Za-z0-9_-]{30,}\z/
 
     class Missing < StandardError; end
 
