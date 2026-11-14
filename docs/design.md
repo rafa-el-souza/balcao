@@ -1113,6 +1113,8 @@ erDiagram
     uuid webhook_event_id
     string status
     integer parts_sent
+    integer send_attempts
+    datetime next_attempt_at
   }
   TURN {
     uuid id
@@ -1781,17 +1783,22 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     arguments, which the queue keeps in plain text. One person's replies,
     stored or not, leave under a lock keyed by the hashed identity, one at a
     time and in order.
-  - **The waits run inside the job.** FR-19 tries a failure of the way there
-    again "with the job's backoff": the waits are Active Job's
-    `polynomially_longer` without its jitter, 3 s and then 18 s, but they run
-    inside the job, under the person's lock, since a job's own retry would
-    let the person's next reply leave first. A 429 is tried again after the
-    seconds it names, up to 30; one that names longer fails the send at once,
-    since the worker's thread waits with it (three threads in all,
-    `config/queue.yml`). Three attempts in all, then `failed` and one log
-    line with the error's class and Telegram's code; any other answer that
-    is not ok fails it at once. A failed reply is never sent again (the
-    runbook's part on the bot).
+  - **No send waits inside a job** (review finding C3 of pull request #33,
+    `atacante`: a wait held the person's lock and a worker's thread, and the
+    person's other jobs each held a thread waiting for that lock, so a
+    stranger's burst could stall every visitor's turns). Each call tries each
+    part once. A stored reply Telegram asked to wait for (a 429, the seconds
+    it names) or that failed on the way (the job's backoff, Active Job's
+    `polynomially_longer` without its jitter: 3 s, then 18 s) records its
+    attempt and its time (`message.send_attempts`, `next_attempt_at`, §6.5)
+    and is tried again by `TelegramReplyJob`, scheduled for that time, whose
+    argument is the visitor's row, never the chat; until then it and the
+    person's later replies stay pending, in order, and a drain meanwhile
+    leaves them be. Three attempts in all, then `failed` and one log line
+    with the error's class and Telegram's code; any other answer that is not
+    ok fails it at once. A failed reply is never sent again (the runbook's
+    part on the bot). A reply that is not stored is tried once: nothing keeps
+    its chat to try it again.
   - **The cut** at 4,096 UTF-16 units falls between paragraphs, then lines,
     then words, then grapheme clusters; no part is blank.
   - **The keyboard.** The ask shows the agreement's one button (the phrase

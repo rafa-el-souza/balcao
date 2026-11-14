@@ -5,12 +5,13 @@ require "rails_helper"
 # paragraphs when it passes Telegram's 4,096 characters (counted in UTF-16
 # units), marked sent part by part, tried again after the wait a 429 names or
 # the job's backoff, three attempts in all, and never sent again once marked
-# sent (NFR-02). A person's replies leave one at a time and in order.
+# sent (NFR-02). A person's replies leave one at a time and in order, and no
+# send waits inside a job: a retry is a job scheduled for its time.
 RSpec.describe "FR-19 SR-43 NFR-02 Telegram::Outbound, a reply on its way to the visitor's chat" do
   include TelegramBotApi
+  include ActiveJob::TestHelper
 
-  let(:waits) { [] }
-  let(:outbound) { Telegram::Outbound.new(sleeper: ->(seconds) { waits << seconds }) }
+  let(:outbound) { Telegram::Outbound.new }
   let(:chat_id) { 7_341_200_001 }
   let(:visitor) { create(:visitor, channel: "telegram", telegram_chat_id: chat_id.to_s, agreed_at: Time.current) }
   let(:conversation) { create(:conversation, visitor:) }
@@ -24,6 +25,12 @@ RSpec.describe "FR-19 SR-43 NFR-02 Telegram::Outbound, a reply on its way to the
   end
 
   def units(text) = text.encode("UTF-16LE").bytesize / 2
+
+  def seconds_taken
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    yield
+    Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+  end
 
   describe "the cut at 4,096 characters" do
     it "sends a reply within the limit whole" do
@@ -126,26 +133,76 @@ RSpec.describe "FR-19 SR-43 NFR-02 Telegram::Outbound, a reply on its way to the
 
     before { message }
 
-    it "waits the time a 429 names and tries again" do
-      stub_request(:post, bot_api_url("sendMessage"))
-        .to_return(bot_api_error(429, "Too Many Requests: retry after 7", retry_after: 7)).then
-        .to_return(bot_api_answer({ "message_id" => 1 }))
-
-      outbound.deliver_pending(visitor)
-
-      expect(waits).to eq [ 7 ]
-      expect(message.reload.status).to eq "sent"
+    # The retry the reply is waiting for, run when its time has come
+    # (travel_to drops the fraction of a second, so one second past it).
+    def retry_when_due
+      travel_to(message.reload.next_attempt_at + 1.second)
+      perform_enqueued_jobs(only: TelegramReplyJob)
     end
 
-    it "waits the job's backoff after a failure of the way there, 3 s and then 18 s, three attempts in all, then marks it failed" do
-      stub_request(:post, bot_api_url("sendMessage")).to_timeout
-      allow(Rails.logger).to receive(:error)
+    # Review finding C3 of pull request #33: a send that had to wait held the
+    # person's lock, and the worker's thread, for as long as it waited, and
+    # the person's other jobs each held a thread waiting for that lock.
+    it "waits for nothing itself: a 429 marks when to try again, for a job scheduled then, and the person's later replies wait behind it" do
+      later = reply("Depois.", at: 1.minute.from_now)
+      stub_request(:post, bot_api_url("sendMessage")).to_return(bot_api_error(429, "Too Many Requests: retry after 30", retry_after: 30))
+
+      freeze_time do
+        elapsed = seconds_taken { outbound.deliver_pending(visitor) }
+
+        expect(elapsed).to be < 1
+        expect(message.reload).to have_attributes(status: "pending", send_attempts: 1, next_attempt_at: 30.seconds.from_now)
+        expect(later.reload.status).to eq "pending"
+        expect(a_request(:post, bot_api_url("sendMessage"))).to have_been_made.once
+        expect(TelegramReplyJob).to have_been_enqueued.with(visitor.id).at(30.seconds.from_now)
+      end
+    end
+
+    it "tries again once the time a 429 names has passed, and the later replies follow in order" do
+      later = reply("Depois.", at: 1.minute.from_now)
+      stub_request(:post, bot_api_url("sendMessage"))
+        .to_return(bot_api_error(429, "Too Many Requests: retry after 7", retry_after: 7)).then
+        .to_return(bot_api_answer({ "message_id" => 1 }), bot_api_answer({ "message_id" => 2 }))
+      outbound.deliver_pending(visitor)
+
+      retry_when_due
+
+      expect([ message.reload.status, later.reload.status ]).to eq(%w[sent sent])
+      expect(a_request(:post, bot_api_url("sendMessage"))).to have_been_made.times(3)
+    end
+
+    it "does not try again before its time, whoever drains the person's replies meanwhile" do
+      stub_request(:post, bot_api_url("sendMessage")).to_return(bot_api_error(429, "Too Many Requests: retry after 30", retry_after: 30))
+      outbound.deliver_pending(visitor)
 
       outbound.deliver_pending(visitor)
 
-      expect(waits).to eq [ 3, 18 ]
+      expect(a_request(:post, bot_api_url("sendMessage"))).to have_been_made.once
+    end
+
+    it "keeps a reply and the ones behind it pending through a long wait, never failing them for it" do
+      later = reply("Depois.", at: 1.minute.from_now)
+      stub_request(:post, bot_api_url("sendMessage")).to_return(bot_api_error(429, "Too Many Requests: retry after 600", retry_after: 600))
+
+      outbound.deliver_pending(visitor)
+
+      expect([ message.reload.status, later.reload.status ]).to eq(%w[pending pending])
+      expect(message.next_attempt_at).to be_within(1.second).of(600.seconds.from_now)
+    end
+
+    it "tries again after the job's backoff for a failure of the way there, 3 s and then 18 s, three attempts in all, then marks it failed" do
+      stub_request(:post, bot_api_url("sendMessage")).to_timeout
+      allow(Rails.logger).to receive(:error)
+      started = Time.current
+
+      outbound.deliver_pending(visitor)
+      expect(message.reload.next_attempt_at).to be_within(1.second).of(started + 3)
+      retry_when_due
+      expect(message.reload.next_attempt_at).to be_within(2.seconds).of(started + 3 + 1 + 18)
+      retry_when_due
+
       expect(a_request(:post, bot_api_url("sendMessage"))).to have_been_made.times(3)
-      expect(message.reload.status).to eq "failed"
+      expect(message.reload).to have_attributes(status: "failed", send_attempts: 3)
       expect(Rails.logger).to have_received(:error).with(/\Atelegram reply #{message.id}: failed after 3 attempts, Telegram::Client::Error \(Net::OpenTimeout\)\z/)
     end
 
@@ -157,21 +214,10 @@ RSpec.describe "FR-19 SR-43 NFR-02 Telegram::Outbound, a reply on its way to the
       outbound.deliver_pending(visitor)
 
       expect(a_request(:post, bot_api_url("sendMessage"))).to have_been_made.once
-      expect(waits).to be_empty
+      expect(enqueued_jobs).to be_empty
       expect(message.reload.status).to eq "failed"
       expect(lines.sole).to eq("telegram reply #{message.id}: failed after 1 attempt, Telegram::Client::Error (403)")
       expect(lines.join).not_to include(chat_id.to_s, "Temos")
-    end
-
-    it "marks it failed at once when the wait a 429 names would hold the worker longer than it may" do
-      stub_request(:post, bot_api_url("sendMessage"))
-        .to_return(bot_api_error(429, "Too Many Requests: retry after 600", retry_after: 600))
-      allow(Rails.logger).to receive(:error)
-
-      outbound.deliver_pending(visitor)
-
-      expect(waits).to be_empty
-      expect(message.reload.status).to eq "failed"
     end
 
     it "goes on to the person's next reply after one that failed" do
@@ -203,6 +249,19 @@ RSpec.describe "FR-19 SR-43 NFR-02 Telegram::Outbound, a reply on its way to the
     it "gives the agreement's button in the language of the ask" do
       expect(%w[pt-BR en es].map { |locale| Telegram::Outbound.agreement_keyboard(locale).dig(:keyboard, 0, 0, :text) })
         .to eq([ "Concordo", "I agree", "Acepto" ])
+    end
+
+    # Review finding C3 of pull request #33: nothing keeps the chat of a reply
+    # that is not stored, so it is tried once and waits for nothing.
+    it "tries it once, waiting for nothing, when Telegram asks to wait" do
+      stub_request(:post, bot_api_url("sendMessage")).to_return(bot_api_error(429, "Too Many Requests: retry after 30", retry_after: 30))
+      allow(Rails.logger).to receive(:error)
+
+      elapsed = seconds_taken { expect(outbound.send_fixed(chat, "Olá", name: :ask)).to be(false) }
+
+      expect(elapsed).to be < 1
+      expect(a_request(:post, bot_api_url("sendMessage"))).to have_been_made.once
+      expect(enqueued_jobs).to be_empty
     end
 
     it "answers false and logs the class when it cannot be sent, raising nothing" do

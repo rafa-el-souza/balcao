@@ -17,23 +17,26 @@ module Telegram
   #   so it never goes into a job's arguments.
   #
   # Both are sent under a lock keyed by the person's hashed identity, so one
-  # person's replies leave one at a time and in order. A send is tried three
-  # times in all: after a 429, once the time it names has passed; after a
-  # failure of the way there, after the job's backoff (Active Job's
-  # polynomially_longer without its jitter: 3 s, then 18 s). The waits run
-  # here, under the lock, so a later reply never overtakes one that waits;
-  # a 429 that names more than LONGEST_WAIT fails the send at once, since the
-  # worker's thread would wait with it. Any other answer that is not ok fails
-  # it at once. A failed reply is marked failed with one line that names the
-  # error by its class (NFR-03, SR-30); the chat and the text never reach a
-  # line.
+  # person's replies leave one at a time and in order. Nothing here waits:
+  # each call tries each part once, so neither the lock nor a worker's thread
+  # is held through a wait (review finding C3 of pull request #33).
+  # - A stored reply Telegram asked to wait for (a 429) or that failed on the
+  #   way is tried again by TelegramReplyJob, scheduled for the time the 429
+  #   names or after the job's backoff (Active Job's polynomially_longer
+  #   without its jitter: 3 s, then 18 s), three attempts in all; until then
+  #   it and the person's later replies stay pending, in order, and a drain
+  #   meanwhile leaves them be.
+  # - A reply that is not stored is tried once: nothing keeps its chat to try
+  #   it again.
+  # Any other answer that is not ok fails a reply at once. A failed reply is
+  # marked failed with one line that names the error by its class (NFR-03,
+  # SR-30); the chat and the text never reach a line.
   #
   # A reply to a person who agreed takes the agreement's keyboard away, the
   # greeting first; the ask shows it (FR-19).
   class Outbound
     LIMIT = 4_096
     ATTEMPTS = 3
-    LONGEST_WAIT = 30
     REMOVE_KEYBOARD = { remove_keyboard: true }.freeze
     # Where a long reply is cut, in order: between paragraphs, lines, words.
     SEPARATORS = [ "\n\n", "\n", " " ].freeze
@@ -74,25 +77,28 @@ module Telegram
     end
     private_class_method :hard_cut
 
-    def initialize(client: Client.new, sleeper: ->(seconds) { sleep(seconds) })
+    def initialize(client: Client.new)
       @client = client
-      @sleeper = sleeper
     end
 
-    # Sends a Telegram visitor's pending replies, oldest first.
+    # Sends a Telegram visitor's pending replies, oldest first, up to the
+    # first one that waits for its time.
     def deliver_pending(visitor)
       chat = Chat.of(visitor) or return
 
       AdvisoryLock.hold(lock(chat)) do
-        pending(visitor).each { |message| deliver(message, chat) }
+        pending(visitor).each do |message|
+          break if message.next_attempt_at&.future? || !deliver(message, chat, visitor)
+        end
       end
     end
 
-    # Sends a reply that is not stored; answers whether it left.
+    # Sends a reply that is not stored, trying each part once; answers
+    # whether it left.
     def send_fixed(chat, text, keyboard: nil, name: :reply)
       AdvisoryLock.hold(lock(chat)) do
-        failure = self.class.parts(text).lazy.filter_map { |part| attempt(chat, part, keyboard) }.first
-        failure.nil? || failed("telegram fixed reply #{name}", failure)
+        error = self.class.parts(text).lazy.filter_map { |part| send_part(chat, part, keyboard) }.first
+        error.nil? || failed("telegram fixed reply #{name}", error, 1)
       end
     end
 
@@ -105,44 +111,49 @@ module Telegram
              .where(conversations: { visitor_id: visitor.id }).order(:created_at, :id).to_a
     end
 
-    def deliver(message, chat)
-      parts = self.class.parts(message.body)
-      parts.drop(message.parts_sent).each do |part|
-        failure = attempt(chat, part, REMOVE_KEYBOARD)
-        next message.update_columns(parts_sent: message.parts_sent + 1, updated_at: Time.current) unless failure
+    # The parts not sent yet, each tried once. Answers true when the person's
+    # next reply may go (this one sent, or failed for good), false when this
+    # one waits for its time.
+    def deliver(message, chat, visitor)
+      self.class.parts(message.body).drop(message.parts_sent).each do |part|
+        error = send_part(chat, part, REMOVE_KEYBOARD)
+        next message.update_columns(parts_sent: message.parts_sent + 1, updated_at: Time.current) unless error
 
-        message.update_columns(status: "failed", updated_at: Time.current)
-        return failed("telegram reply #{message.id}", failure)
+        return again_or_failed(message, error, visitor)
       end
-      message.update_columns(status: "sent", updated_at: Time.current)
+      message.update_columns(status: "sent", next_attempt_at: nil, updated_at: Time.current)
+      true
     end
 
-    Failure = Data.define(:error, :attempts)
+    # nil once the part left, else the error.
+    def send_part(chat, text, keyboard)
+      @client.send_message(chat_id: chat.id, text:, reply_markup: keyboard)
+      nil
+    rescue Client::Error => e
+      e
+    end
 
-    # One part, up to ATTEMPTS times; nil once it left, else the Failure.
-    def attempt(chat, text, keyboard)
-      1.upto(ATTEMPTS) do |count|
-        @client.send_message(chat_id: chat.id, text:, reply_markup: keyboard)
-        return nil
-      rescue Client::Error => e
-        wait = wait_after(e, count)
-        return Failure.new(error: e, attempts: count) if wait.nil?
-
-        @sleeper.call(wait)
+    # A refusal, or a third attempt, fails the reply; any other failure
+    # schedules the next attempt for the time it names, or the job's backoff.
+    def again_or_failed(message, error, visitor)
+      attempts = message.send_attempts + 1
+      if error.refused? || attempts >= ATTEMPTS
+        message.update_columns(status: "failed", send_attempts: attempts, next_attempt_at: nil, updated_at: Time.current)
+        return !failed("telegram reply #{message.id}", error, attempts)
       end
+
+      at = Time.current + wait_after(error, attempts)
+      TelegramReplyJob.set(wait_until: at).perform_later(visitor.id)
+      message.update_columns(send_attempts: attempts, next_attempt_at: at, updated_at: Time.current)
+      false
     end
 
-    # The seconds to wait before the next attempt, or nil when there is none.
-    def wait_after(error, count)
-      return if error.refused? || count == ATTEMPTS
-      return (count**4) + 2 unless error.rate_limited?
-
-      error.retry_after.to_i if error.retry_after.to_i <= LONGEST_WAIT
+    def wait_after(error, attempts)
+      error.rate_limited? && error.retry_after.to_i.positive? ? error.retry_after.to_i : (attempts**4) + 2
     end
 
-    def failed(what, failure)
-      error = failure.error
-      Rails.logger.error("#{what}: failed after #{failure.attempts} #{"attempt".pluralize(failure.attempts)}, " \
+    def failed(what, error, attempts)
+      Rails.logger.error("#{what}: failed after #{attempts} #{"attempt".pluralize(attempts)}, " \
                          "#{error.class} (#{error.code || error.failure})")
       false
     end
