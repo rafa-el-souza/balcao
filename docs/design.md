@@ -1652,6 +1652,14 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     pharmacy to call another number; M2's handoff in the same chat is the
     answer. A refusal still answers in the conversation's language rather
     than the message's (FR-02's gap from PR-14's review), for the MVP close.
+  - **The review of pull request #27** found (reach as triaged in the pull
+    request): C1 (`cliente`), a reply that was its tag alone ("[pt]
+    [emergency]") was empty, so the visitor got the fallback and no emergency
+    numbers; such a reply is now the line it asks for, and the offer's line
+    is never left out of a reply with nothing else to say. C2 (`dono`), the
+    offer's line carries the week's hours, so `store-hours-pt-01` could pass
+    on the line alone; a case whose expected words or fact the line carries
+    now says whether it expects the line, and that case expects none.
 
 - Note 2026-11-14 (the README's badges, outside §9.1's day table). The
   owner asked which badges the README could carry without overdoing it, and
