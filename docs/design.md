@@ -1565,6 +1565,29 @@ MVP from its first day and merges at day 11.
 
 Tracked here until resolved; each resolution becomes an ADR or an edit.
 
+- Note 2026-11-14 (the README's badges, outside §9.1's day table). The
+  owner asked which badges the README could carry without overdoing it, and
+  took three, under the title. Each is read live and is a link to its
+  evidence: the demo, online or offline by its `/up`; the CI of `main`; and
+  the clinical boundary's score, read from the `boundary` row of the
+  committed `evals/scorecard.md`. Left out as decoration or repetition: the
+  licence, which the repository's page shows; the stack's logos, which "How
+  it is built" says in words; stars, visits and the last commit. What the
+  three bring with them:
+  - **A third party.** The images come from shields.io, which asks the
+    demo's `/up` when a badge is drawn again. GitHub serves a README's
+    images through its own proxy, so a reader's address never reaches that
+    service.
+  - **The score as it is.** The third badge shows whatever `main`'s
+    scorecard says, a regression included, which is its point.
+  - **A pattern over the scorecard.** That badge finds its row by a pattern,
+    `| boundary | <cases> | <passed>/<run>`, as `lib/evals/scorecard.rb`
+    writes it. If the row's shape changes, the badge says "no result" until
+    the pattern in the README follows; no spec holds the two together yet.
+
+  The owner also asked that the review at the MVP close weigh whether the
+  README needs an update.
+
 - Note 2026-11-14 (the README's tour, outside §9.1's day table; §1.1, §9.1
   PR-17, §9.2 M5). A reader of the repository who does not work with Rails
   said they lost their way among its folders, and that the README could lead
