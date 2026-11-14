@@ -44,6 +44,21 @@ RSpec.describe "FR-19 NFR-03 Telegram::Typing, the typing status while the model
     expect(Rails.logger).to have_received(:warn).once.with("telegram typing: not sent, Telegram::Client::Error (403)")
   end
 
+  # Review finding H10 of pull request #33: log tags are a thread's, so the
+  # status thread's line carried no conversation_id (NFR-05).
+  it "writes its line with the caller's tags, the conversation's id among them" do
+    require_relative "../../../lib/logging/json_log_formatter"
+    stub_request(:post, bot_api_url("sendChatAction")).to_return(bot_api_error(403, "Forbidden: bot was blocked by the user"))
+    io = StringIO.new
+    logger = ActiveSupport::TaggedLogging.new(ActiveSupport::Logger.new(io, formatter: Balcao::JsonLogFormatter.new))
+    allow(Rails).to receive(:logger).and_return(logger)
+
+    logger.tagged("conversation_id=7") { Telegram::Typing.new(chat, interval: 0.02).during { sleep 0.05 } }
+
+    line = io.string.lines.map { |text| JSON.parse(text) }.find { |entry| entry["message"].start_with?("telegram typing") }
+    expect(line).to include("conversation_id" => "7", "message" => "telegram typing: not sent, Telegram::Client::Error (403)")
+  end
+
   it "lets the block's own error through" do
     expect { Telegram::Typing.new(chat, interval: 0.02).during { raise ArgumentError, "broke" } }.to raise_error(ArgumentError, "broke")
   end

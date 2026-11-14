@@ -5,7 +5,9 @@ module Telegram
   # five seconds or when a message arrives, so a thread of its own sends it
   # at once and again every INTERVAL seconds until the block ends; it touches
   # no database. A status that fails to send never fails the turn: the
-  # thread logs the first failure by its class and goes on.
+  # thread logs the first failure by its class and goes on, under the
+  # caller's log tags, the conversation's id among them (NFR-05; review
+  # finding H10 of pull request #33).
   class Typing
     INTERVAL = 4
     # How long the block's end waits for a status already on its way, so it
@@ -26,7 +28,8 @@ module Telegram
 
     def during
       stop = Thread::Queue.new
-      thread = Thread.new { renew(stop) }
+      tags = Array(Rails.logger.formatter.try(:current_tags)).dup
+      thread = Thread.new { Rails.logger.tagged(*tags) { renew(stop) } }
       yield
     ensure
       stop&.close
