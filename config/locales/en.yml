@@ -24,3 +24,5 @@ en:
   limits:
     now: "You have reached the demo's limit for now. Please try again in a little while."
     today: "You have reached the demo's limit for today. Please come back tomorrow."
+  budget:
+    paused: "The demo is paused until next month: it has reached this month's spending limit."

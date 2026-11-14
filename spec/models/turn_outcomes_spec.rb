@@ -7,8 +7,9 @@ require "rails_helper"
 RSpec.describe "FR-12 turn outcomes: every one the server writes has the glass box's words (NFR-03, NFR-09)" do
   def words(locale) = JSON.parse(Rails.root.join("web/src/locales/#{locale}.json").read).dig("instrument", "outcomes")
 
-  it "lists AgentRunner's outcomes and the two TurnProcessor adds" do
-    expect(TurnProcessor::OUTCOMES).to eq(%w[replied refused incomplete tool_limit deadline model_error reservations dead_letter])
+  it "lists AgentRunner's outcomes and the three TurnProcessor adds" do
+    expect(TurnProcessor::OUTCOMES)
+      .to eq(%w[replied refused incomplete tool_limit deadline model_error reservations paused dead_letter])
   end
 
   it "gives the panel a word, in each of the three languages, for every outcome but a reply of the model's own" do

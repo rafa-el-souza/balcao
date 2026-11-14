@@ -7,6 +7,10 @@
 # - a turn whose reservation an earlier run stored is answered with the
 #   reservation's fixed line, never through the model again, which could
 #   reserve another product (NFR-02);
+# - a turn of a month the budget paused, at its cap or by the operator's
+#   hand, is answered with the pause's fixed reply, and no model is called
+#   (FR-14, threat model SR-02); the budget's mode is read here, before any
+#   model call, and names the route of the turn's model (ModelPolicy);
 # - anything else goes through AgentRunner, whose events become the turn's
 #   spans (FR-12), and its outcome becomes the reply: the model's text, FR-09's
 #   decline for a refusal (SR-19) or the fallback (NFR-03), the last two
@@ -28,13 +32,15 @@
 # language the reply is in, and the reply's language becomes the
 # conversation's (FR-02). The reply is stored once, keyed by the turn
 # (NFR-02), and sent to the conversation's stream; a turn that already has it
-# is left alone. The budget gate and its modes join with FR-14 (PR-16); until
-# then every turn runs in the normal mode.
+# is left alone.
+#
+# Every model call the turn makes is charged to the month (Budget), the calls
+# of a run that broke included: they were paid for (FR-14).
 class TurnProcessor
-  MODE = "normal".freeze
-  # AgentRunner's, then the two this class adds: a turn answered from its
-  # stored reservations without the model, and one the job gave up on.
-  OUTCOMES = [ *AgentRunner::OUTCOMES.map(&:to_s), "reservations", "dead_letter" ].freeze
+  # AgentRunner's, then the three this class adds: a turn answered from its
+  # stored reservations without the model, one the budget paused and one the
+  # job gave up on.
+  OUTCOMES = [ *AgentRunner::OUTCOMES.map(&:to_s), "reservations", "paused", "dead_letter" ].freeze
 
   def initialize(turn, commands: CommandPhrases.current)
     @turn = turn
@@ -170,20 +176,38 @@ class TurnProcessor
     stored = reservations
     return finish("reservations", "replied", FixedReply.reservations(stored, @conversation.language)) if stored.any?
 
-    run_model
+    mode = Budget.mode
+    return paused if mode == "paused"
+
+    run_model(mode)
   rescue StandardError => e
     broken(e)
     raise
   end
 
-  def run_model
-    @turn.update!(mode: MODE, model: ModelPolicy.route(MODE).model)
-    @root.attributes["balcao.turn.mode"] = MODE
+  # FR-14: the month is paused, so the reply is the pause's, with no model.
+  def paused
+    @turn.update!(mode: "paused")
+    @root.attributes["balcao.turn.mode"] = "paused"
+    finish("paused", "replied", FixedReply.paused(@conversation.language))
+  end
+
+  def run_model(mode)
+    @turn.update!(mode:, model: ModelPolicy.route(mode).model)
+    @root.attributes["balcao.turn.mode"] = mode
     events = TurnTrace.new(@recorder, @root)
-    result = AgentRunner.new.run(@turn, mode: MODE) { |event| events.on(event) }
+    result = charged { |calls| AgentRunner.new.run(@turn, mode:) { |event| calls << event if event.is_a?(AgentRunner::ModelCall); events.on(event) } }
     @conversation.update!(language: result.language) if result.language
     text, state = reply_of(result)
     finish(result.outcome, state, text, error: result.error)
+  end
+
+  # Charges the model calls the block's run made, as it returns or breaks.
+  def charged
+    calls = []
+    yield calls
+  ensure
+    Budget.charge!(@turn, calls.flat_map(&:usage))
   end
 
   def reply_of(result)

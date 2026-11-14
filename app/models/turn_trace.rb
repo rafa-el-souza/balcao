@@ -7,7 +7,10 @@
 # its reason code, which tells it from a failure (both are the SDK's
 # tool_error). Names and attributes are the ones the Anthropic SDK gives its own
 # spans. The system prompt is summarised by its size and a digest (threat
-# model SR-12): a changed prompt shows, its text never does.
+# model SR-12): a changed prompt shows, its text never does. A call's cost, in
+# US dollars at the price table's prices, is the ledger's own figure (FR-12,
+# FR-14; Budget charges the same usage), under the balcao. prefix, since the
+# SDK's spans carry none.
 class TurnTrace
   MODEL_CALL = "anthropic.messages.create".freeze
   TOOL_CALL = "anthropic.custom_tool_use".freeze
@@ -65,6 +68,7 @@ class TurnTrace
       "gen_ai.usage.cache_read.input_tokens" => cached, "gen_ai.usage.cache_write.input_tokens" => written
     }
     totals["anthropic.usage.iterations"] = entries.map(&:to_h) if entries.size > 1
+    totals["balcao.cost.usd"] = entries.sum { |entry| Prices.cost_usd(entry).round(8) }.to_f
     totals
   end
 

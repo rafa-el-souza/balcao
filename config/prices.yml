@@ -1,0 +1,28 @@
+# The price table of the budget ledger (FR-14, ADR-0003), read by
+# app/models/prices.rb: US dollars per million tokens on the first-party API,
+# standard speed and global inference, for every model a turn's usage can
+# name: the two routes of app/agent/model_policy.rb and the two models the
+# API's refusal fallback ("default", design §6.4) may answer with on the
+# normal route (the Models API's allowed_fallback_models for claude-opus-5-5,
+# read on the same day). The cache write is the 5-minute one, the only cache
+# this app writes (app/agent/agent_runner.rb). Haiku 5.5 has a dearer rate
+# card for a prompt over 100,000 tokens; a turn's prompt stays far below it
+# (thirty turns of messages of 1,000 characters at most), so it is not here.
+#
+# Read from the provider's price page on verified_on, and read again when a
+# model or a price changes (ADR-0003). A price is a decimal string, never a
+# YAML float.
+verified_on: "2026-11-14"
+source: https://platform.claude.com/docs/en/about-claude/pricing
+models:
+  claude-opus-5-5: { input: "4.00", output: "20.00", cache_write: "5.00", cache_read: "0.20" }
+  claude-opus-5: { input: "5.00", output: "25.00", cache_write: "6.25", cache_read: "0.50" }
+  claude-opus-4-8: { input: "5.00", output: "25.00", cache_write: "6.25", cache_read: "0.50" }
+  claude-haiku-5-5: { input: "0.10", output: "0.50", cache_write: "0.125", cache_read: "0.01" }
+
+# Reais per US dollar, for the glass box's figures in reais (FR-12): the
+# Banco Central do Brasil's PTAX selling rate of verified_on.
+brl:
+  per_usd: "5.6518"
+  verified_on: "2026-11-13"
+  source: Banco Central do Brasil, PTAX (venda)

@@ -96,5 +96,9 @@ module Balcao
     # origin (SR-03): the Vite dev server here, the public name in production
     # (config/environments/production.rb).
     config.x.public_origin = "http://127.0.0.1:5173"
+
+    # The month's budget cap in US dollars (FR-14): ADR-0003's default here,
+    # BUDGET_CAP_USD in each destination (config/environments/production.rb).
+    config.x.budget_cap_usd = BigDecimal("100")
   end
 end

@@ -32,6 +32,11 @@ ssh:
   config:
     - <%= ENV.fetch("ENSAIO_SSH_CONFIG") %>
 
+# The MVP host runs on the dev/eval key, whose console limit of US$ 20 a month
+# also pays the eval runs: its cap of US$ 10 pauses the demo with its fixed
+# reply before that limit cuts the key off (FR-14; the owner's decision of
+# 2026-11-14).
 env:
   clear:
     APP_HOST: balcao.rafasouza.dev.br
+    BUDGET_CAP_USD: "10"

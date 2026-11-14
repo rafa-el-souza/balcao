@@ -46,3 +46,7 @@ pt-BR:
   limits:
     now: "Você chegou ao limite da demo por agora. Tente de novo daqui a pouco."
     today: "Você chegou ao limite da demo por hoje. Volte amanhã."
+  # FR-14: the reply of a month that reached its budget cap, or that the
+  # operator paused, sent with no model call (threat model SR-02).
+  budget:
+    paused: "A demo está pausada até o próximo mês: chegou ao limite de gasto deste mês."

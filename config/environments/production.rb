@@ -59,6 +59,9 @@ Rails.application.configure do
   # Set host to be used by links generated in mailer templates (APP_HOST, design §8).
   config.action_mailer.default_url_options = { host: ENV.fetch("APP_HOST") }
   config.x.public_origin = "https://#{ENV.fetch("APP_HOST")}"
+  # Each destination's own cap (FR-14), a positive decimal checked at boot
+  # (config/required_environment.rb): 100 for production, 10 for the MVP host.
+  config.x.budget_cap_usd = BigDecimal(ENV.fetch("BUDGET_CAP_USD"))
 
   # Specify outgoing SMTP server. Remember to add smtp/* credentials via bin/rails credentials:edit.
   # config.action_mailer.smtp_settings = {

@@ -127,6 +127,7 @@
       "incomplete": "respuesta incompleta",
       "refused": "el modelo se negó",
       "reservations": "sin modelo",
+      "paused": "demo en pausa",
       "dead_letter": "el sistema falló",
       "other": "respuesta fija"
     },

@@ -8,7 +8,8 @@ require_relative "../../config/required_environment"
 # on a blank required variable instead of running half-configured.
 RSpec.describe "SR-25 production refuses to boot when a required variable is blank" do
   let(:complete) do
-    Balcao::RequiredEnvironment::NAMES.to_h { |name| [ name, "value-of-#{name.downcase}" ] }.merge("MODEL_ADAPTER" => "real")
+    Balcao::RequiredEnvironment::NAMES.to_h { |name| [ name, "value-of-#{name.downcase}" ] }
+                                      .merge("MODEL_ADAPTER" => "real", "BUDGET_CAP_USD" => "10")
   end
 
   describe Balcao::RequiredEnvironment do
@@ -31,6 +32,18 @@ RSpec.describe "SR-25 production refuses to boot when a required variable is bla
           expect(error.message).to include("MODEL_ADAPTER", "real", "SR-25")
           expect(error.message).not_to include("value-of")
         }
+    end
+
+    # FR-14, ADR-0003: each destination states its month's cap, which a typo
+    # must not turn into no cap at all.
+    it "requires the month's budget cap as a positive decimal, naming the variable and never its value" do
+      expect(described_class::SETTINGS).to include("BUDGET_CAP_USD")
+
+      [ "abc", "0", "-5", "10,5", "1e3" ].each do |value|
+        expect { described_class.verify!(complete.merge("BUDGET_CAP_USD" => value)) }
+          .to raise_error(described_class::Missing, /BUDGET_CAP_USD.*FR-14/) { |error| expect(error.message).not_to include(value) }
+      end
+      expect { described_class.verify!(complete.merge("BUDGET_CAP_USD" => "10.50")) }.not_to raise_error
     end
 
     it "accepts an environment where every required variable has a value" do
