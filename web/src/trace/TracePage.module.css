@@ -79,12 +79,16 @@
   font-weight: 700;
 }
 
-/* The words of the conversation, on the receipt, stay in the counter's face. */
+/* The words of the conversation, on the receipt, stay in the counter's face. They break at any
+   point, as the chat's do: the /trace reply carries this page's own link, the /help reply the
+   privacy page's, and a visitor may paste anything; unbroken, a link ran past the receipt and the
+   screen of a phone (the owner, 2026-11-14). */
 .said {
   font-family: var(--font-counter);
   font-size: var(--text-sm);
   font-style: italic;
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .reply {
