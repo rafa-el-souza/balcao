@@ -1534,7 +1534,7 @@ every pull request.
 | 7 | PR-11 React: the glass box panel, `/trace/:token`, the cable client with the polling fallback, TanStack Query, and what the drawings ask of the server (§10, note 2026-11-12) · PR-12 NFR-03: fallback text, "pensando…" state, dead-letter visibility in logs, keeping the turn outcomes the panel reads (§10, note 2026-11-12) | **J1 minus the reservation, live** |
 | 8 | PR-13 `create_reservation` keyed by the turn and the product (NFR-02), the limits and the prescription refusal (FR-07), with the drawings' reason code and their FR-07 question (§10, note 2026-11-12) · PR-14 `bin/evals` live runner, the suites `greeting`, `language`, `store`, `catalogue`, `reservation`, `boundary`, `memory` on the normal model, the first scorecard | A reservation code in the chat; the boundary measured |
 | 9 | PR-15 boundary prompt iteration to 100 %, the fixed offer line, the decline texts in three locales · PR-16 the budget ledger with the monthly cap's pause (FR-14), the nightly job (FR-15), log masking (SR-30), and the cost, rate and mode the drawings ask for, the price table's cache-write column included (§10, note 2026-11-12) | Wallet fenced; the demo honest about the boundary |
-| 10 | PR-17 `/privacy` page, the QR placeholder on the landing, README sixty-second tour, design and README status lines made true, the hours table in the handoff | **Web demo showable** |
+| 10 | PR-17 `/privacy` page, the QR placeholder on the landing, README sixty-second tour (written ahead of its day, §10, note 2026-11-14; kept true here), design and README status lines made true, the hours table in the handoff | **Web demo showable** |
 | 11 | PR-18 WhatsApp inbound: webhook verification (SR-08), `X-Hub-Signature-256` constant-time check on the raw body (SR-06), raw event persisted keyed by the SHA-256 of its body and each message by its Meta message id, 200 within 2 s, processing through `ProcessTurnJob` (SR-07, SR-09), identity `sha256(pepper ‖ BSUID)` with the number, when Meta sends it, encrypted at rest (SR-10, FR-19), tests against the payloads recorded from the test number plus a synthetic username-only payload (no `from`, no `wa_id`) | Inbound messages traced on the host |
 | 12 | PR-19 WhatsApp outbound: the Graph API client with timeouts, replies inside the 24-hour window addressed to the number when known and to the BSUID (`recipient`) otherwise, status webhooks, the `/trace` reply with the tokenised link, the QR on the landing, the Meta values as Kamal env secrets; the owner creates the system-user token and switches the app to Live mode with `/privacy` as its policy URL; the first real conversation from the test customer's phone · slack | **J2 minus voice, live** |
 
@@ -1564,6 +1564,23 @@ MVP from its first day and merges at day 11.
 ## 10. Open decisions
 
 Tracked here until resolved; each resolution becomes an ADR or an edit.
+
+- Note 2026-11-14 (the README's tour, outside §9.1's day table; §1.1, §9.1
+  PR-17, §9.2 M5). A reader of the repository who does not work with Rails
+  said they lost their way among its folders, and that the README could lead
+  a visitor to the parts that matter most. That is the sixty-second tour
+  §1.1 decided and §9.1 gave to PR-17, so it was written then, ahead of its
+  day, in a pull request of its own, with no code. After its summary the
+  README now opens with seven stops along one message's path, each a link
+  to its file: the edge's limits and the endpoint, the job, the runner and
+  the model policy, the prompt with the boundary cases and the scorecard,
+  the reservation tool with its tests, the trace recorder with the glass
+  box, and the deploy files. "How it is built" gains a table of what each
+  folder holds, for a reader new to Rails' layout. Four of M5's five files
+  are among the stops; the webhook signature check joins when PR-18 writes
+  it. PR-17 keeps the tour true rather than writing it, and M5's version
+  (its GIF, image and video) stands. No spec reads the README's links: a
+  pull request that moves a file the README names changes the README too.
 
 - Note 2026-11-13 (the cable slice, outside §9.1's day table; ADR-0015;
   threat model SR-03, SR-04, SR-32, SR-40, R8). The second of the owner's two
