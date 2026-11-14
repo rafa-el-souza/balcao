@@ -194,7 +194,7 @@
     "heading_one": "Conversa <token>{{token}}</token>, iniciada em {{date}} às {{time}}, com {{count}} turno",
     "heading_other": "Conversa <token>{{token}}</token>, iniciada em {{date}} às {{time}}, com {{count}} turnos",
     "loading": "Trace da conversa",
-    "share": "Quem tiver este link vê esta conversa. Ele deixa de funcionar 7 dias depois da última mensagem, ou na hora, se a pessoa apagar seus dados.",
+    "share": "Quem tiver este link vê esta conversa. Ele deixa de funcionar entre 7 e 8 dias depois da última mensagem, ou na hora, se a pessoa apagar seus dados.",
     "loadFailed": "Não consegui carregar este trace agora. Recarregue a página daqui a pouco.",
     "total_one": "total · {{count}} turno",
     "total_other": "total · {{count}} turnos",
@@ -204,7 +204,7 @@
     "outputTokens": "tokens de saída",
     "turnsTime": "tempo dos turnos",
     "goneHeading": "Esta conversa não está mais aqui",
-    "goneNote": "O link de um trace vale até 7 dias depois da última mensagem, e deixa de valer antes disso se a pessoa apagar os próprios dados.",
+    "goneNote": "O link de um trace vale no máximo 8 dias depois da última mensagem, e deixa de valer antes disso se a pessoa apagar os próprios dados.",
     "startChat": "Começar uma conversa",
     "home": "Início",
     "roll": "Registro da conversa"
@@ -236,9 +236,9 @@
       "title": "Por quanto tempo",
       "intro": "No servidor do Balcão, a limpeza roda toda noite, sem ninguém pedir:",
       "items": [
-        "cada mensagem é apagada 7 dias depois de enviada, com o registro técnico da resposta;",
-        "cada reserva é apagada 7 dias depois do prazo de retirada;",
-        "o seu identificador é apagado 7 dias depois da última vez que você usar o Balcão, com tudo o que ainda estiver ligado a ele."
+        "cada mensagem é apagada entre 7 e 8 dias depois de enviada, com o registro técnico da resposta;",
+        "cada reserva é apagada entre 7 e 8 dias depois do prazo de retirada;",
+        "o seu identificador é apagado entre 7 e 8 dias depois da última vez que você usar o Balcão, com tudo o que ainda estiver ligado a ele."
       ],
       "logs": "Os logs não têm prazo fixo: eles se renovam à medida que enchem e podem guardar um acesso por mais de 7 dias. Neles nunca entra o texto das mensagens.",
       "counters": "Os contadores dos limites de uso também não têm prazo fixo, por enquanto. Eles ficam à parte, guardados pelo endereço IP e pelo identificador, e não zeram quando você apaga seus dados, para que apagar não seja um jeito de furar o limite.",
@@ -251,7 +251,7 @@
     },
     "readers": {
       "title": "Quem vê a conversa",
-      "trace": "Quem tiver o link do trace vê a conversa. O link deixa de funcionar 7 dias depois da última mensagem, ou na hora, se você apagar seus dados.",
+      "trace": "Quem tiver o link do trace vê a conversa. O link deixa de funcionar entre 7 e 8 dias depois da última mensagem, ou na hora, se você apagar seus dados.",
       "cases": "O operador da demonstração pode ler as conversas para corrigir erros. Uma conversa do site em que o atendente erra pode virar um caso de teste no repositório público do projeto: reescrita, com outras palavras, e sem nada que identifique quem escreveu. Uma conversa do Telegram nunca vira caso de teste."
     },
     "processors": {

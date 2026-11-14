@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { render as prerender } from "../entry-server";
 import en from "../locales/en.json";
+import es from "../locales/es.json";
 import ptBR from "../locales/pt-BR.json";
 import { pageOf } from "../pages";
 import { fakeCable } from "../test/fakeCable";
@@ -427,6 +428,27 @@ describe("FR-05 the trace page of a conversation whose data is deleted", () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: pt.roll })).toBeNull();
     expect(screen.queryByText("tem dipirona?")).toBeNull();
+  });
+});
+
+// Review finding C3 of pull request #30: the conversation goes at the first
+// 03:00 cleanup after its last message is seven days old (FR-15), so its link
+// lasts between seven and eight days.
+describe("FR-12 the trace page says how long its link lasts", () => {
+  it("gives the nightly cleanup's window in each language", () => {
+    for (const [trace, window] of [
+      [ptBR.trace, /entre 7 e 8 dias/],
+      [en.trace, /between 7 and 8 days/],
+      [es.trace, /entre 7 y 8 días/],
+    ] as const)
+      expect(trace.share.replace(/\s+/g, " ")).toMatch(window);
+    expect(ptBR.trace.goneNote.replace(/\s+/g, " ")).toMatch(
+      /no máximo 8 dias/,
+    );
+    expect(en.trace.goneNote.replace(/\s+/g, " ")).toMatch(/at most 8 days/);
+    expect(es.trace.goneNote.replace(/\s+/g, " ")).toMatch(
+      /como máximo 8 días/,
+    );
   });
 });
 

@@ -223,6 +223,22 @@ describe("FR-19 the privacy page on what reaches the server from Telegram", () =
   });
 });
 
+// Review finding C3: the nightly cleanup runs at 03:00 and deletes what is
+// older than seven days, so a record goes between seven and eight days after
+// its clock starts (FR-15), the trace link with its conversation (FR-12).
+describe("FR-15 the privacy page gives the nightly cleanup's real window", () => {
+  it("says seven to eight days for each record and for the trace link, in each language", () => {
+    for (const [page, window] of [
+      [ptBR.privacy, "entre 7 e 8 dias"],
+      [en.privacy, "between 7 and 8 days"],
+      [es.privacy, "entre 7 y 8 días"],
+    ] as const) {
+      for (const line of [...page.retention.items, page.readers.trace])
+        expect(line.replace(/\s+/g, " ")).toContain(window);
+    }
+  });
+});
+
 describe("FR-25 the privacy page's contact and signature", () => {
   it("names the person responsible and the e-mail for any request", () => {
     renderPage(<Privacy />);

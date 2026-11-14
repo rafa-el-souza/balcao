@@ -194,7 +194,7 @@
     "heading_one": "Conversación <token>{{token}}</token>, iniciada el {{date}} a las {{time}}, con {{count}} turno",
     "heading_other": "Conversación <token>{{token}}</token>, iniciada el {{date}} a las {{time}}, con {{count}} turnos",
     "loading": "Trace de la conversación",
-    "share": "Quien tenga este enlace ve esta conversación. Deja de funcionar 7 días después del último mensaje, o en el momento, si la persona borra sus datos.",
+    "share": "Quien tenga este enlace ve esta conversación. Deja de funcionar entre 7 y 8 días después del último mensaje, o en el momento, si la persona borra sus datos.",
     "loadFailed": "No pude cargar este trace ahora. Recarga la página en un rato.",
     "total_one": "total · {{count}} turno",
     "total_other": "total · {{count}} turnos",
@@ -204,7 +204,7 @@
     "outputTokens": "tokens de salida",
     "turnsTime": "tiempo de los turnos",
     "goneHeading": "Esta conversación ya no está aquí",
-    "goneNote": "El enlace de un trace vale hasta 7 días después del último mensaje, y deja de valer antes si la persona borra sus propios datos.",
+    "goneNote": "El enlace de un trace vale como máximo 8 días después del último mensaje, y deja de valer antes si la persona borra sus propios datos.",
     "startChat": "Empezar una conversación",
     "home": "Inicio",
     "roll": "Registro de la conversación"
@@ -236,9 +236,9 @@
       "title": "Por cuánto tiempo",
       "intro": "En el servidor de Balcão, la limpieza corre cada noche, sin que nadie la pida:",
       "items": [
-        "cada mensaje se borra 7 días después de enviado, con el registro técnico de la respuesta;",
-        "cada reserva se borra 7 días después del plazo de retiro;",
-        "tu identificador se borra 7 días después de la última vez que uses Balcão, con todo lo que siga ligado a él."
+        "cada mensaje se borra entre 7 y 8 días después de enviado, con el registro técnico de la respuesta;",
+        "cada reserva se borra entre 7 y 8 días después del plazo de retiro;",
+        "tu identificador se borra entre 7 y 8 días después de la última vez que uses Balcão, con todo lo que siga ligado a él."
       ],
       "logs": "Los logs no tienen plazo fijo: se renuevan a medida que se llenan y pueden guardar un acceso por más de 7 días. En ellos nunca entra el texto de los mensajes.",
       "counters": "Los contadores de los límites de uso tampoco tienen plazo fijo, por ahora. Se guardan aparte, bajo la dirección IP y el identificador, y no vuelven a cero cuando borras tus datos, para que borrar no sea una forma de saltarse el límite.",
@@ -251,7 +251,7 @@
     },
     "readers": {
       "title": "Quién ve la conversación",
-      "trace": "Quien tenga el enlace del trace ve la conversación. El enlace deja de funcionar 7 días después del último mensaje, o en el acto, si borras tus datos.",
+      "trace": "Quien tenga el enlace del trace ve la conversación. El enlace deja de funcionar entre 7 y 8 días después del último mensaje, o en el acto, si borras tus datos.",
       "cases": "El operador de la demostración puede leer las conversaciones para corregir errores. Una conversación del sitio en la que el asistente se equivoca puede convertirse en un caso de prueba en el repositorio público del proyecto: reescrita, con otras palabras, y sin nada que identifique a quien escribió. Una conversación de Telegram nunca se convierte en caso de prueba."
     },
     "processors": {
