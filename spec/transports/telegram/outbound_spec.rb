@@ -220,6 +220,27 @@ RSpec.describe "FR-19 SR-43 NFR-02 Telegram::Outbound, a reply on its way to the
       expect(lines.join).not_to include(chat_id.to_s, "Temos")
     end
 
+    # Review finding H11 of pull request #33: the line said neither which part
+    # of a cut reply failed nor how long a 429 asked to wait.
+    it "names in its failed line the part of a cut reply that failed, and the wait a 429 named" do
+      long = reply(Array.new(3) { |i| "#{i} #{"y" * 3_000}" }.join("\n\n"), at: 1.minute.from_now)
+      stub_request(:post, bot_api_url("sendMessage"))
+        .to_return(bot_api_answer({ "message_id" => 1 }), bot_api_answer({ "message_id" => 2 })).then
+        .to_return(bot_api_error(400, "Bad Request: message is too long"))
+      lines = []
+      allow(Rails.logger).to receive(:error) { |line| lines << line }
+      outbound.deliver_pending(visitor)
+      stub_request(:post, bot_api_url("sendMessage")).to_return(bot_api_error(429, "Too Many Requests: retry after 30", retry_after: 30))
+      third = reply("Mais uma.", at: 2.minutes.from_now)
+      outbound.deliver_pending(visitor)
+      2.times { travel_to(third.reload.next_attempt_at + 1.second) { perform_enqueued_jobs(only: TelegramReplyJob) } }
+
+      expect(lines).to eq([
+        "telegram reply #{long.id}: failed after 1 attempt, Telegram::Client::Error (400), part 2 of 3",
+        "telegram reply #{third.id}: failed after 3 attempts, Telegram::Client::Error (429, retry after 30 s)"
+      ])
+    end
+
     it "goes on to the person's next reply after one that failed" do
       later = reply("Depois.", at: 1.minute.from_now)
       stub_request(:post, bot_api_url("sendMessage"))

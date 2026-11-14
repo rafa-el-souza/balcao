@@ -98,8 +98,12 @@ module Telegram
       AdvisoryLock.hold(lock(chat)) do
         stored = visitor && Chat.of(visitor)
         drain(visitor, stored) if stored
-        error = self.class.parts(text).lazy.filter_map { |part| send_part(chat, part, keyboard) }.first
-        error.nil? || failed("telegram fixed reply #{name}", error, 1)
+        parts = self.class.parts(text)
+        parts.each_with_index do |part, index|
+          error = send_part(chat, part, keyboard) or next
+          return failed("telegram fixed reply #{name}", error, 1, part: [ index + 1, parts.size ])
+        end
+        true
       end
     end
 
@@ -122,11 +126,12 @@ module Telegram
     # next reply may go (this one sent, or failed for good), false when this
     # one waits for its time.
     def deliver(message, chat, visitor)
-      self.class.parts(message.body).drop(message.parts_sent).each do |part|
+      parts = self.class.parts(message.body)
+      parts.drop(message.parts_sent).each do |part|
         error = send_part(chat, part, REMOVE_KEYBOARD)
         next message.update_columns(parts_sent: message.parts_sent + 1, updated_at: Time.current) unless error
 
-        return again_or_failed(message, error, visitor)
+        return again_or_failed(message, error, visitor, [ message.parts_sent + 1, parts.size ])
       end
       message.update_columns(status: "sent", next_attempt_at: nil, updated_at: Time.current)
       true
@@ -142,11 +147,11 @@ module Telegram
 
     # A refusal, or a third attempt, fails the reply; any other failure
     # schedules the next attempt for the time it names, or the job's backoff.
-    def again_or_failed(message, error, visitor)
+    def again_or_failed(message, error, visitor, part)
       attempts = message.send_attempts + 1
       if error.refused? || attempts >= ATTEMPTS
         message.update_columns(status: "failed", send_attempts: attempts, next_attempt_at: nil, updated_at: Time.current)
-        return !failed("telegram reply #{message.id}", error, attempts)
+        return !failed("telegram reply #{message.id}", error, attempts, part:)
       end
 
       at = Time.current + wait_after(error, attempts)
@@ -159,9 +164,15 @@ module Telegram
       error.rate_limited? && error.retry_after.to_i.positive? ? error.retry_after.to_i : (attempts**4) + 2
     end
 
-    def failed(what, error, attempts)
+    # One line: the reply, its attempts, the error's class and Telegram's code
+    # or the failure's class, the wait a 429 named and, for a reply cut in
+    # parts, the part that failed (review finding H11 of pull request #33).
+    # Never the chat or the text (SR-30).
+    def failed(what, error, attempts, part:)
+      reason = [ error.code || error.failure, ("retry after #{error.retry_after} s" if error.rate_limited? && error.retry_after) ]
+      where = ", part #{part.first} of #{part.last}" if part.last > 1
       Rails.logger.error("#{what}: failed after #{attempts} #{"attempt".pluralize(attempts)}, " \
-                         "#{error.class} (#{error.code || error.failure})")
+                         "#{error.class} (#{reason.compact.join(", ")})#{where}")
       false
     end
   end
