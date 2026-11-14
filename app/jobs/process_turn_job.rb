@@ -16,6 +16,12 @@
 # A job run again for a turn that has its reply calls, bills and traces
 # nothing (NFR-02).
 #
+# On Telegram (FR-19), once the lock is let go, the visitor's stored replies
+# still pending leave for the chat, oldest first (Telegram::Outbound), this
+# turn's among them; so does one a job stopped between storing and sending,
+# when the job runs again. The sends wait outside the conversation's lock, so
+# a 429's wait never holds the conversation's next turn.
+#
 # NFR-03: a turn the model cannot answer ends with the fallback text inside
 # its run, so the job has nothing to try again (the three attempts of a model
 # call are the SDK's, AgentRunner::MAX_RETRIES). A turn that breaks outside
@@ -35,15 +41,26 @@ class ProcessTurnJob < ApplicationJob
   after_discard { |_job, error| dead_letter(error) }
 
   def perform(turn_id)
+    visitor_id = visitor_of(turn_id)
     under_lock(turn_id) do |turn|
       waiting_before(turn).each { |earlier| run_earlier(earlier.id, turn.conversation_id) }
       # An earlier turn may have been a deletion that took this one (FR-05),
       # or a reset that moved it.
       settled(turn) { |own| TurnProcessor.new(own).call }
     end
+    deliver(visitor_id)
   end
 
   private
+
+  def visitor_of(turn_id) = Turn.where(id: turn_id).joins(:conversation).pick("conversations.visitor_id")
+
+  # FR-19: the visitor's pending replies, to the chat; nothing for the web
+  # or for a visitor a deletion took.
+  def deliver(visitor_id)
+    visitor = visitor_id && Visitor.find_by(id: visitor_id)
+    Telegram::Outbound.new.deliver_pending(visitor) if visitor
+  end
 
   # Yields the turn under its conversation's lock, unless it is gone or has
   # its reply. When the block answers :moved, a reset moved the turn into the
@@ -103,7 +120,9 @@ class ProcessTurnJob < ApplicationJob
   def dead_letter(error)
     turn_id = arguments.first
     Rails.logger.error("dead letter: #{self.class} #{job_id}, turn #{turn_id}, #{executions} attempts, #{error.class}")
+    visitor_id = visitor_of(turn_id)
     under_lock(turn_id) { |turn| settled(turn) { |own| TurnProcessor.new(own).give_up(error) } }
+    deliver(visitor_id)
   rescue StandardError => e
     Rails.logger.error("dead letter: turn #{turn_id}: no fallback sent: #{e.class}")
   end

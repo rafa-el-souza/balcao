@@ -35,7 +35,10 @@
 # language the reply is in, and the reply's language becomes the
 # conversation's (FR-02). The reply is stored once, keyed by the turn
 # (NFR-02), and sent to the conversation's stream; a turn that already has it
-# is left alone.
+# is left alone. On Telegram, ProcessTurnJob sends the stored reply to the
+# chat by its status (Telegram::Outbound), and while the model works the chat
+# shows the typing status (Telegram::Typing, FR-19, NFR-03), the bot's
+# "pensando…"; the web page draws its own.
 #
 # Every model call the turn makes is charged to the month (Budget) as its
 # answer arrives, so a run that breaks later, or a worker a deploy stops
@@ -48,11 +51,12 @@ class TurnProcessor
   # job gave up on.
   OUTCOMES = [ *AgentRunner::OUTCOMES.map(&:to_s), "reservations", "paused", "dead_letter" ].freeze
 
-  def initialize(turn, commands: CommandPhrases.current)
+  def initialize(turn, commands: CommandPhrases.current, typing: nil)
     @turn = turn
     @conversation = turn.conversation
     @inbound = turn.inbound_message
     @commands = commands
+    @typing = typing
   end
 
   def call
@@ -100,14 +104,19 @@ class TurnProcessor
   # goes to the stream, since there is no conversation left to store it in.
   # Nothing is traced: the trace would be deleted with the rest. A trace page
   # open on any of the visitor's conversations is told too, so it drops what
-  # it showed (review finding G2 of pull request #17).
+  # it showed (review finding G2 of pull request #17). On Telegram the
+  # confirmation goes to the chat, read before the deletion takes the row
+  # that holds it, and says that the chat in the visitor's app is their own
+  # copy (FR-19).
   def delete
     language = command_language
     visitor = @conversation.visitor
     tokens = visitor.conversations.pluck(:trace_token)
+    chat = Telegram::Chat.of(visitor)
     visitor.erase!
     broadcast(type: "deleted", text: FixedReply.command(:delete, language))
     tokens.each { |token| broadcast({ type: "deleted" }, "trace:#{token}") }
+    Telegram::Outbound.new.send_fixed(chat, FixedReply.telegram_deleted(language), name: :deleted) if chat
   end
 
   # FR-04: the conversation closes and the reply opens the next one, so its
@@ -212,9 +221,11 @@ class TurnProcessor
     @turn.update!(mode:, model: ModelPolicy.route(mode).model)
     @root.attributes["balcao.turn.mode"] = mode
     events = TurnTrace.new(@recorder, @root)
-    result = AgentRunner.new.run(@turn, mode:) do |event|
-      Budget.charge!(@turn, event.usage) if event.is_a?(AgentRunner::ModelCall)
-      events.on(event)
+    result = typing.during do
+      AgentRunner.new.run(@turn, mode:) do |event|
+        Budget.charge!(@turn, event.usage) if event.is_a?(AgentRunner::ModelCall)
+        events.on(event)
+      end
     end
     @conversation.update!(language: result.language) if result.language
     text, state = reply_of(result)
@@ -343,4 +354,8 @@ class TurnProcessor
 
   # From the message's receipt to the reply (NFR-01).
   def latency_ms = ((Time.current - @inbound.created_at) * 1000).round
+
+  # The channel's sign that a reply is on its way while the model works
+  # (design §6.3): Telegram's typing status, nothing on the web.
+  def typing = @typing ||= Telegram::Typing.for(@conversation.visitor)
 end
