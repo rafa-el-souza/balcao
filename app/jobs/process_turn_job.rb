@@ -60,10 +60,21 @@ class ProcessTurnJob < ApplicationJob
   def visitor_of(turn_id) = Turn.where(id: turn_id).joins(:conversation).pick("conversations.visitor_id")
 
   # FR-19: the visitor's pending replies, to the chat; nothing for the web
-  # or for a visitor a deletion took.
+  # or for a visitor a deletion took. A delivery that breaks (the database)
+  # never fails a turn that is answered: one line, and TelegramReplyJob tries
+  # again in a minute (review finding H8 of pull request #33).
   def deliver(visitor_id)
     visitor = visitor_id && Visitor.find_by(id: visitor_id)
     Telegram::Outbound.new.deliver_pending(visitor) if visitor
+  rescue StandardError => e
+    Rails.logger.error("telegram replies of visitor #{visitor_id}: not sent, #{e.class}")
+    deliver_later(visitor_id)
+  end
+
+  def deliver_later(visitor_id)
+    TelegramReplyJob.set(wait: 1.minute).perform_later(visitor_id)
+  rescue StandardError => e
+    Rails.logger.error("telegram replies of visitor #{visitor_id}: not tried again, #{e.class}")
   end
 
   # Yields the turn under its conversation's lock, unless it is gone or has

@@ -133,6 +133,24 @@ RSpec.describe "FR-19 FR-05 NFR-03 ProcessTurnJob on Telegram, the reply on its 
     end
   end
 
+  # Review finding H8 of pull request #33: a turn answered and stored whose
+  # delivery broke on every attempt landed in the dead letter, its reply
+  # still pending.
+  it "lands no dead letter for a turn whose reply is stored, when only the delivery breaks, and tries it again later" do
+    turn = inbound("Vocês têm dipirona?")
+    allow_any_instance_of(Telegram::Outbound).to receive(:deliver_pending).and_raise(ActiveRecord::ConnectionFailed)
+    lines = []
+    allow(Rails.logger).to receive(:error) { |line| lines << line }
+
+    ProcessTurnJob.perform_later(turn.id)
+    perform_enqueued_jobs(only: ProcessTurnJob)
+
+    expect(turn.reload.state).to eq "replied"
+    expect(lines.grep(/dead letter/)).to be_empty
+    expect(lines).to include("telegram replies of visitor #{visitor.id}: not sent, ActiveRecord::ConnectionFailed")
+    expect(TelegramReplyJob).to have_been_enqueued.with(visitor.id)
+  end
+
   it "sends the fallback of a turn the job gave up on (NFR-03)" do
     turn = inbound("Vocês têm dipirona?")
     allow_any_instance_of(TurnProcessor).to receive(:call).and_raise(ActiveRecord::StatementInvalid)
