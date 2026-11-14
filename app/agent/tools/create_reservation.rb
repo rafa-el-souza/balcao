@@ -44,9 +44,9 @@ module Tools
     PRESCRIPTION = "This product requires a prescription, so it is not reserved: it is sold only against the " \
                    "prescription presented at the counter. Tell the visitor so, with its price.".freeze
     OVER_LIMIT = "The quantity is over the limit of #{MAX_QUANTITY} units per reservation. Offer #{MAX_QUANTITY} " \
-                 "units, or the pharmacist on duty for a larger order.".freeze
+                 "units, or the store's pharmacist for a larger order.".freeze
     OUT_OF_STOCK = "This product is out of stock, so nothing was reserved. Tell the visitor, and offer the " \
-                   "pharmacist on duty.".freeze
+                   "store's pharmacist.".freeze
     LOW_STOCK = "Only %<units>s in stock, fewer than asked, so nothing was reserved. Offer %<units>s.".freeze
     OPEN_LIMIT = "The visitor already holds #{MAX_OPEN} open reservations, the most allowed, so nothing was " \
                  "reserved. Tell the visitor so. The reservations they hold are listed after your reply, so do not " \

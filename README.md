@@ -77,9 +77,11 @@ what each folder holds.
 - Looks up stock and prices, reserves products for pickup, books in-store
   services into a live calendar (bookings after the MVP).
 - Refuses clinical advice (doses, interactions, diagnoses) and points to
-  the human pharmacist — a boundary checked by an eval suite at 100% and,
-  after the MVP, re-checked on every reply by a second, cheaper model (the
-  glass box shows it).
+  the store's pharmacist with a fixed line of phone and counter hours, or,
+  when a message may be an emergency, to SAMU's 192 and the poison line —
+  a boundary checked by an eval suite at 100% and, after the MVP,
+  re-checked on every reply by a second, cheaper model (the glass box
+  shows it).
 - Answers on WhatsApp too; voice notes after the MVP.
 - Shows the **glass box**: a live trace of your conversation with model,
   tools, latency, tokens and cost.

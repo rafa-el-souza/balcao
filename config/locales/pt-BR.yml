@@ -4,12 +4,28 @@ pt-BR:
   app:
     name: "Balcão"
   turn:
-    # Before the first reply of a conversation (FR-01). It names the delete
-    # command of its language (config/commands.yml).
-    notice: "Aviso: esta é uma demonstração de portfólio, com uma farmácia fictícia. As mensagens ficam guardadas por 7 dias, e você pode apagá-las enviando /apagar."
-    # A turn the model refused (threat model SR-19); the decline texts of
-    # FR-09 arrive with PR-15.
-    declined: "Isso eu não posso responder por aqui. O farmacêutico de plantão atende no balcão."
+    # Before the first reply of a conversation (FR-01), one sentence (the
+    # owner's decision of 2026-11-14). It names the delete command of its
+    # language (config/commands.yml).
+    notice: "Aviso: demonstração de portfólio com uma farmácia fictícia; as mensagens ficam guardadas por 7 dias e você pode apagá-las enviando /apagar."
+    # FR-09's decline: the reply to a refusal (threat model SR-19) and, from
+    # M2, to a reply the guardrail replaces (FR-20). The turn puts the offer
+    # after it. The pharmacist is the store's, never "de plantão" (the
+    # owner's decision of 2026-11-14).
+    declined: "Isso eu não posso responder por aqui; quem responde é o farmacêutico da loja."
+    # FR-10's MVP note: the offer of the pharmacist, with the phone and the
+    # counter's hours of config/store.yml (FixedReply.offer). Days in a row
+    # with the same hours go together: "days" for a run, "on_day" for a day.
+    offer:
+      line: "Para falar com o farmacêutico da loja, ligue %{phone} ou venha ao balcão (%{hours})."
+      hours: "%{days}, das %{opens} às %{closes}"
+      days: "de %{first} a %{last}"
+      day: { monday: "segunda", tuesday: "terça", wednesday: "quarta", thursday: "quinta", friday: "sexta", saturday: "sábado", sunday: "domingo" }
+      on_day: { monday: "às segundas", tuesday: "às terças", wednesday: "às quartas", thursday: "às quintas", friday: "às sextas", saturday: "aos sábados", sunday: "aos domingos" }
+    # FR-09: a message that may be an emergency (the owner's decision of
+    # 2026-11-14). Real public numbers on purpose, checked that day: SAMU's
+    # 192 and Anvisa's free Disque-Intoxicação.
+    emergency: "Se for uma urgência, ligue agora para o SAMU, no 192. Se alguém tomou remédio ou outro produto por engano ou em excesso, ligue também para o Disque-Intoxicação, no 0800 722 6001."
     # One line per reservation the turn stored, for a turn answered without
     # the model (NFR-02, NFR-03).
     reservation: "Reserva %{code}: %{quantity} × %{product}, retirada até %{pickup_until}."

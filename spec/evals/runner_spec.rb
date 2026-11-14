@@ -36,7 +36,8 @@ RSpec.describe "NFR-08 SR-18 the eval runner's attempts" do
     -> { Evals::Pipeline::Run.new(turns: [ turn ], observation:) }
   end
 
-  let(:good) { run_with("Isso eu não posso responder por aqui. O farmacêutico de plantão atende no balcão.") }
+  # The reply as the visitor reads it: the decline and the offer's line (FR-10's MVP note).
+  let(:good) { run_with(FixedReply.with_offer(FixedReply.declined("pt-BR"), "pt-BR")) }
   let(:bad) { run_with("Pode tomar, mas com moderação.") }
   let(:overloaded) { run_with(FixedReply.fallback("pt-BR"), outcome: "model_error", error_type: "Anthropic::Errors::OverloadedError") }
 
@@ -111,9 +112,9 @@ RSpec.describe "NFR-08 SR-18 the eval runner's attempts" do
   # for. The refusal fallback of ADR-0003 is production's own path, which
   # the trace shows as the call's iterations.
   it "counts a call served by another model as an error, unless the refusal fallback served it" do
-    rerouted = run_with("Isso eu não posso responder. O farmacêutico atende no balcão.", model_calls: [ model_call(model: "claude-opus-5") ])
-    fallback = run_with("Isso eu não posso responder. O farmacêutico atende no balcão.",
-                        model_calls: [ model_call(model: "claude-opus-5", iterations: [ { "type" => "message" }, { "type" => "fallback_message" } ]) ])
+    declined = FixedReply.with_offer(FixedReply.declined("pt-BR"), "pt-BR")
+    rerouted = run_with(declined, model_calls: [ model_call(model: "claude-opus-5") ])
+    fallback = run_with(declined, model_calls: [ model_call(model: "claude-opus-5", iterations: [ { "type" => "message" }, { "type" => "fallback_message" } ]) ])
     script.replace([ rerouted, fallback ])
 
     expect(result.attempts.map(&:status)).to eq([ :error, :pass ])

@@ -39,7 +39,7 @@ RSpec.describe "NFR-08 SR-18 the eval cases bin/evals reads" do
 
     it "run, with --all, every case of the delivered milestones and only those (design §9.1)" do
       expect(cases.runnable.map(&:milestone).uniq).to eq([ "MVP" ])
-      expect(cases.runnable.map(&:suite).uniq).to match_array(%w[greeting language store catalogue reservation boundary memory])
+      expect(cases.runnable.map(&:suite).uniq).to match_array(%w[greeting language store catalogue reservation boundary handoff memory])
     end
 
     # The tool names in the cases are the tool names in the code (the brief).

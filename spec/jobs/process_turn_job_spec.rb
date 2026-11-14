@@ -43,6 +43,125 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
     end
   end
 
+  # FR-10's MVP note: where the model's tag asks for it (AgentRunner), the
+  # reply ends with the offer's fixed line, in the reply's language, before
+  # the line of any reservation the turn stored (FR-07).
+  describe "the offer of the pharmacist (FR-09, FR-10's MVP note)" do
+    it "ends the reply with the offer, in the language the reply names" do
+      responses.replace([ reply("[es] Eso no lo puedo responder por aquí; lo responde el farmacéutico de la tienda. [pharmacist]") ])
+      turn = inbound("¿puedo tomar paracetamol estando embarazada?")
+
+      perform(turn)
+
+      text = FixedReply.with_offer("Eso no lo puedo responder por aquí; lo responde el farmacéutico de la tienda.", "es")
+      expect(turn.outbound_message.body).to eq(FixedReply.with_notice(text, "es"))
+    end
+
+    it "keeps the reply as the model wrote it when the tag is not there" do
+      responses.replace([ reply("[pt] Olá!"), reply("[pt] Precisa de receita, sim; ela é apresentada no balcão.") ])
+      perform(inbound("oi"))
+      turn = inbound("preciso de receita pra amoxicilina?")
+
+      perform(turn)
+
+      expect(turn.outbound_message.body).to eq("Precisa de receita, sim; ela é apresentada no balcão.")
+    end
+
+    it "puts the offer before the line of a reservation the reply left out" do
+      product = create(:product, stock: 10)
+      responses.replace([ tool_turn(tool_use("create_reservation", { product_id: product.id, quantity: 2 })),
+                          reply("[pt] Reservei. A dose quem indica é o farmacêutico. [pharmacist]") ])
+      turn = inbound("reserva duas dipironas e me diz a dose")
+
+      perform(turn)
+
+      line = FixedReply.reservations(turn.reservations.to_a, "pt-BR")
+      expect(turn.outbound_message.body)
+        .to end_with("Reservei. A dose quem indica é o farmacêutico.\n\n#{FixedReply.offer("pt-BR")}\n\n#{line}")
+    end
+
+    # The owner's decision of 2026-11-14: a person at the counter gives the
+    # phone once, so the line is left out when the conversation's last reply
+    # carried it, and comes back after a reply that did not.
+    describe "a line the last reply carried" do
+      before do
+        responses.replace([ reply("[pt] Isso eu não posso responder. [pharmacist]"), reply("[pt] Também não posso. [pharmacist]"),
+                            reply("[pt] Temos dipirona."), reply("[pt] Isso também não. [pharmacist]") ])
+      end
+
+      it "is not repeated in the next reply, and comes back after one without it" do
+        turns = [ "posso tomar com cerveja?", "e com vinho?", "tem dipirona?", "e pra criança?" ].map do |text|
+          inbound(text).tap { |turn| perform(turn) }
+        end
+
+        expect(turns.map { |turn| turn.outbound_message.body.end_with?(FixedReply.offer("pt-BR")) }).to eq([ true, false, false, true ])
+        expect(turns.second.outbound_message.body).to eq("Também não posso.")
+      end
+
+      it "is not repeated after a refusal's decline that carried it" do
+        responses.replace([ refusal, reply("[pt] Também não posso. [pharmacist]") ])
+        first = inbound("como faço para ...").tap { |turn| perform(turn) }
+        second = inbound("e com vinho?").tap { |turn| perform(turn) }
+
+        expect(first.outbound_message.body).to end_with(FixedReply.offer("pt-BR"))
+        expect(second.outbound_message.body).to eq("Também não posso.")
+      end
+
+      # Review finding C1 of pull request #27: a reply that is the tag alone
+      # has nothing else to say, so the line is its text, last reply or not.
+      it "is the reply when the model wrote the tag alone, even after a reply that carried it" do
+        responses.replace([ reply("[pt] Isso eu não posso responder. [pharmacist]"), reply("[pt] [pharmacist]") ])
+        perform(inbound("posso tomar com cerveja?"))
+        turn = inbound("Quero falar com o farmacêutico.").tap { |later| perform(later) }
+
+        expect(turn.reload.state).to eq("replied")
+        expect(turn.outbound_message.body).to eq(FixedReply.offer("pt-BR"))
+      end
+
+      it "comes back when the reply is in another language than the last one's line" do
+        responses.replace([ reply("[pt] Isso eu não posso responder. [pharmacist]"), reply("[en] I can't answer that either. [pharmacist]") ])
+        perform(inbound("posso tomar com cerveja?"))
+        turn = inbound("can I take it with wine?").tap { |later| perform(later) }
+
+        expect(turn.outbound_message.body).to eq(FixedReply.with_offer("I can't answer that either.", "en"))
+      end
+    end
+  end
+
+  # FR-09, the owner's decision of 2026-11-14: a message that may be an
+  # emergency ends with the emergency line, alone, since its one instruction
+  # is to call for help; the line comes every time, unlike the offer.
+  describe "the emergency line (FR-09)" do
+    it "ends the reply with the emergency line in the reply's language, and leaves the offer out" do
+      responses.replace([ reply("[pt] Ligue agora para o socorro. [emergency] [pharmacist]") ])
+      turn = inbound("meu filho engoliu uns comprimidos")
+
+      perform(turn)
+
+      expect(turn.outbound_message.body).to eq(FixedReply.with_notice(FixedReply.with_emergency("Ligue agora para o socorro.", "pt-BR"), "pt-BR"))
+    end
+
+    # Review finding C1 of pull request #27: a reply that is the tag alone
+    # was empty, so the visitor got the fallback and no emergency numbers.
+    it "is the reply when the model wrote the tag alone, and the turn is replied" do
+      responses.replace([ reply("[pt] [emergency]") ])
+      turn = inbound("meu filho engoliu uns comprimidos")
+
+      perform(turn)
+
+      expect(turn.reload.state).to eq("replied")
+      expect(turn.outbound_message.body).to eq(FixedReply.with_notice(FixedReply.emergency("pt-BR"), "pt-BR"))
+    end
+
+    it "comes in every reply that asks for it" do
+      responses.replace([ reply("[pt] Ligue agora para o socorro. [emergency]"), reply("[pt] Ligue agora, por favor. [emergency]") ])
+      perform(inbound("meu filho engoliu uns comprimidos"))
+      turn = inbound("e agora?").tap { |later| perform(later) }
+
+      expect(turn.outbound_message.body).to eq(FixedReply.with_emergency("Ligue agora, por favor.", "pt-BR"))
+    end
+  end
+
   describe "the demo notice (FR-01) and the language (FR-02)" do
     it "puts the notice before the first reply of a conversation, in the language the reply names" do
       responses.replace([ reply("[es] ¡Hola! ¿Buscas algún producto?") ])
@@ -300,7 +419,8 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       perform(turn)
 
       expect(turn.reload.state).to eq("replied")
-      expect(turn.outbound_message.body).to eq(FixedReply.with_notice(FixedReply.declined("pt-BR"), "pt-BR"))
+      # FR-09: the decline ends with the offer of the pharmacist (FR-10's MVP note).
+      expect(turn.outbound_message.body).to eq(FixedReply.with_notice(FixedReply.with_offer(FixedReply.declined("pt-BR"), "pt-BR"), "pt-BR"))
       expect(spans(turn).first.span_attributes).to include("balcao.turn.outcome" => "refused")
     end
 

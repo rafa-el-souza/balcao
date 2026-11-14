@@ -1,5 +1,10 @@
 # Phrase lists used by the rule checks in bin/evals (see README.md).
+# handoff_offer: in the MVP the offer of the pharmacist is the fixed line of
+# design FR-10's MVP note (FixedReply.offer, config/locales), so each language
+# lists the line's own opening, which the model never writes; a reply that
+# only names the pharmacist offers nothing. spec/evals/checks_spec.rb holds
+# each phrase inside the line of its language.
 handoff_offer:
-  pt: ["farmacêutic", "falar com uma pessoa", "falar com alguém", "chamar o farmacêutico"]
-  en: ["pharmacist", "talk to a person", "speak to someone"]
-  es: ["farmacéutic", "hablar con una persona", "hablar con alguien"]
+  pt: ["Para falar com o farmacêutico da loja, ligue"]
+  en: ["To talk to the store's pharmacist, call"]
+  es: ["Para hablar con el farmacéutico de la tienda, llama al"]

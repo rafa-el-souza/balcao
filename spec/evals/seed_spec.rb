@@ -1,4 +1,5 @@
 require "rails_helper"
+require Rails.root.join("lib/evals/checks").to_s
 
 # The seed is invented so that every eval case has its fact (evals/README.md,
 # Seeds; threat model SR-33): these examples fail when an edit of the store
@@ -57,6 +58,57 @@ RSpec.describe "FR-03 FR-06 FR-07 FR-21 SR-21 the eval cases find their facts in
 
     listings.each do |listing|
       expect(forbidden.select { |phrase| listing.downcase.include?(phrase) }).to be_empty, "#{listing.inspect} trips the case"
+    end
+  end
+
+  # FR-10's MVP note: the system ends a reply with the offer's fixed line,
+  # and a refusal with the decline that carries it (FR-09, SR-19); neither may
+  # fail a case on its own words. The facts in the line come from the store
+  # sheet, so this reads the line as the app writes it.
+  it "lets a case that expects the offer get the offer's line and the decline without tripping a phrase it forbids" do
+    offering = cases.select { |kase| kase.dig("expect", "handoff_offered") == true }
+
+    expect(offering).not_to be_empty
+    offering.each do |kase|
+      locale = AgentRunner::LANGUAGES.fetch(kase.dig("expect", "language") || kase["lang"])
+      texts = [ FixedReply.offer(locale), FixedReply.declined(locale) ].map(&:downcase)
+      forbidden = kase.dig("expect", "must_not_include").to_a.map(&:downcase)
+
+      expect(forbidden.select { |phrase| texts.any? { |text| text.include?(phrase) } }).to be_empty, "#{kase["id"]} trips on the offer"
+    end
+  end
+
+  # Review finding C2 of pull request #27: the checks read the reply with the
+  # system's lines, and the offer's line carries the week's hours and the
+  # pharmacist, so a case looking for one of those would pass on the line
+  # alone, whatever the model wrote. Such a case says whether it expects the
+  # line: true where the line is the point, false where the model's own words
+  # must carry the fact.
+  it "makes a case whose expected words or fact the offer's line carries say whether it expects the line" do
+    cases.select { |kase| kase["milestone"] == "MVP" }.each do |kase|
+      expect_keys = kase["expect"]
+      line = FixedReply.offer(AgentRunner::LANGUAGES.fetch(expect_keys["language"] || kase["lang"])).downcase
+      wanted = expect_keys.values_at("must_include_any", "must_include_all").flatten.compact.map(&:downcase)
+      wanted << Evals::Facts.value(expect_keys["fact"], sheet).to_s.downcase if expect_keys.key?("fact")
+      carried = wanted.select { |phrase| line.include?(phrase) }
+      next if carried.empty?
+
+      expect(expect_keys).to have_key("handoff_offered"), "#{kase["id"]} passes on the offer's line alone: #{carried.inspect}"
+    end
+  end
+
+  # FR-09, the owner's decision of 2026-11-14: the emergency cases look for
+  # the numbers of the emergency line, which the model never writes itself.
+  it "lets a case that expects the emergency line get it without tripping a phrase it forbids" do
+    emergencies = cases.select { |kase| kase.dig("expect", "must_include_all").to_a.include?("0800 722 6001") }
+
+    expect(emergencies.map { |kase| kase["lang"] }).to include("pt", "en")
+    emergencies.each do |kase|
+      line = FixedReply.emergency(AgentRunner::LANGUAGES.fetch(kase.dig("expect", "language") || kase["lang"])).downcase
+      forbidden = kase.dig("expect", "must_not_include").to_a.map(&:downcase)
+
+      expect(forbidden.select { |phrase| line.include?(phrase) }).to be_empty, "#{kase["id"]} trips on the emergency line"
+      expect(kase.dig("expect", "must_include_all").select { |phrase| !line.include?(phrase.downcase) }).to be_empty
     end
   end
 

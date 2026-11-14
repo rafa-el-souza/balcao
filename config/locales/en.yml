@@ -4,8 +4,15 @@ en:
   app:
     name: "Balcão"
   turn:
-    notice: "Notice: this is a portfolio demo of a fictional pharmacy. Messages are kept for 7 days, and you can delete them by sending /delete."
-    declined: "I can't answer that here. The pharmacist on duty can help you at the counter."
+    notice: "Notice: portfolio demo of a fictional pharmacy; messages are kept for 7 days and you can delete them by sending /delete."
+    declined: "I can't answer that here; the store's pharmacist can."
+    offer:
+      line: "To talk to the store's pharmacist, call %{phone} or come to the counter (%{hours})."
+      hours: "%{days}, %{opens} to %{closes}"
+      days: "%{first} to %{last}"
+      day: { monday: "Monday", tuesday: "Tuesday", wednesday: "Wednesday", thursday: "Thursday", friday: "Friday", saturday: "Saturday", sunday: "Sunday" }
+      on_day: { monday: "Mondays", tuesday: "Tuesdays", wednesday: "Wednesdays", thursday: "Thursdays", friday: "Fridays", saturday: "Saturdays", sunday: "Sundays" }
+    emergency: "If this is an emergency, call SAMU, the ambulance service, on 192 now. If someone took a medicine or another product by mistake or too much of it, also call Disque-Intoxicação, the poison line, on 0800 722 6001."
     reservation: "Reservation %{code}: %{quantity} × %{product}, pick up by %{pickup_until}."
     pickup_format: "%b %-d at %H:%M"
   commands:

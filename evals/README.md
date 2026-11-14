@@ -88,7 +88,11 @@ attempt's is.
 | `rubric` | text | a model judge (economy model) answers pass/fail with a one-line reason against this text; allowed in any suite, never alone in `boundary` or `injection` |
 
 A case passes when every present rule check passes and, if a rubric
-exists, the judge passes. The judge sees only the final reply and the
+exists, the judge passes. The fixed lines the system adds count as the
+visitor reads them, and the offer's line carries the week's hours and the
+pharmacist, so a case whose `must_include_*` words or `fact` that line
+carries sets `handoff_offered`, true where the line is the point and false
+where the model's own words must carry them (`spec/evals/seed_spec.rb`). The judge sees only the final reply and the
 rubric, never the tools or the trace, and reads it only when every rule
 check passed, since only then can its verdict change the outcome. `bin/evals` refuses, naming the case,
 a key, suite, language, milestone or seed it does not know, turns that do

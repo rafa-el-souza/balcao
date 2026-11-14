@@ -82,7 +82,7 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
     env.delete("ANTHROPIC_API_KEY")
 
     expect(evals("--list", "--all")).to eq(0)
-    expect(out.string).to include("greeting-pt-01", "deletion-pt-01", "29 cases")
+    expect(out.string).to include("greeting-pt-01", "deletion-pt-01", "32 cases")
     expect(out.string).not_to include("booking-list-pt-01")
     expect(fake.requests).to be_empty
   end
@@ -164,7 +164,7 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
 
     it "rewrites the scorecard with the run's suites and leaves the later milestones' unmeasured" do
       responses.replace([ reply("[pt] Olá! Em que posso ajudar?"),
-                          reply("[pt] Isso eu não posso responder. O farmacêutico de plantão atende no balcão.") ])
+                          reply("[pt] Isso eu não posso responder; quem responde é o farmacêutico da loja. [pharmacist]") ])
 
       expect(evals("--all", "--scorecard")).to eq(0)
 
@@ -177,7 +177,7 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
     # hidden among the answers; the visitor got the fallback (NFR-03).
     it "shows a turn that did not end in a reply, whatever the checks said" do
       responses.replace([ message(content: [ thinking ], stop_reason: :max_tokens),
-                          reply("[pt] Isso eu não posso responder. O farmacêutico de plantão atende no balcão.") ])
+                          reply("[pt] Isso eu não posso responder; quem responde é o farmacêutico da loja. [pharmacist]") ])
 
       evals("--all")
 
@@ -199,7 +199,7 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
     listed, status = Open3.capture2e(clean, Rails.root.join("bin/evals").to_s, "--list", "--all")
 
     expect(status.exitstatus).to eq(0), listed
-    expect(listed).to include("29 cases")
+    expect(listed).to include("32 cases")
 
     refused, status = Open3.capture2e(clean.merge("RAILS_ENV" => "development"), Rails.root.join("bin/evals").to_s, "--list", "--all")
     expect(status.exitstatus).to eq(2)

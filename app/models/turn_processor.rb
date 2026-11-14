@@ -8,12 +8,14 @@
 #   reservation's fixed line, never through the model again, which could
 #   reserve another product (NFR-02);
 # - anything else goes through AgentRunner, whose events become the turn's
-#   spans (FR-12), and its outcome becomes the reply: the model's text, the
-#   refusal's fixed text (SR-19) or the fallback (NFR-03), the last two
+#   spans (FR-12), and its outcome becomes the reply: the model's text, FR-09's
+#   decline for a refusal (SR-19) or the fallback (NFR-03), the last two
 #   followed by the line of any reservation the turn stored, and the first by
 #   the line of a reservation whose code or pickup time it left out and, when
 #   the cap of open reservations refused one, by the lines of those the
-#   visitor holds (FR-07);
+#   visitor holds (FR-07). Before those lines come the fixed lines the model's
+#   tags ask for, the emergency line or the offer of the pharmacist, and the
+#   offer after a decline (FR-09, FR-10's MVP note);
 # - a turn the job gave up on after its attempts gets the fallback too
 #   (give_up, NFR-03).
 #
@@ -188,7 +190,8 @@ class TurnProcessor
     language = @conversation.language
     case result.outcome
     when :replied then [ with_facts(result, language), "replied" ]
-    when :refused then [ FixedReply.with_reservations(FixedReply.declined(language), reservations, language), "replied" ]
+    when :refused then [ FixedReply.with_reservations(with_lines(FixedReply.declined(language), language, offer: true),
+                                                      reservations, language), "replied" ]
     else [ FixedReply.with_reservations(FixedReply.fallback(language), reservations, language), "failed" ]
     end
   end
@@ -207,7 +210,27 @@ class TurnProcessor
     text = result.text
     facts = reservations
     facts |= held_reservations if result.tool_calls.any? { |call| call.refusal == "open_limit" }
-    FixedReply.with_reservations(text, facts.reject { |reservation| written?(text, reservation) }, language)
+    reply = with_lines(text, language, offer: result.offer, emergency: result.emergency)
+    FixedReply.with_reservations(reply, facts.reject { |reservation| written?(text, reservation) }, language)
+  end
+
+  # FR-09 and FR-10's MVP note, with the owner's decisions of 2026-11-14: the
+  # emergency line comes alone, since an emergency's one instruction is to call
+  # for help, and in every reply that asks for it; the offer of the pharmacist
+  # is left out when the conversation's last reply carried it in this
+  # language, as a person at the counter gives the phone once, unless the
+  # reply has nothing else to say (review finding C1 of pull request #27).
+  def with_lines(text, language, offer:, emergency: false)
+    return FixedReply.with_emergency(text, language) if emergency
+    return text unless offer && (text.blank? || !offered_last?(language))
+
+    FixedReply.with_offer(text, language)
+  end
+
+  # This turn's reply is not stored yet, so the last one is the turn before's.
+  def offered_last?(language)
+    last = @conversation.messages.outbound.order(created_at: :desc, id: :desc).first
+    last.present? && last.body.include?(FixedReply.offer(language))
   end
 
   # The reply writes the reservation's code and its deadline: the day as

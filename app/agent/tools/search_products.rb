@@ -35,7 +35,7 @@ module Tools
         "medicine with a similar name (omeprazol for esomeprazol). Name a close or partial product by its own " \
         "name, never as what the visitor asked for unless it plainly is, and never offer a different active " \
         "ingredient in place of the one asked for: that is a substitution, which only the pharmacist decides. " \
-        "An empty list means the pharmacy does not carry it: say so, offer the pharmacist on duty, and never " \
+        "An empty list means the pharmacy does not carry it: say so, offer the store's pharmacist, and never " \
         "name a product the results do not list."
     input_schema Input
 
