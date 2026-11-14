@@ -35,7 +35,13 @@ module Budget
     state = BudgetState.for_month!(at)
     automatic = automatic(state.spent_usd)
     record(state, automatic) unless state.automatic_mode == automatic
-    mode = state.forced_mode || automatic
+    serving(state.forced_mode, automatic)
+  end
+
+  # The mode that serves: a forced one wins, and economy only on the eval
+  # run's word.
+  def serving(forced, automatic)
+    mode = forced || automatic
     mode == "economy" && !economy_allowed? ? "paused" : mode
   end
 
@@ -72,9 +78,20 @@ module Budget
                          .update_all(automatic_mode: automatic, updated_at: Time.current)
     return if written.zero?
 
-    serving = state.forced_mode ? "; the forced #{state.forced_mode} mode serves" : ""
-    Rails.logger.warn(format("budget: %s's automatic mode is %s at US$ %.2f of its cap of US$ %.2f%s",
-                             state.month, automatic, state.spent_usd, cap, serving))
+    line(state, automatic)
   end
-  private_class_method :write_usage, :record
+
+  # A forced mode that serves is named; a forced economy the eval run has not
+  # allowed pauses the demo, which the line says (review finding R1 of pull
+  # request #29).
+  def line(state, automatic)
+    forced = state.forced_mode
+    note = if forced.nil? then ""
+    elsif serving(forced, automatic) == forced then "; the forced #{forced} mode serves"
+    else "; the forced #{forced} mode may not serve yet, so the demo pauses"
+    end
+    Rails.logger.warn(format("budget: %s's automatic mode is %s at US$ %.2f of its cap of US$ %.2f%s",
+                             state.month, automatic, state.spent_usd, cap, note))
+  end
+  private_class_method :write_usage, :record, :line
 end

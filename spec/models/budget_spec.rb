@@ -117,6 +117,18 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
         .with(/automatic mode is paused at US\$ 12\.00 of its cap of US\$ 10\.00; the forced normal mode serves\z/)
     end
 
+    # Review finding R1 of pull request #29: a forced economy pauses until
+    # the eval run allows the economy model; the line says so.
+    it "never says a forced economy serves while the month pauses" do
+      BudgetState.for_month!.update!(spent_usd: BigDecimal("12"), forced_mode: "economy")
+
+      expect(Budget.mode).to eq("paused")
+
+      expect(Rails.logger).not_to have_received(:warn).with(/the forced economy mode serves/)
+      expect(Rails.logger).to have_received(:warn)
+        .with(/automatic mode is paused at US\$ 12\.00 of its cap of US\$ 10\.00; the forced economy mode may not serve yet, so the demo pauses\z/)
+    end
+
     it "follows a cap a deploy lowered below the spend, and one it raised" do
       BudgetState.for_month!.update!(spent_usd: BigDecimal("5"))
       Rails.configuration.x.budget_cap_usd = BigDecimal("4")
