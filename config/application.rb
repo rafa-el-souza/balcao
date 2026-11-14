@@ -29,7 +29,7 @@ module Balcao
     # Common ones are `templates`, `generators`, or `middleware`, for example.
     # lib/evals is bin/evals' own code, required by it and by its specs, so
     # the app process never loads it (evals/README.md, Running).
-    config.autoload_lib(ignore: %w[assets middleware tasks evals])
+    config.autoload_lib(ignore: %w[assets middleware tasks evals logging])
 
     # Configuration for the application, engines, and railties goes here.
     #
