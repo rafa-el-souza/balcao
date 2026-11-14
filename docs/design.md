@@ -1852,7 +1852,7 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
   - **What PR-18 stored before day 12** (the agreement's greeting and the
     turns' replies, all `pending`) leaves before the reply to the person's
     next message, or at once with the runbook's line for replies left
-    pending, which the slice's deploy runs (review finding V3 of pull
+    pending, run by hand after the slice's deploy (review finding V3 of pull
     request #33: the note promised a send at the deploy that no code made).
 
 - Note 2026-11-14 (PR-18; FR-05, FR-14, FR-15, FR-18, FR-19, NFR-02, SR-06,
