@@ -22,12 +22,24 @@ RSpec.describe "SR-41 the messages stored in plain text before PR-18 are encrypt
 
   it "encrypts every body stored in plain text, which the app then reads as written" do
     plain = insert_plain(conversation, "tem dipirona? meu telefone é 31 98765-4321")
-    expect { Message.find(plain).body }.to raise_error(ActiveRecord::Encryption::Errors::Decryption)
 
     migrate
 
     expect(stored(plain)).not_to include("dipirona")
     expect(Message.find(plain).body).to eq("tem dipirona? meu telefone é 31 98765-4321")
+  end
+
+  # Review finding C1 of pull request #32: Kamal runs the migration in the new
+  # web container while the old containers still serve and answer turns, and
+  # the old code writes plain text; a body it stores after the migration ran
+  # is read as written, never raised on.
+  it "reads a body the containers before PR-18 store in plain text after the migration ran (SR-41)" do
+    migrate
+    late = insert_plain(conversation, "chegou durante o deploy")
+
+    expect(Message.find(late).body).to eq("chegou durante o deploy")
+    expect(AgentRunner::History.messages(Turn.for_inbound!(Message.find(late))).sole[:content].last[:text])
+      .to eq("chegou durante o deploy")
   end
 
   it "leaves a body already encrypted as it was, and can run again" do

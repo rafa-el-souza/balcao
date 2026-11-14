@@ -17,7 +17,16 @@ class Message < ApplicationRecord
   # What a visitor sends, and what the attendant answers, is encrypted at rest
   # with keys that live in the env file, never in the database (threat model
   # SR-41); the app, and so the model, reads the plain text.
-  encrypts :body
+  #
+  # A body an image before PR-18 wrote is plain text and is read as written:
+  # Kamal runs the migration that encrypts the stored ones in the new web
+  # container while the old containers still serve and answer turns, and a
+  # return to such an image writes plain text again (review findings C1 and
+  # V1 of pull request #32). The nightly job encrypts what is left
+  # (NightlyResetJob). So a body that does not decrypt, should the keys ever
+  # change, is read as its stored envelope rather than raised on; the keys
+  # never rotate in place (bin/secrets-example).
+  encrypts :body, support_unencrypted_data: true
 
   # PostgreSQL refuses a NUL in text: a body loses it, whoever wrote it, so a
   # model's reply carrying one is stored rather than breaking its turn on every
