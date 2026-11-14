@@ -203,8 +203,12 @@ describe("Design §6.7 the privacy page says what the server really keeps", () =
     expect(pt.retention.counters).toMatch(/endereço IP e pelo identificador/);
     expect(pt.retention.counters).toMatch(/não zeram quando você apaga/);
     expect(pt.retention.counters).toMatch(/entre 7 e 8 dias depois de criados/);
-    expect(en.privacy.retention.counters).toMatch(/between 7 and 8 days after they were created/);
-    expect(es.privacy.retention.counters).toMatch(/entre 7 y 8 días después de creados/);
+    expect(en.privacy.retention.counters).toMatch(
+      /between 7 and 8 days after they were created/,
+    );
+    expect(es.privacy.retention.counters).toMatch(
+      /entre 7 y 8 días después de creados/,
+    );
     expect(pt.deletion.text).toMatch(/ficam só os contadores dos limites/);
     expect(pt.retention.totals).toMatch(/^Fora isso/);
   });
