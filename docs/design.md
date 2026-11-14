@@ -1581,7 +1581,9 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
   when PR-16 writes it, and the webhook signature check when PR-18 does.
   PR-17 keeps the tour true rather than writing it, and M5's version (its
   GIF, image and video) stands. No spec reads the README's links: a pull
-  request that moves a file the README names changes the README too.
+  request that moves a file the README names changes the README too. The
+  same reader asked that the demo's address look like a link: it was written
+  as code before the demo existed, and is now a link, right after "Try it".
 
 - Note 2026-11-13 (the cable slice, outside §9.1's day table; ADR-0015;
   threat model SR-03, SR-04, SR-32, SR-40, R8). The second of the owner's two

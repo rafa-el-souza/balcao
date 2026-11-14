@@ -3,9 +3,10 @@
 > An AI attendant for a neighbourhood pharmacy, on the web and on WhatsApp,
 > built to be used, watched and audited.
 
-**Try it** (live from the MVP, about two weeks of work after the first commit): `https://balcao.rafasouza.dev.br` — talk to the attendant of *Farmácia
-Vida Longa* (a fictional pharmacy) and watch, beside the chat, every model
-call, tool call, token and cent it took to answer you.
+**Try it:** [balcao.rafasouza.dev.br](https://balcao.rafasouza.dev.br) (live
+from the MVP, about two weeks of work after the first commit) — talk to the
+attendant of *Farmácia Vida Longa* (a fictional pharmacy) and watch, beside
+the chat, every model call, tool call, token and cent it took to answer you.
 
 *Português:* Balcão é um atendente de IA para uma farmácia de bairro
 fictícia. Ele consulta estoque, reserva produtos, agenda serviços, encaminha
