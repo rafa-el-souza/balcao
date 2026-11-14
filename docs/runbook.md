@@ -336,8 +336,19 @@ the env file loaded in the same call.
 - **A reply that did not leave** is marked `failed` on its message, and the
   log has one `telegram reply <id>: failed after N attempts` line naming the
   error by its class and Telegram's code (a 403 is a visitor who blocked the
-  bot); a reply that could not be stored has a `telegram fixed reply` line.
-  Neither is sent again.
+  bot), the wait a 429 named and, for a reply cut in parts, the part that
+  failed. A reply Telegram asked to wait for, or that failed on the way,
+  stays `pending` with its time (`next_attempt_at`) until `TelegramReplyJob`
+  tries it again, three attempts in all.
+- **A reply that is never stored** (the ask, `/help` and the deletion
+  before the agreement, the fixed lines, the deletion's confirmation) is
+  tried once, since nothing keeps its chat to try again; one that could not
+  be sent has a `telegram fixed reply <name>: failed after 1 attempt` line.
+- **Replies left pending** (after a stop, an outage, or the replies PR-18
+  stored before day 12) leave before the person's next reply, or at once
+  with:
+  `kamal app exec -d ensaio --roles=job --reuse "bin/rails runner 'Visitor.where(channel: :telegram.to_s).find_each { |visitor| TelegramReplyJob.perform_later(visitor.id) }'"`.
+  A reply marked `failed` is never sent again.
 
 ## Bump day (monthly)
 
