@@ -1,8 +1,8 @@
-# ADR-0016: Telegram's Bot API as the messaging channel, after Meta's refusal
+# ADR-0016: Telegram's Bot API as the messaging channel
 
 **Status:** accepted · **Date:** 2026-11-14 (decided with the owner after a
-survey of Telegram, Signal and the WhatsApp routes left after Meta's
-refusal; the sources were read that day and are listed at the end) ·
+survey of Telegram, Signal and the routes left on WhatsApp; the sources
+were read that day and are listed at the end) ·
 Supersedes ADR-0002's choice of the WhatsApp Cloud API (its rejection of
 unofficial clients stands) and amends ADR-0004's lane, ADR-0012's WhatsApp
 line and ADR-0013's risk list.
@@ -12,26 +12,18 @@ line and ADR-0013's risk list.
 ADR-0002 chose the official WhatsApp Cloud API, and ADR-0004 ran it as a
 lane beside the web channel with a fallback written down: if Meta never
 approves, the project stands on the web channel and an ADR records why. On
-2026-11-14 Meta did not approve the account opened for the demo's WhatsApp
-setup, and disabled it. Whatever the reason behind that one decision,
-Meta's published rules close the official route for this project, not only
-for this account:
-
-- The WhatsApp Business Messaging Policy (updated 2026-09-23) forbids using
-  WhatsApp for "buying, selling, promoting, or otherwise facilitating the
-  exchange of" items that include "Drugs, whether prescription,
-  recreational, or otherwise" and "Medical and healthcare products",
-  "irrespective of the global or local licenses, registrations, or other
-  approvals your business may hold". Its one exception, over-the-counter
-  medicine in Brazil, needs a licence a fictional pharmacy cannot hold. An
-  attendant that looks up stock and reserves products facilitates exactly
-  that exchange.
-- After a termination the same policy lets Meta "prohibit you and your
-  organization from all future use of WhatsApp products and services", and
-  WhatsApp's terms say the holder of a disabled account will "not create
-  another account without our permission". A Business Solution Provider
-  onboards a number into the client's own Meta business portfolio, which
-  must not be disabled.
+2026-11-14 the setup on Meta's side did not go through, and Meta's
+published rules close the official route for this project anyway. The
+WhatsApp Business Messaging Policy (updated 2026-09-23) forbids using
+WhatsApp for "buying, selling, promoting, or otherwise facilitating the
+exchange of" items that include "Drugs, whether prescription, recreational,
+or otherwise" and "Medical and healthcare products", "irrespective of the
+global or local licenses, registrations, or other approvals your business
+may hold". Its one exception, over-the-counter medicine in Brazil, needs a
+licence a fictional pharmacy cannot hold. An attendant that looks up stock
+and reserves products facilitates exactly that exchange, and the rule holds
+for every official route: the Cloud API directly and the Business Solution
+Providers that onboard numbers into it.
 
 A messaging channel still matters: the small-business client of §1.1
 recognises a messaging app before a web page, and the transport port needs
@@ -76,8 +68,8 @@ replies only (§2.2), voice notes fetched by id through an official API
    of our Services unless otherwise authorized by us", and its help centre
    warns that linking an account to an unofficial app, now or in the past,
    can ban it.
-4. **Appeal and wait.** Meta's clock, and an appeal that succeeds leaves the
-   policy above in force.
+4. **Try again on Meta's side.** Meta's clock, and a setup that goes through
+   leaves the policy above in force.
 5. **Web only,** ADR-0004's fallback: no messaging channel, and the port
    keeps a single implementation.
 
@@ -85,9 +77,9 @@ replies only (§2.2), voice notes fetched by id through an official API
 
 Option 1. Telegram's Bot API replaces the WhatsApp Cloud API as the
 messaging channel: MVP days 11 and 12 (design §9.1) build its inbound and
-outbound adapters, and the voice notes of M4 arrive on the same bot. No
-appeal is planned. Signal and unofficial WhatsApp clients stay out of this
-project.
+outbound adapters, and the voice notes of M4 arrive on the same bot. No new
+attempt on Meta's side is planned. Signal and unofficial WhatsApp clients
+stay out of this project.
 
 ## Consequences
 

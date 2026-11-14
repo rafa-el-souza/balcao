@@ -82,7 +82,8 @@ what each folder holds.
   a boundary checked by an eval suite at 100% and, after the MVP,
   re-checked on every reply by a second, cheaper model (the glass box
   shows it).
-- Answers on Telegram too, since Meta refused the WhatsApp account
+- Answers on Telegram too, since WhatsApp's business policy rules out a
+  pharmacy without a licence
   ([ADR-0016](docs/adr/0016-telegram-bot-api-as-the-messaging-channel.md));
   voice notes after the MVP.
 - Shows the **glass box**: a live trace of your conversation with model,

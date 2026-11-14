@@ -1,6 +1,6 @@
 # Balcão — design document
 
-**Status:** v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, after Meta's refusal; §1, §2, J2, FR-05, FR-10, FR-11, FR-12, FR-19, NFR-02, §6, §8, §9 and §12 follow it, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
+**Status:** v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram; §1, §2, J2, FR-05, FR-10, FR-11, FR-12, FR-19, NFR-02, §6, §8, §9 and §12 follow it, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
 coding session, reading this file top to bottom.
 
 Balcão ("the counter", where a pharmacist serves customers) is an AI attendant
@@ -103,9 +103,9 @@ and FR-10 keeps the operator inside 24 hours anyway.
 - No real pharmacy, no real customers, no real prescriptions, no payments.
 - No proactive messages: the bot answers visitors who wrote first, which
   Telegram enforces anyway ("Bots can't start conversations with users").
-- No WhatsApp, Instagram or Signal channels (ADR-0016): Meta refused the
-  account and its policy forbids messaging that facilitates the exchange of
-  drugs, and Signal has no bot API and its terms forbid auto-messaging. The
+- No WhatsApp, Instagram or Signal channels (ADR-0016): WhatsApp's business
+  policy forbids messaging that facilitates the exchange of drugs, and
+  Signal has no bot API and its terms forbid auto-messaging. The
   transport port makes other channels possible; none is planned.
 - No multi-tenant / multi-pharmacy support.
 - No clinical content: no dosages, interactions, diagnoses, or substitutions
@@ -1580,9 +1580,9 @@ registered, display name, Live mode) closed on 2026-11-14 (ADR-0016).
 
 Tracked here until resolved; each resolution becomes an ADR or an edit.
 
-- Note 2026-11-14 (ADR-0016; FR-19 and what follows it). Meta did not
-  approve the account opened for the demo's WhatsApp setup, and disabled it.
-  The same day, after a survey kept outside the repository, the owner
+- Note 2026-11-14 (ADR-0016; FR-19 and what follows it). The setup on
+  Meta's side did not go through, and WhatsApp's business policy rules out
+  a pharmacy without a licence. The same day, after a survey kept outside the repository, the owner
   decided that Telegram's Bot API replaces the WhatsApp Cloud API; ADR-0016
   gives the options, the rules that closed the official WhatsApp route and
   the sources. This document follows it:
