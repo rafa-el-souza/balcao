@@ -9,11 +9,19 @@
 # .env.example; spec/deploy/secrets_spec.rb keeps the five in step.
 module Balcao
   module RequiredEnvironment
-    # Generated per destination by bin/secrets-example, or held by an outside console.
-    SECRETS = %w[SECRET_KEY_BASE POSTGRES_PASSWORD ANTHROPIC_API_KEY].freeze
+    # Generated per destination by bin/secrets-example, or held by an outside
+    # console. The encryption keys guard what visitors send (threat model
+    # SR-41) and the pepper hashes a Telegram user id (SR-10); the bot's token
+    # and the webhook's secret are the Telegram channel's (FR-19, SR-06).
+    SECRETS = %w[
+      SECRET_KEY_BASE POSTGRES_PASSWORD ANTHROPIC_API_KEY
+      ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY
+      ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT IDENTITY_PEPPER TELEGRAM_BOT_TOKEN TELEGRAM_WEBHOOK_SECRET
+    ].freeze
     # The secrets an outside console holds, which bin/secrets-example never
-    # generates: the model key comes from the provider's console (design §8).
-    HELD = %w[ANTHROPIC_API_KEY].freeze
+    # generates: the model key comes from the provider's console and the bot's
+    # token from BotFather (design §8).
+    HELD = %w[ANTHROPIC_API_KEY TELEGRAM_BOT_TOKEN].freeze
     # Clear values set in config/deploy.yml and config/deploy.ensaio.yml.
     SETTINGS = %w[APP_HOST DB_HOST MODEL_ADAPTER BUDGET_CAP_USD].freeze
     NAMES = (SETTINGS + SECRETS).freeze
@@ -22,6 +30,12 @@ module Balcao
     MODEL_ADAPTERS = %w[real].freeze
     # The month's budget cap in US dollars (FR-14): a positive decimal.
     CAP = /\A\d+(?:\.\d+)?\z/
+    # What setWebhook takes as a secret token: 1 to 256 of A-Z, a-z, 0-9, _
+    # and -. A value Telegram would refuse stops the boot, not the webhook's
+    # registration.
+    WEBHOOK_SECRET = /\A[A-Za-z0-9_-]{1,256}\z/
+    # BotFather's token: the bot's number, a colon and the key.
+    BOT_TOKEN = /\A\d+:[A-Za-z0-9_-]+\z/
 
     class Missing < StandardError; end
 
@@ -39,10 +53,18 @@ module Balcao
         raise Missing, "Refusing to boot: MODEL_ADAPTER must be #{MODEL_ADAPTERS.join(" or ")} " \
                        "(design §8, threat model SR-25)."
       end
-      return if env["BUDGET_CAP_USD"].match?(CAP) && BigDecimal(env["BUDGET_CAP_USD"]).positive?
+      unless env["BUDGET_CAP_USD"].match?(CAP) && BigDecimal(env["BUDGET_CAP_USD"]).positive?
+        raise Missing, "Refusing to boot: BUDGET_CAP_USD must be a positive number of US dollars " \
+                       "(FR-14, threat model SR-25)."
+      end
+      unless env["TELEGRAM_WEBHOOK_SECRET"].match?(WEBHOOK_SECRET)
+        raise Missing, "Refusing to boot: TELEGRAM_WEBHOOK_SECRET must be 1 to 256 of A-Z, a-z, 0-9, _ and - " \
+                       "(FR-19, threat model SR-06)."
+      end
+      return if env["TELEGRAM_BOT_TOKEN"].match?(BOT_TOKEN)
 
-      raise Missing, "Refusing to boot: BUDGET_CAP_USD must be a positive number of US dollars " \
-                     "(FR-14, threat model SR-25)."
+      raise Missing, "Refusing to boot: TELEGRAM_BOT_TOKEN must be BotFather's token, a number, a colon and the key " \
+                     "(FR-19, threat model SR-25)."
     end
   end
 end

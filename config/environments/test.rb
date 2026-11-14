@@ -47,4 +47,16 @@ Rails.application.configure do
 
   # Raise error when a before_action's only/except options reference missing actions.
   config.action_controller.raise_on_missing_callback_actions = true
+
+  # Stand-ins for the secrets production reads from its env file
+  # (config/environments/production.rb): the encryption keys of what visitors
+  # send (threat model SR-41), the pepper of a Telegram identity (SR-10), the
+  # bot's token and the webhook's secret (FR-19). No request leaves for
+  # Telegram from here: the suite blocks real HTTP (SR-29).
+  config.active_record.encryption.primary_key = "test-primary-key-not-a-secret"
+  config.active_record.encryption.deterministic_key = "test-deterministic-key-not-a-secret"
+  config.active_record.encryption.key_derivation_salt = "test-key-derivation-salt-not-a-secret"
+  config.x.identity_pepper = "test-pepper-not-a-secret"
+  config.x.telegram_bot_token = "1:test-bot-token-not-a-secret"
+  config.x.telegram_webhook_secret = "test-webhook-secret-not-a-secret"
 end

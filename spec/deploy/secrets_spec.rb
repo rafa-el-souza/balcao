@@ -55,7 +55,7 @@ RSpec.describe "SR-25 secrets are references in the repository and values in the
     let(:generated_names) do
       %w[SECRET_KEY_BASE POSTGRES_PASSWORD
          ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY
-         ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT IDENTITY_PEPPER]
+         ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT IDENTITY_PEPPER TELEGRAM_WEBHOOK_SECRET]
     end
 
     it "prints a fresh value for every generated secret, safe to source from a shell and to read with dotenv" do

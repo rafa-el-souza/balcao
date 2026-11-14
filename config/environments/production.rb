@@ -65,6 +65,17 @@ Rails.application.configure do
   # (config/required_environment.rb): 100 for production, 10 for the MVP host.
   config.x.budget_cap_usd = BigDecimal(ENV.fetch("BUDGET_CAP_USD"))
 
+  # What visitors send is encrypted at rest with these keys, which live in the
+  # env file and never in the database (threat model SR-41); a Telegram
+  # identity is the user id hashed with the pepper (SR-10). The bot's token
+  # and the webhook's secret are the Telegram channel's (FR-19, SR-06).
+  config.active_record.encryption.primary_key = ENV.fetch("ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY")
+  config.active_record.encryption.deterministic_key = ENV.fetch("ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY")
+  config.active_record.encryption.key_derivation_salt = ENV.fetch("ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT")
+  config.x.identity_pepper = ENV.fetch("IDENTITY_PEPPER")
+  config.x.telegram_bot_token = ENV.fetch("TELEGRAM_BOT_TOKEN")
+  config.x.telegram_webhook_secret = ENV.fetch("TELEGRAM_WEBHOOK_SECRET")
+
   # Specify outgoing SMTP server. Remember to add smtp/* credentials via bin/rails credentials:edit.
   # config.action_mailer.smtp_settings = {
   #   user_name: Rails.application.credentials.dig(:smtp, :user_name),

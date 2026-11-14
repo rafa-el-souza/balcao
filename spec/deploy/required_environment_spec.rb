@@ -7,10 +7,7 @@ require_relative "../../config/required_environment"
 # container blank rather than missing. The production process refuses to boot
 # on a blank required variable instead of running half-configured.
 RSpec.describe "SR-25 production refuses to boot when a required variable is blank" do
-  let(:complete) do
-    Balcao::RequiredEnvironment::NAMES.to_h { |name| [ name, "value-of-#{name.downcase}" ] }
-                                      .merge("MODEL_ADAPTER" => "real", "BUDGET_CAP_USD" => "10")
-  end
+  let(:complete) { ProductionEnv.complete }
 
   describe Balcao::RequiredEnvironment do
     it "requires the generated secrets the app reads and the settings production cannot guess" do
@@ -22,8 +19,35 @@ RSpec.describe "SR-25 production refuses to boot when a required variable is bla
     # the real model with the spend-limited dev/eval key.
     it "requires the model key, held by the model provider's console, and the model adapter" do
       expect(described_class::SECRETS).to include("ANTHROPIC_API_KEY")
-      expect(described_class::HELD).to eq [ "ANTHROPIC_API_KEY" ]
+      expect(described_class::HELD).to include("ANTHROPIC_API_KEY")
       expect(described_class::SETTINGS).to include("MODEL_ADAPTER")
+    end
+
+    # PR-18: what visitors send is encrypted at rest (SR-41) and a Telegram
+    # identity is hashed with the pepper (SR-10); the bot's token comes from
+    # BotFather and the webhook's secret is generated (FR-19, SR-06).
+    it "requires the encryption keys, the pepper, the bot's token held by BotFather and the webhook's secret" do
+      expect(described_class::SECRETS).to include(
+        "ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY", "ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY",
+        "ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT", "IDENTITY_PEPPER", "TELEGRAM_BOT_TOKEN", "TELEGRAM_WEBHOOK_SECRET"
+      )
+      expect(described_class::HELD).to contain_exactly("ANTHROPIC_API_KEY", "TELEGRAM_BOT_TOKEN")
+    end
+
+    # Telegram takes a secret token of 1 to 256 characters among A-Z, a-z,
+    # 0-9, _ and - (setWebhook), and BotFather's tokens are a number, a colon
+    # and the key: a pasted value with a space or a quote stops the boot
+    # rather than the webhook's registration.
+    it "refuses a webhook secret Telegram would refuse and a bot token not of BotFather's shape, never naming a value" do
+      [ "with space", "quote\"d", "a:b", "x" * 257 ].each do |value|
+        expect { described_class.verify!(complete.merge("TELEGRAM_WEBHOOK_SECRET" => value)) }
+          .to raise_error(described_class::Missing, /TELEGRAM_WEBHOOK_SECRET.*SR-06/) { |error| expect(error.message).not_to include(value) }
+      end
+      [ "AAkey-without-number", "123456789", "123456789: AAkey", "'123456789:AAkey'" ].each do |value|
+        expect { described_class.verify!(complete.merge("TELEGRAM_BOT_TOKEN" => value)) }
+          .to raise_error(described_class::Missing, /TELEGRAM_BOT_TOKEN.*SR-25/) { |error| expect(error.message).not_to include(value) }
+      end
+      expect { described_class.verify!(complete.merge("TELEGRAM_WEBHOOK_SECRET" => "A-z_09" * 42)) }.not_to raise_error
     end
 
     it "refuses a model adapter other than the real one, naming the variable and never its value" do
