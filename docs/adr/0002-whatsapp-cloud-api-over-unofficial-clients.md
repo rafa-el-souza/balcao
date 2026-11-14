@@ -1,6 +1,9 @@
 # ADR-0002: Official WhatsApp Cloud API over unofficial clients
 
-**Status:** accepted · **Date:** 2026-11-02
+**Status:** accepted · **Date:** 2026-11-02 · The choice of the Cloud API
+superseded by [ADR-0016](0016-telegram-bot-api-as-the-messaging-channel.md)
+on 2026-11-14 (Meta refused the account, and its policy forbids pharmacy
+messaging); the rejection of unofficial clients stands.
 
 ## Context
 

@@ -3,7 +3,10 @@
 **Status:** accepted · **Date:** 2026-11-09 (decided with the owner after a
 first, heavier draft of 2026-11-06 was judged too expensive for a twelve-day
 MVP; the built-in reviewer's recipe was read and probed on 2026-11-06, see
-`docs/reviews/instruments.md`).
+`docs/reviews/instruments.md`) · The risk list amended by
+[ADR-0016](0016-telegram-bot-api-as-the-messaging-channel.md) on
+2026-11-14: the Telegram webhook and Bot API client take the WhatsApp
+webhook's and Graph client's place.
 
 ## Context
 
