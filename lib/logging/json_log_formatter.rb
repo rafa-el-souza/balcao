@@ -14,13 +14,17 @@ module Balcao
   # Masking is the sources' (threat model SR-30): parameter filtering, the
   # error lines of config/initializers/log_masking.rb, and the app's own
   # lines, which name an error by its class. An error logged as an object is
-  # written here by its class alone too.
+  # written here by its class alone too, and a Telegram bot's token, which
+  # every Bot API URL carries and no line of the app writes, as [FILTERED]
+  # wherever a line would carry it.
   class JsonLogFormatter < ::Logger::Formatter
     # Rails' tagged logging, included rather than extended: this call, not
     # its own, writes the line, and reads the tags itself.
     include ActiveSupport::TaggedLogging::Formatter
 
     FIELD = /\A([a-z][a-z_]*)=(.+)\z/
+    # BotFather's token: the bot's number, a colon and a key of 35 characters.
+    BOT_TOKEN = /\d{5,}:[A-Za-z0-9_-]{30,}/
 
     def call(severity, time, _progname, message)
       entry = { "time" => time.getutc.iso8601(3), "level" => severity }
@@ -51,7 +55,7 @@ module Balcao
 
     def text(value)
       value = value.dup.force_encoding(Encoding::UTF_8) unless value.encoding == Encoding::UTF_8
-      value.valid_encoding? ? value : value.scrub
+      (value.valid_encoding? ? value : value.scrub).gsub(BOT_TOKEN, "[FILTERED]")
     end
   end
 end

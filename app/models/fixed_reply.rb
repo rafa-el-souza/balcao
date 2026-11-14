@@ -58,7 +58,28 @@ module FixedReply
   end
   private_class_method :opening
 
-  def command(name, locale, **) = I18n.t("commands.#{name}", locale:, **)
+  def command(name, locale, **) = I18n.t("commands.#{name}", locale:, store: store_name, **)
+
+  # FR-19, FR-18: the greeting of /start and of an agreement, and /help's list.
+  def greeting(locale) = command(:start, locale)
+
+  def help(locale) = command(:help, locale, privacy: privacy_url)
+
+  # FR-19, agreement first: FR-01's notice, what happens to a message and the
+  # phrase of the button that agrees, in the language of the person's app.
+  def ask(locale)
+    with_notice(I18n.t("telegram.ask", locale:, privacy: privacy_url,
+                                       agree: CommandPhrases.current.agreement(AgentRunner::LANGUAGES.key(locale.to_s))), locale)
+  end
+
+  # FR-19: a message that is not text, and a text over 1,000 characters.
+  def not_text(locale) = I18n.t("telegram.not_text", locale:)
+
+  def too_long(locale) = I18n.t("telegram.too_long", locale:)
+
+  def privacy_url = "#{Rails.configuration.x.public_origin}/privacy"
+
+  def store_name(sheet = StoreSheet.current) = sheet.identity.fetch("name")
 
   def reservations(reservations, locale)
     reservations.map do |reservation|

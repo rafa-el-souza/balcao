@@ -1,19 +1,19 @@
 require "rails_helper"
 
 RSpec.describe "NFR-02 FR-19 visitor, one row per identity and channel" do
-  let(:identity_hash) { Digest::SHA256.hexdigest("pepper" + "bsuid") }
+  let(:identity_hash) { Digest::SHA256.hexdigest("pepper" + "734120") }
 
   it "creates the visitor on first contact" do
-    visitor = Visitor.identify!(channel: "whatsapp", identity_hash:)
+    visitor = Visitor.identify!(channel: "telegram", identity_hash:)
 
     expect(visitor).to be_previously_new_record
-    expect(visitor).to have_attributes(channel: "whatsapp", identity_hash:)
+    expect(visitor).to have_attributes(channel: "telegram", identity_hash:)
   end
 
   it "returns the visitor already known, by the read alone" do
-    known = create(:visitor, channel: "whatsapp", identity_hash:)
+    known = create(:visitor, channel: "telegram", identity_hash:)
 
-    result, raised = with_raised_exceptions { Visitor.identify!(channel: "whatsapp", identity_hash:) }
+    result, raised = with_raised_exceptions { Visitor.identify!(channel: "telegram", identity_hash:) }
 
     expect(result).to eq(known)
     expect(raised).not_to include(ActiveRecord::RecordNotUnique)
@@ -22,19 +22,54 @@ RSpec.describe "NFR-02 FR-19 visitor, one row per identity and channel" do
   it "keeps the same hash on two channels apart" do
     create(:visitor, channel: "web", identity_hash:)
 
-    expect(Visitor.identify!(channel: "whatsapp", identity_hash:)).to be_previously_new_record
+    expect(Visitor.identify!(channel: "telegram", identity_hash:)).to be_previously_new_record
   end
 
   it_behaves_like "an idempotency key", index: "index_visitors_on_channel_and_identity_hash" do
-    let(:existing) { create(:visitor, channel: "whatsapp", identity_hash:) }
-    let(:duplicate) { build(:visitor, channel: "whatsapp", identity_hash:) }
+    let(:existing) { create(:visitor, channel: "telegram", identity_hash:) }
+    let(:duplicate) { build(:visitor, channel: "telegram", identity_hash:) }
     let(:call_again) do
       lambda do
         # The read ran before another writer committed the same person's row.
         allow(Visitor).to receive(:find_by).and_return(nil)
-        Visitor.identify!(channel: "whatsapp", identity_hash:)
+        Visitor.identify!(channel: "telegram", identity_hash:)
       end
     end
+  end
+end
+
+# FR-19's agreement first (the owner, 2026-11-14): a Telegram visitor's row
+# is created by the agreement and holds the chat id a reply needs, encrypted
+# (threat model SR-10, SR-41).
+RSpec.describe "FR-19 SR-10 SR-41 a Telegram visitor, created by the agreement" do
+  let(:identity_hash) { Digest::SHA256.hexdigest("pepper" + "734122") }
+
+  it "creates the row with the time of the agreement, the chat id, and seen now" do
+    at = Time.zone.local(2026, 11, 14, 15, 0)
+    visitor = travel_to(at) { Visitor.agree!(identity_hash:, chat_id: 734_122) }
+
+    expect(visitor).to be_previously_new_record
+    expect(visitor).to have_attributes(channel: "telegram", identity_hash:, telegram_chat_id: "734122",
+                                       agreed_at: at, last_seen_at: at)
+  end
+
+  it "keeps the chat id as ciphertext in the database, and reads it back as sent" do
+    visitor = Visitor.agree!(identity_hash:, chat_id: 734_122)
+
+    stored = Visitor.connection.select_value(Visitor.sanitize_sql([ "SELECT telegram_chat_id FROM visitors WHERE id = ?", visitor.id ]))
+    expect(stored).not_to include("734122")
+    expect(Visitor.find(visitor.id).telegram_chat_id).to eq("734122")
+  end
+
+  it "returns the row already there when two agreements race, as it was" do
+    known = travel_to(1.hour.ago) { Visitor.agree!(identity_hash:, chat_id: 734_122) }
+    allow(Visitor).to receive(:find_by).and_return(nil)
+
+    again = Visitor.agree!(identity_hash:, chat_id: 734_122)
+
+    expect(again).to eq(known)
+    expect(again).not_to be_previously_new_record
+    expect(again.agreed_at).to be_within(1.second).of(known.agreed_at)
   end
 end
 
@@ -59,9 +94,9 @@ RSpec.describe "FR-15 SR-31 visitors not seen for seven days, for the nightly pu
   # Review finding R1 of pull request #7: nothing wrote last_seen_at, so a
   # visitor who kept writing counted as unseen seven days after first contact.
   it "counts a visitor as seen whenever it is identified again" do
-    identity_hash = Digest::SHA256.hexdigest("pepper" + "bsuid-r1")
-    visitor = travel_to(Time.zone.local(2026, 11, 2, 10, 0)) { Visitor.identify!(channel: "whatsapp", identity_hash:) }
-    travel_to(Time.zone.local(2026, 11, 9, 18, 0)) { Visitor.identify!(channel: "whatsapp", identity_hash:) }
+    identity_hash = Digest::SHA256.hexdigest("pepper" + "734121")
+    visitor = travel_to(Time.zone.local(2026, 11, 2, 10, 0)) { Visitor.identify!(channel: "telegram", identity_hash:) }
+    travel_to(Time.zone.local(2026, 11, 9, 18, 0)) { Visitor.identify!(channel: "telegram", identity_hash:) }
 
     travel_to(Time.zone.local(2026, 11, 10, 3, 0)) do
       expect(Visitor.unseen_for(7.days)).not_to include(visitor)

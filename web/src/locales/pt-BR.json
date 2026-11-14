@@ -241,7 +241,7 @@
         "o seu identificador é apagado entre 7 e 8 dias depois da última vez que você usar o Balcão, com tudo o que ainda estiver ligado a ele."
       ],
       "logs": "Os logs não têm prazo fixo: eles se renovam à medida que enchem e podem guardar um acesso por mais de 7 dias. Neles nunca entra o texto das mensagens.",
-      "counters": "Os contadores dos limites de uso também não têm prazo fixo, por enquanto. Eles ficam à parte, guardados pelo endereço IP e pelo identificador, e não zeram quando você apaga seus dados, para que apagar não seja um jeito de furar o limite.",
+      "counters": "Os contadores dos limites de uso são apagados pela limpeza da noite entre 7 e 8 dias depois de criados. Eles ficam à parte, guardados pelo endereço IP e pelo identificador, e não zeram quando você apaga seus dados, para que apagar não seja um jeito de furar o limite.",
       "totals": "Fora isso, ficam só totais que não identificam ninguém, como o gasto do mês com o modelo."
     },
     "deletion": {

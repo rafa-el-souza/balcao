@@ -1,6 +1,10 @@
 # The visitor's commands, matched before the model is called (design §6.3):
 # reset starts the conversation over (FR-04), delete erases the visitor's data
-# (FR-05), trace answers with the link to the conversation's trace (FR-12).
+# (FR-05), trace answers with the link to the conversation's trace (FR-12),
+# start greets and help lists what the attendant does and the commands, the
+# two Telegram requires of every bot and the web chat matches too (FR-18,
+# FR-19). A command may carry the bot's username ("/help@BalcaoDemoBot"), and
+# /start the parameter of a deep link, which is ignored until FR-23 reads it.
 #
 # A message is a command when it is exactly one of these phrases, ignoring
 # case, accents, spaces around and between words, an opening ¿ or ¡ and the
@@ -23,3 +27,20 @@ trace:
   pt: [/trace, como você funciona?]
   en: [/trace, how do you work?]
   es: [/trace, ¿cómo funcionas?]
+start:
+  pt: [/start]
+  en: [/start]
+  es: [/start]
+help:
+  pt: [/help]
+  en: [/help]
+  es: [/help]
+# Not a command: the phrases that count as the agreement the bot asks for
+# before it reads anything of a person on Telegram, while it holds no row of
+# that person; afterwards they are a message like any other (FR-19, the
+# owner's decision of 2026-11-14). The first of each language is the ask's
+# button, as the privacy page names it.
+agree:
+  pt: [Concordo, eu concordo]
+  en: [I agree]
+  es: [Acepto]

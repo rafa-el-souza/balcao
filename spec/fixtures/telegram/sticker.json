@@ -1,0 +1,44 @@
+{
+  "update_id": 734120110,
+  "message": {
+    "message_id": 9,
+    "from": {
+      "id": 7341200001,
+      "is_bot": false,
+      "first_name": "Visitante",
+      "language_code": "pt-br"
+    },
+    "chat": {
+      "id": 7341200001,
+      "first_name": "Visitante",
+      "type": "private"
+    },
+    "date": 1763130319,
+    "sticker": {
+      "width": 512,
+      "height": 512,
+      "emoji": "😂",
+      "is_animated": true,
+      "is_video": false,
+      "type": "regular",
+      "set_name": "invented_set_for_balcao_specs",
+      "thumbnail": {
+        "file_id": "AAMCAgADGQEAAwlinvented_thumbnail",
+        "file_unique_id": "AQADinventedT1",
+        "file_size": 2750,
+        "width": 128,
+        "height": 128
+      },
+      "thumb": {
+        "file_id": "AAMCAgADGQEAAwlinvented_thumbnail",
+        "file_unique_id": "AQADinventedT1",
+        "file_size": 2750,
+        "width": 128,
+        "height": 128
+      },
+      "file_id": "CAACAgIAAxkBAAMJinvented_sticker",
+      "file_unique_id": "AgADinventedS1",
+      "file_size": 8244
+    }
+  }
+}

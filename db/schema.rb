@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_13_170000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_14_120200) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "fuzzystrmatch"
   enable_extension "pg_catalog.plpgsql"
@@ -139,17 +139,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_13_170000) do
     t.datetime "last_seen_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.text "telegram_chat_id"
+    t.datetime "agreed_at"
     t.index ["channel", "identity_hash"], name: "index_visitors_on_channel_and_identity_hash", unique: true
   end
 
   create_table "webhook_events", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
-    t.string "body_sha256", null: false
-    t.jsonb "payload", null: false
     t.string "status", default: "received", null: false
     t.datetime "received_at", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["body_sha256"], name: "index_webhook_events_on_body_sha256", unique: true
+    t.bigint "update_id", null: false
+    t.string "kind", null: false
+    t.text "payload"
+    t.string "identity_hash"
+    t.index ["identity_hash", "update_id"], name: "index_webhook_events_on_identity_hash_and_update_id", where: "(identity_hash IS NOT NULL)"
+    t.index ["update_id"], name: "index_webhook_events_on_update_id", unique: true
   end
 
   add_foreign_key "conversations", "visitors", on_delete: :cascade

@@ -1,0 +1,35 @@
+{
+  "update_id": 734120109,
+  "message": {
+    "message_id": 8,
+    "from": {
+      "id": 7341200001,
+      "is_bot": false,
+      "first_name": "Visitante",
+      "language_code": "pt-br"
+    },
+    "chat": {
+      "id": 7341200001,
+      "first_name": "Visitante",
+      "type": "private"
+    },
+    "date": 1763130284,
+    "photo": [
+      {
+        "file_id": "AgACAgEAAxkBAAMIinvented_photo_size_0",
+        "file_unique_id": "AQADinventedQ0",
+        "file_size": 736,
+        "width": 90,
+        "height": 90
+      },
+      {
+        "file_id": "AgACAgEAAxkBAAMIinvented_photo_size_1",
+        "file_unique_id": "AQADinventedQ1",
+        "file_size": 2123,
+        "width": 180,
+        "height": 180
+      }
+    ],
+    "caption": "Foto teste com legenda"
+  }
+}

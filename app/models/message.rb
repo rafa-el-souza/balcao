@@ -14,6 +14,20 @@ class Message < ApplicationRecord
   enum :status, { pending: "pending", sent: "sent", delivered: "delivered", read: "read", failed: "failed" },
        prefix: true, validate: { allow_nil: true }
 
+  # What a visitor sends, and what the attendant answers, is encrypted at rest
+  # with keys that live in the env file, never in the database (threat model
+  # SR-41); the app, and so the model, reads the plain text.
+  #
+  # A body an image before PR-18 wrote is plain text and is read as written:
+  # Kamal runs the migration that encrypts the stored ones in the new web
+  # container while the old containers still serve and answer turns, and a
+  # return to such an image writes plain text again (review findings C1 and
+  # V1 of pull request #32). The nightly job encrypts what is left
+  # (NightlyResetJob). So a body that does not decrypt, should the keys ever
+  # change, is read as its stored envelope rather than raised on; the keys
+  # never rotate in place (bin/secrets-example).
+  encrypts :body, support_unencrypted_data: true
+
   # PostgreSQL refuses a NUL in text: a body loses it, whoever wrote it, so a
   # model's reply carrying one is stored rather than breaking its turn on every
   # attempt (review finding V1 of pull request #18). The web intake drops it
@@ -25,8 +39,21 @@ class Message < ApplicationRecord
   validates :channel, inclusion: { in: Visitor::CHANNELS.values }
   validates :body, presence: true
 
-  # Stores an inbound message keyed by its channel's message id: Meta's on
-  # WhatsApp, and on the web the id the client generates for each message, so
+  # Encrypts in place the bodies an image before PR-18 wrote in plain text,
+  # for the nightly job (threat model SR-41; review finding V1 of pull request
+  # #32), and answers how many. Only a row's stored value is read to tell.
+  def self.encrypt_plain_bodies
+    find_each.count do |message|
+      next false if message.encrypted_attribute?(:body)
+
+      message.encrypt
+      true
+    end
+  end
+
+  # Stores an inbound message keyed by its channel's message id: on Telegram
+  # the visitor's row and Telegram's message id, which is counted per chat
+  # (FR-19), and on the web the id the client generates for each message, so
   # a request sent again after its response was lost is stored once (review
   # finding N2 of pull request #7). A redelivered message meets the unique
   # index and returns the message already stored, even if its conversation

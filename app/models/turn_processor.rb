@@ -3,7 +3,7 @@
 #
 # - a command is answered before the model is called, so no model output and
 #   no prompt injection can trigger one (FR-04 reset, FR-05 delete, FR-12
-#   trace); its trace is the command's span alone;
+#   trace, FR-19 start and help); its trace is the command's span alone;
 # - a turn whose reservation an earlier run stored is answered with the
 #   reservation's fixed line, never through the model again, which could
 #   reserve another product (NFR-02);
@@ -65,6 +65,8 @@ class TurnProcessor
     when :delete then delete
     when :reset then reset
     when :trace then trace
+    when :start then fixed(:start) { |language| FixedReply.greeting(language) }
+    when :help then fixed(:help) { |language| FixedReply.help(language) }
     else answer
     end
   end
@@ -154,6 +156,13 @@ class TurnProcessor
     language = command_language
     url = "#{Rails.configuration.x.public_origin}/trace##{@conversation.trace_token}"
     command(:trace) { store_reply(FixedReply.command(:trace, language, url:), language:) }
+  end
+
+  # FR-19, FR-18: /start's greeting and /help's list, fixed texts on every
+  # channel; the first reply of a conversation carries the notice before them.
+  def fixed(name)
+    language = command_language
+    command(name) { store_reply(yield(language), language:) }
   end
 
   def command(name)

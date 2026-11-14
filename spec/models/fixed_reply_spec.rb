@@ -154,9 +154,40 @@ RSpec.describe "NFR-09 FixedReply, the texts the system writes instead of the mo
 
   it "has a text for every command, the fallback and the refusal in every locale" do
     LOCALES.each_key do |locale|
-      texts = CommandPhrases::NAMES.map { |name| FixedReply.command(name.to_sym, locale, url: "u") } +
+      texts = CommandPhrases::NAMES.map { |name| FixedReply.command(name.to_sym, locale, url: "u", privacy: "p") } +
               [ FixedReply.fallback(locale), FixedReply.declined(locale) ]
       expect(texts).to all(be_present.and(satisfy { |text| !text.include?("translation missing") }))
+    end
+  end
+
+  # FR-19's fixed texts on Telegram, written by the system with no model call.
+  describe "the bot's texts (FR-19)" do
+    let(:privacy) { "#{Rails.configuration.x.public_origin}/privacy" }
+
+    LOCALES.each do |locale, language|
+      it "asks in #{locale} for the agreement after FR-01's notice, naming the model's provider, the privacy page and the button" do
+        ask = FixedReply.ask(locale)
+
+        expect(ask).to start_with("#{FixedReply.notice(locale)}\n\n")
+        expect(ask).to include("Anthropic", privacy, CommandPhrases.current.agreement(language))
+      end
+
+      # The greeting that answers an agreement is the conversation's first
+      # reply without the notice, which the ask carried; a first reply is told
+      # by its place and its first paragraph read as the notice (Message), so
+      # the greeting keeps to one.
+      it "greets in #{locale} in one paragraph, naming the store and /help" do
+        greeting = FixedReply.greeting(locale)
+
+        expect(greeting).not_to include("\n\n")
+        expect(greeting).to include(StoreSheet.current.identity["name"], "/help")
+      end
+
+      it "has in #{locale} the line for a message that is not text and the one for a text over 1,000 characters" do
+        expect(FixedReply.not_text(locale)).to be_present
+        expect(FixedReply.too_long(locale)).to include("1")
+        expect([ FixedReply.not_text(locale), FixedReply.too_long(locale) ]).to all(satisfy { |text| !text.include?("\n") })
+      end
     end
   end
 end

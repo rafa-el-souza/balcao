@@ -1,7 +1,8 @@
 # Where an inbound message joins a conversation (design §6.3): it is stored in
 # the visitor's open conversation, keyed by its channel's id (NFR-02), with
 # its turn, and the turn is enqueued for ProcessTurnJob. The web channel calls
-# it from POST /api/messages; WhatsApp joins with PR-18.
+# it from POST /api/messages, Telegram from its update's job
+# (Telegram::Inbound), with the stored update the message came in.
 #
 # - FR-04's 24-hour rule: a message that arrives 24 hours after the
 #   conversation's last inbound message, or after its opening when it has
@@ -21,8 +22,8 @@ class Intake
     @visitor = visitor
   end
 
-  def receive!(external_id:, body:, source: "text")
-    turn = stored(external_id) || store(external_id:, body:, source:)
+  def receive!(external_id:, body:, source: "text", webhook_event: nil)
+    turn = stored(external_id) || store(external_id:, body:, source:, webhook_event:)
     ProcessTurnJob.perform_later(turn.id) unless Message.exists?(turn_id: turn.id)
     turn
   end
@@ -39,7 +40,7 @@ class Intake
     Turn.for_inbound!(message)
   end
 
-  def store(external_id:, body:, source:)
+  def store(external_id:, body:, source:, webhook_event:)
     loop do
       conversation = Conversation.current_for!(@visitor)
       turn = ApplicationRecord.transaction do
@@ -47,7 +48,7 @@ class Intake
         next if conversation.closed_at
         next close(conversation) if silent?(conversation)
 
-        Turn.for_inbound!(Message.record_inbound!(conversation:, external_id:, body:, source:))
+        Turn.for_inbound!(Message.record_inbound!(conversation:, external_id:, body:, source:, webhook_event:))
       end
       return turn if turn
     end

@@ -241,7 +241,7 @@
         "tu identificador se borra entre 7 y 8 días después de la última vez que uses Balcão, con todo lo que siga ligado a él."
       ],
       "logs": "Los logs no tienen plazo fijo: se renuevan a medida que se llenan y pueden guardar un acceso por más de 7 días. En ellos nunca entra el texto de los mensajes.",
-      "counters": "Los contadores de los límites de uso tampoco tienen plazo fijo, por ahora. Se guardan aparte, bajo la dirección IP y el identificador, y no vuelven a cero cuando borras tus datos, para que borrar no sea una forma de saltarse el límite.",
+      "counters": "La limpieza de la noche borra los contadores de los límites de uso entre 7 y 8 días después de creados. Se guardan aparte, bajo la dirección IP y el identificador, y no vuelven a cero cuando borras tus datos, para que borrar no sea una forma de saltarse el límite.",
       "totals": "Fuera de eso, solo quedan totales que no identifican a nadie, como el gasto del mes en el modelo."
     },
     "deletion": {

@@ -1,0 +1,26 @@
+{
+  "update_id": 734120101,
+  "message": {
+    "message_id": 1,
+    "from": {
+      "id": 7341200001,
+      "is_bot": false,
+      "first_name": "Visitante",
+      "language_code": "pt-br"
+    },
+    "chat": {
+      "id": 7341200001,
+      "first_name": "Visitante",
+      "type": "private"
+    },
+    "date": 1763130000,
+    "text": "/start",
+    "entities": [
+      {
+        "offset": 0,
+        "length": 6,
+        "type": "bot_command"
+      }
+    ]
+  }
+}

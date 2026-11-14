@@ -1,0 +1,20 @@
+{
+  "update_id": 734120108,
+  "edited_message": {
+    "message_id": 2,
+    "from": {
+      "id": 7341200001,
+      "is_bot": false,
+      "first_name": "Visitante",
+      "language_code": "pt-br"
+    },
+    "chat": {
+      "id": 7341200001,
+      "first_name": "Visitante",
+      "type": "private"
+    },
+    "date": 1763130013,
+    "edit_date": 1763130166,
+    "text": "Vocês têm dipirona 500 mg?"
+  }
+}

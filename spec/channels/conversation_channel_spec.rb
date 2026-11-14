@@ -59,11 +59,11 @@ RSpec.describe ConversationChannel, "FR-18 SR-05 streams a conversation to the h
     end
   end
 
-  it "rejects a WhatsApp visitor's conversation with the same identity hash" do
-    whatsapp = Visitor.identify!(channel: "whatsapp", identity_hash: visitor.identity_hash)
+  it "rejects a Telegram visitor's conversation with the same identity hash" do
+    telegram = Visitor.identify!(channel: "telegram", identity_hash: visitor.identity_hash)
     connect_as(visitor.identity_hash)
 
-    subscribe(conversation_id: Conversation.current_for!(whatsapp).id)
+    subscribe(conversation_id: Conversation.current_for!(telegram).id)
 
     expect(subscription).to be_rejected
   end

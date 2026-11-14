@@ -1,15 +1,15 @@
 require "rails_helper"
 
 RSpec.describe "NFR-02 SR-07 inbound message, keyed by the channel's message id" do
-  let(:visitor) { create(:visitor, channel: "whatsapp") }
+  let(:visitor) { create(:visitor, channel: "telegram") }
   let(:conversation) { create(:conversation, visitor:) }
 
   it "stores a new inbound message from the visitor, on the visitor's channel" do
-    message = Message.record_inbound!(conversation:, external_id: "wamid.IN1", body: "tem dipirona?")
+    message = Message.record_inbound!(conversation:, external_id: "v1:7", body: "tem dipirona?")
 
     expect(message).to be_previously_new_record
     expect(message).to have_attributes(
-      conversation:, channel: "whatsapp", external_id: "wamid.IN1",
+      conversation:, channel: "telegram", external_id: "v1:7",
       direction: "inbound", author: "visitor", source: "text", body: "tem dipirona?", turn_id: nil
     )
   end
@@ -59,10 +59,10 @@ RSpec.describe "NFR-02 SR-07 inbound message, keyed by the channel's message id"
   end
 
   it_behaves_like "an idempotency key", index: "index_messages_on_channel_and_external_id" do
-    let(:existing) { create(:message, conversation:, external_id: "wamid.REDELIVERED") }
-    let(:duplicate) { build(:message, conversation:, external_id: "wamid.REDELIVERED") }
+    let(:existing) { create(:message, conversation:, external_id: "v1:8") }
+    let(:duplicate) { build(:message, conversation:, external_id: "v1:8") }
     let(:call_again) do
-      -> { Message.record_inbound!(conversation:, external_id: "wamid.REDELIVERED", body: "tem dipirona?") }
+      -> { Message.record_inbound!(conversation:, external_id: "v1:8", body: "tem dipirona?") }
     end
   end
 end
@@ -109,5 +109,19 @@ RSpec.describe "NFR-02 outbound message, one per turn" do
     let(:existing) { create(:outbound_message, turn:) }
     let(:duplicate) { build(:outbound_message, turn:) }
     let(:call_again) { -> { Message.record_outbound!(turn:, body: "Temos, sim.") } }
+  end
+end
+
+# Threat model SR-41: what a visitor sends is encrypted at rest, on every
+# channel, and the model reads the plain text.
+RSpec.describe "SR-41 a message's body is ciphertext in the database" do
+  it "stores the body encrypted and gives it back, to the model's history too, as written" do
+    message = create(:message, body: "Vocês têm dipirona?")
+    turn = create(:turn, inbound_message: message)
+
+    stored = Message.connection.select_value(Message.sanitize_sql([ "SELECT body FROM messages WHERE id = ?", message.id ]))
+    expect(stored).not_to include("dipirona")
+    expect(Message.find(message.id).body).to eq("Vocês têm dipirona?")
+    expect(AgentRunner::History.messages(turn).sole[:content].last[:text]).to eq("Vocês têm dipirona?")
   end
 end

@@ -1,6 +1,6 @@
 # Balcão — design document
 
-**Status:** v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
+**Status:** v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
 coding session, reading this file top to bottom.
 
 Balcão ("the counter", where a pharmacist serves customers) is an AI attendant
@@ -568,8 +568,10 @@ platform; until 2026-11-14 this requirement was the WhatsApp Cloud API).
   in pt, en and es, with the Portuguese texts for every other language
   (FR-02's default). The texts live in the locale files (NFR-09). The task
   reads what the bot has and writes only what differs, so running it again
-  changes nothing, and it ends by printing `getWebhookInfo`, which the
-  runbook's smoke reads. It runs inside the application's container, where
+  changes nothing; the webhook is the exception, set at every run, since
+  Telegram never shows its secret back and a run after the secret's rotation
+  must register the new one (§10, PR-18). It ends by printing
+  `getWebhookInfo`, which the runbook's smoke reads. It runs inside the application's container, where
   the token already is, so no workstation runs repository code for it
   (SR-38). The application registers nothing at boot.
 - The bot's name says it is a demo. Its description, which Telegram shows
@@ -960,7 +962,7 @@ Hexagonal shape, kept lightweight:
 app/
   domain/        # pure Ruby: Conversation, Turn, Reservation, Booking, Budget
   agent/         # AgentRunner, SystemPrompt, tool definitions, model policy
-  channels/      # transport adapters: Web, Telegram  (the "transport port")
+  transports/    # transport adapters: Telegram (the "transport port"; §10, PR-18)
   transcription/ # Transcriber port + adapters (ADR-0005)
   jobs/          # ProcessTurnJob, CanaryJob, NightlyResetJob, HandoffTimeoutJob
   controllers/   # api/, webhooks/, console/
@@ -1752,6 +1754,110 @@ registered, display name, Live mode) closed on 2026-11-14 (ADR-0016).
 ## 10. Open decisions
 
 Tracked here until resolved; each resolution becomes an ADR or an edit.
+
+- Note 2026-11-14 (PR-18; FR-05, FR-14, FR-15, FR-18, FR-19, NFR-02, SR-06,
+  SR-07, SR-09, SR-10, SR-12, SR-22, SR-25, SR-30, SR-41, SR-42; ADR-0016,
+  ADR-0017). Telegram's inbound side, day 11's slice:
+  - **The bot** is `@BalcaoDemoBot`, the owner's choice of the day
+    (`BalcaoBot` and `Balcao_Bot` belong to other bots); its username lives
+    in `Telegram::Bot`, with the webhook's path, the one kind of update it
+    asks for and its `max_connections` of 1, so updates arrive in the order
+    Telegram numbered them (review finding T2 of pull request #32).
+  - **The transport adapters** live in `app/transports/` (§6.3), since
+    `app/channels/` is Action Cable's: `Telegram::Client`, the Bot API's one
+    client, whose closed list holds `setWebhook` and `getWebhookInfo` until
+    day 12 adds its own (§6.6, SR-22); `Telegram::Webhook`, the endpoint;
+    `Telegram::Setup`, the task `bin/rails telegram:setup`; and
+    `Telegram::Inbound`, what an update makes of the conversation. The web's
+    inbound side stays `Intake` and its endpoint, which Telegram's now shares.
+  - **Secrets.** The bot's token (held by BotFather), the webhook's secret
+    (generated by `bin/secrets-example`), the three Active Record
+    Encryption keys and the pepper join the boot check, both
+    `.kamal/secrets` files and `env.secret` (SR-25). The check also refuses
+    a secret Telegram would refuse (1 to 256 of A-Z, a-z, 0-9, _ and -) and
+    a token not of BotFather's shape, so a pasted value stops the boot, not
+    the webhook's registration. Development and the suite run on stand-ins
+    written in their environment files; production has none.
+  - **Encrypted at rest (SR-41)** are the messages' bodies on every channel,
+    the web's included, the stored update until it is read, and the chat id
+    on a Telegram visitor's row; a migration encrypts in place the messages
+    stored before. Kamal runs it in the new web container while the old
+    containers still serve, and an image before PR-18 writes plain text, so
+    such a body is read as written and the nightly job encrypts it (review
+    findings C1 and V1 of pull request #32); a body whose key changed reads
+    as its envelope rather than raising, and the keys never rotate in place.
+    It is a one-way door: an image before PR-18 shows the stored bodies'
+    ciphertext, so a deploy goes back no further than PR-18, and the
+    migration refuses to roll back. No span attribute quotes a message: the
+    spans carry the tools' arguments, which the model writes (a product
+    query, a topic, an id and a quantity), and their results, so
+    `trace_events` stays as it was.
+  - **The webhook** is a Rack endpoint, not a controller: Rails' controller
+    instrumentation reads a request's parameters before any action, which
+    would parse a form or multipart body before the secret (review finding
+    T3 of pull request #32). It compares the secret header in constant time
+    before it reads the body and answers a refusal 401, counted; the log has
+    one line for a minute's first refusal and one for the eleventh, the
+    MVP's alert (SR-06; finding T4). An authenticated update is stored keyed
+    by its `update_id` with its kind and, when it is one the bot uses, its
+    sender's hashed identity, and answered 200; one sent again while still
+    unread is enqueued again, since its first enqueue may have failed after
+    the row was stored; a body that is not an update is answered 200 and
+    logged, and nothing is stored.
+  - **The job** (`TelegramUpdateJob`) reads one person's updates one at a
+    time and in their `update_id` order, under an advisory lock keyed by the
+    hashed identity (`AdvisoryLock`, which `ConversationLock` now uses too):
+    the first job to take it reads the person's earlier unread updates
+    first, so a question sent after the agreement is never read before it
+    (review finding T2 of pull request #32). It strips the update once read,
+    its hashed identity with it; after its third failed attempt it strips it
+    as failed. A row is made only by the agreement: a person whose row a
+    deletion took right after its read is asked again (finding T1).
+    A service message (one the app writes, such as a pinned message) gets no
+    reply and counts in no limit, and a message without a positive
+    `message_id` is dropped with the updates SR-42 drops, since Bot API 10
+    gives 0 to ephemeral and scheduled messages.
+  - **The agreement** is stored as the first conversation's first message
+    (source `command`), with its turn and the greeting as the first reply,
+    without the notice the ask carried, and a span `balcao.command` named
+    `agree`; no model is called. The greeting is one paragraph, since a first
+    reply is told by its place and its first paragraph read as the notice.
+    The phrases are listed under `agree` in `config/commands.yml`, never a
+    command: once the row exists they are a message like any other. A
+    caption is never read, so a photo captioned "Concordo" gets the ask.
+  - **`/start` and `/help`** are matched on both channels (FR-18): a fixed
+    greeting and a fixed list of what the attendant does, the commands and
+    the privacy page, the notice first in a new conversation. A command
+    typed with `@BalcaoDemoBot` is that command, and `/start` with a deep
+    link's parameter is `/start`.
+  - **The limits (FR-14)** count every message of a person by the hashed
+    identity, before the agreement too, with `EdgeLimits` as the web's do;
+    past one, nothing is read or stored, and the limit's line goes at most
+    once a minute (`telegram/limit_line`). The nightly job deletes the
+    counters first written more than seven days ago, read from Solid
+    Cache's own table under the `limits:` prefix, and the stored updates of
+    the same age; the privacy page gives the counters' bound. Solid Cache
+    dates a row by the database's clock, so its specs date rows back by hand.
+  - **Nothing is sent before day 12.** What an update makes of the
+    conversation is an outcome naming its reply (the ask, the greeting,
+    `/help`, the deletion's confirmation, the limit's line, the fixed lines
+    for a message that is not text or is too long); PR-19 sends it. Until
+    then the day's proof is the trace on the host: the agreement typed, then
+    a turn. PR-19 also inherits: the deletion's confirmation on Telegram
+    adds that the chat in the visitor's app is their own copy (FR-05), and
+    needs the chat id read before `Visitor#erase!` takes the row; the ask's
+    button sends `CommandPhrases#agreement` of the language, and the
+    greeting removes it.
+  - **The fixtures** under `spec/fixtures/telegram/` were recorded from the
+    demo bot on the owner's phone before the webhook existed, read with
+    `getUpdates` outside the repository, and committed with invented ids,
+    names and file ids (SR-33). The updates a private chat cannot record (a
+    group, a bot, another chat, a contact) are those with one field changed.
+  - **Logs (SR-30).** `message`, `caption` and `phone` join the filtered
+    parameters, so an update is logged as its `update_id` alone, and the
+    production formatter writes a bot token as `[FILTERED]` wherever a line
+    would carry one; the job's line names an update by its `update_id` and
+    what it made.
 
 - Note 2026-11-14 (PR-17; §6.7, §9.1, §9.2 M3, FR-05, FR-19, SR-30, SR-31,
   SR-32; ADR-0016). The privacy page, day 10's slice:

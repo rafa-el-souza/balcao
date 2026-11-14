@@ -1,26 +1,49 @@
-# A WhatsApp event as Meta sent it, stored before any processing (FR-19, SR-09).
+# A Telegram update as the webhook received it, stored before any processing
+# and answered 200 (FR-19, threat model SR-09); TelegramUpdateJob reads it.
+#
+# - Keyed by Telegram's update_id, unique: an update sent again meets the
+#   index and is the one already stored (SR-07, NFR-02). The id restarts at a
+#   random value after a week without updates, so it keys and never counts.
+# - The body is what a visitor sent, encrypted (SR-41), and only until its job
+#   has read it, with the sender's hashed identity, by which a person's
+#   unread updates are read in order (review finding T2 of pull request #32):
+#   then the row keeps its update_id and its kind, and nothing of the person
+#   or of their words, no digest included (FR-19; review finding RN3 of pull
+#   request #7). The nightly job deletes a row seven days old, read or not
+#   (FR-15).
 class WebhookEvent < ApplicationRecord
   has_many :messages
+
+  encrypts :payload
 
   enum :status, { received: "received", processed: "processed", ignored: "ignored", failed: "failed" },
        validate: true
 
-  validates :body_sha256, format: { with: /\A\h{64}\z/ }
-  validates :received_at, presence: true
-  validates :payload, exclusion: { in: [ nil ] }
+  # The update's kind as Telegram names it ("message", "edited_message", ...).
+  KIND = /\A[a-z_]{1,64}\z/
 
-  # Stores the event keyed by the SHA-256 of the raw body whose signature the
-  # caller has verified (SR-06). A redelivered POST meets the unique index and
-  # returns the event already stored, which the caller recognises by
-  # previously_new_record? being false (SR-07, NFR-02). The key is the body,
-  # not Meta's message id, because the sent, delivered and read notifications
-  # of one message share that id (review finding C3 of pull request #7); the
-  # messages an event yields are keyed by that id (Message.record_inbound!).
-  def self.record!(raw_body:, received_at: Time.current)
-    payload = JSON.parse(raw_body)
-    create_or_find_by!(body_sha256: Digest::SHA256.hexdigest(raw_body)) do |event|
+  validates :update_id, numericality: { only_integer: true }
+  validates :kind, format: { with: KIND }
+  validates :received_at, presence: true
+  validates :identity_hash, format: { with: /\A\h{64}\z/ }, allow_nil: true
+
+  # A person's updates not read yet, in the order Telegram numbered them.
+  scope :unread_of, ->(identity_hash) { received.where(identity_hash:).order(:update_id) }
+
+  # Stores an update the webhook has authenticated (SR-06), or returns the one
+  # already stored with this update_id, as it is (SR-07).
+  def self.record!(update_id:, kind:, payload:, identity_hash: nil, received_at: Time.current)
+    create_or_find_by!(update_id:) do |event|
+      event.kind = kind
       event.payload = payload
+      event.identity_hash = identity_hash
       event.received_at = received_at
     end
   end
+
+  # The update as Telegram sent it, while it is unread.
+  def update_hash = (JSON.parse(payload) if payload)
+
+  # Read: the body goes, and with it everything the update said and whose it was.
+  def strip!(status) = update!(payload: nil, identity_hash: nil, status:)
 end

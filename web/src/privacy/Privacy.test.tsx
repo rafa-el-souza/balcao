@@ -188,8 +188,9 @@ describe("Design §10 the privacy page shows nothing before its source exists", 
 // keeps, checked against the code and the configuration.
 describe("Design §6.7 the privacy page says what the server really keeps", () => {
   // Review finding C1: the limits' counters sit in the cache under the IP
-  // address and the identifier's hash, outlive the delete command on purpose
-  // (FR-05) and have no bound by age until PR-18 gives them one.
+  // address and the identifier's hash and outlive the delete command on
+  // purpose (FR-05); since PR-18 the nightly cleanup deletes them at seven
+  // days (FR-15).
   it("names the limits' counters, kept by the IP and the identifier, which the delete command leaves (FR-05, FR-14)", () => {
     for (const page of [ptBR.privacy, en.privacy, es.privacy]) {
       const { unmount } = renderPage(
@@ -201,6 +202,13 @@ describe("Design §6.7 the privacy page says what the server really keeps", () =
     }
     expect(pt.retention.counters).toMatch(/endereço IP e pelo identificador/);
     expect(pt.retention.counters).toMatch(/não zeram quando você apaga/);
+    expect(pt.retention.counters).toMatch(/entre 7 e 8 dias depois de criados/);
+    expect(en.privacy.retention.counters).toMatch(
+      /between 7 and 8 days after they were created/,
+    );
+    expect(es.privacy.retention.counters).toMatch(
+      /entre 7 y 8 días después de creados/,
+    );
     expect(pt.deletion.text).toMatch(/ficam só os contadores dos limites/);
     expect(pt.retention.totals).toMatch(/^Fora isso/);
   });

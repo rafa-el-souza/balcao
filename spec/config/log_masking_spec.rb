@@ -158,6 +158,15 @@ RSpec.describe "SR-30 NFR-05 the log: an error by its class alone, one JSON obje
       expect(lines.sole["message"]).to eq("raw � header")
     end
 
+    # SR-30: every Bot API URL carries the bot's token, and nothing of the app
+    # logs one; a line that did would still not carry it.
+    it "writes a Telegram bot's token, wherever a line carries it, as [FILTERED] (SR-30)" do
+      token = "7341200001:AAH-invented_token_for-the-log-spec01"
+      json_logger.error("Net::OpenTimeout for https://api.telegram.org/bot#{token}/getWebhookInfo, and #{token} again")
+
+      expect(lines.sole["message"]).to eq("Net::OpenTimeout for https://api.telegram.org/bot[FILTERED]/getWebhookInfo, and [FILTERED] again")
+    end
+
     it "names an error logged as an object by its class alone (SR-30)" do
       json_logger.error(ActiveRecord::StatementInvalid.new(quoted))
 

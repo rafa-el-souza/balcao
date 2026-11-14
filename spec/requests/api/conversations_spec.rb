@@ -36,6 +36,21 @@ RSpec.describe "FR-18 SR-05 GET /api/conversations/current, the polling fallback
       expect(json["pending"]).to be true
     end
 
+    # Review finding C1 of pull request #32: a body the containers before
+    # PR-18 wrote in plain text during its deploy is read as written.
+    it "SR-41 answers a conversation holding a body stored in plain text by an image before PR-18" do
+      id = SecureRandom.uuid
+      Message.connection.execute(Message.sanitize_sql([ <<~SQL.squish, id, conversation.id ]))
+        INSERT INTO messages (id, conversation_id, channel, direction, author, source, body, external_id, created_at, updated_at)
+        VALUES (?, ?, 'web', 'inbound', 'visitor', 'text', 'chegou durante o deploy', gen_random_uuid(), now(), now())
+      SQL
+
+      get "/api/conversations/current"
+
+      expect(response).to have_http_status(:ok)
+      expect(json["messages"].map { |message| message["body"] }).to eq [ "chegou durante o deploy" ]
+    end
+
     it "answers the month's budget mode and the rate of the real, as the session does (FR-12, FR-14)" do
       BudgetState.for_month!.update!(spent_usd: Budget.cap)
 

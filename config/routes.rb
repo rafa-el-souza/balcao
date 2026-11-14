@@ -21,6 +21,11 @@ Rails.application.routes.draw do
     get "trace", to: "traces#show"
   end
 
+  # Telegram's updates (FR-19, design §6.6), behind the secret it sends
+  # (threat model SR-06), at a Rack endpoint that reads nothing of a body
+  # before the secret matched; one path, no format extension.
+  post "webhooks/telegram", to: Telegram::Webhook.new, format: false
+
   # The web app's pages (design §6.7), each sent as its own shell; the others
   # join here as they arrive (web/src/pages.ts lists the same ones, and
   # spec/requests/spa_spec.rb holds the two lists together).

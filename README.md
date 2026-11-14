@@ -31,6 +31,11 @@ whose opening comment says what it does and why.
    [`app/controllers/api/messages_controller.rb`](app/controllers/api/messages_controller.rb)
    validates the message, stores it once however often the browser sends it,
    queues a job and answers at once; the reply will come over a WebSocket.
+   From Telegram,
+   [`app/transports/telegram/webhook.rb`](app/transports/telegram/webhook.rb)
+   checks the secret Telegram sends before it reads the update, and
+   [`app/transports/telegram/inbound.rb`](app/transports/telegram/inbound.rb)
+   asks a new person to agree before anything of theirs is kept.
 2. **A job takes it.**
    [`app/jobs/process_turn_job.rb`](app/jobs/process_turn_job.rb) runs the
    turn (a message and everything done to answer it), one at a time per
@@ -120,15 +125,18 @@ because `eslint-plugin-jsx-a11y` does not support ESLint 10 yet. The
 ### Where things live
 
 Most folders are the ones Rails gives every application, so their names say
-little about this one; `app/agent/`, `evals/`, `ops/`, `web/` and `docs/`
-are the project's own. What each holds:
+little about this one; `app/agent/`, `app/transports/`, `evals/`, `ops/`,
+`web/` and `docs/` are the project's own. What each holds:
 
 - [`app/controllers/`](app/controllers) — the HTTP endpoints: the JSON API
   under `api/`, and the controller that sends the web app's pages.
   [`config/routes.rb`](config/routes.rb) lists every URL and the code behind
   it.
 - [`app/jobs/`](app/jobs) — work done after a request is answered; here, the
-  job that answers a message.
+  job that answers a message and the one that reads a Telegram update.
+- [`app/transports/`](app/transports) — the Telegram bot's side: the
+  webhook, the Bot API client, what an update makes of the conversation, and
+  the task that registers the webhook.
 - [`app/agent/`](app/agent) — everything that talks to the model: the runner,
   the system prompt, the model policy, the tools, and the fake model the
   tests run on.
@@ -207,8 +215,11 @@ box in dollars and reais, the demo pauses with a fixed reply at its monthly
 cap, and every night at 03:00 the demo's stock is reset and whatever is older
 than seven days is deleted; since day 10 a privacy page, which is also the
 Telegram bot's own policy, says what is kept and what for, for how long, how
-to delete it sooner and who processes it. See the delivery plan in the design
-document.
+to delete it sooner and who processes it; since day 11 the demo's Telegram
+bot takes in messages, asks a new person to agree before it keeps anything
+of theirs and makes a text after that a turn, traced like the web chat's,
+though it answers only from day 12, and what visitors send is encrypted at
+rest. See the delivery plan in the design document.
 
 ## Running locally
 

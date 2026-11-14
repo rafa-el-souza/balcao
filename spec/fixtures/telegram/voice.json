@@ -1,0 +1,25 @@
+{
+  "update_id": 734120107,
+  "message": {
+    "message_id": 7,
+    "from": {
+      "id": 7341200001,
+      "is_bot": false,
+      "first_name": "Visitante",
+      "language_code": "pt-br"
+    },
+    "chat": {
+      "id": 7341200001,
+      "first_name": "Visitante",
+      "type": "private"
+    },
+    "date": 1763130134,
+    "voice": {
+      "duration": 3,
+      "mime_type": "audio/ogg",
+      "file_id": "AwACAgEAAxkBAAMHinvented_voice",
+      "file_unique_id": "AgADinventedV1",
+      "file_size": 19826
+    }
+  }
+}

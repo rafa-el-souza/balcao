@@ -37,6 +37,11 @@ pt-BR:
     delete: "Seus dados foram apagados: as mensagens, as reservas abertas e o histórico das conversas. Se escrever de novo, começamos do zero."
     # FR-12.
     trace: "Veja, passo a passo, como eu funciono nesta conversa: %{url}"
+    # FR-19, and FR-18 on the web: the greeting /start gets, in one paragraph,
+    # since it answers an agreement as a conversation's first reply, which the
+    # ask's notice came before (FixedReply.greeting); and what /help lists.
+    start: "Olá! Sou o atendente virtual da %{store}, uma farmácia fictícia: consulto preços e estoque, reservo produtos para você retirar na loja e conto os horários, as entregas e as formas de pagamento. Dúvidas sobre sintomas, doses e tratamentos ficam com o farmacêutico da loja. Os comandos estão em /help."
+    help: "Sou o atendente virtual da %{store}, uma farmácia fictícia: consulto preços e estoque, reservo produtos para retirar na loja e conto os horários, as entregas e as formas de pagamento. Dúvidas de saúde ficam com o farmacêutico da loja.\nComandos:\n/reiniciar começa a conversa de novo\n/apagar apaga os seus dados\n/trace mostra como eu funciono nesta conversa\nPrivacidade: %{privacy}"
   # NFR-03's fallback: a turn the model could not answer (an error, the time
   # limit, the tool limit or a reply cut short; SR-20).
   fallback:
@@ -50,3 +55,11 @@ pt-BR:
   # operator paused, sent with no model call (threat model SR-02).
   budget:
     paused: "A demo está pausada até o próximo mês: chegou ao limite de gasto deste mês."
+  # FR-19's fixed texts on Telegram, sent with no model call: the ask for the
+  # agreement, after FR-01's notice, naming the button's phrase of
+  # config/commands.yml; the line for a message that is not text, which no
+  # file is fetched for; and the line for a text over 1,000 characters.
+  telegram:
+    ask: "Para responder, o modelo de IA da Anthropic lê cada mensagem que você manda. A política de privacidade conta o resto: %{privacy}\nSe estiver de acordo, toque em “%{agree}”."
+    not_text: "Por aqui eu leio só texto: escreva a sua pergunta numa mensagem."
+    too_long: "Sua mensagem passou de 1.000 caracteres, o limite da demo. Pode escrever uma mais curta?"

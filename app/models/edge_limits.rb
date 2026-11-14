@@ -32,7 +32,14 @@ module EdgeLimits
     Limit.new(name: "ip/turns", limit: 200, period: 1.day, reply: :today),
     # Every turn of one visitor identity.
     Limit.new(name: "visitor/minute", limit: 10, period: 1.minute, reply: :now),
-    Limit.new(name: "visitor/day", limit: 40, period: 1.day, reply: :today)
+    Limit.new(name: "visitor/day", limit: 40, period: 1.day, reply: :today),
+    # The Telegram webhook's refusals, all sources together: the first of a
+    # minute and the eleventh, the alert, are named in the log (threat model
+    # SR-06); nothing is refused for them.
+    Limit.new(name: "telegram/refused", limit: 10, period: 1.minute, reply: nil),
+    # A limit's own line goes to a Telegram visitor at most once a minute, so
+    # a flood costs no stream of replies (FR-19).
+    Limit.new(name: "telegram/limit_line", limit: 1, period: 1.minute, reply: nil)
   ].index_by(&:name).freeze
 
   module_function
@@ -63,6 +70,23 @@ module EdgeLimits
   def uncounted(limit)
     Rails.logger.warn("limits: #{limit.name} not counted: the cache did not answer")
     0
+  end
+
+  # Deletes the counters first written before the time given, for the
+  # nightly job (FR-15, the privacy page; design §10, note of 2026-11-14,
+  # PR-17): they key by an IP address or an identity's hash, and Solid Cache
+  # alone deletes a row two weeks after it was first written, and only when
+  # later writes set its expiry off. Solid Cache never moves a row's creation
+  # time, so a counter still counting is deleted too, which may restart a
+  # live window at most once a week. Any other store (the memory store of the
+  # specs) keeps its counters in memory, and nothing is deleted there.
+  def purge(before)
+    store = Rack::Attack.cache.store
+    return 0 unless store.is_a?(SolidCache::Store)
+
+    prefix = [ store.options[:namespace], "limits:" ].compact.join(":")
+    SolidCache::Entry.where("key LIKE ?", "#{ActiveRecord::Base.sanitize_sql_like(prefix)}%")
+                     .where(created_at: ...before).delete_all
   end
 
   # --- Which requests count (Rack::Attack's request, a Rack::Request) --------

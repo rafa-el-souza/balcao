@@ -1,0 +1,19 @@
+{
+  "update_id": 734120106,
+  "message": {
+    "message_id": 6,
+    "from": {
+      "id": 7341200001,
+      "is_bot": false,
+      "first_name": "Visitante",
+      "language_code": "pt-br"
+    },
+    "chat": {
+      "id": 7341200001,
+      "first_name": "Visitante",
+      "type": "private"
+    },
+    "date": 1763130107,
+    "text": "🫀"
+  }
+}
