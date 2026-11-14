@@ -14,9 +14,9 @@ class Product < ApplicationRecord
   # The SQL of Product.search, below, which says what each part does.
   SEARCH = <<~SQL.squish.freeze
     WITH texts AS (
-      SELECT NULL::uuid AS id, 'query' AS kind, unaccent(lower(:query)) AS text
+      SELECT NULL::uuid AS id, NULL AS name, 'query' AS kind, unaccent(lower(:query)) AS text
       UNION ALL
-      SELECT products.id, part.kind, part.text
+      SELECT products.id, products.name, part.kind, part.text
       FROM products
       CROSS JOIN LATERAL (VALUES
         ('whole', unaccent(lower(products.name || ' ' || coalesce(products.active_ingredient, '')))),
@@ -26,47 +26,51 @@ class Product < ApplicationRecord
       WHERE products.listed
     ),
     stemmed AS (
-      SELECT id, kind, text,
+      SELECT id, name, kind, text,
              ARRAY(SELECT DISTINCT stem FROM unnest(
                tsvector_to_array(to_tsvector('portuguese', text)) ||
                ARRAY(SELECT word FROM unnest(tsvector_to_array(to_tsvector('simple', text))) AS word WHERE length(word) = 1)
              ) AS stem) AS stems
       FROM texts
     ),
-    query AS (
+    query AS MATERIALIZED (
       SELECT text, stems FROM stemmed WHERE kind = 'query'
     ),
-    pairs AS (
-      SELECT whole.id, asked, found,
-             asked = found OR (length(asked) >= 5 AND (
-               levenshtein_less_equal(asked, found, 1) <= 1 OR
-               (length(asked) = length(found) AND levenshtein_less_equal(asked, found, 2) <= 2 AND
-                (SELECT string_agg(letter, '' ORDER BY letter) FROM regexp_split_to_table(asked, '') AS letter) =
-                (SELECT string_agg(letter, '' ORDER BY letter) FROM regexp_split_to_table(found, '') AS letter))
-             )) AS alike
-      FROM stemmed AS whole
-      CROSS JOIN query
-      CROSS JOIN unnest(query.stems) AS asked
-      CROSS JOIN unnest(whole.stems) AS found
-      WHERE whole.kind = 'whole'
+    folded AS (
+      SELECT id, max(name) AS name,
+             max(text) FILTER (WHERE kind = 'whole') AS text,
+             max(stems) FILTER (WHERE kind = 'whole') AS stems,
+             max(stems) FILTER (WHERE kind = 'ingredient') AS ingredient,
+             max(stems) FILTER (WHERE kind = 'head') AS head
+      FROM stemmed
+      WHERE kind <> 'query'
+      GROUP BY id
     ),
     candidates AS (
-      SELECT products.*,
-             word_similarity(query.text, whole.text) AS similarity,
+      SELECT folded.id, folded.name,
+             word_similarity(query.text, folded.text) AS similarity,
              cardinality(query.stems) AS wanted,
-             (SELECT count(DISTINCT asked) FROM pairs WHERE pairs.id = products.id AND asked = found) AS held,
-             (SELECT count(DISTINCT asked) FROM pairs WHERE pairs.id = products.id AND alike) AS near,
-             EXISTS (
-               SELECT 1 FROM stemmed AS part
-               WHERE part.id = products.id AND part.kind IN ('ingredient', 'head') AND cardinality(part.stems) > 0
-                 AND NOT EXISTS (
-                   SELECT 1 FROM unnest(part.stems) AS stem
-                   WHERE NOT EXISTS (SELECT 1 FROM pairs WHERE pairs.id = products.id AND found = stem AND alike)
-                 )
-             ) AS named
-      FROM products
-      JOIN stemmed AS whole ON whole.id = products.id AND whole.kind = 'whole'
+             tally.held, tally.near,
+             coalesce(cardinality(folded.ingredient) > 0 AND folded.ingredient <@ tally.alike, false)
+               OR coalesce(cardinality(folded.head) > 0 AND folded.head <@ tally.alike, false) AS named
+      FROM folded
       CROSS JOIN query
+      CROSS JOIN LATERAL (
+        SELECT count(DISTINCT asked) FILTER (WHERE asked = found) AS held,
+               count(DISTINCT asked) FILTER (WHERE alike) AS near,
+               coalesce(array_agg(DISTINCT found) FILTER (WHERE alike), ARRAY[]::text[]) AS alike
+        FROM (
+          SELECT asked, found,
+                 asked = found OR (length(asked) >= 5 AND (
+                   levenshtein_less_equal(asked, found, 1) <= 1 OR
+                   (length(asked) = length(found) AND levenshtein_less_equal(asked, found, 2) <= 2 AND
+                    (SELECT string_agg(letter, '' ORDER BY letter) FROM regexp_split_to_table(asked, '') AS letter) =
+                    (SELECT string_agg(letter, '' ORDER BY letter) FROM regexp_split_to_table(found, '') AS letter))
+                 )) AS alike
+          FROM unnest(query.stems) AS asked
+          CROSS JOIN unnest(folded.stems) AS found
+        ) AS pair
+      ) AS tally
     ),
     matched AS (
       SELECT candidates.*,
@@ -75,13 +79,19 @@ class Product < ApplicationRecord
                   WHEN named THEN 'partial'
              END AS match
       FROM candidates
+    ),
+    ranked AS (
+      SELECT matched.*, round(similarity::numeric, 2)::float AS score
+      FROM matched
+      WHERE match IS NOT NULL
+        AND (match <> 'partial' OR NOT EXISTS (SELECT 1 FROM matched AS better WHERE better.match <> 'partial'))
+      ORDER BY array_position(ARRAY['exact', 'close', 'partial'], match), near DESC, score DESC, name
+      LIMIT :limit
     )
-    SELECT matched.*, round(similarity::numeric, 2)::float AS score
-    FROM matched
-    WHERE match IS NOT NULL
-      AND (match <> 'partial' OR NOT EXISTS (SELECT 1 FROM matched AS better WHERE better.match <> 'partial'))
-    ORDER BY array_position(ARRAY['exact', 'close', 'partial'], match), near DESC, score DESC, name
-    LIMIT :limit
+    SELECT products.*, ranked.similarity, ranked.wanted, ranked.held, ranked.near, ranked.named, ranked.match, ranked.score
+    FROM ranked
+    JOIN products ON products.id = ranked.id
+    ORDER BY array_position(ARRAY['exact', 'close', 'partial'], ranked.match), ranked.near DESC, ranked.score DESC, ranked.name
   SQL
   private_constant :SEARCH
 
@@ -117,9 +127,22 @@ class Product < ApplicationRecord
   # The SQL is plain text, with the query bound: no fragment is interpolated
   # (threat model SR-28).
   #
-  # No index: the catalogue is a few hundred rows at most (ADR-0009), which
-  # the planner reads whole anyway. A catalogue of thousands would want an
-  # immutable unaccent wrapper and a trigram index on it, which schema.rb
-  # cannot hold, so that is ADR-0009's revisit, not this method's.
+  # The work grows with the catalogue, whatever plan the planner picks: each
+  # product becomes one row holding its stems (folded), and its pairs with the
+  # query's stems are counted from that row alone (tally), so no step looks a
+  # product up in a set the size of the catalogue. The query's one row is
+  # computed once (MATERIALIZED), or a nested loop reads all the stems again
+  # for each product to find it. Only the products ranked join the table
+  # again, by key. Counting the pairs among every product's, once per product,
+  # made the work grow with the square of the catalogue: up to 1.1 s at 300
+  # products and 11 s at 1,000, past the statement timeout (SR-20; design §10,
+  # the note of the catalogue search slice; spec/models/
+  # product_search_work_spec.rb).
+  #
+  # No index: every call folds and stems every listed product, about half of
+  # the 0.7 to 1 s a search takes at 10,000 products (design §10). A
+  # catalogue of thousands would want the folded texts and stems computed
+  # when the catalogue is loaded, with a trigram index on them: ADR-0009's
+  # revisit, not this method's.
   def self.search(query, limit: 5) = find_by_sql([ SEARCH, { query:, similarity: SIMILARITY, limit: } ])
 end
