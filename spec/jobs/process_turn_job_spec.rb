@@ -882,7 +882,7 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
     end
   end
 
-  describe "the commands, matched before the model (FR-04, FR-05, FR-12)" do
+  describe "the commands, matched before the model (FR-04, FR-05, FR-12, FR-19)" do
     before { responses.clear }
 
     describe "reset (FR-04)" do
@@ -1051,6 +1051,50 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
           expect(turn.reload.outbound_message.body).to eq(FixedReply.with_notice(FixedReply.command(:trace, "pt-BR", url:), "pt-BR"))
           expect(spans(turn).sole.span_attributes).to eq("balcao.command.name" => "trace")
         end
+      end
+    end
+
+    # FR-19: Telegram requires /start and /help of every bot, and the web chat
+    # matches them too (FR-18): fixed texts, no model, in any channel.
+    describe "start and help (FR-19, FR-18)" do
+      it "answers /start with the greeting, the notice first in a new conversation, without the model" do
+        turn = inbound("/start")
+
+        perform(turn)
+
+        expect(fake.requests).to be_empty
+        expect(turn.reload.outbound_message.body).to eq(FixedReply.with_notice(FixedReply.greeting("pt-BR"), "pt-BR"))
+        expect(spans(turn).sole.span_attributes).to eq("balcao.command.name" => "start")
+      end
+
+      it "answers /help with what the attendant does, the commands and the privacy page, without the model" do
+        responses.replace([ reply("[pt] Olá!") ])
+        perform(inbound("oi"))
+        turn = inbound("/help@BalcaoDemoBot")
+
+        expect { perform(turn) }.not_to(change { fake.requests.size })
+        body = turn.reload.outbound_message.body
+        expect(body).to eq(FixedReply.command(:help, "pt-BR", privacy: "#{Rails.configuration.x.public_origin}/privacy"))
+        expect(body).to include("/reiniciar", "/apagar", "/trace", "#{Rails.configuration.x.public_origin}/privacy")
+        expect(spans(turn).sole.span_attributes).to eq("balcao.command.name" => "help")
+      end
+
+      it "answers in the conversation's language, since every language lists /start and /help (FR-02)" do
+        conversation.update!(language: "es")
+
+        turn = inbound("/help")
+        perform(turn)
+
+        expect(turn.reload.outbound_message.body).to end_with(FixedReply.command(:help, "es", privacy: "#{Rails.configuration.x.public_origin}/privacy"))
+      end
+
+      it "ignores a deep link's parameter after /start until FR-23 reads it (M5)" do
+        turn = inbound("/start qr_landing")
+
+        perform(turn)
+
+        expect(fake.requests).to be_empty
+        expect(turn.reload.outbound_message.body).to end_with(FixedReply.greeting("pt-BR"))
       end
     end
   end

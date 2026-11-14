@@ -19,6 +19,11 @@ en:
     reset: "Done, we're starting over. How can I help?"
     delete: "Your data has been deleted: the messages, the open reservations and the history of the conversations. If you write again, we start from scratch."
     trace: "Here is how I work in this conversation, step by step: %{url}"
+    # FR-19, and FR-18 on the web: the greeting /start gets, in one paragraph,
+    # since it answers an agreement as a conversation's first reply, which the
+    # ask's notice came before (FixedReply.greeting); and what /help lists.
+    start: "Hello! I am the virtual attendant of %{store}, a fictional pharmacy: I look up prices and stock, reserve products for you to pick up at the shop and tell you the opening hours, the deliveries and the ways to pay. Questions about symptoms, doses and treatments are for the shop's pharmacist. The commands are in /help."
+    help: "I am the virtual attendant of %{store}, a fictional pharmacy: I look up prices and stock, reserve products to pick up at the shop and tell you the opening hours, the deliveries and the ways to pay. Health questions are for the shop's pharmacist.\nCommands:\n/reset starts the conversation over\n/delete deletes your data\n/trace shows how I work in this conversation\nPrivacy: %{privacy}"
   fallback:
     model_error: "Sorry, I couldn't answer just now. Could you try again in a moment?"
   limits:
@@ -26,3 +31,11 @@ en:
     today: "You have reached the demo's limit for today. Please come back tomorrow."
   budget:
     paused: "The demo is paused until next month: it has reached this month's spending limit."
+  # FR-19's fixed texts on Telegram, sent with no model call: the ask for the
+  # agreement, after FR-01's notice, naming the button's phrase of
+  # config/commands.yml; the line for a message that is not text, which no
+  # file is fetched for; and the line for a text over 1,000 characters.
+  telegram:
+    ask: "To answer, Anthropic's AI model reads each message you send. The privacy policy tells the rest: %{privacy}\nIf you agree, tap “%{agree}”."
+    not_text: "Here I read text only: write your question in a message."
+    too_long: "Your message is over 1,000 characters, the demo's limit. Could you write a shorter one?"

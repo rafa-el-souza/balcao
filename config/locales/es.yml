@@ -19,6 +19,11 @@ es:
     reset: "Listo, empezamos de nuevo. ¿En qué puedo ayudarte?"
     delete: "Tus datos fueron borrados: los mensajes, las reservas abiertas y el historial de las conversaciones. Si escribes de nuevo, empezamos desde cero."
     trace: "Mira, paso a paso, cómo funciono en esta conversación: %{url}"
+    # FR-19, and FR-18 on the web: the greeting /start gets, in one paragraph,
+    # since it answers an agreement as a conversation's first reply, which the
+    # ask's notice came before (FixedReply.greeting); and what /help lists.
+    start: "¡Hola! Soy el asistente virtual de %{store}, una farmacia ficticia: consulto precios y existencias, reservo productos para que los recojas en la tienda y te cuento los horarios, las entregas y las formas de pago. Las dudas sobre síntomas, dosis y tratamientos son para el farmacéutico de la tienda. Los comandos están en /help."
+    help: "Soy el asistente virtual de %{store}, una farmacia ficticia: consulto precios y existencias, reservo productos para recoger en la tienda y te cuento los horarios, las entregas y las formas de pago. Las dudas de salud son para el farmacéutico de la tienda.\nComandos:\n/reiniciar empieza la conversación de nuevo\n/borrar borra tus datos\n/trace muestra cómo funciono en esta conversación\nPrivacidad: %{privacy}"
   fallback:
     model_error: "Lo siento, no pude responder ahora. ¿Puedes intentarlo de nuevo en un momento?"
   limits:
@@ -26,3 +31,11 @@ es:
     today: "Llegaste al límite de la demo por hoy. Vuelve mañana."
   budget:
     paused: "La demo está en pausa hasta el próximo mes: llegó al límite de gasto de este mes."
+  # FR-19's fixed texts on Telegram, sent with no model call: the ask for the
+  # agreement, after FR-01's notice, naming the button's phrase of
+  # config/commands.yml; the line for a message that is not text, which no
+  # file is fetched for; and the line for a text over 1,000 characters.
+  telegram:
+    ask: "Para responder, el modelo de IA de Anthropic lee cada mensaje que mandas. La política de privacidad cuenta el resto: %{privacy}\nSi estás de acuerdo, toca “%{agree}”."
+    not_text: "Por aquí solo leo texto: escribe tu pregunta en un mensaje."
+    too_long: "Tu mensaje pasa de 1.000 caracteres, el límite de la demo. ¿Puedes escribir uno más corto?"

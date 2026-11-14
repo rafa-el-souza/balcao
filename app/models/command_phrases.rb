@@ -1,11 +1,18 @@
-# The visitor's commands, config/commands.yml (FR-04, FR-05, FR-12): matched
-# before the model is called, so no model output and no prompt injection can
-# trigger one (FR-05). A message is a command only when, normalised, it is
-# exactly one of the phrases; the file's header says what normalising ignores.
+# The visitor's commands, config/commands.yml (FR-04, FR-05, FR-12, FR-19):
+# matched before the model is called, so no model output and no prompt
+# injection can trigger one (FR-05). A message is a command only when,
+# normalised, it is exactly one of the phrases; the file's header says what
+# normalising ignores. The same file lists the phrases of Telegram's
+# agreement (FR-19), which are never a command.
 class CommandPhrases
   PATH = Rails.root.join("config/commands.yml")
-  NAMES = %w[reset delete trace].freeze
+  NAMES = %w[reset delete trace start help].freeze
+  AGREEMENT = "agree".freeze
   LANGUAGES = %w[pt en es].freeze
+  # A command typed with the bot's username is that command, and /start may
+  # carry a deep link's parameter (FR-19): up to 64 of A-Z, a-z, 0-9, _ and -.
+  BOT_MENTION = %r{\A(/[a-z0-9_]+)@#{Telegram::Bot::USERNAME.downcase}(?=\s|\z)}
+  DEEP_LINK = %r{\A/start [a-z0-9_-]{1,64}\z}
 
   class Invalid < StandardError; end
 
@@ -18,20 +25,26 @@ class CommandPhrases
   end
 
   # Case, accents, surrounding and repeated spaces, an opening ¿ or ¡ and the
-  # final punctuation do not count; nothing else is removed. Bytes that are
-  # not UTF-8 become U+FFFD, so such a message is never a command and never
-  # raises before the turn starts.
+  # final punctuation do not count, nor the bot's username after a command and
+  # a deep link's parameter after /start; nothing else is removed. Bytes that
+  # are not UTF-8 become U+FFFD, so such a message is never a command and
+  # never raises before the turn starts.
   def self.normalize(text)
     text = text.to_s.dup.force_encoding(Encoding::UTF_8).scrub
     text = text.unicode_normalize(:nfkd).gsub(/\p{Mn}/, "").downcase.gsub(/\s+/, " ").strip
-    text.delete_prefix("¿").delete_prefix("¡").lstrip.sub(/[\s.!?…]+\z/, "")
+    text = text.delete_prefix("¿").delete_prefix("¡").lstrip.sub(/[\s.!?…]+\z/, "").sub(BOT_MENTION, '\1')
+    text.match?(DEEP_LINK) ? "/start" : text
   end
 
   def initialize(data)
-    raise Invalid, "commands must be exactly #{NAMES.join(", ")}" unless data.is_a?(Hash) && data.keys.sort == NAMES.sort
+    keys = NAMES + [ AGREEMENT ]
+    raise Invalid, "commands must be exactly #{keys.join(", ")}" unless data.is_a?(Hash) && data.keys.sort == keys.sort
 
     @phrases = NAMES.to_h { |name| [ name.to_sym, check_languages(data[name], name) ] }
-    @commands = index(@phrases)
+    @agreement = check_languages(data[AGREEMENT], AGREEMENT)
+    owners = index(@phrases.merge(AGREEMENT.to_sym => @agreement))
+    @commands = owners.reject { |_, owner| owner == AGREEMENT.to_sym }.freeze
+    @agreements = owners.filter_map { |key, owner| key if owner == AGREEMENT.to_sym }.to_set.freeze
     @languages = languages_index(@phrases)
   end
 
@@ -39,8 +52,16 @@ class CommandPhrases
 
   def phrases(name) = @phrases.fetch(name)
 
-  # :reset, :delete, :trace, or nil when the message is not a command.
+  # :reset, :delete, :trace, :start, :help, or nil when the message is not a
+  # command.
   def match(text) = @commands[self.class.normalize(text)]
+
+  # Whether the message is one of the agreement's phrases (FR-19), which
+  # counts only while the bot holds no row of the person.
+  def agreement?(text) = @agreements.include?(self.class.normalize(text))
+
+  # The phrase the ask's button sends in this language ("pt", "en", "es").
+  def agreement(language) = @agreement.fetch(language).first
 
   # The languages whose list holds the phrase ("reset" is English only,
   # "/reiniciar" Portuguese and Spanish), so a confirmation can follow the

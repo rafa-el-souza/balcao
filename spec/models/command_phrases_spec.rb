@@ -1,11 +1,58 @@
 require "rails_helper"
 
-RSpec.describe "FR-04 FR-05 FR-12 command phrases, matched before the model" do
+RSpec.describe "FR-04 FR-05 FR-12 FR-19 command phrases, matched before the model" do
   subject(:commands) { CommandPhrases.load(Rails.root.join("config/commands.yml")) }
 
-  it "knows the three commands in the three languages" do
-    expect(commands.names).to contain_exactly(:reset, :delete, :trace)
+  it "knows the five commands in the three languages" do
+    expect(commands.names).to contain_exactly(:reset, :delete, :trace, :start, :help)
     expect(commands.phrases(:reset).keys).to contain_exactly("pt", "en", "es")
+  end
+
+  # FR-19: Telegram requires /start and /help of every bot; the web chat
+  # matches them too (FR-18). A command may carry the bot's own username, and
+  # /start the parameter of a deep link, ignored until FR-23 reads it (M5).
+  {
+    "/start" => :start, "/help" => :help, "/help@BalcaoDemoBot" => :help, "/START@balcaodemobot" => :start,
+    "/apagar@BalcaoDemoBot" => :delete, "/start ref_landing-01" => :start, "/start@BalcaoDemoBot qr" => :start
+  }.each do |text, command|
+    it "matches #{text.inspect} to #{command}" do
+      expect(commands.match(text)).to eq command
+    end
+  end
+
+  {
+    "another bot's username" => "/help@OtherDemoBot",
+    "a parameter after another command" => "/help me",
+    "two words after /start" => "/start ref landing",
+    "a parameter longer than a deep link's 64 characters" => "/start #{"a" * 65}",
+    "the username alone" => "@BalcaoDemoBot"
+  }.each do |label, text|
+    it "does not match #{label}" do
+      expect(commands.match(text)).to be_nil
+    end
+  end
+
+  # FR-19, agreement first (the owner, 2026-11-14): the phrases the ask's
+  # button sends, or a person types, count as the agreement while the bot
+  # holds no row of that person. They are not commands: once the row exists,
+  # they are a message like any other.
+  describe "the agreement's phrases" do
+    [ "Concordo", "concordo.", "  CONCORDO! ", "eu concordo", "I agree", "i agree.", "Acepto", "acepto!" ].each do |text|
+      it "takes #{text.inspect} as the agreement, and never as a command" do
+        expect(commands.agreement?(text)).to be(true)
+        expect(commands.match(text)).to be_nil
+      end
+    end
+
+    [ "concordo com o preço", "não concordo", "/start", "ok", "", nil ].each do |text|
+      it "does not take #{text.inspect} as the agreement" do
+        expect(commands.agreement?(text)).to be(false)
+      end
+    end
+
+    it "names, in each language, the phrase the ask's button sends, the one the privacy page names" do
+      expect(%w[pt en es].map { |language| commands.agreement(language) }).to eq([ "Concordo", "I agree", "Acepto" ])
+    end
   end
 
   {
@@ -76,6 +123,16 @@ RSpec.describe "FR-04 FR-05 FR-12 command phrases, matched before the model" do
 
     it "refuses a command the requirements do not define" do
       expect { load_with(data.merge("buy" => data["reset"].deep_dup)) }.to raise_error(CommandPhrases::Invalid, /commands must be exactly/)
+    end
+
+    it "refuses a file without the agreement's phrases" do
+      expect { load_with(data.except("agree")) }.to raise_error(CommandPhrases::Invalid, /commands must be exactly/)
+    end
+
+    it "refuses an agreement's phrase that is also a command's" do
+      data["agree"]["pt"] << "/start"
+
+      expect { load_with(data) }.to raise_error(CommandPhrases::Invalid, /"\/start" belongs to start and agree/)
     end
 
     it "refuses a command without one of the languages" do
