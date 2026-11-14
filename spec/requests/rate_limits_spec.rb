@@ -155,7 +155,7 @@ RSpec.describe "FR-14 SR-01 SR-36 per-IP and per-visitor limits", type: :request
     # answered 500.
     it "lets a request through uncounted when the cache cannot count it, and says which limit in the log" do
       store = Rack::Attack.cache.store
-      allow(store).to receive_messages(increment: nil, write: false)
+      allow(store).to receive(:increment).and_return(nil)
       allow(Rails.logger).to receive(:warn)
 
       session_from("203.0.113.9")
@@ -164,6 +164,20 @@ RSpec.describe "FR-14 SR-01 SR-36 per-IP and per-visitor limits", type: :request
       expect(Rails.logger).to have_received(:warn).with("limits: ip/requests not counted: the cache did not answer")
       expect(Rails.logger).to have_received(:warn).with("limits: ip/sessions not counted: the cache did not answer")
       expect(Rails.logger).not_to have_received(:warn).with(/203\.0\.113/)
+    end
+
+    # Review finding S4 of pull request #29: an increment the cache failed
+    # must not be followed by a write that starts the window over.
+    it "never starts a live counter over when an increment fails" do
+      store = Rack::Attack.cache.store
+      store.write("limits:visitor/day:x", 39, expires_in: 1.day)
+      allow(store).to receive(:increment).and_return(nil)
+      allow(Rails.logger).to receive(:warn)
+
+      expect(EdgeLimits.over?("visitor/day", "x")).to be(false)
+
+      expect(store.read("limits:visitor/day:x")).to eq(39)
+      expect(Rails.logger).to have_received(:warn).with("limits: visitor/day not counted: the cache did not answer")
     end
 
     it "never limits the health check, which the proxy and the monitor call" do
