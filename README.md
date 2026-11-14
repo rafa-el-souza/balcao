@@ -1,11 +1,16 @@
 # Balcão
 
+[![The demo, online or offline](https://img.shields.io/website?url=https%3A%2F%2Fbalcao.rafasouza.dev.br%2Fup&label=demo&up_message=online&down_message=offline)](https://balcao.rafasouza.dev.br)
+[![CI on main](https://img.shields.io/github/actions/workflow/status/rafa-el-souza/balcao/ci.yml?branch=main&label=CI)](https://github.com/rafa-el-souza/balcao/actions/workflows/ci.yml?query=branch%3Amain)
+[![The clinical boundary's eval cases, as last committed](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2Frafa-el-souza%2Fbalcao%2Fmain%2Fevals%2Fscorecard.md&search=%5C%7C%20boundary%20%5C%7C%20%5Cd%2B%20%5C%7C%20(%5Cd%2B%2F%5Cd%2B)&replace=%241&label=clinical%20boundary%20evals)](evals/scorecard.md)
+
 > An AI attendant for a neighbourhood pharmacy, on the web and on WhatsApp,
 > built to be used, watched and audited.
 
-**Try it** (live from the MVP, about two weeks of work after the first commit): `https://balcao.rafasouza.dev.br` — talk to the attendant of *Farmácia
-Vida Longa* (a fictional pharmacy) and watch, beside the chat, every model
-call, tool call, token and cent it took to answer you.
+**Try it:** [balcao.rafasouza.dev.br](https://balcao.rafasouza.dev.br) (live
+from the MVP, about two weeks of work after the first commit) — talk to the
+attendant of *Farmácia Vida Longa* (a fictional pharmacy) and watch, beside
+the chat, every model call, tool call, token and cent it took to answer you.
 
 *Português:* Balcão é um atendente de IA para uma farmácia de bairro
 fictícia. Ele consulta estoque, reserva produtos, agenda serviços, encaminha
@@ -14,6 +19,57 @@ conversa tudo o que fez para responder. *Español:* Balcão es un asistente de
 IA para una farmacia de barrio ficticia: consulta stock, reserva productos,
 agenda servicios, deriva al farmacéutico cuando la pregunta es clínica y
 muestra junto al chat todo lo que hizo para responder.
+
+## A sixty-second tour of the code
+
+Follow one message from the chat to its reply. Each stop starts at a file
+whose opening comment says what it does and why.
+
+1. **It arrives.** The request is first counted against rate limits, per IP
+   address and per visitor
+   ([`app/models/edge_limits.rb`](app/models/edge_limits.rb)). Then
+   [`app/controllers/api/messages_controller.rb`](app/controllers/api/messages_controller.rb)
+   validates the message, stores it once however often the browser sends it,
+   queues a job and answers at once; the reply will come over a WebSocket.
+2. **A job takes it.**
+   [`app/jobs/process_turn_job.rb`](app/jobs/process_turn_job.rb) runs the
+   turn (a message and everything done to answer it), one at a time per
+   conversation, in order. When something breaks it tries three times in
+   all, then sends a fallback reply: the visitor is never left waiting.
+3. **The model is called.**
+   [`app/agent/agent_runner.rb`](app/agent/agent_runner.rb) runs the official
+   Anthropic SDK's tool loop inside three limits: six tool calls, 1,500
+   output tokens per model call, sixty seconds in all.
+   [`app/agent/model_policy.rb`](app/agent/model_policy.rb) is the one place
+   that names a model.
+4. **The prompt draws a line.**
+   [`app/agent/system_prompt.rb`](app/agent/system_prompt.rb) holds the
+   attendant's instructions, nothing secret among them, and the rule that
+   matters most: no clinical advice, which is the pharmacist's to give. The
+   `boundary` cases of [`evals/cases.yaml`](evals/cases.yaml) put that rule
+   to the real model in three languages, and the
+   [scorecard](evals/scorecard.md) is the last run's result.
+5. **A tool does the work.**
+   [`app/agent/tools/create_reservation.rb`](app/agent/tools/create_reservation.rb)
+   takes nothing on the model's word: it checks every argument itself, and
+   however often a turn is retried, its reservation is made once.
+   [Its tests](spec/agent/tools/create_reservation_spec.rb) prove both.
+6. **Every step is recorded.**
+   [`app/models/trace_recorder.rb`](app/models/trace_recorder.rb) stores each
+   model call, tool call and reply as a span in OpenTelemetry's shape, with
+   attributes from an allow-list only, so no secret and no identity can ride
+   along. [`web/src/chat/GlassBox.tsx`](web/src/chat/GlassBox.tsx) draws the
+   spans as they happen in the glass box, the panel beside the chat.
+7. **It runs on one small VM.** [`config/deploy.yml`](config/deploy.yml) says
+   what runs there, the [`Dockerfile`](Dockerfile) builds it and
+   [`ops/cloud-init.yml`](ops/cloud-init.yml) sets up the host.
+
+The ids in those files (FR-07, SR-16) are numbered requirements: functional
+(FR) and non-functional (NFR) in the [design document](docs/design.md),
+security (SR) in the [threat model](docs/threat-model.md). The stops are
+what is built so far, and [Status](#status) says how far that is. Not at
+home in a Rails repository? [Where things live](#where-things-live) says
+what each folder holds.
 
 ## What it does
 
@@ -49,6 +105,52 @@ ids and request parameters it uses (design §6.4). Two tools sit one major behin
 because typescript-eslint does not support TypeScript 7 yet, and ESLint 9,
 because `eslint-plugin-jsx-a11y` does not support ESLint 10 yet. The
 `.tool-versions` file pins Ruby and Node for local work and CI.
+
+### Where things live
+
+Most folders are the ones Rails gives every application, so their names say
+little about this one; `app/agent/`, `evals/`, `ops/`, `web/` and `docs/`
+are the project's own. What each holds:
+
+- [`app/controllers/`](app/controllers) — the HTTP endpoints: the JSON API
+  under `api/`, and the controller that sends the web app's pages.
+  [`config/routes.rb`](config/routes.rb) lists every URL and the code behind
+  it.
+- [`app/jobs/`](app/jobs) — work done after a request is answered; here, the
+  job that answers a message.
+- [`app/agent/`](app/agent) — everything that talks to the model: the runner,
+  the system prompt, the model policy, the tools, and the fake model the
+  tests run on.
+- [`app/models/`](app/models) — the database's tables as classes
+  (conversation, message, turn, product, reservation) and, beside them, plain
+  Ruby classes with no table behind them, which hold the app's rules, such
+  as [`turn_processor.rb`](app/models/turn_processor.rb): one turn, from a
+  message to its reply.
+- [`app/channels/`](app/channels) — the WebSocket side: the streams that
+  carry each reply and each trace span to the page, and the gate that limits
+  the open sockets.
+- [`config/`](config) — settings: the pharmacy's facts in `store.yml`, the
+  rate limits' rules in `initializers/rack_attack.rb`, the deploy in
+  `deploy.yml`, the server's texts in three languages under `locales/`.
+- [`db/`](db) — [`schema.rb`](db/schema.rb) is the database at a glance;
+  `seeds/catalogue.yml` is the invented catalogue.
+- [`spec/`](spec) — the server's tests. It mirrors the folders of `app/` (the
+  endpoints' tests are under `requests/`) and adds checks on the deploy
+  files, the cloud-init file and the CI. Each test says first which
+  requirement or design section it proves.
+- [`web/`](web) — the React and TypeScript app: `src/chat/` is the chat and
+  the glass box, `src/trace/` the trace page, `src/landing/` the landing.
+  Tests sit beside what they test; `test/` holds the checks on the build as
+  a whole.
+- [`evals/`](evals) and [`lib/evals/`](lib/evals) — the conversation's cases,
+  and the runner that plays them against the real model.
+- [`docs/`](docs) — the design, the decision records (ADRs), the threat model
+  and the runbook; `prototype/` holds the screens as static HTML, which the
+  React follows.
+- [`bin/`](bin) — the commands of [Running locally](#running-locally).
+- [`Dockerfile`](Dockerfile), [`ops/`](ops) and
+  [`.github/workflows/`](.github/workflows) — the image, the host's
+  definition and the CI.
 
 Read, in this order:
 
