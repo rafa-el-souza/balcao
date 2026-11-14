@@ -416,6 +416,23 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
       expect(AdvisoryLock).to have_received(:hold).with("telegram-send:#{identity}").once
     end
 
+    # Review finding V2 of pull request #33: with encryption keys other than
+    # the row's, the read broke after the line and was tried again, the line
+    # going out at each attempt.
+    it "reads the update and sends a visitor's fixed line once when the visitor's chat no longer decrypts" do
+      agreed!
+      sent.clear
+      other_keys = ActiveRecord::Encryption::DerivedSecretKeyProvider.new("another-primary-key-for-the-spec")
+      errors = []
+      allow(Rails.logger).to receive(:error) { |line| errors << line }
+
+      ActiveRecord::Encryption.with_encryption_context(key_provider: other_keys) { deliver(fixture("sticker")) }
+
+      expect(texts).to eq([ FixedReply.not_text("pt-BR") ])
+      expect(@event).to have_attributes(status: "processed", payload: nil)
+      expect(errors).to include(a_string_including("the chat does not decrypt"))
+    end
+
     it "sends nothing for an update it drops, a service message, or a text that becomes a turn (ProcessTurnJob answers it)" do
       agreed!
       sent.clear

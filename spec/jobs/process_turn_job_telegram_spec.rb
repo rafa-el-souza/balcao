@@ -77,6 +77,37 @@ RSpec.describe "FR-19 FR-05 NFR-03 ProcessTurnJob on Telegram, the reply on its 
     expect(turn.outbound_message.reload.status).to eq "sent"
   end
 
+  # Review findings V2 and L14 of pull request #33: with encryption keys other
+  # than the row's, reading the chat raised, so every turn broke before its
+  # model and ended in the dead letter, and the delete command never deleted.
+  describe "a chat that no longer decrypts (other encryption keys)" do
+    let(:other_keys) { ActiveRecord::Encryption::DerivedSecretKeyProvider.new("another-primary-key-for-the-spec") }
+    let(:errors) { [] }
+
+    before do
+      conversation # the visitor's row, written with the keys of the suite
+      allow(Rails.logger).to receive(:error) { |line| errors << line }
+    end
+
+    it "still runs the turn, stores its reply and says in the log that the chat does not decrypt" do
+      turn = ActiveRecord::Encryption.with_encryption_context(key_provider: other_keys) do
+        inbound("Vocês têm dipirona?").tap { |own| perform(own) }
+      end
+
+      expect(turn.reload.state).to eq "replied"
+      expect(sent).to be_empty
+      expect(errors).to include("telegram visitor #{visitor.id}: the chat does not decrypt, " \
+                                "ActiveRecord::Encryption::Errors::Decryption")
+    end
+
+    it "deletes the visitor's data all the same (FR-05)" do
+      ActiveRecord::Encryption.with_encryption_context(key_provider: other_keys) { perform(inbound("/apagar")) }
+
+      expect(Visitor.exists?(visitor.id)).to be(false)
+      expect(sent).to be_empty
+    end
+  end
+
   describe "the delete command (FR-05)" do
     it "sends the confirmation to the chat read before the deletion, saying whose the app's copy is, and stores nothing" do
       earlier = inbound("oi")

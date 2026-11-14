@@ -7,11 +7,19 @@ module Telegram
   # stored anywhere else, so a reply is sent where it is made, never handed
   # to a later job by its chat.
   Chat = Data.define(:identity, :id) do
-    # A Telegram visitor's chat, or nil for a visitor of another channel.
+    # A Telegram visitor's chat, or nil for a visitor of another channel. A
+    # chat that does not decrypt (encryption keys other than the row's) is
+    # nil too, with one line in the log: nothing is sent to that person, and
+    # neither the read of their updates, nor their turns, nor their deletion
+    # break on it (review findings V2 and L14 of pull request #33).
     def self.of(visitor)
-      return unless visitor&.channel == "telegram" && visitor.telegram_chat_id.present?
+      return unless visitor&.channel == "telegram"
 
-      new(identity: visitor.identity_hash, id: Integer(visitor.telegram_chat_id))
+      id = visitor.telegram_chat_id.presence or return
+      new(identity: visitor.identity_hash, id: Integer(id))
+    rescue ActiveRecord::Encryption::Errors::Decryption => e
+      Rails.logger.error("telegram visitor #{visitor.id}: the chat does not decrypt, #{e.class}")
+      nil
     end
 
     # Written in a log line as the person's place, never the chat.
