@@ -100,6 +100,16 @@ RSpec.describe "FR-14 SR-02 FR-12 the budget in a turn: the pause before the mod
       expect(UsageRecord.count).to eq(0)
     end
 
+    it "names no model on a turn run again in a month that paused after its first run broke" do
+      turn = inbound("tem dipirona?")
+      turn.update!(state: "failed", mode: "normal", model: "claude-opus-5-5")
+      BudgetState.for_month!.update!(forced_mode: "paused")
+
+      perform(turn)
+
+      expect(turn.reload).to have_attributes(mode: "paused", model: nil, state: "replied")
+    end
+
     it "answers a forced pause too, in the conversation's language" do
       conversation.update!(language: "es")
       BudgetState.for_month!.update!(forced_mode: "paused")

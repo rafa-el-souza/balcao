@@ -185,9 +185,10 @@ class TurnProcessor
     raise
   end
 
-  # FR-14: the month is paused, so the reply is the pause's, with no model.
+  # FR-14: the month is paused, so the reply is the pause's, with no model;
+  # a model an earlier run of the turn named is no longer the turn's.
   def paused
-    @turn.update!(mode: "paused")
+    @turn.update!(mode: "paused", model: nil)
     @root.attributes["balcao.turn.mode"] = "paused"
     finish("paused", "replied", FixedReply.paused(@conversation.language))
   end
@@ -196,7 +197,12 @@ class TurnProcessor
     @turn.update!(mode:, model: ModelPolicy.route(mode).model)
     @root.attributes["balcao.turn.mode"] = mode
     events = TurnTrace.new(@recorder, @root)
-    result = charged { |calls| AgentRunner.new.run(@turn, mode:) { |event| calls << event if event.is_a?(AgentRunner::ModelCall); events.on(event) } }
+    result = charged do |calls|
+      AgentRunner.new.run(@turn, mode:) do |event|
+        calls << event if event.is_a?(AgentRunner::ModelCall)
+        events.on(event)
+      end
+    end
     @conversation.update!(language: result.language) if result.language
     text, state = reply_of(result)
     finish(result.outcome, state, text, error: result.error)
