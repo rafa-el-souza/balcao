@@ -14,6 +14,12 @@
     "headline": "An AI attendant for a neighbourhood pharmacy.",
     "lede": "Fictional. Working. With the glass box open.",
     "say": "Say:",
+    "bot": {
+      "title": "Open in Telegram",
+      "qr": "QR code of the bot's link, {{link}}",
+      "open": "point your camera, or open",
+      "why": "Why Telegram: WhatsApp's business policy turns away a pharmacy without a licence, and this one is fictional."
+    },
     "does": {
       "title": "What it does",
       "stock": "Checks stock and price, and reserves the product for pickup.",

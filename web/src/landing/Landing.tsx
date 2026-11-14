@@ -1,28 +1,33 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
-import { DOCUMENTS, MAILTO } from "../identity";
+import { BOT_URL, BOT_USERNAME, DOCUMENTS, MAILTO } from "../identity";
 import openers from "../openers.json";
 import { cx } from "../ui/cx";
 import { Cross, Icon } from "../ui/Icon";
 import { LanguageSwitch } from "../ui/LanguageSwitch";
 import parts from "../ui/parts.module.css";
 import { Signature } from "../ui/Signature";
+import { qrPath } from "./botQr";
 import styles from "./Landing.module.css";
 
 // The landing, `/` (design §6.7, §6.8; docs/prototype/landing.html). The
 // drawing is the target; a line whose source arrives later is left out until
 // then, not shown as a promise: the live numbers and the status link (FR-13,
-// M3), the receipt with the bot's QR (FR-19, PR-19), the example
-// conversations (FR-22, M5), the offer's tags and exclusions (FR-25, M5), the
-// scorecard's rows (the first scorecard, PR-14), the booking line (FR-08, M2)
-// and voice notes (FR-11, M4). Other companies' marks wait for their owners'
-// files or permission.
+// M3), the example conversations (FR-22, M5), the offer's tags and
+// exclusions (FR-25, M5), the scorecard's rows (the first scorecard, PR-14),
+// the booking line (FR-08, M2) and voice notes (FR-11, M4). Other companies'
+// marks wait for their owners' files or permission. The receipt with the
+// bot's QR is day 12's (FR-19, PR-19).
 
 // The opener's language, as the page's lang attribute names it.
 const LANG = { pt: "pt-BR", en: "en", es: "es" } as const;
 
 const DOCUMENT_LINKS = ["design", "adrs", "threats", "evals"] as const;
+
+// The bot's link as the QR's label names it, and the QR drawn once.
+const BOT_LINK = BOT_URL.replace(/^https:\/\//, "");
+const QR_PATH = qrPath();
 
 export function Landing() {
   const { t } = useTranslation();
@@ -67,6 +72,27 @@ export function Landing() {
               ))}
             </ul>
           </div>
+        </section>
+
+        <section
+          className={cx(parts.slip, styles.bot)}
+          aria-labelledby="bot-title"
+        >
+          <h2 className={parts.slipTitle} id="bot-title">
+            {t("landing.bot.title")}
+          </h2>
+          <svg
+            className={styles.qr}
+            viewBox="-2 -2 29 29"
+            role="img"
+            aria-label={t("landing.bot.qr", { link: BOT_LINK })}
+          >
+            <path d={QR_PATH} />
+          </svg>
+          <p>
+            {t("landing.bot.open")} <a href={BOT_URL}>@{BOT_USERNAME}</a>
+          </p>
+          <p className={styles.why}>{t("landing.bot.why")}</p>
         </section>
 
         <section className={styles.does} aria-labelledby="does-title">

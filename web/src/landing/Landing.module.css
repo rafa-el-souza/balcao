@@ -111,6 +111,47 @@
   white-space: nowrap;
 }
 
+/* The bot's QR, a receipt of its own (FR-19): its handle under it is the link, since a phone
+   cannot scan its own screen, and its foot, under a dashed rule, says why the demo talks on
+   Telegram. */
+.bot {
+  align-self: start;
+  margin: var(--space-6) 0;
+  padding: var(--space-4);
+  text-align: center;
+}
+
+.bot h2 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xs);
+  letter-spacing: 0.1em;
+  line-height: var(--leading-row);
+}
+
+.bot p {
+  margin: 0;
+  color: var(--color-instrument-ink-2);
+}
+
+.bot a {
+  color: inherit;
+}
+
+.qr {
+  display: block;
+  width: 7.5rem;
+  height: 7.5rem;
+  margin: var(--space-1) auto;
+  fill: var(--color-instrument-ink);
+}
+
+.bot .why {
+  margin-top: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: var(--rule-dash);
+  text-align: left;
+}
+
 /* "Como é feito" is the engineer's part, so it is a receipt: the stack as items, then the
    documents. */
 .built {
@@ -179,13 +220,14 @@
   }
 }
 
-/* Between the phone and the desk: two columns. The two sections of text side by side, and the
-   receipt beside the warning and the signature. */
+/* Between the phone and the desk: two columns. The bot's receipt under the chips, in the second
+   column, where the drawing puts it beside the live numbers (M3); the two sections of text side
+   by side; and the last receipt beside the warning and the signature. */
 @media (40rem <= width < 60rem) {
   .landing {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: auto auto auto auto;
+    grid-template-rows: auto auto auto auto auto;
     column-gap: var(--space-8);
   }
 
@@ -193,11 +235,11 @@
     grid-column: 1 / -1;
   }
 
-  /* The main block spans the rows of the hero, the pair and the receipt; the footer takes the
-     receipt's row, in the column the receipt leaves. */
+  /* The main block spans the rows of the hero, the bot's receipt, the pair and the last receipt;
+     the footer takes the last receipt's row, in the column it leaves. */
   .main {
     grid-column: 1 / -1;
-    grid-row: 2 / span 3;
+    grid-row: 2 / span 4;
     display: grid;
     grid-template-columns: subgrid;
     grid-template-rows: subgrid;
@@ -209,22 +251,28 @@
     padding: var(--space-12) 0 var(--space-8);
   }
 
-  .does {
+  .bot {
+    grid-column: 2;
     grid-row: 2;
+    margin: 0 0 var(--space-6);
+  }
+
+  .does {
+    grid-row: 3;
   }
 
   .business {
-    grid-row: 2;
+    grid-row: 3;
   }
 
   .built {
     grid-column: 1;
-    grid-row: 3;
+    grid-row: 4;
   }
 
   .colophon {
     grid-column: 2;
-    grid-row: 4;
+    grid-row: 5;
     align-self: center;
     margin-top: var(--space-6);
   }
@@ -234,8 +282,8 @@
   }
 }
 
-/* The desk: three columns. With no live numbers nor WhatsApp receipt yet, the receipt of "Como é
-   feito" takes their place, beside the hero. */
+/* The desk: three columns. The bot's receipt beside the hero, where the drawing puts it under the
+   live numbers (M3), and the receipt of "Como é feito" beside the two sections of text. */
 @media (width >= 60rem) {
   .landing {
     display: grid;
@@ -280,10 +328,16 @@
     border-top: var(--rule-hairline);
   }
 
+  .bot {
+    grid-column: 3;
+    grid-row: 1;
+    margin: calc(var(--space-16) + var(--space-2)) 0 var(--space-12);
+  }
+
   .built {
     grid-column: 3;
-    grid-row: 1 / span 2;
-    margin: calc(var(--space-16) + var(--space-2)) 0 0;
+    grid-row: 2;
+    margin: 0;
   }
 
   .colophon {
