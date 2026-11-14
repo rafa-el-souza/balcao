@@ -72,6 +72,26 @@ RSpec.describe "SR-30 NFR-05 the log: an error by its class alone, one JSON obje
       expect(io.string).not_to include("98765")
     end
 
+    # Review finding C1 of pull request #29: the last attempt's error goes on
+    # to Solid Queue's worker, which writes its own line with the error, as
+    # does a failure to finish a job (its FinalizationError quotes its cause).
+    it "keeps a job's last error out of Solid Queue's worker line, which names it by class alone" do
+      queue = StringIO.new
+      previous = SolidQueue.logger
+      SolidQueue.logger = ActiveSupport::Logger.new(queue)
+      allow(SolidQueue).to receive(:on_thread_error).and_return(nil)
+      job = QuotingJob.new
+      job.perform_now
+      last = Object.new.tap { |execution| execution.define_singleton_method(:perform) { job.perform_now } }
+
+      SolidQueue::Pool.new(1).send(:perform_execution, last)
+
+      expect(queue.string).to include("Error in thread", "ActiveRecord::StatementInvalid")
+      expect(queue.string).not_to include("98765")
+    ensure
+      SolidQueue.logger = previous
+    end
+
     it "leaves the error itself as it was, for the job's own handling and the queue's record" do
       expect { run_out(QuotingJob.new) }.to raise_error(ActiveRecord::StatementInvalid, quoted)
     end

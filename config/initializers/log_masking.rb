@@ -10,7 +10,11 @@
 #   step that failed ("Error performing", "Retrying", "Stopped retrying",
 #   "Discarded", "Error during step"), and of an enqueue that failed;
 # - a request's error, which ActionDispatch::DebugExceptions writes with its
-#   message and its causes' (production's error page shows neither).
+#   message and its causes' (production's error page shows neither);
+# - Solid Queue's worker lines, which write the error a job's last attempt
+#   raises on to the worker ("Error in thread") and a failure to finish a
+#   job, whose FinalizationError quotes its cause (review finding C1 of pull
+#   request #29).
 #
 # The error itself is left as it was: only the line is written from a copy.
 module Balcao
@@ -58,6 +62,13 @@ module Balcao
       def compose_exception_message(wrapper) = super(MaskedWrapper.new(wrapper))
     end
 
+    # SolidQueue::LogSubscriber's every error attribute.
+    module QueueLines
+      private
+
+      def formatted_error(error) = error.class.name
+    end
+
     class MaskedWrapper < SimpleDelegator
       def message = FILTERED
 
@@ -68,3 +79,4 @@ end
 
 ActiveSupport.on_load(:active_job) { ActiveJob::LogSubscriber.prepend(Balcao::LogMasking::JobLines) }
 ActionDispatch::DebugExceptions.prepend(Balcao::LogMasking::RequestLines)
+SolidQueue::LogSubscriber.prepend(Balcao::LogMasking::QueueLines)
