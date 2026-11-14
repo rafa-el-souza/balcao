@@ -1575,7 +1575,7 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
   to its file: the edge's limits and the endpoint, the job, the runner and
   the model policy, the prompt with the boundary cases and the scorecard,
   the reservation tool with its tests, the trace recorder with the glass
-  box, and the deploy files. "How it is built" gains a table of what each
+  box, and the deploy files. "How it is built" gains a list of what each
   folder holds, for a reader new to Rails' layout. Four of M5's five files
   are among the stops; the webhook signature check joins when PR-18 writes
   it. PR-17 keeps the tour true rather than writing it, and M5's version

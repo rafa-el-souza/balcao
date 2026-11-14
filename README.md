@@ -101,21 +101,44 @@ because `eslint-plugin-jsx-a11y` does not support ESLint 10 yet. The
 Most folders are the ones Rails gives every application, so their names say
 little about this one. What each holds here:
 
-| Path | What is in it |
-|---|---|
-| [`app/controllers/`](app/controllers) | The HTTP endpoints: the JSON API under `api/`, and the controller that sends the web app's pages. [`config/routes.rb`](config/routes.rb) lists every address and the code behind it. |
-| [`app/jobs/`](app/jobs) | Work done after a request is answered; here, the job that answers a message. |
-| [`app/agent/`](app/agent) | Everything that talks to the model: the runner, the system prompt, the model policy, the tools, and the fake model the tests run on. |
-| [`app/models/`](app/models) | The database's tables as classes (conversation, message, turn, product, reservation) and, beside them, plain Ruby objects with the rules, such as [`turn_processor.rb`](app/models/turn_processor.rb): one turn, from a message to its reply. |
-| [`app/channels/`](app/channels) | The WebSocket side: the streams that take replies and trace rows to the page, and the gate that caps the sockets. |
-| [`config/`](config) | Settings: the pharmacy's facts in `store.yml`, the deploy in `deploy.yml`, the server's texts in three languages under `locales/`. |
-| [`db/`](db) | [`schema.rb`](db/schema.rb) is the database at a glance; `seeds/catalogue.yml` is the invented catalogue. |
-| [`spec/`](spec) | The server's tests, in the folders of `app/` (the endpoints under `requests/`), plus checks on the deploy files, the host's definition and the CI. Each says first which requirement or design section it proves. |
-| [`web/`](web) | The React and TypeScript app: `src/chat/` is the chat and the glass box, `src/trace/` the trace page, `src/landing/` the landing. Tests sit beside what they test, and those of the whole build under `test/`. |
-| [`evals/`](evals), [`lib/evals/`](lib/evals) | The conversation's cases, and the runner that plays them against the real model. |
-| [`docs/`](docs) | The design, the decisions (ADRs), the threat model and the runbook; `prototype/` holds the screens as static HTML, which the React follows. |
-| [`bin/`](bin) | The commands of [Running locally](#running-locally). |
-| [`Dockerfile`](Dockerfile), [`ops/`](ops), [`.github/workflows/`](.github/workflows) | The image, the host's definition and the CI. |
+- [`app/controllers/`](app/controllers) — the HTTP endpoints: the JSON API
+  under `api/`, and the controller that sends the web app's pages.
+  [`config/routes.rb`](config/routes.rb) lists every address and the code
+  behind it.
+- [`app/jobs/`](app/jobs) — work done after a request is answered; here, the
+  job that answers a message.
+- [`app/agent/`](app/agent) — everything that talks to the model: the runner,
+  the system prompt, the model policy, the tools, and the fake model the
+  tests run on.
+- [`app/models/`](app/models) — the database's tables as classes
+  (conversation, message, turn, product, reservation) and, beside them, plain
+  Ruby objects with the rules, such as
+  [`turn_processor.rb`](app/models/turn_processor.rb): one turn, from a
+  message to its reply.
+- [`app/channels/`](app/channels) — the WebSocket side: the streams that take
+  replies and trace rows to the page, and the gate that caps the sockets.
+- [`config/`](config) — settings: the pharmacy's facts in `store.yml`, the
+  deploy in `deploy.yml`, the server's texts in three languages under
+  `locales/`.
+- [`db/`](db) — [`schema.rb`](db/schema.rb) is the database at a glance;
+  `seeds/catalogue.yml` is the invented catalogue.
+- [`spec/`](spec) — the server's tests, in the folders of `app/` (the
+  endpoints under `requests/`), plus checks on the deploy files, the host's
+  definition and the CI. Each says first which requirement or design section
+  it proves.
+- [`web/`](web) — the React and TypeScript app: `src/chat/` is the chat and
+  the glass box, `src/trace/` the trace page, `src/landing/` the landing.
+  Tests sit beside what they test, and those of the whole build under
+  `test/`.
+- [`evals/`](evals) and [`lib/evals/`](lib/evals) — the conversation's cases,
+  and the runner that plays them against the real model.
+- [`docs/`](docs) — the design, the decisions (ADRs), the threat model and
+  the runbook; `prototype/` holds the screens as static HTML, which the React
+  follows.
+- [`bin/`](bin) — the commands of [Running locally](#running-locally).
+- [`Dockerfile`](Dockerfile), [`ops/`](ops) and
+  [`.github/workflows/`](.github/workflows) — the image, the host's
+  definition and the CI.
 
 Read, in this order:
 
