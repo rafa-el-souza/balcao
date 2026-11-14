@@ -1850,8 +1850,10 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     last attempt (R1); the webhook's answers carry Rails' default headers
     and the Permissions-Policy (R2).
   - **What PR-18 stored before day 12** (the agreement's greeting and the
-    turns' replies, all `pending`) leaves at the person's next message; the
-    slice's deploy sends it at once.
+    turns' replies, all `pending`) leaves before the reply to the person's
+    next message, or at once with the runbook's line for replies left
+    pending, which the slice's deploy runs (review finding V3 of pull
+    request #33: the note promised a send at the deploy that no code made).
 
 - Note 2026-11-14 (PR-18; FR-05, FR-14, FR-15, FR-18, FR-19, NFR-02, SR-06,
   SR-07, SR-09, SR-10, SR-12, SR-22, SR-25, SR-30, SR-41, SR-42; ADR-0016,
