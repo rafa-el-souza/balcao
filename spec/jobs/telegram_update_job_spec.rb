@@ -568,6 +568,20 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
                                 "telegram update 734120103: given up, not stripped: ActiveRecord::ConnectionFailed")
     end
 
+    # Review finding H4 of pull request #33: when the database is what failed,
+    # the given-up line read the row first, and was lost with that read.
+    it "writes the given-up line when the database is what failed, naming the update's row and the job's error" do
+      event = store(fixture("text"))
+      lines = []
+      allow(Rails.logger).to receive(:error) { |line| lines << line }
+      allow(WebhookEvent).to receive(:find_by).and_raise(ActiveRecord::ConnectionNotEstablished)
+
+      TelegramUpdateJob.perform_later(event.id)
+      expect { perform_enqueued_jobs until enqueued_jobs.empty? }.to raise_error(ActiveRecord::ConnectionNotEstablished)
+
+      expect(lines).to include("telegram update row #{event.id}: given up after 3 attempts, ActiveRecord::ConnectionNotEstablished")
+    end
+
     it "keeps the sender's hashed identity on an unread update for its order, and drops it once read" do
       event = store(fixture("text"))
       expect(event.identity_hash).to eq(identity)

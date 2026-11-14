@@ -99,11 +99,21 @@ class TelegramUpdateJob < ApplicationJob
     outbound.send_fixed(chat, outcome.reply, keyboard:, name: outcome.name, visitor:)
   end
 
+  # The line comes first, naming the update by its update_id or, when the row
+  # cannot be read (the database being what failed), by its row (review
+  # finding H4 of pull request #33).
   def give_up(error)
-    event = WebhookEvent.find_by(id: arguments.first)
-    Rails.logger.error("telegram update #{event&.update_id}: given up after #{executions} attempts, #{error.class}")
+    event = read_row
+    name = event ? event.update_id : "row #{arguments.first}"
+    Rails.logger.error("telegram update #{name}: given up after #{executions} attempts, #{error.class}")
     event.strip!("failed") if event&.received?
   rescue StandardError => e
-    Rails.logger.error("telegram update #{event&.update_id}: given up, not stripped: #{e.class}")
+    Rails.logger.error("telegram update #{name}: given up, not stripped: #{e.class}")
+  end
+
+  def read_row
+    WebhookEvent.find_by(id: arguments.first)
+  rescue StandardError
+    nil
   end
 end
