@@ -4,8 +4,15 @@ es:
   app:
     name: "Balcão"
   turn:
-    notice: "Aviso: esta es una demostración de portafolio, con una farmacia ficticia. Los mensajes se guardan 7 días, y puedes borrarlos enviando /borrar."
-    declined: "Eso no lo puedo responder por aquí. El farmacéutico de turno te atiende en el mostrador."
+    notice: "Aviso: demostración de portafolio con una farmacia ficticia; los mensajes se guardan 7 días y puedes borrarlos enviando /borrar."
+    declined: "Eso no lo puedo responder por aquí; lo responde el farmacéutico de la tienda."
+    offer:
+      line: "Para hablar con el farmacéutico de la tienda, llama al %{phone} o ven al mostrador (%{hours})."
+      hours: "%{days}, de %{opens} a %{closes}"
+      days: "de %{first} a %{last}"
+      day: { monday: "lunes", tuesday: "martes", wednesday: "miércoles", thursday: "jueves", friday: "viernes", saturday: "sábado", sunday: "domingo" }
+      on_day: { monday: "los lunes", tuesday: "los martes", wednesday: "los miércoles", thursday: "los jueves", friday: "los viernes", saturday: "los sábados", sunday: "los domingos" }
+    emergency: "Si es una urgencia, llama ahora al SAMU, el servicio de ambulancias, al 192. Si alguien tomó un medicamento u otro producto por error o de más, llama también al Disque-Intoxicação, la línea de intoxicaciones, al 0800 722 6001."
     reservation: "Reserva %{code}: %{quantity} × %{product}, retiro hasta el %{pickup_until}."
     pickup_format: "%d/%m a las %H:%M"
   commands:

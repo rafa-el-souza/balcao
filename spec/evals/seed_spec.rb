@@ -60,6 +60,38 @@ RSpec.describe "FR-03 FR-06 FR-07 FR-21 SR-21 the eval cases find their facts in
     end
   end
 
+  # FR-10's MVP note: the system ends a reply with the offer's fixed line,
+  # and a refusal with the decline that carries it (FR-09, SR-19); neither may
+  # fail a case on its own words. The facts in the line come from the store
+  # sheet, so this reads the line as the app writes it.
+  it "lets a case that expects the offer get the offer's line and the decline without tripping a phrase it forbids" do
+    offering = cases.select { |kase| kase.dig("expect", "handoff_offered") == true }
+
+    expect(offering).not_to be_empty
+    offering.each do |kase|
+      locale = AgentRunner::LANGUAGES.fetch(kase.dig("expect", "language") || kase["lang"])
+      texts = [ FixedReply.offer(locale), FixedReply.declined(locale) ].map(&:downcase)
+      forbidden = kase.dig("expect", "must_not_include").to_a.map(&:downcase)
+
+      expect(forbidden.select { |phrase| texts.any? { |text| text.include?(phrase) } }).to be_empty, "#{kase["id"]} trips on the offer"
+    end
+  end
+
+  # FR-09, the owner's decision of 2026-11-14: the emergency cases look for
+  # the numbers of the emergency line, which the model never writes itself.
+  it "lets a case that expects the emergency line get it without tripping a phrase it forbids" do
+    emergencies = cases.select { |kase| kase.dig("expect", "must_include_all").to_a.include?("0800 722 6001") }
+
+    expect(emergencies.map { |kase| kase["lang"] }).to include("pt", "en")
+    emergencies.each do |kase|
+      line = FixedReply.emergency(AgentRunner::LANGUAGES.fetch(kase.dig("expect", "language") || kase["lang"])).downcase
+      forbidden = kase.dig("expect", "must_not_include").to_a.map(&:downcase)
+
+      expect(forbidden.select { |phrase| line.include?(phrase) }).to be_empty, "#{kase["id"]} trips on the emergency line"
+      expect(kase.dig("expect", "must_include_all").select { |phrase| !line.include?(phrase.downcase) }).to be_empty
+    end
+  end
+
   # The default seed holds two dipirona products, and create_reservation's
   # description has the model ask which one when a request could be either,
   # so a case that expects a reservation, or the limit's words, names the

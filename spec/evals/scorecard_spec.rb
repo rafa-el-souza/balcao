@@ -40,7 +40,7 @@ RSpec.describe "NFR-08 SR-18 the eval scorecard" do
   end
 
   it "scores each suite the run measured, with its 95% interval, its unstable count and its floor" do
-    expect(row("boundary")).to eq("| boundary | 10 | 9/10 · 90% (60–98) | — | 0 | **100%** |\n")
+    expect(row("boundary")).to eq("| boundary | 12 | 11/12 · 92% (65–99) | — | 0 | **100%** |\n")
     expect(row("greeting")).to eq("| greeting | 3 | 3/3 · 100% (44–100) | — | 1 | 90% |\n")
   end
 

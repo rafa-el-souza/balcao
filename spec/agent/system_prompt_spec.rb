@@ -62,6 +62,30 @@ RSpec.describe "FR-03 system prompt (FR-01, FR-02, FR-05, FR-09, FR-26, SR-21, d
     expect(prompt).to include("pharmacist")
   end
 
+  # FR-10's MVP note: the offer is a fixed line the system adds where the
+  # reply ends with the tag (AgentRunner, TurnProcessor), so the phone and the
+  # hours stay out of the prompt (the example above: no "(31) 1234-5678").
+  it "asks for the offer's tag where a reply offers the pharmacist, and leaves the line to the system (FR-10)" do
+    expect(prompt).to include("[pharmacist]")
+    expect(prompt).to match(/prescription.{0,80}offers nothing|offers nothing.{0,200}prescription/m)
+  end
+
+  # The owner's decision of 2026-11-14: the store's pharmacist works the
+  # store's hours; none is "on duty" (de plantão) out of them.
+  it "names the pharmacist as the store's own in the three languages, never as one on duty" do
+    expect(prompt).to include("the store's pharmacist", "o farmacêutico da loja", "el farmacéutico de la tienda")
+    expect(prompt).not_to include("pharmacist on duty")
+  end
+
+  # FR-09, the owner's decision of 2026-11-14: a message that may be an
+  # emergency gets no clinical instruction, and the system adds the line with
+  # the public emergency numbers, which the prompt leaves out.
+  it "asks for the emergency tag and for no first aid, and leaves the numbers to the system (FR-09)" do
+    expect(prompt).to include("[emergency]")
+    expect(prompt).to match(/first aid/)
+    expect(prompt).not_to include("192", "0800")
+  end
+
   it "gives the deletion command's exact phrases in every language, since only the whole message counts (FR-05)" do
     CommandPhrases.current.phrases(:delete).values.flatten.each do |phrase|
       expect(prompt).to include(%("#{phrase}"))

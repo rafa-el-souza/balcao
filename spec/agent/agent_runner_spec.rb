@@ -63,6 +63,17 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
       expect(request.body).not_to have_key(:tools)
     end
 
+    # The owner's decision of 2026-11-14: the store's pharmacist works the
+    # store's hours, and no instruction the model reads makes one "on duty".
+    it "names the store's pharmacist, never one on duty, in the prompt and in the tools' descriptions" do
+      AgentRunner.new(client: fake.client, clock:).run(turn)
+
+      read = [ request.body[:system].sole[:text], *request.body[:tools].map { |tool| tool[:description] },
+               Tools::GetStoreInfo::UNKNOWN, Tools::CreateReservation::OVER_LIMIT, Tools::CreateReservation::OUT_OF_STOCK ]
+      expect(read.join("\n")).not_to match(/pharmacist on duty|on duty\)/i)
+      expect(read.join("\n")).to include("the store's pharmacist")
+    end
+
     it "refuses the paused mode, which never reaches the model" do
       expect { runner.run(turn, mode: "paused") }.to raise_error(ArgumentError)
       expect(fake.requests).to be_empty
@@ -199,6 +210,88 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
 
       it "shows no tag and keeps the declined part (FR-09)" do
         expect(runner.run(turn).text).to eq("Não posso indicar dose; o farmacêutico responde no balcão.\n\nTemos dipirona.")
+      end
+    end
+  end
+
+  # FR-10's MVP note: the offer of the pharmacist is a fixed line, which the
+  # caller adds where the model's tag asks for it (TurnProcessor); the tag
+  # itself never reaches the visitor.
+  describe "the offer of the pharmacist (FR-09, FR-10's MVP note)" do
+    it "asks for no offer when the reply carries no tag" do
+      expect(runner.run(turn)).to have_attributes(outcome: :replied, text: "Temos, sim.", offer: false)
+    end
+
+    context "when the reply ends with the offer's tag" do
+      let(:responses) { [ reply("[pt] Isso eu não posso responder; quem responde é o farmacêutico da loja. [pharmacist]") ] }
+
+      it "returns the reply without the tag, and asks for the offer" do
+        expect(runner.run(turn)).to have_attributes(
+          outcome: :replied, language: "pt-BR", offer: true,
+          text: "Isso eu não posso responder; quem responde é o farmacêutico da loja."
+        )
+      end
+    end
+
+    context "when the tag stands on a line of its own, capitalised" do
+      let(:responses) { [ reply("[en] I can't answer that here.\n[Pharmacist]") ] }
+
+      it "removes it all the same" do
+        expect(runner.run(turn)).to have_attributes(text: "I can't answer that here.", offer: true)
+      end
+    end
+
+    context "when the text before a tool call carries it" do
+      let(:responses) do
+        [ message(content: [ text("[pt] Dose eu não posso indicar. [pharmacist]"), tool_use("echo", { "text" => "dipirona" }) ],
+                  stop_reason: :tool_use),
+          reply("[pt] Temos dipirona.") ]
+      end
+
+      it "asks for the offer once and shows no tag" do
+        expect(runner.run(turn)).to have_attributes(text: "Dose eu não posso indicar.\n\nTemos dipirona.", offer: true)
+      end
+    end
+
+    context "when the tag sits inside a sentence" do
+      let(:responses) { [ reply("[pt] Fale com o farmacêutico [pharmacist] no balcão.") ] }
+
+      it "leaves one space where it was" do
+        expect(runner.run(turn)).to have_attributes(text: "Fale com o farmacêutico no balcão.", offer: true)
+      end
+    end
+
+    context "when the reply is the tag alone" do
+      let(:responses) { [ reply("[pt] [pharmacist]") ] }
+
+      it "ends as an empty reply does, for the fallback (NFR-03)" do
+        expect(runner.run(turn)).to have_attributes(outcome: :incomplete, text: nil, offer: false)
+      end
+    end
+  end
+
+  # FR-09, the owner's decision of 2026-11-14: a message that may be an
+  # emergency gets a fixed line with the public emergency numbers, which the
+  # caller adds where the model's tag asks for it.
+  describe "the emergency line (FR-09)" do
+    it "asks for no emergency line when the reply carries no tag" do
+      expect(runner.run(turn)).to have_attributes(emergency: false)
+    end
+
+    context "when the reply ends with the emergency's tag" do
+      let(:responses) { [ reply("[pt] Ligue agora para o socorro. [emergency]") ] }
+
+      it "returns the reply without the tag, and asks for the emergency line" do
+        expect(runner.run(turn)).to have_attributes(outcome: :replied, text: "Ligue agora para o socorro.", emergency: true,
+                                                    offer: false)
+      end
+    end
+
+    context "when the reply carries both tags" do
+      let(:responses) { [ reply("[en] Call for help now. [EMERGENCY]\n[pharmacist]") ] }
+
+      it "removes both and asks for both lines, which the caller orders" do
+        expect(runner.run(turn)).to have_attributes(text: "Call for help now.", emergency: true, offer: true)
       end
     end
   end

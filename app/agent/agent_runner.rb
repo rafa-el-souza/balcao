@@ -11,7 +11,9 @@
 #   visitor as text (SR-19) and a model error is a result, not an exception;
 # - the usage of every model call, from usage.iterations when a fallback model
 #   served it, for the budget (FR-14);
-# - the reply's language, read from the tag the prompt asks for (FR-02);
+# - the reply's language, read from the tag the prompt asks for (FR-02), and
+#   the fixed lines its closing tags ask for: the offer of the pharmacist
+#   (FR-10's MVP note) and the emergency line (FR-09);
 # - an event for each step as it happens, for the trace (FR-12, ADR-0010).
 #
 # It stores nothing: the caller records the reply, the usage and the trace.
@@ -26,6 +28,9 @@ class AgentRunner
 
   LANGUAGE_TAG = /\A\s*\[(pt|en|es)\][ \t]*/
   LANGUAGES = { "pt" => "pt-BR", "en" => "en", "es" => "es" }.freeze
+  # The tags a reply ends with to ask for a fixed line, wherever the model put
+  # them, with the spaces before them; the visitor never sees one.
+  LINE_TAG = /[ \t]*\[(pharmacist|emergency)\]/i
 
   # What one model call used; a call a fallback model served has one per attempt.
   Usage = Data.define(:model, :input_tokens, :output_tokens, :cache_creation_tokens, :cached_tokens)
@@ -38,12 +43,14 @@ class AgentRunner
   ToolCall = Data.define(:name, :input, :output, :is_error, :refusal, :latency_ms, :characters, :unit, :count)
 
   # outcome: :replied (text and language set), :refused, :incomplete (cut off
-  # or empty), :tool_limit, :deadline or :model_error (error set).
+  # or empty), :tool_limit, :deadline or :model_error (error set). offer and
+  # emergency say whether the reply's tags asked for the offer of the
+  # pharmacist and for the emergency line, which the caller adds.
   OUTCOMES = %i[replied refused incomplete tool_limit deadline model_error].freeze
-  Result = Data.define(:outcome, :text, :language, :model_calls, :tool_calls, :error) do
+  Result = Data.define(:outcome, :text, :language, :offer, :emergency, :model_calls, :tool_calls, :error) do
     # The glass box words each outcome (TurnProcessor::OUTCOMES), so an
     # unlisted one never reaches it.
-    def initialize(outcome:, **)
+    def initialize(outcome:, offer: false, emergency: false, **)
       raise ArgumentError, "#{outcome.inspect} is not an outcome of AgentRunner::OUTCOMES" unless OUTCOMES.include?(outcome)
 
       super
@@ -212,18 +219,20 @@ class AgentRunner
     # model writes before a tool call is shown too, and may carry the tag or
     # the declined clinical part of a mixed question (review finding C1 of
     # pull request #9). Each block's leading tag is removed; the first names
-    # the language.
+    # the language. The tags that ask for a fixed line are removed wherever
+    # they are, and any one of them asks for its line once.
     def reply
       blocks = @messages.flat_map { |message| message.content.select { |block| block.type == :text }.map(&:text) }
       tag = blocks.filter_map { |block| block[LANGUAGE_TAG, 1] }.first
-      text = blocks.map { |block| block.sub(LANGUAGE_TAG, "").strip }.reject(&:empty?).join("\n\n")
+      lines = blocks.flat_map { |block| block.scan(LINE_TAG).flatten.map(&:downcase) }
+      text = blocks.map { |block| block.sub(LANGUAGE_TAG, "").gsub(LINE_TAG, "").strip }.reject(&:empty?).join("\n\n")
       return result(:incomplete) if text.empty?
 
-      result(:replied, text:, language: LANGUAGES[tag])
+      result(:replied, text:, language: LANGUAGES[tag], offer: lines.include?("pharmacist"), emergency: lines.include?("emergency"))
     end
 
-    def result(outcome, text: nil, language: nil, error: nil)
-      Result.new(outcome:, text:, language:, model_calls: @model_calls, tool_calls: @tool_calls, error:)
+    def result(outcome, text: nil, language: nil, error: nil, offer: false, emergency: false)
+      Result.new(outcome:, text:, language:, offer:, emergency:, model_calls: @model_calls, tool_calls: @tool_calls, error:)
     end
 
     def model_failed(error)

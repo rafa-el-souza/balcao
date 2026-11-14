@@ -12,12 +12,12 @@ module Tools
 
     UNKNOWN = "No such topic. The topics are #{StoreSheet::TOPICS.join(", ")}. For anything else, answer from the " \
               "identity and the opening hours in your instructions, or say that you do not know and offer the " \
-              "pharmacist on duty.".freeze
+              "store's pharmacist.".freeze
 
     doc "Look up one topic of the pharmacy's fact sheet: delivery (the neighbourhoods served, the fee and time " \
         "for each, and the rules), payment (the methods accepted and instalments), services (the in-store " \
-        "services, their prices and whether one needs a prescription), contact (the phone and the pharmacist " \
-        "on duty) or parking. Call it for any question on these before you answer, and answer with what it " \
+        "services, their prices and whether one needs a prescription), contact (the phone and the store's " \
+        "pharmacist) or parking. Call it for any question on these before you answer, and answer with what it " \
         "returns, in the visitor's language. The address and the opening hours are already in your instructions."
     input_schema Input
 

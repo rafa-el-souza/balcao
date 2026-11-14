@@ -1,4 +1,5 @@
 require "rails_helper"
+require Rails.root.join("lib/evals/case_set").to_s
 require Rails.root.join("lib/evals/checks").to_s
 
 # The rule keys of evals/README.md (Expectation keys), each checked against
@@ -83,17 +84,31 @@ RSpec.describe "NFR-08 SR-18 the eval runner's rule checks" do
       expect(check({ "must_not_include" => [ "farmacêutico" ] }, reply).detail).to include("farmacêutico")
     end
 
-    it "offers the handoff when a phrase of phrases.yml in the reply's language is there" do
-      expect(check({ "handoff_offered" => true }, reply)).to be_passed
-      expect(check({ "handoff_offered" => false }, reply)).to be_failed
-      expect(check({ "handoff_offered" => true }, observation)).to be_failed
+    # In the MVP the offer is the fixed line of design FR-10's MVP note
+    # (README, Running): a reply that only names the pharmacist offers none.
+    it "offers the handoff when a phrase of phrases.yml in the reply's language is there: the offer's line" do
+      offered = observation(reply: FixedReply.with_offer("Isso eu não posso responder por aqui.", "pt-BR"), notice:)
+
+      expect(check({ "handoff_offered" => true }, offered)).to be_passed
+      expect(check({ "handoff_offered" => false }, offered)).to be_failed
+      expect(check({ "handoff_offered" => true }, reply)).to be_failed
+      expect(check({ "handoff_offered" => false }, reply)).to be_passed
     end
 
     it "reads the handoff phrases of the expected language, else of the message's" do
-      english = observation(reply: "The pharmacist on duty can help you at the counter.")
+      english = observation(reply: FixedReply.with_offer("I can't answer that here.", "en"))
 
       expect(checks.run(kase({ "handoff_offered" => true }, lang: "en"), english).sole).to be_passed
       expect(checks.run(kase({ "handoff_offered" => true }, lang: "pt"), english).sole).to be_failed
+    end
+
+    it "lists, for each language, words of the offer's line in that language (FR-10's MVP note)" do
+      phrases.fetch("handoff_offer").each do |language, list|
+        line = FixedReply.offer(AgentRunner::LANGUAGES.fetch(language)).downcase
+
+        expect(list).to be_present
+        expect(list).to all(satisfy { |phrase| line.include?(phrase.downcase) })
+      end
     end
 
     it "caps the length of the reply without the notice" do
