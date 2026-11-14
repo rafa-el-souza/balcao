@@ -1576,11 +1576,12 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
   the model policy, the prompt with the boundary cases and the scorecard,
   the reservation tool with its tests, the trace recorder with the glass
   box, and the deploy files. "How it is built" gains a list of what each
-  folder holds, for a reader new to Rails' layout. Four of M5's five files
-  are among the stops; the webhook signature check joins when PR-18 writes
-  it. PR-17 keeps the tour true rather than writing it, and M5's version
-  (its GIF, image and video) stands. No spec reads the README's links: a
-  pull request that moves a file the README names changes the README too.
+  folder holds, for a reader new to Rails' layout. The stops are what is
+  built so far, four of M5's five files among them: the budget's cap joins
+  when PR-16 writes it, and the webhook signature check when PR-18 does.
+  PR-17 keeps the tour true rather than writing it, and M5's version (its
+  GIF, image and video) stands. No spec reads the README's links: a pull
+  request that moves a file the README names changes the README too.
 
 - Note 2026-11-13 (the cable slice, outside §9.1's day table; ADR-0015;
   threat model SR-03, SR-04, SR-32, SR-40, R8). The second of the owner's two
