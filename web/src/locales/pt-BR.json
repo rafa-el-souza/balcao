@@ -241,11 +241,12 @@
         "o seu identificador é apagado 7 dias depois da última vez que você usar o Balcão, com tudo o que ainda estiver ligado a ele."
       ],
       "logs": "Os logs não têm prazo fixo: eles se renovam à medida que enchem e podem guardar um acesso por mais de 7 dias. Neles nunca entra o texto das mensagens.",
-      "totals": "Ficam só totais que não identificam ninguém, como o gasto do mês com o modelo."
+      "counters": "Os contadores dos limites de uso também não têm prazo fixo, por enquanto. Eles ficam à parte, guardados pelo endereço IP e pelo identificador, e não zeram quando você apaga seus dados, para que apagar não seja um jeito de furar o limite.",
+      "totals": "Fora isso, ficam só totais que não identificam ninguém, como o gasto do mês com o modelo."
     },
     "deletion": {
       "title": "Como apagar antes",
-      "text": "Envie <cmd>/apagar</cmd> ou “apagar meus dados” na conversa. As mensagens, as reservas, o registro técnico das respostas e o seu identificador são apagados do Balcão na hora. As cópias de passagem, que levam as respostas até a página, somem em até 10 minutos.",
+      "text": "Envie <cmd>/apagar</cmd> ou “apagar meus dados” na conversa. As mensagens, as reservas, o registro técnico das respostas e o seu identificador são apagados do Balcão na hora; ficam só os contadores dos limites de uso, como diz a seção anterior. As cópias de passagem, que levam as respostas até a página, somem em até 10 minutos.",
       "telegram": "No Telegram, o comando também desfaz a sua concordância. As mensagens que continuam no chat são a sua cópia, no seu aplicativo e nos servidores do Telegram: a opção de limpar o histórico, no próprio Telegram, as apaga."
     },
     "readers": {

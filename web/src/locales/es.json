@@ -241,11 +241,12 @@
         "tu identificador se borra 7 días después de la última vez que uses Balcão, con todo lo que siga ligado a él."
       ],
       "logs": "Los logs no tienen plazo fijo: se renuevan a medida que se llenan y pueden guardar un acceso por más de 7 días. En ellos nunca entra el texto de los mensajes.",
-      "totals": "Solo quedan totales que no identifican a nadie, como el gasto del mes en el modelo."
+      "counters": "Los contadores de los límites de uso tampoco tienen plazo fijo, por ahora. Se guardan aparte, bajo la dirección IP y el identificador, y no vuelven a cero cuando borras tus datos, para que borrar no sea una forma de saltarse el límite.",
+      "totals": "Fuera de eso, solo quedan totales que no identifican a nadie, como el gasto del mes en el modelo."
     },
     "deletion": {
       "title": "Cómo borrar antes",
-      "text": "Envía <cmd>/borrar</cmd> o “borrar mis datos” en la conversación. Los mensajes, las reservas, el registro técnico de las respuestas y tu identificador se borran de Balcão en el acto. Las copias de paso, que llevan las respuestas hasta la página, desaparecen en 10 minutos como máximo.",
+      "text": "Envía <cmd>/borrar</cmd> o “borrar mis datos” en la conversación. Los mensajes, las reservas, el registro técnico de las respuestas y tu identificador se borran de Balcão en el acto; solo quedan los contadores de los límites de uso, como dice la sección anterior. Las copias de paso, que llevan las respuestas hasta la página, desaparecen en 10 minutos como máximo.",
       "telegram": "En Telegram, el comando también retira tu aceptación. Los mensajes que siguen en el chat son tu copia, en tu aplicación y en los servidores de Telegram: la opción de borrar el historial, en el propio Telegram, los borra."
     },
     "readers": {

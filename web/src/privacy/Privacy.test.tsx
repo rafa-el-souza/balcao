@@ -184,6 +184,28 @@ describe("Design §10 the privacy page shows nothing before its source exists", 
   });
 });
 
+// Review of pull request #30: every sentence is a claim about what the server
+// keeps, checked against the code and the configuration.
+describe("Design §6.7 the privacy page says what the server really keeps", () => {
+  // Review finding C1: the limits' counters sit in the cache under the IP
+  // address and the identifier's hash, outlive the delete command on purpose
+  // (FR-05) and have no bound by age until PR-18 gives them one.
+  it("names the limits' counters, kept by the IP and the identifier, which the delete command leaves (FR-05, FR-14)", () => {
+    for (const page of [ptBR.privacy, en.privacy, es.privacy]) {
+      const { unmount } = renderPage(
+        <Privacy />,
+        page === ptBR.privacy ? "pt-BR" : page === en.privacy ? "en" : "es",
+      );
+      expect(text()).toContain(plain(page.retention.counters));
+      unmount();
+    }
+    expect(pt.retention.counters).toMatch(/endereço IP e pelo identificador/);
+    expect(pt.retention.counters).toMatch(/não zeram quando você apaga/);
+    expect(pt.deletion.text).toMatch(/ficam só os contadores dos limites/);
+    expect(pt.retention.totals).toMatch(/^Fora isso/);
+  });
+});
+
 describe("FR-25 the privacy page's contact and signature", () => {
   it("names the person responsible and the e-mail for any request", () => {
     renderPage(<Privacy />);

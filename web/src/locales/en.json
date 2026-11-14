@@ -241,11 +241,12 @@
         "your identifier is deleted 7 days after you last used Balcão, with everything still linked to it."
       ],
       "logs": "The logs have no fixed term: they are overwritten as they fill up, and may keep a visit for more than 7 days. The text of the messages never goes into them.",
-      "totals": "Only totals that identify no one stay, such as the month's spending on the model."
+      "counters": "The counters of the usage limits have no fixed term either, for now. They are kept apart, under the IP address and the identifier, and do not reset when you delete your data, so that deleting is not a way around the limit.",
+      "totals": "Apart from that, only totals that identify no one stay, such as the month's spending on the model."
     },
     "deletion": {
       "title": "How to delete sooner",
-      "text": "Send <cmd>/delete</cmd> or “delete my data” in the conversation. The messages, the reservations, the technical record of the replies and your identifier are deleted from Balcão at once. The copies in transit, which carry the replies to the page, are gone within 10 minutes.",
+      "text": "Send <cmd>/delete</cmd> or “delete my data” in the conversation. The messages, the reservations, the technical record of the replies and your identifier are deleted from Balcão at once; only the counters of the usage limits stay, as the section above says. The copies in transit, which carry the replies to the page, are gone within 10 minutes.",
       "telegram": "On Telegram, the command also withdraws your agreement. The messages still in the chat are your own copy, in your app and on Telegram's servers: Telegram's own option to clear the history deletes them."
     },
     "readers": {

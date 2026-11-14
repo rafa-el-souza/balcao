@@ -90,6 +90,7 @@ export function Privacy() {
             )}
           </ul>
           <p>{t("privacy.retention.logs")}</p>
+          <p>{t("privacy.retention.counters")}</p>
           <p>{t("privacy.retention.totals")}</p>
         </Section>
 
