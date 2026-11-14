@@ -40,7 +40,10 @@ whose opening comment says what it does and why.
    [`app/jobs/process_turn_job.rb`](app/jobs/process_turn_job.rb) runs the
    turn (a message and everything done to answer it), one at a time per
    conversation, in order. When something breaks it tries three times in
-   all, then sends a fallback reply: the visitor is never left waiting.
+   all, then sends a fallback reply: the visitor is never left waiting. On
+   Telegram,
+   [`app/transports/telegram/outbound.rb`](app/transports/telegram/outbound.rb)
+   then sends the stored reply to the chat, as plain text and in order.
 3. **The model is called.**
    [`app/agent/agent_runner.rb`](app/agent/agent_runner.rb) runs the official
    Anthropic SDK's tool loop inside three limits: six tool calls, 1,500
@@ -135,8 +138,9 @@ little about this one; `app/agent/`, `app/transports/`, `evals/`, `ops/`,
 - [`app/jobs/`](app/jobs) — work done after a request is answered; here, the
   job that answers a message and the one that reads a Telegram update.
 - [`app/transports/`](app/transports) — the Telegram bot's side: the
-  webhook, the Bot API client, what an update makes of the conversation, and
-  the task that registers the webhook.
+  webhook, the Bot API client, what an update makes of the conversation, how
+  a reply leaves for the chat, and the task that sets the bot's webhook,
+  command menu and profile.
 - [`app/agent/`](app/agent) — everything that talks to the model: the runner,
   the system prompt, the model policy, the tools, and the fake model the
   tests run on.
@@ -218,8 +222,10 @@ Telegram bot's own policy, says what is kept and what for, for how long, how
 to delete it sooner and who processes it; since day 11 the demo's Telegram
 bot takes in messages, asks a new person to agree before it keeps anything
 of theirs and makes a text after that a turn, traced like the web chat's,
-though it answers only from day 12, and what visitors send is encrypted at
-rest. See the delivery plan in the design document.
+and what visitors send is encrypted at rest; since day 12 it answers, in
+plain text, with the typing status while the model works, it sets its own
+command menu and profile in three languages, and the landing's QR opens it.
+See the delivery plan in the design document.
 
 ## Running locally
 
