@@ -39,7 +39,12 @@ RSpec.describe "NFR-02 design §6.3 the per-conversation lock of ProcessTurnJob,
 
   before { allow(AgentRunner).to receive(:default_client) { fake.client } }
 
-  after { Visitor.where(id: visitor.id).delete_all }
+  # The visitor takes its conversation, turns and usage records with it; the
+  # month's row is the ledger's (FR-14), which the turns charged.
+  after do
+    Visitor.where(id: visitor.id).delete_all
+    BudgetState.delete_all
+  end
 
   def turn(text) = Turn.for_inbound!(Message.record_inbound!(conversation:, external_id: SecureRandom.uuid, body: text))
 

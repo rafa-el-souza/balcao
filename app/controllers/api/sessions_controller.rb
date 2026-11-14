@@ -1,8 +1,9 @@
 module Api
   # POST /api/session (FR-18): issues the visitor cookie, or renews the one
-  # the page brought back, and answers the open conversation. Until
-  # Turnstile ships after the MVP (SR-39), the per-IP limit on new sessions
-  # is the gate (SR-01).
+  # the page brought back, and answers the open conversation, with the
+  # month's budget mode and the rate of the real that the glass box shows
+  # (FR-12, FR-14). Until Turnstile ships after the MVP (SR-39), the per-IP
+  # limit on new sessions is the gate (SR-01).
   class SessionsController < BaseController
     def create
       language = requested_language(request.content_length.to_i.zero? ? {} : json_body)
@@ -13,7 +14,7 @@ module Api
       conversation.update!(language:) if language && !conversation.messages.outbound.exists?
 
       render json: { conversation_id: conversation.id, trace_token: conversation.trace_token,
-                     language: conversation.language }, status: :created
+                     language: conversation.language, mode: Budget.mode, brl: Prices.brl_payload }, status: :created
     end
 
     private

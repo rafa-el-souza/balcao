@@ -4,10 +4,13 @@ import type { Span } from "../chat/api";
 import {
   formatClock,
   formatDuration,
+  formatMoney,
   formatTokens,
   placeLocal,
   turnsOf,
 } from "./model";
+import modelSource from "./model.ts?raw";
+import rowsSource from "./Rows.tsx?raw";
 
 // Spans as the server sends them (app/models/trace_recorder.rb,
 // app/models/turn_trace.rb), for one answered turn: the root from the
@@ -375,6 +378,68 @@ describe("FR-12 the glass box's rows, one per model call, from the spans", () =>
 
     expect(turn).toMatchObject({ input: 6800, cached: 5900, output: 140 });
   });
+
+  describe("the costs (FR-12, FR-14)", () => {
+    const priced = (costs: (number | undefined)[]) => {
+      const spans = answered();
+      spans
+        .filter((item) => item.name === "anthropic.messages.create")
+        .forEach((call, index) => {
+          if (costs[index] !== undefined)
+            call.attributes["balcao.cost.usd"] = costs[index];
+        });
+      return spans;
+    };
+
+    it("reads each model call's cost in US dollars, and sums the turn's", () => {
+      const [turn] = turnsOf(priced([0.003, 0.006]));
+
+      expect(
+        turn?.rows.flatMap((row) => (row.kind === "model" ? [row.cost] : [])),
+      ).toEqual([0.003, 0.006]);
+      expect(turn?.cost).toBeCloseTo(0.009, 9);
+    });
+
+    it("has no turn cost while a call that answered has none, as a turn traced before the costs", () => {
+      expect(turnsOf(priced([0.003, undefined]))[0]?.cost).toBeNull();
+      expect(turnsOf(answered())[0]?.cost).toBeNull();
+    });
+
+    it("counts a call that failed as costing nothing, and a turn with no call as one that cost nothing", () => {
+      const spans = priced([undefined, 0.006]);
+      const first = spans.find(
+        (item) => item.name === "anthropic.messages.create",
+      );
+      if (first)
+        first.attributes = {
+          "error.type": "Anthropic::Errors::OverloadedError",
+        };
+
+      expect(turnsOf(spans)[0]?.cost).toBeCloseTo(0.006, 9);
+      expect(turnsOf(priced([0, 0]))[0]?.cost).toBe(0);
+      expect(
+        turnsOf([
+          span("balcao.command", {
+            at: T("50"),
+            attributes: { "balcao.command.name": "trace" },
+          }),
+        ])[0]?.cost,
+      ).toBe(0);
+    });
+
+    it("leaves a call that still runs out of the turn's sum", () => {
+      const spans = priced([0.003, undefined]);
+      const last = spans.filter(
+        (item) => item.name === "anthropic.messages.create",
+      )[1];
+      if (last) {
+        last.finished_at = null;
+        last.attributes = { "gen_ai.request.model": "claude-opus-5-5" };
+      }
+
+      expect(turnsOf(spans)[0]?.cost).toBeCloseTo(0.003, 9);
+    });
+  });
 });
 
 describe("FR-12 the glass box's own rows, for what the server did not trace", () => {
@@ -403,6 +468,21 @@ describe("FR-12 the instrument's figures", () => {
     expect(formatDuration(1100, "pt-BR")).toBe("1,1 s");
     expect(formatDuration(10_700, "es")).toBe("10,7 s");
     expect(formatDuration(3000, "en")).toBe("3.0 s");
+  });
+
+  it("writes dollars to three decimals and reais to two, more where a small figure would round to zero", () => {
+    expect(formatMoney(0.009, "usd", "pt-BR")).toBe("0,009");
+    expect(formatMoney(0.0495, "usd", "en")).toBe("0.050");
+    expect(formatMoney(0.0002, "usd", "es")).toBe("0,0002");
+    expect(formatMoney(0.009 * 5.6518, "brl", "pt-BR")).toBe("0,05");
+    expect(formatMoney(0.0002 * 5.6518, "brl", "pt-BR")).toBe("0,001");
+    expect(formatMoney(1.234, "usd", "pt-BR")).toBe("1,234");
+  });
+
+  // Review finding C6 of pull request #29 (NFR-09): the symbols are the
+  // locale files' words, which the figure fills.
+  it("leaves the currency's symbol to the locale files", () => {
+    expect(`${modelSource}\n${rowsSource}`).not.toMatch(/"(US|R)\$/);
   });
 
   it("writes the hour in São Paulo, wherever the visitor is", () => {

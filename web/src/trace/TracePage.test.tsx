@@ -6,7 +6,7 @@ import en from "../locales/en.json";
 import ptBR from "../locales/pt-BR.json";
 import { pageOf } from "../pages";
 import { fakeCable } from "../test/fakeCable";
-import { fakeServer } from "../test/fakeServer";
+import { BRL, fakeServer } from "../test/fakeServer";
 import { renderPage } from "../test/render";
 import { answeredTurn, commandTurn, runningTurn } from "../test/spans";
 import { LIT_ICON, tabIcon } from "../test/tabIcon";
@@ -46,10 +46,14 @@ const reply = (
   notice,
 });
 
-function trace(spans = [...answeredTurn("t1"), ...commandTurn("t2", "trace")]) {
+function trace(
+  spans = [...answeredTurn("t1"), ...commandTurn("t2", "trace")],
+  brl: typeof BRL | null = BRL,
+) {
   return {
     status: 200,
     body: {
+      ...(brl ? { brl } : {}),
       conversation: { started_at: "2026-11-12T15:03:41.000Z" },
       messages: [
         said("m1", "t1", "tem dipirona?"),
@@ -180,6 +184,46 @@ describe("FR-12 the trace page, the glass box at full length", () => {
     expect(second.getByText("como você funciona?")).toBeInTheDocument();
     expect(second.getByText("comando")).toBeInTheDocument();
     expect(second.getByText("trace")).toBeInTheDocument();
+  });
+
+  // FR-12, FR-14: the turn's cost closes it, and the receipt's total is the
+  // cost, with the turns' time a line of its own (docs/prototype/trace.html).
+  it("closes each turn with its cost in dollars and reais, and totals the cost above the tokens and the time", async () => {
+    server.answers.trace.push(
+      trace([
+        ...answeredTurn("t1", { costs: [0.003, 0.006] }),
+        ...commandTurn("t2", "trace"),
+      ]),
+    );
+    renderPage(<TracePage />);
+    await screen.findByRole("region", { name: pt.roll });
+
+    const line = within(turn(1))
+      .getByText("custo do turno")
+      .closest("p") as HTMLElement;
+    expect(line.textContent).toBe("custo do turno US$ 0,009 · R$ 0,05");
+    expect(within(turn(2)).queryByText("custo do turno")).toBeNull();
+    const total = within(roll())
+      .getByText("total · 2 turnos")
+      .closest("div") as HTMLElement;
+    expect(total.textContent).toBe("total · 2 turnosUS$ 0,009 · R$ 0,05");
+    const time = within(roll())
+      .getByText("tempo dos turnos")
+      .closest("div") as HTMLElement;
+    expect(time.textContent).toBe("tempo dos turnos3,0 s");
+  });
+
+  it("writes the dollars alone when the trace's answer has no rate", async () => {
+    server.answers.trace.push(
+      trace(answeredTurn("t1", { costs: [0.003, 0.006] }), null),
+    );
+    renderPage(<TracePage />);
+    await screen.findByRole("region", { name: pt.roll });
+
+    expect(
+      within(roll()).getByText("custo do turno").closest("p")?.textContent,
+    ).toBe("custo do turno US$ 0,009");
+    expect(roll().textContent).not.toMatch(/R\$/);
   });
 
   it("totals the turns, the input with what the cache read, the output and the turns' time", async () => {

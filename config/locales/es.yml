@@ -24,3 +24,5 @@ es:
   limits:
     now: "Llegaste al límite de la demo por ahora. Intenta de nuevo en un rato."
     today: "Llegaste al límite de la demo por hoy. Vuelve mañana."
+  budget:
+    paused: "La demo está en pausa hasta el próximo mes: llegó al límite de gasto de este mes."

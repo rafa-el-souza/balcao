@@ -6,7 +6,8 @@ import type { Span } from "../chat/api";
 // A turn's root span (app/models/turn_processor.rb) starts at the message's
 // receipt and ends after the reply; a command is a root of its own and a turn
 // of one row. Names and attributes are the server's (app/models/turn_trace.rb),
-// which are the Anthropic SDK's own.
+// which are the Anthropic SDK's own, and a model call's cost in US dollars,
+// the budget ledger's figure (balcao.cost.usd, FR-12, FR-14).
 
 export type Row =
   | { kind: "received"; key: string; at: string }
@@ -25,6 +26,8 @@ export type Row =
       cacheRead: number | null;
       cacheWrite: number | null;
       output: number | null;
+      // In US dollars; none for a call traced before the costs or that failed.
+      cost: number | null;
       error: string | null;
     }
   | {
@@ -78,6 +81,11 @@ export interface Turn {
   input: number;
   cached: number;
   output: number;
+  // What the turn's model calls cost, in US dollars: none while a call that
+  // answered has no figure (traced before the costs). A failed call cost
+  // nothing, a running one is not counted yet, and a turn with no call cost
+  // nothing; the panel draws no zero (docs/prototype/chat-fallback.html).
+  cost: number | null;
 }
 
 export const MAX_RESULT = 500;
@@ -129,8 +137,20 @@ function modelRow(span: Span): Row {
     cacheRead: num(a, "gen_ai.usage.cache_read.input_tokens"),
     cacheWrite: num(a, "gen_ai.usage.cache_write.input_tokens"),
     output: num(a, "gen_ai.usage.output_tokens"),
+    cost: num(a, "balcao.cost.usd"),
     error: str(a, "error.type"),
   };
+}
+
+function costOf(calls: Span[]): number | null {
+  let total = 0;
+  for (const call of calls) {
+    if (call.finished_at === null) continue;
+    const cost = num(call.attributes, "balcao.cost.usd");
+    if (cost !== null) total += cost;
+    else if (str(call.attributes, "error.type") === null) return null;
+  }
+  return total;
 }
 
 const toolName = (span: Span) =>
@@ -245,6 +265,7 @@ function turnOf(id: string, spans: Span[]): Omit<Turn, "number"> | null {
     input: sum("gen_ai.usage.input_tokens"),
     cached: sum("gen_ai.usage.cache_read.input_tokens"),
     output: sum("gen_ai.usage.output_tokens"),
+    cost: costOf(calls),
   };
 }
 
@@ -315,6 +336,25 @@ export function formatDuration(ms: number, locale: string): string {
     maximumFractionDigits: 1,
   }).format(ms / 1000);
   return `${seconds} s`;
+}
+
+// A sum of money's figure as the drawings write it, in the page's locale:
+// dollars to three decimals and reais to two, one more where a small figure
+// would round to nothing (docs/prototype/chat.html). The currency's symbol
+// around it is the locale files' (instrument.money; NFR-09).
+const DIGITS = { usd: 3, brl: 2 } as const;
+
+export function formatMoney(
+  value: number,
+  currency: keyof typeof DIGITS,
+  locale: string,
+): string {
+  const digits = DIGITS[currency];
+  const fraction = value > 0 && value < 10 ** -digits ? digits + 1 : digits;
+  return new Intl.NumberFormat(locale, {
+    minimumFractionDigits: fraction,
+    maximumFractionDigits: fraction,
+  }).format(value);
 }
 
 // The instrument's hours are São Paulo's (design §1.4), whoever reads them.

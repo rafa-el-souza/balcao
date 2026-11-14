@@ -48,11 +48,15 @@ export interface ServerSpan {
 
 type Id = number | string;
 
+// The rate of the real the server answers with (config/prices.yml).
+export const BRL = { per_usd: 5.6518, verified_on: "2026-11-13" };
+
 export function conversation(
   id: Id,
   messages: ServerMessage[] = [],
   pending = false,
   spans: ServerSpan[] = [],
+  budget: { mode?: string; brl?: typeof BRL } = { mode: "normal", brl: BRL },
 ) {
   return {
     status: 200,
@@ -66,6 +70,7 @@ export function conversation(
       messages,
       spans,
       pending,
+      ...budget,
     },
   };
 }
@@ -155,7 +160,13 @@ export function fakeServer() {
   const defaults: Record<keyof typeof answers, Reply> = {
     session: {
       status: 201,
-      body: { conversation_id: "1", trace_token: "t1", language: "pt-BR" },
+      body: {
+        conversation_id: "1",
+        trace_token: "t1",
+        language: "pt-BR",
+        mode: "normal",
+        brl: BRL,
+      },
     },
     current: conversation(1),
     messages: (body) => stored(body),

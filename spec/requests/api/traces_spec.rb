@@ -44,6 +44,13 @@ RSpec.describe "FR-12 SR-11 SR-12 GET /api/trace, a conversation's trace page", 
     expect(json["spans"].map { |span| span["turn_id"] }).to eq([ first.id, second.id ])
   end
 
+  # The trace page shows the costs in reais beside the dollars (FR-12).
+  it "answers the rate of the real with its date, for the costs' second figure" do
+    look_up(conversation.trace_token)
+
+    expect(json["brl"]).to eq("per_usd" => 5.6518, "verified_on" => "2026-11-13")
+  end
+
   it "parts the notice of a conversation's first reply whatever its wording (review finding N1 of pull request #17)" do
     turn_in(conversation, "hola", reply: "Aviso de antes: outro texto.\n\n¡Hola!")
 

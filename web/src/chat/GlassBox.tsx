@@ -1,7 +1,13 @@
 import { useTranslation } from "react-i18next";
 
 import { type LocalRow, placeLocal, type Turn, turnsOf } from "../trace/model";
-import { EventRow, rowStyles, TurnRows, useTurnLine } from "../trace/Rows";
+import {
+  costOf,
+  EventRow,
+  rowStyles,
+  TurnRows,
+  useTurnLine,
+} from "../trace/Rows";
 import type { State } from "./conversation";
 
 // What the glass box draws of the conversation (FR-12; docs/prototype/chat.html
@@ -83,7 +89,7 @@ function Earlier({ turns }: { turns: Turn[] }) {
           <summary>
             <span className={rowStyles.name}>
               {line.number(only)} · {line.events(eventsOf(only))} ·{" "}
-              {line.time(only)}
+              {line.figure(only.cost, line.time(only))}
             </span>
           </summary>
           <ol className={rowStyles.nested}>
@@ -101,7 +107,8 @@ function Earlier({ turns }: { turns: Turn[] }) {
         <summary>
           <span className={rowStyles.name}>
             {t("instrument.earlier", { count: turns.length })} ·{" "}
-            {line.events(events)} · {line.total(time)}
+            {line.events(events)} ·{" "}
+            {line.figure(costOf(turns), line.total(time))}
           </span>
         </summary>
         <ol className={rowStyles.nested}>
@@ -113,7 +120,9 @@ function Earlier({ turns }: { turns: Turn[] }) {
                   <span className={rowStyles.stop}>
                     {line.events(eventsOf(turn))}
                   </span>{" "}
-                  <span className={rowStyles.figure}>{line.time(turn)}</span>
+                  <span className={rowStyles.figure}>
+                    {line.figure(turn.cost, line.time(turn))}
+                  </span>
                 </summary>
                 <ol className={rowStyles.nested}>
                   <TurnRows turn={turn} open={false} />
@@ -143,10 +152,10 @@ export function GlassRows({ glass }: { glass: Glass }) {
 }
 
 // The line that stands for the glass box at 390 px: the last turn alone, its
-// number, rows and time (docs/prototype/chat.html).
+// number, rows, cost and time (docs/prototype/chat.html).
 export function useSummary(glass: Glass): string {
   const line = useTurnLine();
   const { last } = glass;
   if (!last) return line.events(glass.leading.length);
-  return `${line.number(last)} · ${line.events(eventsOf(last))} · ${line.time(last)}`;
+  return `${line.number(last)} · ${line.events(eventsOf(last))} · ${line.figure(last.cost, line.time(last))}`;
 }

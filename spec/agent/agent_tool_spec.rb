@@ -70,6 +70,15 @@ RSpec.describe "SR-16 AgentTool, the base of the attendant's tools (design §6.3
     expect(Rails.logger).to have_received(:error).with(/crash.*RuntimeError/)
   end
 
+  # Threat model SR-30: a bug's message may quote the arguments the model
+  # wrote from what the visitor said; the line names the error's class alone.
+  it "logs a bug by its class alone, never its message" do
+    allow(Rails.logger).to receive(:error)
+
+    expect { tool(SpecTools::Crash).call(input) }.to raise_error(AgentTool::Error)
+    expect(Rails.logger).to have_received(:error).with("tool crash failed: RuntimeError")
+  end
+
   it "reports a call that answered with no refusal" do
     tool(SpecTools::Echo).call(input)
 

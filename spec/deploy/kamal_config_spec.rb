@@ -71,6 +71,15 @@ RSpec.describe "SR-38 the rehearsal destination inherits nothing production-spec
     [ base, rehearsal ].each { |config| expect(config.dig("env", "clear", "MODEL_ADAPTER")).to eq "real" }
   end
 
+  # FR-14, ADR-0003: production keeps the design's US$ 100. The MVP host runs
+  # on the dev/eval key, whose console limit of US$ 20 a month also pays the
+  # eval runs, so its cap is US$ 10 (the owner's decision of 2026-11-14): the
+  # demo pauses with its fixed reply before the console's limit cuts it off.
+  it "caps the month's model spend at US$ 100 in production and at US$ 10 on the MVP host" do
+    expect(base.dig("env", "clear", "BUDGET_CAP_USD")).to eq "100"
+    expect(rehearsal.dig("env", "clear", "BUDGET_CAP_USD")).to eq "10"
+  end
+
   # Threat model SR-04: the proxy refuses a large body before Puma buffers it.
   it "caps a request body at 1 MB at the proxy, in both destinations" do
     [ base, rehearsal ].each { |config| expect(config.dig("proxy", "buffering", "max_request_body")).to eq 1_000_000 }

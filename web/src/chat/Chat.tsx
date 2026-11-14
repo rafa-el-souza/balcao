@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { useTicking, useTurnLine } from "../trace/Rows";
+import { Cost, RateContext, useTicking, useTurnLine } from "../trace/Rows";
 import { Icon } from "../ui/Icon";
 import { LanguageSwitch } from "../ui/LanguageSwitch";
 import parts from "../ui/parts.module.css";
@@ -13,13 +13,14 @@ import { useConversation } from "./useConversation";
 
 // The chat, `/chat` (design §6.7, §6.8; docs/prototype/chat*.html): the
 // counter and, beside it, the instrument. The glass box shows the turn's rows
-// as the server traces them (FR-12); at 390 px it folds into one line above
-// the composer, which opens it as a drawer over the lower half. Hidden until
-// their source exists: the pharmacist's presence (M2), the budget's mode and
-// every cost (PR-16), the anti-bot line (Turnstile, after the MVP) and the
-// "agendar" suggestion (FR-08, M2). While a turn waits the thread says
-// "pensando…", and past ten seconds that the answer is taking longer (NFR-03,
-// Thread.tsx).
+// as the server traces them (FR-12), each cost in dollars and in reais at the
+// server's rate, and its head names the budget's mode (FR-14); at 390 px it
+// folds into one line above the composer, which opens it as a drawer over the
+// lower half. Hidden until their source exists: the pharmacist's presence
+// (M2), the anti-bot line (Turnstile, after the MVP) and the "agendar"
+// suggestion (FR-08, M2); and the mode and the reais while the server names
+// none. While a turn waits the thread says "pensando…", and past ten seconds
+// that the answer is taking longer (NFR-03, Thread.tsx).
 export function Chat() {
   const { t } = useTranslation();
   const {
@@ -112,124 +113,142 @@ export function Chat() {
   }, [drawer]);
 
   return (
-    <main className={styles.chat} {...(drawer ? { "data-drawer": "" } : {})}>
-      <section className={styles.counter} aria-labelledby="chat-title">
-        <h1 className={parts.visuallyHidden} id="chat-title">
-          {t("chat.heading")}
-        </h1>
-        <header className={styles.counterHead}>
-          <a className={styles.back} href="/">
-            <Icon name="back" /> {t("app.name")}
-          </a>
-          <LanguageSwitch
-            className={styles.counterLangs}
-            onSwitch={changeLanguage}
-          />
-        </header>
-
-        <Thread
-          state={state}
-          offline={offline}
-          refused={refused}
-          covered={covered}
-          onOpener={sendOpener}
-          onRetry={retry}
-        />
-
-        <div className={styles.counterFoot} ref={foot}>
-          <button
-            ref={opener}
-            type="button"
-            className={styles.summary}
-            aria-controls="glass"
-            aria-expanded={drawer}
-            onClick={() => {
-              if (drawer) closeDrawer();
-              else openDrawer();
-            }}
-          >
-            <span>{summary}</span>
-            <span className={styles.summaryOpen}>
-              <span className={parts.visuallyHidden}>
-                {t("chat.glass.open")}
-              </span>
-            </span>
-          </button>
-          <Composer
-            onSend={(text) => {
-              void send({ text }, text);
-            }}
-          />
-        </div>
-      </section>
-
-      <section
-        ref={instrument}
-        className={styles.glass}
-        id="glass"
-        aria-labelledby="glass-title"
-      >
-        <header className={styles.glassHead}>
-          <h2 id="glass-title">{t("chat.glass.title")}</h2>
-          <LanguageSwitch
-            variant="instrument"
-            className={styles.glassLangs}
-            onSwitch={changeLanguage}
-          />
-          <button
-            ref={closer}
-            type="button"
-            className={styles.glassClose}
-            onClick={closeDrawer}
-          >
-            {t("chat.glass.close")}
-          </button>
-        </header>
-        <div className={styles.glassBody} ref={rows}>
-          {empty ? (
-            <p className={styles.glassEmpty}>{t("chat.glass.empty")}</p>
-          ) : (
-            <GlassRows glass={glass} />
-          )}
-        </div>
-        {glass.last && (
-          <dl className={styles.totals}>
-            <div>
-              <dt>{line.number(glass.last)}</dt>
-              <dd>{line.time(glass.last)}</dd>
-            </div>
-          </dl>
-        )}
-        <div className={styles.glassActions}>
-          <button
-            type="button"
-            className={styles.toolButton}
-            onClick={(event) => {
-              // A double click's second press sends nothing (review finding R6).
-              if (event.detail <= 1) command("resetCommand");
-            }}
-          >
-            <Icon name="reset" /> {t("chat.glass.reset")}
-          </button>
-          <button
-            type="button"
-            className={styles.toolButton}
-            onClick={(event) => {
-              if (event.detail <= 1) command("deleteCommand");
-            }}
-          >
-            <Icon name="bin" /> {t("chat.glass.delete")}
-          </button>
-          {state.traceToken && (
-            <a
-              className={styles.toolButton}
-              href={`/trace#${encodeURIComponent(state.traceToken)}`}
-            >
-              <Icon name="receipt" /> {t("chat.glass.openTrace")}
+    <RateContext value={state.brl}>
+      <main className={styles.chat} {...(drawer ? { "data-drawer": "" } : {})}>
+        <section className={styles.counter} aria-labelledby="chat-title">
+          <h1 className={parts.visuallyHidden} id="chat-title">
+            {t("chat.heading")}
+          </h1>
+          <header className={styles.counterHead}>
+            <a className={styles.back} href="/">
+              <Icon name="back" /> {t("app.name")}
             </a>
+            <LanguageSwitch
+              className={styles.counterLangs}
+              onSwitch={changeLanguage}
+            />
+          </header>
+
+          <Thread
+            state={state}
+            offline={offline}
+            refused={refused}
+            covered={covered}
+            onOpener={sendOpener}
+            onRetry={retry}
+          />
+
+          <div className={styles.counterFoot} ref={foot}>
+            <button
+              ref={opener}
+              type="button"
+              className={styles.summary}
+              aria-controls="glass"
+              aria-expanded={drawer}
+              onClick={() => {
+                if (drawer) closeDrawer();
+                else openDrawer();
+              }}
+            >
+              <span>{summary}</span>
+              <span className={styles.summaryOpen}>
+                <span className={parts.visuallyHidden}>
+                  {t("chat.glass.open")}
+                </span>
+              </span>
+            </button>
+            <Composer
+              onSend={(text) => {
+                void send({ text }, text);
+              }}
+            />
+          </div>
+        </section>
+
+        <section
+          ref={instrument}
+          className={styles.glass}
+          id="glass"
+          aria-labelledby="glass-title"
+        >
+          <header className={styles.glassHead}>
+            <h2 id="glass-title">{t("chat.glass.title")}</h2>
+            <LanguageSwitch
+              variant="instrument"
+              className={styles.glassLangs}
+              onSwitch={changeLanguage}
+            />
+            {state.mode && (
+              <span className={styles.mode} data-mode={state.mode}>
+                <span className={parts.visuallyHidden}>
+                  {t("instrument.modeLabel")}{" "}
+                </span>
+                {t(`instrument.modes.${state.mode}`)}
+              </span>
+            )}
+            <button
+              ref={closer}
+              type="button"
+              className={styles.glassClose}
+              onClick={closeDrawer}
+            >
+              {t("chat.glass.close")}
+            </button>
+          </header>
+          <div className={styles.glassBody} ref={rows}>
+            {empty ? (
+              <p className={styles.glassEmpty}>{t("chat.glass.empty")}</p>
+            ) : (
+              <GlassRows glass={glass} />
+            )}
+          </div>
+          {glass.last && (
+            <dl className={styles.totals}>
+              <div>
+                <dt>{line.number(glass.last)}</dt>
+                <dd>{line.time(glass.last)}</dd>
+              </div>
+              {glass.last.cost !== null && glass.last.cost > 0 && (
+                <div>
+                  <dt>{t("instrument.turnCost")}</dt>
+                  <dd>
+                    <Cost cost={glass.last.cost} />
+                  </dd>
+                </div>
+              )}
+            </dl>
           )}
-        </div>
-      </section>
-    </main>
+          <div className={styles.glassActions}>
+            <button
+              type="button"
+              className={styles.toolButton}
+              onClick={(event) => {
+                // A double click's second press sends nothing (review finding R6).
+                if (event.detail <= 1) command("resetCommand");
+              }}
+            >
+              <Icon name="reset" /> {t("chat.glass.reset")}
+            </button>
+            <button
+              type="button"
+              className={styles.toolButton}
+              onClick={(event) => {
+                if (event.detail <= 1) command("deleteCommand");
+              }}
+            >
+              <Icon name="bin" /> {t("chat.glass.delete")}
+            </button>
+            {state.traceToken && (
+              <a
+                className={styles.toolButton}
+                href={`/trace#${encodeURIComponent(state.traceToken)}`}
+              >
+                <Icon name="receipt" /> {t("chat.glass.openTrace")}
+              </a>
+            )}
+          </div>
+        </section>
+      </main>
+    </RateContext>
   );
 }

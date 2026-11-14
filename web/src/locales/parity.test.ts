@@ -41,6 +41,19 @@ describe("NFR-09 locale key parity (web)", () => {
     expect(missing).toEqual({});
   });
 
+  // Review finding C6 of pull request #29: the money's symbols are words of
+  // the locale files, the same three languages draw them alike (docs/
+  // prototype/chat-en.html, chat-es.html).
+  it("writes each currency's symbol around its figure, in every locale", () => {
+    for (const [locale, tree] of Object.entries(locales)) {
+      const money = (tree.instrument as Tree).money as Tree;
+      expect(money, locale).toEqual({
+        usd: "US$ {{value}}",
+        brl: "R$ {{value}}",
+      });
+    }
+  });
+
   it("has no empty string in any locale", () => {
     const empty = Object.entries(locales).flatMap(([locale, tree]) =>
       leaves(tree)

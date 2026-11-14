@@ -38,6 +38,13 @@ export interface TurnOptions {
   outcome?: string;
   tool?: Record<string, unknown> | null;
   error?: string;
+  // The two model calls' costs in US dollars (app/models/turn_trace.rb), or
+  // none, as a turn traced before the costs.
+  costs?: [number, number];
+  // The mode the turn ran in, and the month's mode when it closed, which the
+  // root records (app/models/turn_processor.rb).
+  mode?: string;
+  budgetMode?: string;
 }
 
 // An answered turn: received at minute:41, a model call that asks for a tool,
@@ -82,11 +89,16 @@ export function answeredTurn(turn: string, options: TurnOptions = {}) {
       {
         "balcao.channel": "web",
         "balcao.turn.outcome": options.outcome ?? "replied",
+        ...(options.mode ? { "balcao.turn.mode": options.mode } : {}),
+        ...(options.budgetMode
+          ? { "balcao.budget.mode": options.budgetMode }
+          : {}),
       },
       true,
     ),
     span(turn, "anthropic.messages.create", at(minute, 41), at(minute, 42), {
       ...model,
+      ...(options.costs ? { "balcao.cost.usd": options.costs[0] } : {}),
       "anthropic.message.stop_reason": "tool_use",
       "balcao.latency_ms": 1100,
       "gen_ai.usage.input_tokens": 3100,
@@ -112,6 +124,7 @@ export function answeredTurn(turn: string, options: TurnOptions = {}) {
     ),
     span(turn, "anthropic.messages.create", at(minute, 43), at(minute, 44), {
       ...model,
+      ...(options.costs ? { "balcao.cost.usd": options.costs[1] } : {}),
       "anthropic.message.stop_reason": "end_turn",
       "balcao.latency_ms": 1600,
       "gen_ai.usage.input_tokens": 3700,

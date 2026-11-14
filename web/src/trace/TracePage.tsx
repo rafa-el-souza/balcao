@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Trans, useTranslation } from "react-i18next";
 
-import type { Trace } from "../chat/api";
+import { rateOf, type Trace } from "../chat/api";
 import { Text } from "../chat/Thread";
 import { cx } from "../ui/cx";
 import { Cross, Icon } from "../ui/Icon";
@@ -15,7 +15,15 @@ import {
   type Turn,
   turnsOf,
 } from "./model";
-import { rowStyles, TurnRows, useTicking, useTurnLine } from "./Rows";
+import {
+  Cost,
+  costOf,
+  RateContext,
+  rowStyles,
+  TurnRows,
+  useTicking,
+  useTurnLine,
+} from "./Rows";
 import styles from "./TracePage.module.css";
 import { useToken, useTrace } from "./useTrace";
 
@@ -24,9 +32,10 @@ import { useToken, useTrace } from "./useTrace";
 // full length, on one receipt, every row closed, and live while the
 // conversation goes on. For a WhatsApp conversation it is the only glass
 // box. The words of the conversation stay in the counter's face: the
-// visitor's beside the turn, the reply under its rows. Hidden until their
-// source exists: every cost (PR-16), the status link (M3) and the privacy
-// link (PR-17).
+// visitor's beside the turn, the reply under its rows, and the turn's cost
+// closes it; the foot totals the costs, the tokens and the turns' time
+// (FR-12, FR-14). Hidden until their source exists: the status link (M3) and
+// the privacy link (PR-17).
 
 // A link outlives its day, so the title gives the day as well as the hour,
 // in São Paulo's time.
@@ -86,6 +95,14 @@ function TurnSection({ turn, trace }: { turn: Turn; trace: Trace }) {
           <Text text={reply.body} />
         </div>
       )}
+      {turn.cost !== null && turn.cost > 0 && (
+        <p className={styles.turnCost}>
+          <span className={rowStyles.quiet}>{t("instrument.turnCost")}</span>{" "}
+          <span>
+            <Cost cost={turn.cost} />
+          </span>
+        </p>
+      )}
     </section>
   );
 }
@@ -95,6 +112,15 @@ function Roll({ trace, turns }: { trace: Trace; turns: Turn[] }) {
   const sum = (pick: (turn: Turn) => number) =>
     turns.reduce((total, turn) => total + pick(turn), 0);
   const tokens = (n: number) => formatTokens(n, i18n.language);
+  const time = formatDuration(
+    sum((turn) => turn.durationMs ?? 0),
+    i18n.language,
+  );
+  // The receipt's total is the cost, and the turns' time a line of its own;
+  // a conversation with no cost to show totals its time (docs/prototype/
+  // trace.html).
+  const cost = costOf(turns);
+  const priced = cost !== null && cost > 0;
   return (
     <section
       className={cx(parts.slip, styles.roll)}
@@ -106,12 +132,7 @@ function Roll({ trace, turns }: { trace: Trace; turns: Turn[] }) {
       <dl className={styles.total}>
         <div>
           <dt>{t("trace.total", { count: turns.length })}</dt>
-          <dd>
-            {formatDuration(
-              sum((turn) => turn.durationMs ?? 0),
-              i18n.language,
-            )}
-          </dd>
+          <dd>{priced ? <Cost cost={cost} /> : time}</dd>
         </div>
         <div>
           <dt>{t("trace.inputTokens")}</dt>
@@ -126,6 +147,12 @@ function Roll({ trace, turns }: { trace: Trace; turns: Turn[] }) {
           <dt>{t("trace.outputTokens")}</dt>
           <dd>{tokens(sum((turn) => turn.output))}</dd>
         </div>
+        {priced && (
+          <div>
+            <dt>{t("trace.turnsTime")}</dt>
+            <dd>{time}</dd>
+          </div>
+        )}
       </dl>
     </section>
   );
@@ -178,7 +205,11 @@ export function TracePage() {
         <p>{t("trace.share")}</p>
       </>
     );
-    body = <Roll trace={view.trace} turns={turns} />;
+    body = (
+      <RateContext value={rateOf(view.trace.brl)}>
+        <Roll trace={view.trace} turns={turns} />
+      </RateContext>
+    );
   } else {
     note = <h1>{t("trace.loading")}</h1>;
     body =

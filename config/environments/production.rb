@@ -1,5 +1,6 @@
 require "active_support/core_ext/integer/time"
 require_relative "../required_environment"
+require_relative "../../lib/logging/json_log_formatter"
 
 # Before anything below reads the environment (threat model SR-25).
 Balcao::RequiredEnvironment.verify!(ENV)
@@ -32,9 +33,10 @@ Rails.application.configure do
   # Skip http-to-https redirect for the default health check endpoint.
   # config.ssl_options = { redirect: { exclude: ->(request) { request.path == "/up" } } }
 
-  # Log to STDOUT with the current request id as a default log tag.
-  config.log_tags = [ :request_id ]
-  config.logger   = ActiveSupport::TaggedLogging.logger(STDOUT)
+  # Log to STDOUT, one JSON object per line, with the current request's id as
+  # a field (NFR-05; lib/logging/json_log_formatter.rb).
+  config.log_tags = [ ->(request) { "request_id=#{request.request_id}" } ]
+  config.logger   = ActiveSupport::TaggedLogging.new(ActiveSupport::Logger.new(STDOUT, formatter: Balcao::JsonLogFormatter.new))
 
   # Change to "debug" to log everything (including potentially personally-identifiable information!).
   config.log_level = ENV.fetch("RAILS_LOG_LEVEL", "info")
@@ -59,6 +61,9 @@ Rails.application.configure do
   # Set host to be used by links generated in mailer templates (APP_HOST, design §8).
   config.action_mailer.default_url_options = { host: ENV.fetch("APP_HOST") }
   config.x.public_origin = "https://#{ENV.fetch("APP_HOST")}"
+  # Each destination's own cap (FR-14), a positive decimal checked at boot
+  # (config/required_environment.rb): 100 for production, 10 for the MVP host.
+  config.x.budget_cap_usd = BigDecimal(ENV.fetch("BUDGET_CAP_USD"))
 
   # Specify outgoing SMTP server. Remember to add smtp/* credentials via bin/rails credentials:edit.
   # config.action_mailer.smtp_settings = {

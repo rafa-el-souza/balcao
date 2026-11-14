@@ -36,10 +36,36 @@ export interface Span {
   finished_at: string | null;
 }
 
+// The budget's mode (FR-14) and the rate of the real with its date (FR-12),
+// which the session, the polling and the trace page's answers carry.
+export const MODES = ["normal", "economy", "paused"] as const;
+export type Mode = (typeof MODES)[number];
+
+export interface Brl {
+  per_usd: number;
+  verified_on: string;
+}
+
 export interface Session {
   conversation_id: string;
   trace_token: string;
   language: string;
+  mode?: unknown;
+  brl?: unknown;
+}
+
+// A mode the page knows, else none: a word it has no name for is not drawn.
+export function modeOf(value: unknown): Mode | null {
+  return MODES.find((mode) => mode === value) ?? null;
+}
+
+// The reais per dollar, else none: the dollars are then drawn alone.
+export function rateOf(value: unknown): number | null {
+  if (typeof value !== "object" || value === null) return null;
+  const rate = (value as Partial<Brl>).per_usd;
+  return typeof rate === "number" && Number.isFinite(rate) && rate > 0
+    ? rate
+    : null;
 }
 
 const AUTHORS: readonly unknown[] = ["visitor", "bot", "operator", "system"];
@@ -76,6 +102,8 @@ export interface Snapshot {
   };
   messages: ServerMessage[];
   spans: Span[];
+  mode?: unknown;
+  brl?: unknown;
 }
 
 // A message as a trace page shows it: its words and its turn (FR-12).
@@ -92,6 +120,7 @@ export interface Trace {
   conversation: { started_at: string };
   messages: TraceMessage[];
   spans: Span[];
+  brl?: unknown;
 }
 
 export interface Deleted {

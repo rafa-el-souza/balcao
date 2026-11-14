@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { conversation, message } from "../test/fakeServer";
+import { answeredTurn } from "../test/spans";
 import {
   type Action,
   awaiting,
@@ -246,5 +247,51 @@ describe("FR-14 every stamp of the demo's limit has a key of its own", () => {
 
     expect(new Set(keys).size).toBe(keys.length);
     expect(keys).toHaveLength(6);
+  });
+});
+
+// Review finding C3 of pull request #29: a turn's root carries the mode the
+// turn ran in, read when it started, and the month's mode when it closed,
+// after its own charge; the head follows the second alone, so a turn that
+// started before a pause the page already knows never takes it back.
+describe("FR-14 the glass box head's mode", () => {
+  const closed = (fields: { turnMode?: string; budgetMode?: string }) => {
+    const [root] = answeredTurn("t1", {
+      ...(fields.turnMode ? { mode: fields.turnMode } : {}),
+      ...(fields.budgetMode ? { budgetMode: fields.budgetMode } : {}),
+    });
+    if (!root) throw new Error("no root");
+    return { type: "span", span: root } as const;
+  };
+
+  it("keeps a pause the server answered when a turn that started before it closes", () => {
+    const state = run([
+      { type: "session", conversationId: "1", mode: "normal" },
+      {
+        type: "snapshot",
+        answer: conversation(1, [], true, [], { mode: "paused" }).body,
+      },
+      closed({ turnMode: "normal", budgetMode: "paused" }),
+    ]);
+
+    expect(state.mode).toBe("paused");
+  });
+
+  it("takes the month's mode a turn closed with, not the mode it ran in", () => {
+    const state = run([
+      { type: "session", conversationId: "1", mode: "normal" },
+      closed({ turnMode: "normal", budgetMode: "paused" }),
+    ]);
+
+    expect(state.mode).toBe("paused");
+  });
+
+  it("leaves the mode alone for a root that names no month's mode", () => {
+    const state = run([
+      { type: "session", conversationId: "1", mode: "paused" },
+      closed({ turnMode: "normal" }),
+    ]);
+
+    expect(state.mode).toBe("paused");
   });
 });

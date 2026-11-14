@@ -50,11 +50,17 @@ class ProcessTurnJob < ApplicationJob
   # conversation it opened while this job waited, and the turn is yielded
   # again under that conversation's lock: a turn runs only under the lock of
   # the conversation it belongs to (review finding R1 of pull request #11).
+  #
+  # Every line logged under the lock carries the conversation's id (NFR-05).
   def under_lock(turn_id)
     loop do
       turn = Turn.find_by(id: turn_id)
       return if turn.nil? || Message.exists?(turn_id:)
-      return unless ConversationLock.hold(turn.conversation_id) { yield turn } == :moved
+
+      held = Rails.logger.tagged("conversation_id=#{turn.conversation_id}") do
+        ConversationLock.hold(turn.conversation_id) { yield turn }
+      end
+      return unless held == :moved
     end
   end
 
