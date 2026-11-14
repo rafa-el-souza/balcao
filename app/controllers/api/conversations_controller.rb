@@ -2,9 +2,11 @@ module Api
   # GET /api/conversations/current (FR-18): the polling fallback, every 3 s
   # while the socket is unavailable. It answers what the streams carry, for
   # the visitor's open conversation only (SR-05): its messages, the spans of
-  # its turns and whether a turn still waits for its reply. The chat reads
-  # the wait from the messages since the note of 2026-11-13 on the chat's
-  # stream (design §10); the flag stays for a page loaded before it.
+  # its turns and whether a turn still waits for its reply, with the month's
+  # budget mode and the rate of the real, as the session answers them (FR-12,
+  # FR-14). The chat reads the wait from the messages since the note of
+  # 2026-11-13 on the chat's stream (design §10); the flag stays for a page
+  # loaded before it.
   class ConversationsController < BaseController
     def current
       visitor = cookie_visitor
@@ -22,7 +24,9 @@ module Api
                                  reservation_codes: codes)
         end,
         spans: TraceEvent.where(turn_id: turns.values).order(:started_at, :id).map(&:stream_payload),
-        pending: conversation.turns.where.missing(:outbound_message).exists?
+        pending: conversation.turns.where.missing(:outbound_message).exists?,
+        mode: Budget.mode,
+        brl: Prices.brl_payload
       }
     end
 

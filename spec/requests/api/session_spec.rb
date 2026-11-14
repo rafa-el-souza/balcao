@@ -8,12 +8,26 @@ RSpec.describe "FR-18 SR-03 POST /api/session issues the visitor cookie", type: 
 
     expect(response).to have_http_status(:created)
     conversation = Conversation.sole
-    expect(json).to eq("conversation_id" => conversation.id, "trace_token" => conversation.trace_token, "language" => "pt-BR")
+    expect(json).to eq("conversation_id" => conversation.id, "trace_token" => conversation.trace_token, "language" => "pt-BR",
+                       "mode" => "normal", "brl" => { "per_usd" => 5.6518, "verified_on" => "2026-11-13" })
     cookie = response.headers["Set-Cookie"]
     expect(cookie).to match(/\A#{WebSession::COOKIE}=/o)
     expect(cookie).to include("httponly").and include("samesite=strict").and include("path=/")
     expect(cookie_visitor).to eq conversation.visitor
     expect(conversation.visitor).to have_attributes(channel: "web")
+  end
+
+  # The glass box's head shows the budget's mode, and its costs in reais
+  # beside the dollars (FR-12, FR-14; design §10, note of 2026-11-12).
+  it "answers the month's budget mode and the rate of the real with its date" do
+    api_post "/api/session"
+
+    expect(json).to include("mode" => "normal", "brl" => { "per_usd" => 5.6518, "verified_on" => "2026-11-13" })
+
+    BudgetState.for_month!.update!(forced_mode: "paused")
+    api_post "/api/session"
+
+    expect(json["mode"]).to eq("paused")
   end
 
   it "marks the cookie Secure over HTTPS, as production always is" do

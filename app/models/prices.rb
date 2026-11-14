@@ -30,6 +30,10 @@ module Prices
 
   def price(model) = table.models.fetch(model)
 
+  # The rate as the API's answers carry it, for the glass box and the trace
+  # page's figures in reais (FR-12).
+  def brl_payload = { per_usd: rate.brl_per_usd.to_f, verified_on: rate.verified_on.iso8601 }
+
   # The cost of one model call's usage (AgentRunner::Usage), unrounded.
   def cost_usd(usage)
     price = table.models.fetch(usage.model) { highest(usage.model) }

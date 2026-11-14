@@ -9,7 +9,8 @@ module Api
   # that conversation alone (SR-05): each of its turns' messages, with the
   # turn (a reset's reply among them, though it opens the conversation the
   # reset started, FR-04), and its spans, in the shape the trace stream sends
-  # them, so the page follows it live.
+  # them, so the page follows it live; and the rate of the real, for the
+  # costs' second figure.
   class TracesController < BaseController
     def show
       conversation = Conversation.find_by_trace_token(request.headers["X-Trace-Token"])
@@ -19,7 +20,8 @@ module Api
       render json: {
         conversation: { started_at: conversation.created_at.iso8601(3) },
         messages: messages_of(turns),
-        spans: TraceEvent.where(turn_id: turns.map(&:id)).order(:started_at, :id).map(&:stream_payload)
+        spans: TraceEvent.where(turn_id: turns.map(&:id)).order(:started_at, :id).map(&:stream_payload),
+        brl: Prices.brl_payload
       }
     end
 
