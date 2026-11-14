@@ -27,6 +27,20 @@ RSpec.describe "FR-19 SR-06 SR-07 SR-09 POST /webhooks/telegram", type: :request
     expect(TelegramUpdateJob).to have_been_enqueued.with(event.id)
   end
 
+  # The fix review of pull request #32: the order of a person's updates and
+  # their lock rest on the identity the webhook stores (finding T2).
+  it "stores the sender's hashed identity with an update the bot uses, and none with one it drops" do
+    recorded = JSON.parse(Rails.root.join("spec/fixtures/telegram/text.json").read)
+    sender = recorded.dig("message", "from", "id")
+
+    deliver(recorded)
+    deliver({ update_id: 734_120_009, edited_message: recorded["message"] })
+
+    expect(WebhookEvent.find_by!(update_id: recorded["update_id"]).identity_hash)
+      .to eq(Digest::SHA256.hexdigest("#{Rails.configuration.x.identity_pepper}#{sender}"))
+    expect(WebhookEvent.find_by!(update_id: 734_120_009).identity_hash).to be_nil
+  end
+
   it "compares the secret in constant time" do
     allow(ActiveSupport::SecurityUtils).to receive(:secure_compare).and_call_original
 
