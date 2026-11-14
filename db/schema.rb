@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_14_120200) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_14_120300) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "fuzzystrmatch"
   enable_extension "pg_catalog.plpgsql"
@@ -53,6 +53,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_14_120200) do
     t.string "status"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "parts_sent", default: 0, null: false
     t.index ["channel", "external_id"], name: "index_messages_on_channel_and_external_id", unique: true, where: "(external_id IS NOT NULL)"
     t.index ["conversation_id", "created_at"], name: "index_messages_on_conversation_id_and_created_at"
     t.index ["turn_id"], name: "index_messages_one_outbound_per_turn", unique: true, where: "(turn_id IS NOT NULL)"
