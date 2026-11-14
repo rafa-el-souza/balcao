@@ -29,13 +29,18 @@ module FixedReply
                               hours: runs.map { |run| opening(run, locale) }.join("; "))
   end
 
-  def with_offer(text, locale, sheet = StoreSheet.current) = "#{text}\n\n#{offer(locale, sheet)}"
+  # A text with nothing of its own (a reply that was its tag alone) is the
+  # line alone.
+  def with_offer(text, locale, sheet = StoreSheet.current) = paragraphs(text, offer(locale, sheet))
 
   # FR-09: a message that may be an emergency ends with the public emergency
   # numbers, real on purpose (the owner's decision of 2026-11-14).
   def emergency(locale) = I18n.t("turn.emergency", locale:)
 
-  def with_emergency(text, locale) = "#{text}\n\n#{emergency(locale)}"
+  def with_emergency(text, locale) = paragraphs(text, emergency(locale))
+
+  def paragraphs(*texts) = texts.reject(&:blank?).join("\n\n")
+  private_class_method :paragraphs
 
   # One run of days with the same hours, "de segunda a sexta, das 08:00 às
   # 20:00" or "aos sábados, das 08:00 às 14:00".

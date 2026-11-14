@@ -107,6 +107,17 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
         expect(second.outbound_message.body).to eq("Também não posso.")
       end
 
+      # Review finding C1 of pull request #27: a reply that is the tag alone
+      # has nothing else to say, so the line is its text, last reply or not.
+      it "is the reply when the model wrote the tag alone, even after a reply that carried it" do
+        responses.replace([ reply("[pt] Isso eu não posso responder. [pharmacist]"), reply("[pt] [pharmacist]") ])
+        perform(inbound("posso tomar com cerveja?"))
+        turn = inbound("Quero falar com o farmacêutico.").tap { |later| perform(later) }
+
+        expect(turn.reload.state).to eq("replied")
+        expect(turn.outbound_message.body).to eq(FixedReply.offer("pt-BR"))
+      end
+
       it "comes back when the reply is in another language than the last one's line" do
         responses.replace([ reply("[pt] Isso eu não posso responder. [pharmacist]"), reply("[en] I can't answer that either. [pharmacist]") ])
         perform(inbound("posso tomar com cerveja?"))
@@ -128,6 +139,18 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       perform(turn)
 
       expect(turn.outbound_message.body).to eq(FixedReply.with_notice(FixedReply.with_emergency("Ligue agora para o socorro.", "pt-BR"), "pt-BR"))
+    end
+
+    # Review finding C1 of pull request #27: a reply that is the tag alone
+    # was empty, so the visitor got the fallback and no emergency numbers.
+    it "is the reply when the model wrote the tag alone, and the turn is replied" do
+      responses.replace([ reply("[pt] [emergency]") ])
+      turn = inbound("meu filho engoliu uns comprimidos")
+
+      perform(turn)
+
+      expect(turn.reload.state).to eq("replied")
+      expect(turn.outbound_message.body).to eq(FixedReply.with_notice(FixedReply.emergency("pt-BR"), "pt-BR"))
     end
 
     it "comes in every reply that asks for it" do

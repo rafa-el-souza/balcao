@@ -220,13 +220,15 @@ class AgentRunner
     # the declined clinical part of a mixed question (review finding C1 of
     # pull request #9). Each block's leading tag is removed; the first names
     # the language. The tags that ask for a fixed line are removed wherever
-    # they are, and any one of them asks for its line once.
+    # they are, and any one of them asks for its line once. A reply that is
+    # its tags alone is the line it asks for, so only a reply with no text
+    # and no tag is empty (review finding C1 of pull request #27).
     def reply
       blocks = @messages.flat_map { |message| message.content.select { |block| block.type == :text }.map(&:text) }
       tag = blocks.filter_map { |block| block[LANGUAGE_TAG, 1] }.first
       lines = blocks.flat_map { |block| block.scan(LINE_TAG).flatten.map(&:downcase) }
       text = blocks.map { |block| block.sub(LANGUAGE_TAG, "").gsub(LINE_TAG, "").strip }.reject(&:empty?).join("\n\n")
-      return result(:incomplete) if text.empty?
+      return result(:incomplete) if text.empty? && lines.empty?
 
       result(:replied, text:, language: LANGUAGES[tag], offer: lines.include?("pharmacist"), emergency: lines.include?("emergency"))
     end

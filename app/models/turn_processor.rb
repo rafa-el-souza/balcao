@@ -218,10 +218,11 @@ class TurnProcessor
   # emergency line comes alone, since an emergency's one instruction is to call
   # for help, and in every reply that asks for it; the offer of the pharmacist
   # is left out when the conversation's last reply carried it in this
-  # language, as a person at the counter gives the phone once.
+  # language, as a person at the counter gives the phone once, unless the
+  # reply has nothing else to say (review finding C1 of pull request #27).
   def with_lines(text, language, offer:, emergency: false)
     return FixedReply.with_emergency(text, language) if emergency
-    return text unless offer && !offered_last?(language)
+    return text unless offer && (text.blank? || !offered_last?(language))
 
     FixedReply.with_offer(text, language)
   end

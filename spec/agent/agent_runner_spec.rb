@@ -261,8 +261,19 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
       end
     end
 
+    # Review finding C1 of pull request #27: a reply that is its tags alone
+    # asks for the line all the same, and the line is the reply; only a reply
+    # with no text and no tag is empty (NFR-03).
     context "when the reply is the tag alone" do
       let(:responses) { [ reply("[pt] [pharmacist]") ] }
+
+      it "is a reply with no text of its own that asks for the offer" do
+        expect(runner.run(turn)).to have_attributes(outcome: :replied, text: "", language: "pt-BR", offer: true)
+      end
+    end
+
+    context "when the reply has neither text nor tag" do
+      let(:responses) { [ reply("[pt] ") ] }
 
       it "ends as an empty reply does, for the fallback (NFR-03)" do
         expect(runner.run(turn)).to have_attributes(outcome: :incomplete, text: nil, offer: false)
@@ -284,6 +295,14 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
       it "returns the reply without the tag, and asks for the emergency line" do
         expect(runner.run(turn)).to have_attributes(outcome: :replied, text: "Ligue agora para o socorro.", emergency: true,
                                                     offer: false)
+      end
+    end
+
+    context "when the reply is the emergency's tag alone (review finding C1 of pull request #27)" do
+      let(:responses) { [ reply("[pt] [emergency]") ] }
+
+      it "is a reply with no text of its own that asks for the emergency line" do
+        expect(runner.run(turn)).to have_attributes(outcome: :replied, text: "", emergency: true)
       end
     end
 
