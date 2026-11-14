@@ -120,6 +120,14 @@
   margin-top: var(--space-2);
 }
 
+/* The turn's cost closes it (docs/prototype/styles.css, .turn-cost-line). */
+.turnCost {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin: var(--space-2) 0 0;
+}
+
 .total {
   margin: var(--space-4) 0 0;
   padding-top: var(--space-3);

@@ -9,7 +9,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import ptBR from "../locales/pt-BR.json";
 import { fakeCable } from "../test/fakeCable";
-import { conversation, fakeServer, message, replyTo } from "../test/fakeServer";
+import {
+  BRL,
+  conversation,
+  fakeServer,
+  message,
+  replyTo,
+} from "../test/fakeServer";
 import { renderPage } from "../test/render";
 import { LIT_ICON, tabIcon } from "../test/tabIcon";
 import {
@@ -202,13 +208,163 @@ describe("FR-12 the glass box draws the turn as the server traced it", () => {
     });
   });
 
-  it("shows no cost and no zero in its place until the usage records exist (PR-16)", async () => {
+  it("shows no cost and no zero in its place for a turn traced before the costs", async () => {
     server.answers.current.push(conversation(1, [], false, answeredTurn("t1")));
     renderPage(<Chat />);
     await ready();
     await within(glass()).findByText("search_products");
 
     expect(glass().textContent).not.toMatch(/US\$|R\$|custo/);
+  });
+});
+
+// FR-12, FR-14: each model call's cost in dollars and in reais at the
+// server's rate, the turn's in the totals and in the line that stands for the
+// glass box at 390 px (docs/prototype/chat.html, chat-many-turns.html).
+describe("FR-12 FR-14 the costs in the glass box", () => {
+  const priced = (turn: string, minute = 3) =>
+    answeredTurn(turn, { minute, costs: [0.003, 0.006] });
+
+  it("writes each call's cost beside its time, and in its detail with the reais", async () => {
+    server.answers.current.push(conversation(1, [], false, priced("t1")));
+    renderPage(<Chat />);
+    await ready();
+
+    await waitFor(() => {
+      expect(rowsOf(events())[1]).toContain(
+        "12:03:41 modelo parou em tool_use US$ 0,003 · 1,1 s",
+      );
+    });
+    const call = within(events())
+      .getAllByText("modelo")[0]
+      ?.closest("li") as HTMLElement;
+    const detail = within(call)
+      .getByText("custo")
+      .closest("div") as HTMLElement;
+    expect(detail.textContent.replace(/\s+/g, " ")).toBe(
+      "custoUS$ 0,003 · R$ 0,02",
+    );
+  });
+
+  it("totals the turn's cost under the rows and in the line of the glass box at 390 px", async () => {
+    server.answers.current.push(conversation(1, [], false, priced("t1")));
+    renderPage(<Chat />);
+    await ready();
+
+    const total = await within(glass()).findByText("custo do turno");
+    expect(total.closest("div")?.textContent.replace(/\s+/g, " ")).toBe(
+      "custo do turnoUS$ 0,009 · R$ 0,05",
+    );
+    expect(
+      screen.getByRole("button", {
+        name: /turno 1 · 5 eventos · US\$ 0,009 · 3,0 s/,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("gives each earlier turn its cost, and the fold their sum", async () => {
+    server.answers.current.push(
+      conversation(1, [], false, [
+        ...priced("t1", 3),
+        ...priced("t2", 5),
+        ...priced("t3", 7),
+      ]),
+    );
+    renderPage(<Chat />);
+    await ready();
+
+    const fold = await within(glass()).findByText(
+      "2 turnos anteriores · 10 eventos · US$ 0,018 · 6,0 s",
+    );
+    const group = fold.closest("details") as HTMLElement;
+    const first = within(group)
+      .getByText("turno 1")
+      .closest("summary") as HTMLElement;
+    expect(first.textContent.replace(/\s+/g, " ")).toBe(
+      "turno 1 5 eventos US$ 0,009 · 3,0 s",
+    );
+  });
+
+  it("writes the dollars alone when the server gave no rate", async () => {
+    server.answers.session.push({
+      status: 201,
+      body: { conversation_id: "1", trace_token: "t1", language: "pt-BR" },
+    });
+    server.answers.current.push(
+      conversation(1, [], false, priced("t1"), { mode: "normal" }),
+    );
+    renderPage(<Chat />);
+    await ready();
+
+    const total = await within(glass()).findByText("custo do turno");
+    expect(total.closest("div")?.textContent).toBe("custo do turnoUS$ 0,009");
+    expect(glass().textContent).not.toMatch(/R\$/);
+  });
+
+  it("draws no zero for a turn that cost nothing, a failed call's", async () => {
+    server.answers.current.push(
+      conversation(
+        1,
+        [],
+        false,
+        answeredTurn("t1", { error: "Anthropic::Errors::OverloadedError" }),
+      ),
+    );
+    renderPage(<Chat />);
+    await ready();
+    await within(glass()).findByText("o modelo não respondeu");
+
+    expect(glass().textContent).not.toMatch(/US\$|R\$|custo/);
+  });
+});
+
+// FR-14: the budget's mode in the glass box's head, from the session and
+// the polling, and from a turn the stream closes (docs/prototype/chat.html).
+describe("FR-14 the budget's mode in the glass box's head", () => {
+  const mode = () => within(glass()).queryByText(/^(normal|economia|pausado)$/);
+
+  it("names the mode the server gave, with its meaning's mark", async () => {
+    renderPage(<Chat />);
+    await ready();
+
+    await waitFor(() => {
+      expect(mode()).toHaveTextContent("normal");
+    });
+    expect(mode()?.closest("[data-mode]")).toHaveAttribute(
+      "data-mode",
+      "normal",
+    );
+    expect(within(glass()).getByText("modo")).toBeInTheDocument();
+  });
+
+  it("follows the polling's answer when the month pauses", async () => {
+    server.answers.current.push(
+      conversation(1, [], false, [], { mode: "paused", brl: BRL }),
+    );
+    renderPage(<Chat />);
+    await ready();
+
+    await waitFor(() => {
+      expect(mode()).toHaveTextContent("pausado");
+    });
+    expect(mode()?.closest("[data-mode]")).toHaveAttribute(
+      "data-mode",
+      "paused",
+    );
+  });
+
+  it("shows no mode when the server named none", async () => {
+    server.answers.session.push({
+      status: 201,
+      body: { conversation_id: "1", trace_token: "t1", language: "pt-BR" },
+    });
+    server.answers.current.push(conversation(1, [], false, [], {}));
+    renderPage(<Chat />);
+    await ready();
+    await within(glass()).findByText(pt.chat.glass.empty);
+
+    expect(mode()).toBeNull();
+    expect(glass().querySelector("[data-mode]")).toBeNull();
   });
 });
 
@@ -664,6 +820,23 @@ describe("FR-18 the conversation's stream, with the polling as its fallback", ()
     ).toBeInTheDocument();
     expect(within(glass()).getByText("claude-opus-5-5")).toBeInTheDocument();
     expect(server.polls()).toHaveLength(2);
+  });
+
+  // FR-14: a turn the month's pause answered closes with its mode, and the
+  // glass box's head follows it without asking the server.
+  it("takes the budget's mode a turn the stream closes recorded", async () => {
+    const cable = await live();
+    cable.connect();
+    await waitFor(() => {
+      expect(within(glass()).getByText("normal")).toBeInTheDocument();
+    });
+
+    const [root] = answeredTurn("t1", { outcome: "paused", mode: "paused" });
+    if (root) cable.send({ type: "span", span: root });
+
+    await waitFor(() => {
+      expect(within(glass()).getByText("pausado")).toBeInTheDocument();
+    });
   });
 
   // Design §10, note of 2026-11-13 on the chat's stream: the reply is drawn

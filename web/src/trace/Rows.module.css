@@ -34,6 +34,13 @@
   color: var(--color-instrument-ink-2);
 }
 
+/* The reais beside the dollars, quieter (docs/prototype/styles.css, .slip .quiet). */
+.quiet {
+  font-size: var(--text-xs);
+  font-weight: 400;
+  color: var(--color-instrument-ink-2);
+}
+
 .event[data-state="error"] .name,
 .event[data-state="error"] .outcome {
   color: var(--color-error);

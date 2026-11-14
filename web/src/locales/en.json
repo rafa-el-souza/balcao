@@ -105,6 +105,13 @@
     "earlier_one": "{{count}} earlier turn",
     "earlier_other": "{{count}} earlier turns",
     "events_label": "Events of the conversation",
+    "turnCost": "turn cost",
+    "modeLabel": "mode",
+    "modes": {
+      "normal": "normal",
+      "economy": "economy",
+      "paused": "paused"
+    },
     "detail": {
       "model": "model",
       "effort": "effort",
@@ -117,6 +124,7 @@
       "cacheHit": "read",
       "cacheNone": "not read",
       "output": "output",
+      "cost": "cost",
       "error": "error",
       "fixedReply": "fixed reply"
     },
@@ -190,6 +198,7 @@
     "inputTokens": "input tokens",
     "inputValue": "{{total}} ({{cached}} read from the cache)",
     "outputTokens": "output tokens",
+    "turnsTime": "turns' time",
     "goneHeading": "This conversation is no longer here",
     "goneNote": "A trace link works for up to 7 days after the last message, and stops working sooner if the person deletes their own data.",
     "startChat": "Start a conversation",

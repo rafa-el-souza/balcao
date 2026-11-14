@@ -322,6 +322,28 @@
   margin-left: auto;
 }
 
+/* The budget's mode: a square of its meaning's colour and its name (docs/prototype/styles.css). */
+.mode {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.mode::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  background: var(--color-normal);
+}
+
+.mode[data-mode="economy"]::before {
+  background: var(--color-economy);
+}
+
+.mode[data-mode="paused"]::before {
+  background: var(--color-paused);
+}
+
 .glassBody {
   flex: 1;
   padding: var(--space-4) var(--space-6);
@@ -352,6 +374,10 @@
   display: flex;
   justify-content: space-between;
   gap: var(--space-4);
+}
+
+/* The turn and its time; the cost under it in the instrument's plain weight (docs/prototype/styles.css). */
+.totals > div:first-child {
   font-weight: 700;
 }
 
