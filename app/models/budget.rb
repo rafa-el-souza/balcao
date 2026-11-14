@@ -12,6 +12,11 @@
 #   Economy serves only on the full eval run's word (ADR-0003), which no file
 #   holds before M2, so a forced economy pauses. Economy at 70 %, the daily
 #   slice and the operator's notification arrive at M3 (design §9.1).
+# - The record: the read that finds the automatic mode changed writes it into
+#   the month's row and one log line, whatever changed it (a charge past the
+#   cap, a cap a deploy lowered or raised, the next month), saying which
+#   forced mode serves when one wins (review finding S3 of pull request #29).
+#   That line is where M3's operator notification will hook.
 #
 # The gate reads the mode once, when a turn starts: turns already running when
 # the cap is reached finish, so the month may end a few turns past its cap
@@ -28,7 +33,9 @@ module Budget
 
   def mode(at = Time.current)
     state = BudgetState.for_month!(at)
-    mode = state.forced_mode || automatic(state.spent_usd)
+    automatic = automatic(state.spent_usd)
+    record(state, automatic) unless state.automatic_mode == automatic
+    mode = state.forced_mode || automatic
     mode == "economy" && !economy_allowed? ? "paused" : mode
   end
 
@@ -42,13 +49,10 @@ module Budget
     costs = usages.map { |usage| [ usage, Prices.cost_usd(usage).round(8) ] }
     total = costs.sum(&:last)
     state = BudgetState.for_month!(at)
-    paused = state.with_lock do
-      costs.each { |usage, cost| record(turn, usage, cost) }
-      before = state.spent_usd
-      state.update!(spent_usd: before + total, automatic_mode: automatic(before + total))
-      automatic(before) != "paused" && state.automatic_paused?
+    state.with_lock do
+      costs.each { |usage, cost| write_usage(turn, usage, cost) }
+      state.update!(spent_usd: state.spent_usd + total)
     end
-    Rails.logger.warn("budget: #{state.month} reached its cap of US$ #{format("%.2f", cap)}: paused") if paused
     total
   end
 
@@ -56,10 +60,21 @@ module Budget
     ECONOMY_ALLOWED.exist? && YAML.safe_load_file(ECONOMY_ALLOWED)&.fetch("economy_allowed", false) == true
   end
 
-  def record(turn, usage, cost)
+  def write_usage(turn, usage, cost)
     UsageRecord.create!(turn:, model: usage.model, input_tokens: usage.input_tokens, output_tokens: usage.output_tokens,
                         cache_creation_tokens: usage.cache_creation_tokens, cached_tokens: usage.cached_tokens,
                         cost_usd: cost)
   end
-  private_class_method :record
+
+  # Written once by whichever read wins the conditional write.
+  def record(state, automatic)
+    written = BudgetState.where(id: state.id).where.not(automatic_mode: automatic)
+                         .update_all(automatic_mode: automatic, updated_at: Time.current)
+    return if written.zero?
+
+    serving = state.forced_mode ? "; the forced #{state.forced_mode} mode serves" : ""
+    Rails.logger.warn(format("budget: %s's automatic mode is %s at US$ %.2f of its cap of US$ %.2f%s",
+                             state.month, automatic, state.spent_usd, cap, serving))
+  end
+  private_class_method :write_usage, :record
 end

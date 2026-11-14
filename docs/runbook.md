@@ -250,10 +250,12 @@ the host around the answer.
   `config/deploy.yml` (production), 10 in `config/deploy.ensaio.yml` (the
   MVP host, whose dev/eval key has a console limit of US$ 20). A new value
   is a deploy, and a raised cap resumes a paused month at once.
-- **The month's spend:**
-  `kamal app exec -d ensaio --roles=web --reuse "bin/rails runner 'p BudgetState.for_month!.slice(:month, :spent_usd, :automatic_mode, :forced_mode)'"`.
-  The ledger began on the day PR-16 shipped; the model console's usage page
-  has the whole month.
+- **The month's spend and the mode that serves:**
+  `kamal app exec -d ensaio --roles=web --reuse "bin/rails runner 'p [Budget.mode, BudgetState.for_month!.slice(:month, :spent_usd, :automatic_mode, :forced_mode)]'"`.
+  The first item is the mode a turn reads now (a forced mode wins); the row
+  keeps the automatic one as last read, and the log has one `budget:` line
+  each time it changes. The ledger began on the day PR-16 shipped; the model
+  console's usage page has the whole month.
 - **Pausing by hand** (FR-14's kill switch, until the console of M2):
   `kamal app exec -d ensaio --roles=web --reuse "bin/rails runner 'BudgetState.for_month!.update!(forced_mode: :paused.to_s)'"`;
   releasing: the same with `forced_mode: nil`. A forced mode holds into
@@ -262,6 +264,10 @@ the host around the answer.
   writes one line, `nightly reset: expired N reservations, reset N
   products; deleted ...`. To run it by hand (it is safe to run again):
   `kamal app exec -d ensaio --roles=job --reuse "bin/rails runner 'NightlyResetJob.perform_now'"`.
+  The command ends with status 0 even when the run fails: then its output
+  has an `Error performing NightlyResetJob` line, which names the error's
+  class, no `nightly reset:` line, and Solid Queue runs the job again in the
+  `job` container a few seconds later.
 - **The logs** are one JSON object per line (`time`, `level`, `message`,
   `request_id` on a request's lines, `conversation_id` on a turn's, the
   other tags in `tags`); Puma's own start-up lines are plain text. An error

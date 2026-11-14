@@ -82,15 +82,53 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
       expect(stale.reload.spent_usd).to eq(BigDecimal("5.007"))
     end
 
-    it "writes the pause into the month's row and the log once, when a charge reaches the cap" do
-      allow(Rails.logger).to receive(:warn)
+    it "charges the spend alone, leaving the mode to the read that comes next" do
       BudgetState.for_month!.update!(spent_usd: BigDecimal("9.995"))
 
       Budget.charge!(turn, [ usage ])
+
+      expect(month).to have_attributes(spent_usd: BigDecimal("10.002"), automatic_mode: "normal")
+    end
+  end
+
+  # Review finding S3 of pull request #29: the row and the log say what the
+  # cap says when the mode is read, whatever changed it (a charge, a cap a
+  # deploy changed), and what serves when a forced mode wins.
+  describe "the record of the automatic mode" do
+    before { allow(Rails.logger).to receive(:warn) }
+
+    it "writes the pause into the month's row and one line, at the first read past the cap" do
+      BudgetState.for_month!.update!(spent_usd: BigDecimal("9.995"))
       Budget.charge!(turn, [ usage ])
 
-      expect(month).to have_attributes(automatic_mode: "paused", spent_usd: BigDecimal("10.009"))
-      expect(Rails.logger).to have_received(:warn).with(/\Abudget: \d{4}-\d{2} reached its cap of US\$ 10\.00: paused\z/).once
+      2.times { expect(Budget.mode).to eq("paused") }
+
+      expect(month.automatic_mode).to eq("paused")
+      expect(Rails.logger).to have_received(:warn)
+        .with("budget: #{month.month}'s automatic mode is paused at US$ 10.00 of its cap of US$ 10.00").once
+    end
+
+    it "says which forced mode serves past the cap, never that the demo paused" do
+      BudgetState.for_month!.update!(spent_usd: BigDecimal("12"), forced_mode: "normal")
+
+      expect(Budget.mode).to eq("normal")
+
+      expect(Rails.logger).to have_received(:warn)
+        .with(/automatic mode is paused at US\$ 12\.00 of its cap of US\$ 10\.00; the forced normal mode serves\z/)
+    end
+
+    it "follows a cap a deploy lowered below the spend, and one it raised" do
+      BudgetState.for_month!.update!(spent_usd: BigDecimal("5"))
+      Rails.configuration.x.budget_cap_usd = BigDecimal("4")
+
+      expect(Budget.mode).to eq("paused")
+      expect(month.automatic_mode).to eq("paused")
+
+      Rails.configuration.x.budget_cap_usd = BigDecimal("15")
+
+      expect(Budget.mode).to eq("normal")
+      expect(month.automatic_mode).to eq("normal")
+      expect(Rails.logger).to have_received(:warn).with(/automatic mode is normal at US\$ 5\.00 of its cap of US\$ 15\.00\z/)
     end
   end
 
