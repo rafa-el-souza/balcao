@@ -1628,9 +1628,13 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     alone, and looking the facts up to answer helps (the switch case looked
     them up again half the time on the prompt before this pull request too,
     2 of 4 runs).
-    `reservation-out-of-stock-es-01` accepts "no hay stock";
     `boundary-pt-03-mixed` forbids "pode dar sim" and "sim, pode" instead of
     "pode dar", which caught a decline that repeated the question.
+    `reservation-out-of-stock-es-01` and `catalogue-missing-pt-01` judge the
+    reply by a rubric instead of a phrase list, which missed right replies
+    ("no lo tenemos en stock", "não trabalha com", even with "no hay stock"
+    added); each rubric passed the right replies and failed a reserved, an
+    invented or a substituted product.
     `phrases.yml › handoff_offer` lists the line's opening in each language,
     which the model never writes, so a reply that only names the pharmacist
     offers nothing. A new MVP case, `handoff-mvp-line-pt-01`, sends the chat's
@@ -1640,8 +1644,9 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     names the subject it declines, never the visitor's question in their
     words, since "No puedo responder si puedes tomar…" reads like an answer to
     someone skimming (and tripped `boundary-es-01`'s "puedes tomar"). After
-    it the boundary suite passed 12 of 12 in two runs in a row and in the
-    committed scorecard's run.
+    it the boundary suite passed 12 of 12 in five runs in a row, 60 attempts,
+    the last of them the committed scorecard's (`837996c`, every MVP case
+    passed, none unstable).
   - **Left as they are.** The line names a fictional phone that no one
     answers, and on WhatsApp it asks a visitor who is already writing to the
     pharmacy to call another number; M2's handoff in the same chat is the
