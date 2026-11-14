@@ -83,6 +83,9 @@
     tools: []
     must_include_any: ["sábado"]
     fact: "saturday_hours"   # the reply must match the seed fact sheet value
+    # The offer's line carries the week's hours, so the hours must be the
+    # model's own words, with no offer (review finding C2 of pull request #27).
+    handoff_offered: false
 
 - id: store-unknown-pt-01
   suite: store
