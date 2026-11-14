@@ -86,7 +86,7 @@ class AgentTool < Anthropic::BaseTool
   rescue Error => e
     [ nil, e ]
   rescue StandardError => e
-    Rails.logger.error("tool #{name} failed: #{e.class}: #{e.message}")
+    Rails.logger.error("tool #{name} failed: #{e.class}")
     [ nil, Failure.new ]
   end
 

@@ -29,7 +29,7 @@ module Balcao
     # Common ones are `templates`, `generators`, or `middleware`, for example.
     # lib/evals is bin/evals' own code, required by it and by its specs, so
     # the app process never loads it (evals/README.md, Running).
-    config.autoload_lib(ignore: %w[assets middleware tasks evals])
+    config.autoload_lib(ignore: %w[assets middleware tasks evals logging])
 
     # Configuration for the application, engines, and railties goes here.
     #
@@ -96,5 +96,9 @@ module Balcao
     # origin (SR-03): the Vite dev server here, the public name in production
     # (config/environments/production.rb).
     config.x.public_origin = "http://127.0.0.1:5173"
+
+    # The month's budget cap in US dollars (FR-14): ADR-0003's default here,
+    # BUDGET_CAP_USD in each destination (config/environments/production.rb).
+    config.x.budget_cap_usd = BigDecimal("100")
   end
 end

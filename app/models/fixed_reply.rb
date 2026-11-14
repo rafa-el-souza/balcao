@@ -2,9 +2,10 @@
 # before a conversation's first reply (FR-01), the commands' confirmations
 # (FR-04, FR-05, FR-12), the fallback of a turn the model could not answer
 # (NFR-03), FR-09's decline, the reply to a refusal (SR-19), the offer of the
-# pharmacist (FR-10's MVP note), the emergency line (FR-09) and the fixed line
-# of each reservation a turn stored (NFR-02). They live in config/locales, in
-# the conversation's language.
+# pharmacist (FR-10's MVP note), the emergency line (FR-09), the reply of a
+# month paused at its budget cap (FR-14) and the fixed line of each
+# reservation a turn stored (NFR-02). They live in config/locales, in the
+# conversation's language.
 module FixedReply
   module_function
 
@@ -13,6 +14,10 @@ module FixedReply
   def with_notice(text, locale) = "#{notice(locale)}\n\n#{text}"
 
   def fallback(locale) = I18n.t("fallback.model_error", locale:)
+
+  # FR-14: a month that reached its cap, or a pause the operator forced,
+  # answers every message with this, and no model is called (SR-02).
+  def paused(locale) = I18n.t("budget.paused", locale:)
 
   # FR-09's decline, one or two sentences naming the store's pharmacist: the
   # reply to a refusal (SR-19) and, from M2, to a reply the guardrail replaces

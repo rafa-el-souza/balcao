@@ -15,11 +15,13 @@ module Balcao
     # generates: the model key comes from the provider's console (design §8).
     HELD = %w[ANTHROPIC_API_KEY].freeze
     # Clear values set in config/deploy.yml and config/deploy.ensaio.yml.
-    SETTINGS = %w[APP_HOST DB_HOST MODEL_ADAPTER].freeze
+    SETTINGS = %w[APP_HOST DB_HOST MODEL_ADAPTER BUDGET_CAP_USD].freeze
     NAMES = (SETTINGS + SECRETS).freeze
     # The model adapters production can run. The fake one, for rehearsal hosts
     # with recorded replies, arrives at M3 (design §8, §10).
     MODEL_ADAPTERS = %w[real].freeze
+    # The month's budget cap in US dollars (FR-14): a positive decimal.
+    CAP = /\A\d+(?:\.\d+)?\z/
 
     class Missing < StandardError; end
 
@@ -33,10 +35,14 @@ module Balcao
         raise Missing, "Refusing to boot: #{names.join(", ")} #{names.one? ? "is" : "are"} blank. " \
                        "Set #{names.one? ? "it" : "them"} in the destination's env file (threat model SR-25)."
       end
-      return if MODEL_ADAPTERS.include?(env["MODEL_ADAPTER"])
+      unless MODEL_ADAPTERS.include?(env["MODEL_ADAPTER"])
+        raise Missing, "Refusing to boot: MODEL_ADAPTER must be #{MODEL_ADAPTERS.join(" or ")} " \
+                       "(design §8, threat model SR-25)."
+      end
+      return if env["BUDGET_CAP_USD"].match?(CAP) && BigDecimal(env["BUDGET_CAP_USD"]).positive?
 
-      raise Missing, "Refusing to boot: MODEL_ADAPTER must be #{MODEL_ADAPTERS.join(" or ")} " \
-                     "(design §8, threat model SR-25)."
+      raise Missing, "Refusing to boot: BUDGET_CAP_USD must be a positive number of US dollars " \
+                     "(FR-14, threat model SR-25)."
     end
   end
 end

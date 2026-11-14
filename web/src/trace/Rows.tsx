@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { serverNow } from "../chat/api";
@@ -8,6 +8,7 @@ import { cx } from "../ui/cx";
 import {
   formatClock,
   formatDuration,
+  formatMoney,
   formatTokens,
   MAX_RESULT,
   type Row,
@@ -16,11 +17,50 @@ import {
 import styles from "./Rows.module.css";
 
 // One row of the instrument (FR-12; docs/prototype/chat.html, trace.html): a
-// model call closed is one line with where it stopped and its time, and opens
-// to its model, effort, prompt, tokens and cache; a tool call opens to its
-// arguments and its result as the server keeps it. Every cost waits for the
-// usage records (PR-16): until a figure exists nothing stands in its place,
-// never a zero.
+// model call closed is one line with where it stopped, its cost and its time,
+// and opens to its model, effort, prompt, tokens, cache and cost in dollars
+// and reais; a tool call opens to its arguments and its result as the server
+// keeps it. A cost is the budget ledger's (FR-14): where none exists, a call
+// traced before the costs or one that cost nothing, nothing stands in its
+// place, never a zero.
+
+// The reais per dollar the server answered with (FR-12), for the second
+// figure of every cost; none draws the dollars alone.
+export const RateContext = createContext<number | null>(null);
+
+// A cost as the instrument writes it: the dollars, and the reais quieter
+// beside them (docs/prototype/chat.html).
+export function useMoney() {
+  const { t, i18n } = useTranslation();
+  const rate = useContext(RateContext);
+  const money = (currency: "usd" | "brl", value: number) =>
+    t(`instrument.money.${currency}`, {
+      value: formatMoney(value, currency, i18n.language),
+    });
+  return {
+    usd: (cost: number) => money("usd", cost),
+    reais: (cost: number) =>
+      rate === null ? null : `· ${money("brl", cost * rate)}`,
+  };
+}
+
+// A cost in both currencies, or nothing for none or a zero.
+export function Cost({ cost }: { cost: number | null }) {
+  const money = useMoney();
+  if (cost === null || cost <= 0) return null;
+  const reais = money.reais(cost);
+  return (
+    <>
+      {money.usd(cost)}
+      {reais && (
+        <>
+          {" "}
+          <span className={styles.quiet}>{reais}</span>
+        </>
+      )}
+    </>
+  );
+}
 
 // The server's error names, in words; a name the page does not know gets the
 // plain one (docs/prototype/chat-fallback.html).
@@ -105,11 +145,16 @@ function ModelRow({
   className?: string | undefined;
 }) {
   const { t, i18n } = useTranslation();
+  const money = useMoney();
   const tokens = (n: number) => formatTokens(n, i18n.language);
   const time =
     row.latencyMs === null
       ? null
       : formatDuration(row.latencyMs, i18n.language);
+  const cost = row.cost !== null && row.cost > 0 ? row.cost : null;
+  const figure = [cost === null ? null : money.usd(cost), time]
+    .filter((part) => part !== null)
+    .join(" · ");
 
   if (row.running || row.error) {
     const error = row.error
@@ -159,7 +204,7 @@ function ModelRow({
               {t("instrument.stop", { reason: row.stop })}
             </span>
           )}{" "}
-          {time && <span className={styles.figure}>{time}</span>}
+          {figure && <span className={styles.figure}>{figure}</span>}
         </summary>
         <dl className={styles.detail}>
           {row.model && (
@@ -216,6 +261,14 @@ function ModelRow({
             <div>
               <dt>{t("instrument.detail.output")}</dt>
               <dd>{tokens(row.output)}</dd>
+            </div>
+          )}
+          {cost !== null && (
+            <div>
+              <dt>{t("instrument.detail.cost")}</dt>
+              <dd>
+                <Cost cost={cost} />
+              </dd>
             </div>
           )}
         </dl>
@@ -416,20 +469,37 @@ export function TurnRows({
   );
 }
 
-// The words of a turn's line: its number, its rows and its time. While the
-// turn runs, its time counts up from its receipt by the server's clock
-// (docs/prototype/chat-queued.html; review finding C4 of pull request #17).
+// The words of a turn's line: its number, its rows, its cost and its time.
+// While the turn runs, its time counts up from its receipt by the server's
+// clock (docs/prototype/chat-queued.html; review finding C4 of pull request
+// #17). A cost is in dollars alone on a line, and absent where none exists.
 export function useTurnLine() {
   const { t, i18n } = useTranslation();
+  const money = useMoney();
+  const time = (turn: Turn) =>
+    turn.durationMs === null
+      ? `${formatDuration(Math.max(0, serverNow() - Date.parse(turn.startedAt)), i18n.language)} ${t("instrument.running")}`
+      : formatDuration(turn.durationMs, i18n.language);
+  const cost = (value: number | null) =>
+    value !== null && value > 0 ? money.usd(value) : null;
   return {
     number: (turn: Turn) => t("instrument.turn", { number: turn.number }),
     events: (count: number) => t("instrument.events", { count }),
-    time: (turn: Turn) =>
-      turn.durationMs === null
-        ? `${formatDuration(Math.max(0, serverNow() - Date.parse(turn.startedAt)), i18n.language)} ${t("instrument.running")}`
-        : formatDuration(turn.durationMs, i18n.language),
+    time,
     total: (ms: number) => formatDuration(ms, i18n.language),
+    // The cost and the time of a turn, or of turns' sums, as one figure.
+    figure: (value: number | null, timeText: string) =>
+      [cost(value), timeText].filter((part) => part !== null).join(" · "),
   };
+}
+
+// The cost of turns together: none while one of them has no figure.
+export function costOf(turns: Turn[]): number | null {
+  return turns.reduce<number | null>(
+    (total, turn) =>
+      total === null || turn.cost === null ? null : total + turn.cost,
+    0,
+  );
 }
 
 // Draws again every tenth of a second while a turn runs, so its time counts.

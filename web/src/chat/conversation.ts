@@ -1,5 +1,14 @@
 import { withSpans } from "../trace/model";
-import type { Content, Deleted, ServerMessage, Snapshot, Span } from "./api";
+import {
+  type Content,
+  type Deleted,
+  type Mode,
+  modeOf,
+  rateOf,
+  type ServerMessage,
+  type Snapshot,
+  type Span,
+} from "./api";
 
 // The conversation on the page (design §6.9: a React reducer, not server
 // cache). Two parts, drawn as one thread:
@@ -26,7 +35,9 @@ import type { Content, Deleted, ServerMessage, Snapshot, Span } from "./api";
 // chat's stream).
 //
 // Beside the thread, the conversation's spans, which the glass box draws
-// (FR-12): the snapshot's and those the cable brings, one per span id.
+// (FR-12): the snapshot's and those the cable brings, one per span id; and
+// the budget's mode and the rate of the real, from the session and each
+// snapshot, the mode also from a turn the stream closes (FR-12, FR-14).
 
 export type Voice = "visitor" | "attendant" | "pharmacist" | "stamp";
 
@@ -82,10 +93,14 @@ export interface State {
   known: string[];
   // Numbers the stamps the page writes.
   stamps: number;
+  // The budget's mode (FR-14), none until the server names one it knows.
+  mode: Mode | null;
+  // Reais per dollar (FR-12), none until the server gives the rate.
+  brl: number | null;
 }
 
 export type Action =
-  | { type: "session"; conversationId: string }
+  | { type: "session"; conversationId: string; mode?: unknown; brl?: unknown }
   | { type: "loaded" }
   | { type: "loadFailed" }
   | {
@@ -126,7 +141,30 @@ export const initialState: State = {
   seen: false,
   known: [],
   stamps: 0,
+  mode: null,
+  brl: null,
 };
+
+// The mode and the rate an answer names, over what the page held.
+function budgetOf(
+  state: State,
+  answer: { mode?: unknown; brl?: unknown },
+): Pick<State, "mode" | "brl"> {
+  return {
+    mode: modeOf(answer.mode) ?? state.mode,
+    brl: rateOf(answer.brl) ?? state.brl,
+  };
+}
+
+// A turn's root closes with the month's mode after the turn's own charge
+// (app/models/turn_processor.rb), newer than any answer the page had while
+// the turn ran. The mode the turn ran in, read when it started, is not the
+// month's now (review finding C3 of pull request #29).
+function modeClosedBy(span: Span): Mode | null {
+  return span.name === "balcao.turn" && span.finished_at !== null
+    ? modeOf(span.attributes["balcao.budget.mode"])
+    : null;
+}
 
 const VOICES: Record<ServerMessage["author"], Voice> = {
   visitor: "visitor",
@@ -218,10 +256,12 @@ function answersHeld(state: State, message: ServerMessage): boolean {
 
 export function reduce(state: State, action: Action): State {
   switch (action.type) {
-    case "session":
-      return state.known.includes(action.conversationId)
-        ? state
-        : { ...state, known: [...state.known, action.conversationId] };
+    case "session": {
+      const known = state.known.includes(action.conversationId)
+        ? state.known
+        : [...state.known, action.conversationId];
+      return { ...state, known, ...budgetOf(state, action) };
+    }
     case "loaded":
       return { ...state, phase: state.phase === "failed" ? "failed" : "ready" };
     // A load that fails after a snapshot opened the conversation says nothing
@@ -301,25 +341,34 @@ export function reduce(state: State, action: Action): State {
         ? place(state, [action.message])
         : { ...state, unplaced: state.unplaced + 1 };
     case "span":
-      return { ...state, spans: withSpans(state.spans, [action.span]) };
+      return {
+        ...state,
+        spans: withSpans(state.spans, [action.span]),
+        mode: modeClosedBy(action.span) ?? state.mode,
+      };
   }
 }
 
 function merge(state: State, answer: Snapshot | Deleted): State {
-  if ("deleted" in answer) {
-    return {
-      ...state,
-      phase: "ready",
-      conversationId: null,
-      traceToken: null,
-      deleted: answer.text,
-      server: [],
-      spans: [],
-      own: state.own.filter((entry) => entry.status === "sending"),
-      seen: true,
-    };
-  }
+  if ("deleted" in answer) return mergeDeleted(state, answer);
+  return { ...mergeConversation(state, answer), ...budgetOf(state, answer) };
+}
 
+function mergeDeleted(state: State, answer: Deleted): State {
+  return {
+    ...state,
+    phase: "ready",
+    conversationId: null,
+    traceToken: null,
+    deleted: answer.text,
+    server: [],
+    spans: [],
+    own: state.own.filter((entry) => entry.status === "sending"),
+    seen: true,
+  };
+}
+
+function mergeConversation(state: State, answer: Snapshot): State {
   const id = answer.conversation.id;
   // A conversation the page showed, replaced (a reset, FR-04's 24 hours) or
   // gone (FR-05); not the first one the page learns of.

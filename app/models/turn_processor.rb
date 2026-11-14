@@ -7,6 +7,10 @@
 # - a turn whose reservation an earlier run stored is answered with the
 #   reservation's fixed line, never through the model again, which could
 #   reserve another product (NFR-02);
+# - a turn of a month the budget paused, at its cap or by the operator's
+#   hand, is answered with the pause's fixed reply, and no model is called
+#   (FR-14, threat model SR-02); the budget's mode is read here, before any
+#   model call, and names the route of the turn's model (ModelPolicy);
 # - anything else goes through AgentRunner, whose events become the turn's
 #   spans (FR-12), and its outcome becomes the reply: the model's text, FR-09's
 #   decline for a refusal (SR-19) or the fallback (NFR-03), the last two
@@ -20,7 +24,10 @@
 #   (give_up, NFR-03).
 #
 # Every way a turn ends is an outcome on its root span, which the glass box
-# words (web/src/locales, instrument.outcomes): OUTCOMES. A slice that adds or
+# words (web/src/locales, instrument.outcomes): OUTCOMES. The root also carries
+# the mode the turn ran in and the month's mode when it closed, after its own
+# charge, which the glass box's head follows (FR-14; review finding C3 of pull
+# request #29). A slice that adds or
 # renames one gives the panel its words in the same change (design §10, note
 # of 2026-11-12); spec/models/turn_outcomes_spec.rb holds the two together.
 #
@@ -28,13 +35,18 @@
 # language the reply is in, and the reply's language becomes the
 # conversation's (FR-02). The reply is stored once, keyed by the turn
 # (NFR-02), and sent to the conversation's stream; a turn that already has it
-# is left alone. The budget gate and its modes join with FR-14 (PR-16); until
-# then every turn runs in the normal mode.
+# is left alone.
+#
+# Every model call the turn makes is charged to the month (Budget) as its
+# answer arrives, so a run that breaks later, or a worker a deploy stops
+# mid-turn, keeps the charge of each call it made: they were paid for (FR-14;
+# review finding V3 of pull request #29: a transaction left for the end of the
+# run is rolled back when its thread is killed).
 class TurnProcessor
-  MODE = "normal".freeze
-  # AgentRunner's, then the two this class adds: a turn answered from its
-  # stored reservations without the model, and one the job gave up on.
-  OUTCOMES = [ *AgentRunner::OUTCOMES.map(&:to_s), "reservations", "dead_letter" ].freeze
+  # AgentRunner's, then the three this class adds: a turn answered from its
+  # stored reservations without the model, one the budget paused and one the
+  # job gave up on.
+  OUTCOMES = [ *AgentRunner::OUTCOMES.map(&:to_s), "reservations", "paused", "dead_letter" ].freeze
 
   def initialize(turn, commands: CommandPhrases.current)
     @turn = turn
@@ -170,17 +182,31 @@ class TurnProcessor
     stored = reservations
     return finish("reservations", "replied", FixedReply.reservations(stored, @conversation.language)) if stored.any?
 
-    run_model
+    mode = Budget.mode
+    return paused if mode == "paused"
+
+    run_model(mode)
   rescue StandardError => e
     broken(e)
     raise
   end
 
-  def run_model
-    @turn.update!(mode: MODE, model: ModelPolicy.route(MODE).model)
-    @root.attributes["balcao.turn.mode"] = MODE
+  # FR-14: the month is paused, so the reply is the pause's, with no model;
+  # a model an earlier run of the turn named is no longer the turn's.
+  def paused
+    @turn.update!(mode: "paused", model: nil)
+    @root.attributes["balcao.turn.mode"] = "paused"
+    finish("paused", "replied", FixedReply.paused(@conversation.language))
+  end
+
+  def run_model(mode)
+    @turn.update!(mode:, model: ModelPolicy.route(mode).model)
+    @root.attributes["balcao.turn.mode"] = mode
     events = TurnTrace.new(@recorder, @root)
-    result = AgentRunner.new.run(@turn, mode: MODE) { |event| events.on(event) }
+    result = AgentRunner.new.run(@turn, mode:) do |event|
+      Budget.charge!(@turn, event.usage) if event.is_a?(AgentRunner::ModelCall)
+      events.on(event)
+    end
     @conversation.update!(language: result.language) if result.language
     text, state = reply_of(result)
     finish(result.outcome, state, text, error: result.error)
@@ -257,7 +283,17 @@ class TurnProcessor
     outbound.finish(attributes: { "balcao.message.characters" => message.body.length })
     @turn.update!(state:, latency_ms:)
     @root.finish(attributes: { "balcao.turn.mode" => @root.attributes["balcao.turn.mode"],
-                               "balcao.turn.outcome" => outcome.to_s, "error.type" => error&.class&.name })
+                               "balcao.turn.outcome" => outcome.to_s, "error.type" => error&.class&.name,
+                               "balcao.budget.mode" => month_mode })
+  end
+
+  # The month's mode as the turn closes; none when it cannot be read, since
+  # the reply is stored and only the head's word would be missing.
+  def month_mode
+    Budget.mode
+  rescue StandardError => e
+    Rails.logger.error("turn #{@turn.id}: the month's mode not read: #{e.class}")
+    nil
   end
 
   # A turn that broke outside the model (the database, a bug): its spans are

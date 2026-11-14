@@ -149,7 +149,9 @@ Only a green `main` is deployed to the MVP host.
      `{"id": "<a new UUID>", "say": "stock_pt"}` answers `202`; within a
      minute `GET /api/conversations/current` shows the reply and
      `"pending":false`. Each such turn spends a cent or so of the dev/eval
-     key.
+     key. Since PR-16 the session's answer also carries `"mode":"normal"`
+     and the rate of the real (`"brl"`), and the reply's spans carry each
+     model call's cost (`balcao.cost.usd`).
 5. The catalogue: after the first deploy that runs turns (PR-09) and after
    any change to `db/seeds/catalogue.yml`,
    `kamal app exec -d ensaio --roles=web --reuse 'bin/rails db:seed'`. It
@@ -238,6 +240,40 @@ An external uptime monitor (the owner's free account) checks
 failure and on recovery (NFR-04). The canary's failure URL (FR-17) joins at
 M3; until then the monitor URL in the env file stays empty.
 
+## The budget, the nightly job and the logs (from PR-16)
+
+Each line below runs from the workstation, with the env file loaded in the
+same call (`set -a; . <env file>; set +a`); Kamal prints its own lines and
+the host around the answer.
+
+- **The cap** is `BUDGET_CAP_USD` in the destination's `env.clear`: 100 in
+  `config/deploy.yml` (production), 10 in `config/deploy.ensaio.yml` (the
+  MVP host, whose dev/eval key has a console limit of US$ 20). A new value
+  is a deploy, and a raised cap resumes a paused month at once.
+- **The month's spend and the mode that serves:**
+  `kamal app exec -d ensaio --roles=web --reuse "bin/rails runner 'p [Budget.mode, BudgetState.for_month!.slice(:month, :spent_usd, :automatic_mode, :forced_mode)]'"`.
+  The first item is the mode a turn reads now (a forced mode wins); the row
+  keeps the automatic one as last read, and the log has one `budget:` line
+  each time it changes. The ledger began on the day PR-16 shipped; the model
+  console's usage page has the whole month.
+- **Pausing by hand** (FR-14's kill switch, until the console of M2):
+  `kamal app exec -d ensaio --roles=web --reuse "bin/rails runner 'BudgetState.for_month!.update!(forced_mode: :paused.to_s)'"`;
+  releasing: the same with `forced_mode: nil`. A forced mode holds into
+  the next month until released.
+- **The nightly job** runs at 03:00 São Paulo in the `job` container and
+  writes one line, `nightly reset: expired N reservations, reset N
+  products; deleted ...`. To run it by hand (it is safe to run again):
+  `kamal app exec -d ensaio --roles=job --reuse "bin/rails runner 'NightlyResetJob.perform_now'"`.
+  The command ends with status 0 even when the run fails: then its output
+  has an `Error performing NightlyResetJob` line, which names the error's
+  class, no `nightly reset:` line, and Solid Queue runs the job again in the
+  `job` container a few seconds later.
+- **The logs** are one JSON object per line (`time`, `level`, `message`,
+  `request_id` on a request's lines, `conversation_id` on a turn's, the
+  other tags in `tags`); Puma's own start-up lines are plain text. An error
+  is logged by its class, never its message (SR-30): the trace of the turn
+  (the glass box, the trace page) says what the visitor saw.
+
 ## Bump day (monthly)
 
 - Dependabot's pull requests (gems, npm, base-image digests, Actions).
@@ -254,3 +290,7 @@ M3; until then the monitor URL in the env file stays empty.
   Kamal names is checked against its release notes.
 - Docker's repository signing key in `ops/cloud-init.yml`: its fingerprint
   is checked again against Docker's documentation.
+- The price table and the rate of the real in `config/prices.yml`: the
+  prices against the provider's price page and the fallback models against
+  `allowed_fallback_models` (design §6.4), the rate against the Banco
+  Central's PTAX; each date moves only when its figures were read again.

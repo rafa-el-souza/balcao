@@ -36,6 +36,14 @@ RSpec.describe "FR-18 SR-05 GET /api/conversations/current, the polling fallback
       expect(json["pending"]).to be true
     end
 
+    it "answers the month's budget mode and the rate of the real, as the session does (FR-12, FR-14)" do
+      BudgetState.for_month!.update!(spent_usd: Budget.cap)
+
+      get "/api/conversations/current"
+
+      expect(json).to include("mode" => "paused", "brl" => { "per_usd" => 5.6518, "verified_on" => "2026-11-13" })
+    end
+
     it "carries the reply in the shape the stream sends it, and no turn waits once it has one" do
       reply = Message.record_outbound!(turn:, body: "Sí, tenemos.")
 

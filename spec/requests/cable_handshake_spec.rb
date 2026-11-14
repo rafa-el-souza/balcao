@@ -107,7 +107,7 @@ RSpec.describe "The cable's handshake at the Rack level" do
         mount: ActionCable.server.config.mount_path, same_origin_as_host: ActionCable.server.config.allow_same_origin_as_host
       )
     RUBY
-    env = Balcao::RequiredEnvironment::NAMES.to_h { |name| [ name, "x" ] }.merge("MODEL_ADAPTER" => "real")
+    env = Balcao::RequiredEnvironment::NAMES.to_h { |name| [ name, "x" ] }.merge("MODEL_ADAPTER" => "real", "BUDGET_CAP_USD" => "10")
       .merge("APP_HOST" => "demo.example", "RAILS_ENV" => "production", "DATABASE_URL" => nil, "RAILS_LOG_LEVEL" => "fatal")
 
     out, err, status = Open3.capture3(env, "bin/rails", "runner", probe, chdir: Rails.root.to_s)

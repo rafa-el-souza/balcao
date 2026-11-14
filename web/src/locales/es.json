@@ -105,6 +105,17 @@
     "earlier_one": "{{count}} turno anterior",
     "earlier_other": "{{count}} turnos anteriores",
     "events_label": "Eventos de la conversación",
+    "turnCost": "costo del turno",
+    "modeLabel": "modo",
+    "modes": {
+      "normal": "normal",
+      "economy": "economía",
+      "paused": "en pausa"
+    },
+    "money": {
+      "usd": "US$ {{value}}",
+      "brl": "R$ {{value}}"
+    },
     "detail": {
       "model": "modelo",
       "effort": "esfuerzo",
@@ -117,6 +128,7 @@
       "cacheHit": "leyó",
       "cacheNone": "no leyó",
       "output": "salida",
+      "cost": "costo",
       "error": "error",
       "fixedReply": "respuesta fija"
     },
@@ -127,6 +139,7 @@
       "incomplete": "respuesta incompleta",
       "refused": "el modelo se negó",
       "reservations": "sin modelo",
+      "paused": "demo en pausa",
       "dead_letter": "el sistema falló",
       "other": "respuesta fija"
     },
@@ -189,6 +202,7 @@
     "inputTokens": "tokens de entrada",
     "inputValue": "{{total}} ({{cached}} leídos de la cache)",
     "outputTokens": "tokens de salida",
+    "turnsTime": "tiempo de los turnos",
     "goneHeading": "Esta conversación ya no está aquí",
     "goneNote": "El enlace de un trace vale hasta 7 días después del último mensaje, y deja de valer antes si la persona borra sus propios datos.",
     "startChat": "Empezar una conversación",

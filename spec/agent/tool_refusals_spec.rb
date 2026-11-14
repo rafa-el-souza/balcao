@@ -30,6 +30,7 @@ RSpec.describe "FR-12 tool refusals: every reason a tool gives has the glass box
     expect { unlisted.new(turn: create(:turn), on_call: ->(call) { calls << call }).call(SpecTools::EchoInput.new(text: "x")) }
       .to raise_error(AgentTool::Error, AgentTool::FAILED)
     expect(calls.sole).to have_attributes(refusal: nil)
-    expect(Rails.logger).to have_received(:error).with(/refuse.*ArgumentError.*brand_new/)
+    # By its class alone (threat model SR-30): this spec is where the code names the reason.
+    expect(Rails.logger).to have_received(:error).with("tool refuse failed: ArgumentError")
   end
 end

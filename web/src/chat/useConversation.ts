@@ -134,6 +134,8 @@ export function useConversation() {
           dispatch({
             type: "session",
             conversationId: opened.value.conversation_id,
+            mode: opened.value.mode,
+            brl: opened.value.brl,
           });
         return opened;
       });

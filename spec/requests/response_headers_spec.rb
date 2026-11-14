@@ -57,7 +57,7 @@ RSpec.describe "SR-03 the response headers", :spa_shells, type: :request do
         runtime: [ static, health, missing ].map { |answer| answer[1].key?("x-runtime") }
       )
     RUBY
-    env = Balcao::RequiredEnvironment::NAMES.to_h { |name| [ name, "x" ] }.merge("MODEL_ADAPTER" => "real")
+    env = Balcao::RequiredEnvironment::NAMES.to_h { |name| [ name, "x" ] }.merge("MODEL_ADAPTER" => "real", "BUDGET_CAP_USD" => "10")
       .merge("APP_HOST" => "demo.example", "RAILS_ENV" => "production", "DATABASE_URL" => nil, "RAILS_LOG_LEVEL" => "fatal")
 
     out, err, status = Open3.capture3(env, "bin/rails", "runner", probe, chdir: Rails.root.to_s)

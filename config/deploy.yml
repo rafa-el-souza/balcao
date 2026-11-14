@@ -82,13 +82,15 @@ ssh:
 # APP_HOST drives the allowed hosts, the Origin allow-list, the cable origins
 # and absolute links (design §8, threat model SR-03). MODEL_ADAPTER is the
 # real model in both destinations until M3 brings the fake one for rehearsal
-# hosts. A blank required name stops the app at boot
+# hosts. BUDGET_CAP_USD is the month's model spend at which the demo pauses
+# (FR-14, ADR-0003). A blank required name stops the app at boot
 # (config/required_environment.rb, SR-25).
 env:
   clear:
     APP_HOST: balcao.rafasouza.dev.br
     DB_HOST: balcao-db
     MODEL_ADAPTER: real
+    BUDGET_CAP_USD: "100"
   secret:
     - SECRET_KEY_BASE
     - POSTGRES_PASSWORD
