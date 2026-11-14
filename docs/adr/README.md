@@ -23,4 +23,5 @@ line gains the pointer ("superseded by", "extended by").
 | [0012](0012-daily-budget-slice-per-ip-limits-and-turnstile.md) | Daily budget slice, per-IP limits and Turnstile at session creation | accepted; amended 2026-11-09 (Turnstile in the first slice after the MVP); its WhatsApp line amended by ADR-0016 |
 | [0013](0013-review-policy-own-finder-verifier-reach-triage.md) | Review policy: the project's own finder, a verifier on risk-list PRs, triage by reach, the PR as the record | accepted; the risk list amended by ADR-0016 |
 | [0015](0015-cable-limits-at-the-gate-and-in-the-driver.md) | The cable's limits: a gate before the takeover, a size in the driver, a count per connection | accepted |
-| [0016](0016-telegram-bot-api-as-the-messaging-channel.md) | Telegram's Bot API as the messaging channel | accepted |
+| [0016](0016-telegram-bot-api-as-the-messaging-channel.md) | Telegram's Bot API as the messaging channel | accepted; extended by ADR-0017 |
+| [0017](0017-the-telegram-bot-stays-a-text-channel.md) | The Telegram bot stays a text channel: one update type in, plain text out | accepted |
