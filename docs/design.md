@@ -1753,6 +1753,43 @@ registered, display name, Live mode) closed on 2026-11-14 (ADR-0016).
 
 Tracked here until resolved; each resolution becomes an ADR or an edit.
 
+- Note 2026-11-14 (the catalogue search slice, outside §9.1's day table;
+  FR-06, ADR-0009, SR-20). A study of the data a pharmacy would hand
+  Balcão, kept outside the repository, measured the search on a copy of
+  the products table with synthetic catalogues:
+  - **The cost grew with the square of the catalogue.** Up to 11 ms at 20
+    products, 1.1 s at 300, 11 s at 1,000, and 28 s or more at 3,000.
+    Every connection gives up on a statement after five seconds (SR-20),
+    so from about a thousand products searches fail, and from a few
+    thousand all of them do: the attendant says it could not check.
+    ADR-0009 sized the catalogue at a few hundred rows, and the method's
+    note said the planner reads it whole anyway; true of the reading, not
+    of the work, since every product's pairs of stems were counted among
+    all the products', once per product.
+  - **The fix.** Each product becomes one row with its stems, its pairs
+    with the query's are counted from that row alone, the query's one row
+    is computed once (`MATERIALIZED`), and only the ranked products join
+    the table again, by key. The products, their order, their match levels
+    and their scores are the same: 50 queries over the seed, the review
+    findings of pull request #10 among them, and 13 over synthetic
+    catalogues of 300 to 3,000 products. The work grows with the
+    catalogue: 0.2 s at 3,000 products and 0.7 to 1 s at 10,000, on two
+    cores.
+  - **The test** (`spec/models/product_search_work_spec.rb`) counts the
+    rows the plan reads (EXPLAIN ANALYZE) at 50 and 200 products, under
+    the worst plan the planner may choose: nested loops only, in written
+    order, with no node that keeps an inner side's rows. Two rewrites of
+    this slice were linear only on the planner's good day, one through a
+    hash join and one while the planner kept the query's row aside (it
+    did at 200 products and not at 10,000); the test fails both, and the
+    search it replaces.
+  - **Left for later.** Every call still folds and stems every product,
+    about half of the time at 10,000. Computing that when the catalogue is
+    loaded, with a trigram index, is ADR-0009's revisit, due with the
+    importer a real pharmacy's catalogue would need.
+  - **No deploy:** the demo's 20 products answer in milliseconds either
+    way, and the next deploy of `main` carries the change.
+
 - Note 2026-11-14 (ADR-0016 and ADR-0017; FR-19 and what follows it). The
   setup on Meta's side did not go through, and WhatsApp's business policy
   rules out a pharmacy without a licence. The same day, after a survey kept
