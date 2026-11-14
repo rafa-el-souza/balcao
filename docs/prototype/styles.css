@@ -1660,14 +1660,15 @@ body {
   transform: rotate(-2deg);
 }
 
-/* The WhatsApp QR, printed on a receipt of its own under the live numbers. */
-.whatsapp {
+/* The bot's QR, printed on a receipt of its own under the live numbers; its foot, under a
+   dashed rule, says why the demo talks on Telegram. */
+.bot {
   margin: var(--space-6) 0 var(--space-2);
   padding: var(--space-4);
   text-align: center;
 }
 
-.stage .whatsapp a {
+.stage .bot a {
   color: inherit;
 }
 
@@ -1679,12 +1680,19 @@ body {
   fill: var(--color-instrument-ink);
 }
 
+.stage .bot .why {
+  margin: var(--space-3) 0 0;
+  padding-top: var(--space-2);
+  border-top: var(--rule-dash);
+  text-align: left;
+}
+
 @media (width >= 60rem) {
   .hero .numbers.with-more {
     grid-row: 1;
   }
 
-  .hero .whatsapp {
+  .hero .bot {
     grid-column: 3;
     grid-row: 2 / span 2;
     align-self: start;
@@ -1874,13 +1882,13 @@ body {
   }
 
   .hero .numbers,
-  .hero .whatsapp {
+  .hero .bot {
     grid-row: 2;
     align-self: start;
     margin: var(--space-12) 0 var(--space-2);
   }
 
-  .hero .whatsapp {
+  .hero .bot {
     grid-column: 2;
   }
 
