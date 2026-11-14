@@ -60,7 +60,13 @@ whose opening comment says what it does and why.
    attributes from an allow-list only, so no secret and no identity can ride
    along. [`web/src/chat/GlassBox.tsx`](web/src/chat/GlassBox.tsx) draws the
    spans as they happen in the glass box, the panel beside the chat.
-7. **It runs on one small VM.** [`config/deploy.yml`](config/deploy.yml) says
+7. **Every call is paid for, and capped.**
+   [`app/models/budget.rb`](app/models/budget.rb) charges each model call to
+   the month at the dated prices of
+   [`config/prices.yml`](config/prices.yml), and pauses the demo with a
+   fixed reply once the month's spend reaches its cap, before any further
+   model call; the glass box shows each call's cost in dollars and reais.
+8. **It runs on one small VM.** [`config/deploy.yml`](config/deploy.yml) says
    what runs there, the [`Dockerfile`](Dockerfile) builds it and
    [`ops/cloud-init.yml`](ops/cloud-init.yml) sets up the host.
 
@@ -187,8 +193,13 @@ the fallback, never left waiting; since day 8 the attendant reserves products
 for pickup until the end of the next business day, once per turn and product
 however often the turn runs, and refuses a prescription product, more than
 ten units, a fourth open reservation and more than the stock, each refusal
-worded in the glass box, while the reply stamps the reservation's code. See
-the delivery plan in the design document.
+worded in the glass box, while the reply stamps the reservation's code; since
+day 9 the clinical boundary holds at 100% of its eval cases, the offer of the
+pharmacist is a fixed line with the store's phone and hours, every model
+call is charged to the month at a dated price table and shown in the glass
+box in dollars and reais, the demo pauses with a fixed reply at its monthly
+cap, and every night at 03:00 the demo's stock is reset and whatever is older
+than seven days is deleted. See the delivery plan in the design document.
 
 ## Running locally
 

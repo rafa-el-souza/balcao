@@ -917,6 +917,13 @@ that the turn ends with a polite fallback.
   answer into `message.parsed_output` (a hash with `error` when it cannot).
   The eval judge (`lib/evals/judge.rb`) reads it on `claude-haiku-5-5`,
   effort medium.
+- Verified on 2026-11-14 (PR-16) against the provider's price page and the
+  Models API (`client.beta.models.retrieve` with the
+  `server-side-fallback-2026-07-01` header, anthropic 2.8.0): the prices of
+  `config/prices.yml`, cache writes included, and
+  `allowed_fallback_models` of `claude-opus-5-5`, `claude-opus-4-8` and
+  `claude-opus-5`, whose attempts `usage.iterations` reports at their own
+  models; the ledger charges each attempt (§10, PR-16's note).
 
 ### 6.5 Data model
 
@@ -1545,7 +1552,7 @@ every pull request.
 | 6 | PR-10 React: app shell, i18n in the three locales, landing with the chips and `say` allow-list (FR-21, SR-34), the chat | Chat in the browser on the host |
 | 7 | PR-11 React: the glass box panel, `/trace/:token`, the cable client with the polling fallback, TanStack Query, and what the drawings ask of the server (§10, note 2026-11-12) · PR-12 NFR-03: fallback text, "pensando…" state, dead-letter visibility in logs, keeping the turn outcomes the panel reads (§10, note 2026-11-12) | **J1 minus the reservation, live** |
 | 8 | PR-13 `create_reservation` keyed by the turn and the product (NFR-02), the limits and the prescription refusal (FR-07), with the drawings' reason code and their FR-07 question (§10, note 2026-11-12) · PR-14 `bin/evals` live runner, the suites `greeting`, `language`, `store`, `catalogue`, `reservation`, `boundary`, `memory` on the normal model, the first scorecard | A reservation code in the chat; the boundary measured |
-| 9 | PR-15 boundary prompt iteration to 100 %, the fixed offer line, the decline texts in three locales · PR-16 the budget ledger with the monthly cap's pause (FR-14), the nightly job (FR-15), log masking (SR-30), and the cost, rate and mode the drawings ask for, the price table's cache-write column included (§10, note 2026-11-12) | Wallet fenced; the demo honest about the boundary |
+| 9 | PR-15 boundary prompt iteration to 100 %, the fixed offer line, the decline texts in three locales · PR-16 the budget ledger with the monthly cap's pause (FR-14), the nightly job (FR-15), log masking (SR-30), and the cost, rate and mode the drawings ask for, the price table's cache-write column included (§10, note 2026-11-12; done as §10, note 2026-11-14 on PR-16, says) | Wallet fenced; the demo honest about the boundary |
 | 10 | PR-17 `/privacy` page, the QR placeholder on the landing, README sixty-second tour (written ahead of its day, §10, note 2026-11-14; kept true here), design and README status lines made true, the hours table in the handoff | **Web demo showable** |
 | 11 | PR-18 WhatsApp inbound: webhook verification (SR-08), `X-Hub-Signature-256` constant-time check on the raw body (SR-06), raw event persisted keyed by the SHA-256 of its body and each message by its Meta message id, 200 within 2 s, processing through `ProcessTurnJob` (SR-07, SR-09), identity `sha256(pepper ‖ BSUID)` with the number, when Meta sends it, encrypted at rest (SR-10, FR-19), tests against the payloads recorded from the test number plus a synthetic username-only payload (no `from`, no `wa_id`) | Inbound messages traced on the host |
 | 12 | PR-19 WhatsApp outbound: the Graph API client with timeouts, replies inside the 24-hour window addressed to the number when known and to the BSUID (`recipient`) otherwise, status webhooks, the `/trace` reply with the tokenised link, the QR on the landing, the Meta values as Kamal env secrets; the owner creates the system-user token and switches the app to Live mode with `/privacy` as its policy URL; the first real conversation from the test customer's phone · slack | **J2 minus voice, live** |
@@ -1577,6 +1584,96 @@ MVP from its first day and merges at day 11.
 
 Tracked here until resolved; each resolution becomes an ADR or an edit.
 
+- Note 2026-11-14 (PR-16; FR-12, FR-14, FR-15, NFR-05, SR-02, SR-30, SR-31;
+  ADR-0003, ADR-0012). The budget's ledger with the monthly cap's pause, the
+  nightly job, the logs, and the cost, rate and mode the drawings ask for,
+  with the owner's three decisions of the session:
+  - **The price table** is `config/prices.yml`, read from the provider's price
+    page on 2026-11-14 and dated: input, output, cache write and cache read
+    per million tokens for each model a turn's usage can name. The cache
+    write ADR-0003's prices lacked is the 5-minute one, the only cache the
+    app writes: US$ 5 on Opus 5.5 and US$ 0.125 on Haiku 5.5, 1.25 times the
+    input as the drawings assumed. The table also prices the two models the
+    refusal fallback may answer with on the normal route, `claude-opus-5` and
+    `claude-opus-4-8` (the Models API's `allowed_fallback_models` for
+    `claude-opus-5-5`, read the same day), since `usage.iterations` bills
+    each attempt at its own model. A model the table lacks is costed at the
+    table's highest price of each kind and named in the log, never let
+    through for free. Haiku 5.5's dearer rate card above 100,000 prompt
+    tokens is left out: a turn's prompt stays far below it.
+  - **The rate of the real** is the Banco Central's PTAX selling rate of
+    2026-11-13, R$ 5.6518, in the same file with its date; the session, the
+    polling and the trace page's answers carry it, so the panel writes the
+    reais beside the dollars (FR-12). Both are read again when a price or a
+    model changes, and on the monthly bump day (docs/runbook.md).
+  - **The ledger** (`app/models/budget.rb`): every attempt of a model call is
+    a usage record at the table's prices, and its cost is added to the
+    calendar month's spend under the month row's lock, in one transaction,
+    so concurrent turns add up. A run that breaks after a model call is
+    charged for it: the call was paid for. The spend lives on the month's
+    row, which the seven-day purge of the usage records leaves alone. The
+    model call's span carries its cost as `balcao.cost.usd` (the SDK's spans
+    carry none, hence the prefix).
+  - **The gate** reads the month's mode before any model call: a forced mode
+    wins until released (FR-14's kill switch; a console from M2, a Rails
+    runner line until then, docs/runbook.md); otherwise the mode is paused
+    from the cap on and normal below it, computed from the spend and the cap
+    when read, so a cap raised by a deploy resumes the month at once. A
+    forced economy pauses until the full eval run allows the economy model
+    (`evals/economy_allowed.yml`, M2; ADR-0003). The charge that reaches the
+    cap writes the pause into the month's row and one log line, the place
+    M3's operator notification will hook. The mode is read once, when a turn
+    starts: turns already running finish, so a month may end past its cap by
+    what the turns in flight spend, at most the worker's three threads times
+    one turn (seven calls of at most 1,500 output tokens).
+  - **The cap of each destination (the owner, 2026-11-14)** is the clear
+    setting `BUDGET_CAP_USD`, required at boot as a positive number (SR-25):
+    US$ 100 in production, as ADR-0003 says, and US$ 10 on the MVP host,
+    whose dev/eval key has a console limit of US$ 20 a month that also pays
+    the eval runs; the demo pauses with its own reply before that limit
+    would cut the key off. The ledger starts at zero on the day it ships,
+    so the console has seen more of November than the ledger has.
+  - **The pause** answers with `budget.paused` in the conversation's language
+    ("A demo está pausada até o próximo mês: chegou ao limite de gasto deste
+    mês."), a new outcome `paused` that the glass box words "demo pausada";
+    commands still answer. Its wording is the owner's to approve at the MVP
+    close, with the others; it says "this month's limit" for a forced pause
+    too.
+  - **The nightly job** (`app/jobs/nightly_reset_job.rb`, 03:00 São Paulo in
+    `config/recurring.yml`) runs three steps, each safe to run again:
+    reservations past their deadline expire; the purge deletes visitors not
+    seen for seven days with everything under them, then messages, turns,
+    spans and usage records older than seven days, each by its own age,
+    conversations left without a message once seven days old (a trace link
+    dies with its conversation; until now it outlived the seven days), and
+    reservations seven days past their deadline;
+    last, the catalogue returns to the seed less what open reservations hold,
+    which gives the expired reservations' units back. The reset runs after
+    the purge, so the stock counts only the reservations that remain.
+  - **The logs (the owner, 2026-11-14: JSON now, not at M3)**: in production
+    every line is one JSON object with the time, the level, the message and
+    the tags, a tag of the form `name=value` as a field: `request_id` on a
+    request's lines and `conversation_id` on every line a turn writes
+    (NFR-05; `lib/logging/json_log_formatter.rb`). SR-30's masking is at the
+    sources: Active Job's lines of a failed, retried, stopped or discarded
+    job and a request's error line now name the error and its causes by
+    their classes (`config/initializers/log_masking.rb`), as the app's own
+    lines do, and a tool's failure line lost the error's message. Left open:
+    Solid Queue keeps a failed job's error message in its own table until
+    the console clears it (M2), outside the purge.
+  - **The edge's counters (the owner, 2026-11-14)**: review finding C4 of pull
+    request #12 is taken here. A cache that cannot count lets a request
+    through uncounted and logs which limit, never whose; every API request
+    answered 500 before. The monthly cap bounds what that lets through.
+  - **The panel**: each model call shows its cost beside its time and, open,
+    in dollars and reais; the turn's cost closes the totals, the line at
+    390 px, each folded turn and each turn of the trace page, whose receipt
+    totals the cost above the tokens and the turns' time. A cost is drawn
+    only where the ledger gave one above zero (a failed call cost nothing),
+    never a zero in its place. The glass box's head names the mode from the
+    session and the polling, and follows a turn the stream closes.
+  - **Still M3**: economy at 70 %, the daily slice, the operator's
+    notification, the kill switch in a console, the status page.
 - Note 2026-11-14 (PR-15; FR-01, FR-02, FR-09, FR-10's MVP note, SR-19). The
   boundary at 100 %, the fixed offer line and the decline texts, with the
   decisions the owner took in the session after a review of who reads the
