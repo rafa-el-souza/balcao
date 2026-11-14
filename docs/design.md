@@ -399,7 +399,7 @@ conversation in real time.
   conversation; the link carries a 128-bit random token and shows only that
   conversation.
 - The trace never shows the system prompt verbatim, secrets, other
-  conversations, or the raw phone number.
+  conversations, a raw phone number or a Telegram id.
 
 **FR-13 Status page and live strip.** A public page shows coarse health:
 uptime, messages processed in the last 24 h and
