@@ -239,6 +239,24 @@ describe("FR-15 the privacy page gives the nightly cleanup's real window", () =>
   });
 });
 
+// Review note N1 (the Rails finder): before the agreement the update is stored
+// until its job reads it, then stripped of all but its id and kind (FR-19);
+// what stays of the person is the limits' counter (threat model SR-10).
+describe("FR-19 the privacy page on a message sent before the agreement", () => {
+  it("says the bot drops the message once read and that no model reads it", () => {
+    for (const [page, dropped] of [
+      [ptBR.privacy, /descarta cada mensagem assim que ela é lida/],
+      [en.privacy, /drops each message as soon as it is read/],
+      [es.privacy, /descarta cada mensaje en cuanto lo lee/],
+    ] as const) {
+      expect(page.agreement.text).toMatch(dropped);
+      expect(page.agreement.text).not.toMatch(
+        /não guarda nada seu além|keeps nothing of yours but|no guarda nada tuyo salvo/,
+      );
+    }
+  });
+});
+
 describe("FR-25 the privacy page's contact and signature", () => {
   it("names the person responsible and the e-mail for any request", () => {
     renderPage(<Privacy />);

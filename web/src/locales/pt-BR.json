@@ -230,7 +230,7 @@
     },
     "agreement": {
       "title": "No Telegram, o bot pergunta antes",
-      "text": "Na primeira mensagem, o bot explica o que acontece com o que você escreve e mostra um botão: <strong>Concordo</strong>. Até você concordar, o Balcão não guarda nada seu além de um contador dos limites de uso, e nenhum modelo lê o que você escreveu. O comando de apagar desfaz a concordância, e 7 dias sem uso também: o bot pergunta de novo na mensagem seguinte."
+      "text": "Na primeira mensagem, o bot explica o que acontece com o que você escreve e mostra um botão: <strong>Concordo</strong>. Até você concordar, nenhum modelo lê o que você escreve, e o Balcão descarta cada mensagem assim que ela é lida: de você, fica só um contador dos limites de uso. O comando de apagar desfaz a concordância, e a limpeza da noite também, quando apaga o seu identificador: o bot pergunta de novo na mensagem seguinte."
     },
     "retention": {
       "title": "Por quanto tempo",

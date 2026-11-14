@@ -230,7 +230,7 @@
     },
     "agreement": {
       "title": "On Telegram, the bot asks first",
-      "text": "On your first message, the bot explains what happens to what you write and shows a button: <strong>I agree</strong>. Until you agree, Balcão keeps nothing of yours but a counter for the usage limits, and no model reads what you wrote. The delete command withdraws your agreement, and so do 7 days without use: the bot then asks again on your next message."
+      "text": "On your first message, the bot explains what happens to what you write and shows a button: <strong>I agree</strong>. Until you agree, no model reads what you write, and Balcão drops each message as soon as it is read: all that stays of you is a counter for the usage limits. The delete command withdraws your agreement, and so does the nightly cleanup when it deletes your identifier: the bot then asks again on your next message."
     },
     "retention": {
       "title": "For how long",

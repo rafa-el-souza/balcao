@@ -230,7 +230,7 @@
     },
     "agreement": {
       "title": "En Telegram, el bot pregunta antes",
-      "text": "En tu primer mensaje, el bot explica qué pasa con lo que escribes y muestra un botón: <strong>Acepto</strong>. Hasta que aceptes, Balcão no guarda nada tuyo salvo un contador de los límites de uso, y ningún modelo lee lo que escribiste. El comando de borrar retira tu aceptación, y 7 días sin uso también: el bot vuelve a preguntar en el mensaje siguiente."
+      "text": "En tu primer mensaje, el bot explica qué pasa con lo que escribes y muestra un botón: <strong>Acepto</strong>. Hasta que aceptes, ningún modelo lee lo que escribes, y Balcão descarta cada mensaje en cuanto lo lee: de ti, solo queda un contador de los límites de uso. El comando de borrar retira tu aceptación, y la limpieza de la noche también, cuando borra tu identificador: el bot vuelve a preguntar en el mensaje siguiente."
     },
     "retention": {
       "title": "Por cuánto tiempo",
