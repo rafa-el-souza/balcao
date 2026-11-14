@@ -101,19 +101,23 @@ class TelegramUpdateJob < ApplicationJob
 
   # The line comes first, naming the update by its update_id or, when the row
   # cannot be read (the database being what failed), by its row (review
-  # finding H4 of pull request #33).
+  # finding H4 of pull request #33); a row left as it was, its payload still
+  # in it, is said so (finding R2 of the same review).
   def give_up(error)
-    event = read_row
+    event, unread = read_row
     name = event ? event.update_id : "row #{arguments.first}"
     Rails.logger.error("telegram update #{name}: given up after #{executions} attempts, #{error.class}")
+    return Rails.logger.error("telegram update #{name}: given up, not stripped: #{unread.class}") if unread
+
     event.strip!("failed") if event&.received?
   rescue StandardError => e
     Rails.logger.error("telegram update #{name}: given up, not stripped: #{e.class}")
   end
 
+  # The row and nil, or nil and the error that kept it from being read.
   def read_row
-    WebhookEvent.find_by(id: arguments.first)
-  rescue StandardError
-    nil
+    [ WebhookEvent.find_by(id: arguments.first), nil ]
+  rescue StandardError => e
+    [ nil, e ]
   end
 end

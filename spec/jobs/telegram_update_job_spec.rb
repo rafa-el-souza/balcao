@@ -580,6 +580,9 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
       expect { perform_enqueued_jobs until enqueued_jobs.empty? }.to raise_error(ActiveRecord::ConnectionNotEstablished)
 
       expect(lines).to include("telegram update row #{event.id}: given up after 3 attempts, ActiveRecord::ConnectionNotEstablished")
+      # Review finding R2 of pull request #33: and that the row was left as it
+      # was, its payload still in it.
+      expect(lines).to include("telegram update row #{event.id}: given up, not stripped: ActiveRecord::ConnectionNotEstablished")
     end
 
     it "keeps the sender's hashed identity on an unread update for its order, and drops it once read" do
