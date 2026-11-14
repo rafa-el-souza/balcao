@@ -12,7 +12,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 // give the document its true lang.
 const web = new URL("..", import.meta.url).pathname;
 const LOCALES = ["pt-BR", "en", "es"] as const;
-const PAGES = ["landing", "chat", "trace"] as const;
+const PAGES = ["landing", "chat", "trace", "privacy"] as const;
 
 interface Text {
   landing: {
@@ -31,6 +31,13 @@ interface Text {
     glass: { title: string };
   };
   trace: { title: string; pageName: string; loading: string };
+  privacy: {
+    title: string;
+    heading: string;
+    what: string;
+    agreement: { title: string };
+    readers: { cases: string };
+  };
 }
 const textOf = (locale: string) =>
   JSON.parse(
@@ -136,6 +143,25 @@ describe("NFR-10 each page's text is in the HTML the server sends, in each langu
     expect(html).toContain('data-page="trace"');
     expect(visibleWithoutJavaScript(html)).toContain(trace.pageName);
     expect(visibleWithoutJavaScript(html)).toContain(trace.loading);
+  });
+
+  // The privacy page is the bot's own privacy policy too (FR-19): a reader
+  // with scripts off gets all of it.
+  it.each(LOCALES)("carries the privacy page's text in %s", (locale) => {
+    const html = shells.get(`shells/privacy.${locale}.html`) ?? "";
+    const text = visibleWithoutJavaScript(html);
+    const { privacy } = textOf(locale);
+
+    expect(html).toContain(`<html lang="${locale}">`);
+    expect(html).toContain(`<title>${privacy.title}</title>`);
+    expect(html).toContain('data-page="privacy"');
+    for (const line of [
+      privacy.heading,
+      privacy.what,
+      privacy.agreement.title,
+      privacy.readers.cases,
+    ])
+      expect(text).toContain(line.replace(/\s+/g, " "));
   });
 
   it("names its scripts and styles by hash, from the same origin, with no inline script or style (SR-03)", () => {

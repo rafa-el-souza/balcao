@@ -33,7 +33,7 @@
         "React",
         "Postgres",
         "Claude",
-        "WhatsApp Cloud API",
+        "Telegram Bot API",
         "1 VM"
       ],
       "design": "design doc",
@@ -44,13 +44,13 @@
     "warning": {
       "label": "Aviso:",
       "text": "isto é uma demonstração, e os dados são fictícios. As mensagens ficam guardadas por 7 dias; “apagar meus dados” apaga seus dados do Balcão."
-    },
-    "signature": {
-      "by": "Feito por",
-      "github": "GitHub",
-      "linkedin": "LinkedIn",
-      "email": "e-mail"
     }
+  },
+  "signature": {
+    "by": "Feito por",
+    "github": "GitHub",
+    "linkedin": "LinkedIn",
+    "email": "e-mail"
   },
   "chat": {
     "title": "Conversa · Balcão",
@@ -208,5 +208,62 @@
     "startChat": "Começar uma conversa",
     "home": "Início",
     "roll": "Registro da conversa"
+  },
+  "privacy": {
+    "title": "Privacidade · Balcão",
+    "pageName": "privacidade",
+    "link": "Privacidade",
+    "heading": "Privacidade",
+    "what": "O Balcão é uma demonstração de portfólio. A Farmácia Vida Longa não existe: os produtos, os preços, o endereço e o telefone são inventados, e nada do que o atendente diz é orientação de saúde. Esta página vale para o site e para o bot do Balcão no Telegram.",
+    "advice": {
+      "label": "Aviso:",
+      "text": "não escreva aqui dados pessoais ou de saúde de verdade."
+    },
+    "kept": {
+      "title": "O que fica guardado, e para quê",
+      "messages": "As mensagens que você envia e as respostas, para o atendente responder lembrando do que você já disse.",
+      "reservations": "As reservas que você fizer, para valerem até o prazo de retirada.",
+      "record": "O registro técnico de cada resposta: o modelo, as ferramentas, o tempo e o custo. É o que a caixa de vidro mostra, e é com ele que a demonstração controla o próprio gasto.",
+      "web": "No site, um identificador do seu navegador, num cookie, para reconhecer a sua conversa e apagar tudo o que é seu de uma vez. O servidor guarda só uma impressão dele (um hash), não o identificador. Outro cookie guarda o idioma que você escolher.",
+      "telegram": "No Telegram, um identificador derivado da sua conta, para o mesmo fim; o número do chat, cifrado, para mandar as respostas; e a hora em que você concordou. O Telegram também manda ao bot o seu nome, o seu nome de usuário e o idioma do aplicativo: o idioma escolhe a língua da primeira resposta, e o resto é descartado logo depois de lido. O bot não pede o seu telefone.",
+      "ip": "No site, o endereço IP de cada acesso, para contar os limites de uso que protegem a demonstração de abuso. Os registros técnicos do servidor (os logs) anotam esse endereço e a identificação do navegador. No Telegram, quem fala com o servidor é o próprio Telegram, e o seu IP não chega ao Balcão."
+    },
+    "agreement": {
+      "title": "No Telegram, o bot pergunta antes",
+      "text": "Na primeira mensagem, o bot explica o que acontece com o que você escreve e mostra um botão: <strong>Concordo</strong>. Até você concordar, o Balcão não guarda nada seu além de um contador dos limites de uso, e nenhum modelo lê o que você escreveu. O comando de apagar desfaz a concordância, e 7 dias sem uso também: o bot pergunta de novo na mensagem seguinte."
+    },
+    "retention": {
+      "title": "Por quanto tempo",
+      "intro": "No servidor do Balcão, a limpeza roda toda noite, sem ninguém pedir:",
+      "items": [
+        "cada mensagem é apagada 7 dias depois de enviada, com o registro técnico da resposta;",
+        "cada reserva é apagada 7 dias depois do prazo de retirada;",
+        "o seu identificador é apagado 7 dias depois da última vez que você usar o Balcão, com tudo o que ainda estiver ligado a ele."
+      ],
+      "logs": "Os logs não têm prazo fixo: eles se renovam à medida que enchem e podem guardar um acesso por mais de 7 dias. Neles nunca entra o texto das mensagens.",
+      "totals": "Ficam só totais que não identificam ninguém, como o gasto do mês com o modelo."
+    },
+    "deletion": {
+      "title": "Como apagar antes",
+      "text": "Envie <cmd>/apagar</cmd> ou “apagar meus dados” na conversa. As mensagens, as reservas, o registro técnico das respostas e o seu identificador são apagados do Balcão na hora. As cópias de passagem, que levam as respostas até a página, somem em até 10 minutos.",
+      "telegram": "No Telegram, o comando também desfaz a sua concordância. As mensagens que continuam no chat são a sua cópia, no seu aplicativo e nos servidores do Telegram: a opção de limpar o histórico, no próprio Telegram, as apaga."
+    },
+    "readers": {
+      "title": "Quem vê a conversa",
+      "trace": "Quem tiver o link do trace vê a conversa. O link deixa de funcionar 7 dias depois da última mensagem, ou na hora, se você apagar seus dados.",
+      "cases": "O operador da demonstração pode ler as conversas para corrigir erros. Uma conversa do site em que o atendente erra pode virar um caso de teste no repositório público do projeto: reescrita, com outras palavras, e sem nada que identifique quem escreveu. Uma conversa do Telegram nunca vira caso de teste."
+    },
+    "processors": {
+      "title": "Quem processa os dados",
+      "items": [
+        "Anthropic: o modelo de linguagem, que recebe o texto da conversa para responder.",
+        "Hetzner: a hospedagem do servidor, onde ficam o banco de dados e os logs.",
+        "Telegram: as conversas com o bot passam pelos servidores do Telegram, sob a política de privacidade dele."
+      ]
+    },
+    "contact": {
+      "title": "Contato",
+      "text": "O responsável pelos dados é {{name}}. Para qualquer pedido sobre os seus dados, escreva para <email>{{email}}</email>."
+    }
   }
 }

@@ -277,18 +277,21 @@ describe("FR-12 the trace page, the glass box at full length", () => {
     expect(server.traces()[0]?.headers.get("Accept-Language")).toBe("en");
   });
 
-  it("leads home, and to nothing that does not exist yet", async () => {
+  it("leads home and to the privacy page, and to nothing that does not exist yet", async () => {
     server.answers.trace.push(trace());
     renderPage(<TracePage />);
     await screen.findByRole("region", { name: pt.roll });
+    const foot = within(screen.getByRole("contentinfo"));
 
-    expect(screen.getByRole("link", { name: pt.home })).toHaveAttribute(
+    expect(foot.getByRole("link", { name: pt.home })).toHaveAttribute(
       "href",
       "/",
     );
-    expect(
-      screen.queryByRole("link", { name: /status|privacidade/i }),
-    ).toBeNull();
+    expect(foot.getByRole("link", { name: ptBR.privacy.link })).toHaveAttribute(
+      "href",
+      "/privacy",
+    );
+    expect(screen.queryByRole("link", { name: /status/i })).toBeNull();
   });
 });
 

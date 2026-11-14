@@ -4,8 +4,8 @@ import { Trans, useTranslation } from "react-i18next";
 import { rateOf, type Trace } from "../chat/api";
 import { Text } from "../chat/Thread";
 import { cx } from "../ui/cx";
-import { Cross, Icon } from "../ui/Icon";
-import { LanguageSwitch } from "../ui/LanguageSwitch";
+import { Icon } from "../ui/Icon";
+import { PageMasthead } from "../ui/PageMasthead";
 import parts from "../ui/parts.module.css";
 import { useTabLamp } from "../ui/tabLamp";
 import {
@@ -30,12 +30,11 @@ import { useToken, useTrace } from "./useTrace";
 // The trace page, `/trace#<token>` (FR-12, design §6.7, §6.8;
 // docs/prototype/trace.html and trace-expired.html): the glass box's rows at
 // full length, on one receipt, every row closed, and live while the
-// conversation goes on. For a WhatsApp conversation it is the only glass
+// conversation goes on. For a Telegram conversation it is the only glass
 // box. The words of the conversation stay in the counter's face: the
 // visitor's beside the turn, the reply under its rows, and the turn's cost
 // closes it; the foot totals the costs, the tokens and the turns' time
-// (FR-12, FR-14). Hidden until their source exists: the status link (M3) and
-// the privacy link (PR-17).
+// (FR-12, FR-14). Hidden until its source exists: the status link (M3).
 
 // A link outlives its day, so the title gives the day as well as the hour,
 // in São Paulo's time.
@@ -54,20 +53,6 @@ function started(iso: string, locale: string) {
     hourCycle: "h23",
   }).format(at);
   return { date, time };
-}
-
-function Masthead() {
-  const { t } = useTranslation();
-  return (
-    <header className={cx(parts.letterhead, styles.masthead)}>
-      <a className={parts.wordmark} href="/">
-        <Cross />
-        {t("app.name")}
-      </a>
-      <span className={styles.pageName}>{t("trace.pageName")}</span>
-      <LanguageSwitch className={styles.langs} />
-    </header>
-  );
 }
 
 function TurnSection({ turn, trace }: { turn: Turn; trace: Trace }) {
@@ -227,7 +212,7 @@ export function TracePage() {
 
   return (
     <div className={styles.page}>
-      <Masthead />
+      <PageMasthead name={t("trace.pageName")} />
       <main>
         <div className={styles.note}>{note}</div>
         {body}
@@ -236,6 +221,7 @@ export function TracePage() {
         <a href="/">
           <Icon name="back" /> {t("trace.home")}
         </a>
+        <a href="/privacy">{t("privacy.link")}</a>
       </footer>
     </div>
   );

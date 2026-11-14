@@ -16,6 +16,10 @@ class SpaController < ApplicationController
 
   def chat = send_shell("chat")
 
+  # The privacy page is also the Telegram bot's own privacy policy, the URL
+  # set in BotFather (design §6.7, FR-19, ADR-0016).
+  def privacy = send_shell("privacy")
+
   # The shell is the same for every trace: the token follows the "#" of the
   # link, which no browser sends, and the page reads it and looks the trace up
   # (FR-12; review finding V3 of pull request #17). The link is a credential
