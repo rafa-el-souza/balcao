@@ -1,33 +1,44 @@
 {
-  "update_id": 734120106,
+  "update_id": 734120110,
   "message": {
-    "message_id": 6,
+    "message_id": 9,
     "from": {
       "id": 7341200001,
       "is_bot": false,
       "first_name": "Visitante",
-      "last_name": "Teste",
-      "username": "balcao_visitante_teste",
       "language_code": "pt-br"
     },
     "chat": {
       "id": 7341200001,
       "first_name": "Visitante",
-      "last_name": "Teste",
-      "username": "balcao_visitante_teste",
       "type": "private"
     },
-    "date": 1763130006,
+    "date": 1763130319,
     "sticker": {
       "width": 512,
       "height": 512,
-      "emoji": "👍",
-      "is_animated": false,
+      "emoji": "😂",
+      "is_animated": true,
       "is_video": false,
       "type": "regular",
-      "file_id": "CAACAgIAAxkBAAMGaW_invented",
-      "file_unique_id": "AgADinvented03",
-      "file_size": 21544
+      "set_name": "invented_set_for_balcao_specs",
+      "thumbnail": {
+        "file_id": "AAMCAgADGQEAAwlinvented_thumbnail",
+        "file_unique_id": "AQADinventedT1",
+        "file_size": 2750,
+        "width": 128,
+        "height": 128
+      },
+      "thumb": {
+        "file_id": "AAMCAgADGQEAAwlinvented_thumbnail",
+        "file_unique_id": "AQADinventedT1",
+        "file_size": 2750,
+        "width": 128,
+        "height": 128
+      },
+      "file_id": "CAACAgIAAxkBAAMJinvented_sticker",
+      "file_unique_id": "AgADinventedS1",
+      "file_size": 8244
     }
   }
 }

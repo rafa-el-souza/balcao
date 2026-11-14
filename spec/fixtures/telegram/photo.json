@@ -6,34 +6,29 @@
       "id": 7341200001,
       "is_bot": false,
       "first_name": "Visitante",
-      "last_name": "Teste",
-      "username": "balcao_visitante_teste",
       "language_code": "pt-br"
     },
     "chat": {
       "id": 7341200001,
       "first_name": "Visitante",
-      "last_name": "Teste",
-      "username": "balcao_visitante_teste",
       "type": "private"
     },
-    "date": 1763130005,
+    "date": 1763130063,
     "photo": [
       {
-        "file_id": "AgACAgEAAxkBAAMFaW_invented_small",
-        "file_unique_id": "AQADinvented01",
-        "file_size": 1203,
+        "file_id": "AgACAgEAAxkBAAMFinvented_photo_size_0",
+        "file_unique_id": "AQADinventedP0",
+        "file_size": 736,
         "width": 90,
-        "height": 67
+        "height": 90
       },
       {
-        "file_id": "AgACAgEAAxkBAAMFaW_invented_large",
-        "file_unique_id": "AQADinvented02",
-        "file_size": 43105,
-        "width": 800,
-        "height": 600
+        "file_id": "AgACAgEAAxkBAAMFinvented_photo_size_1",
+        "file_unique_id": "AQADinventedP1",
+        "file_size": 2123,
+        "width": 180,
+        "height": 180
       }
-    ],
-    "caption": "foto de teste"
+    ]
   }
 }

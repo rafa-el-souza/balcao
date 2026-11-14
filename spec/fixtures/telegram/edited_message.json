@@ -6,19 +6,15 @@
       "id": 7341200001,
       "is_bot": false,
       "first_name": "Visitante",
-      "last_name": "Teste",
-      "username": "balcao_visitante_teste",
       "language_code": "pt-br"
     },
     "chat": {
       "id": 7341200001,
       "first_name": "Visitante",
-      "last_name": "Teste",
-      "username": "balcao_visitante_teste",
       "type": "private"
     },
-    "date": 1763130002,
-    "text": "Vocês têm dipirona 500 mg?",
-    "edit_date": 1763130100
+    "date": 1763130013,
+    "edit_date": 1763130166,
+    "text": "Vocês têm dipirona 500 mg?"
   }
 }

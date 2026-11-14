@@ -10,7 +10,7 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
   include ActiveJob::TestHelper
   include ModelResponses
 
-  RECORDED = %w[start text agree help photo sticker voice].freeze
+  RECORDED = %w[start text agree help photo emoji voice photo_caption sticker].freeze
 
   def fixture(name) = JSON.parse(Rails.root.join("spec/fixtures/telegram/#{name}.json").read)
 
@@ -113,7 +113,8 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
     end
 
     it "takes no caption for an agreement: a photo captioned with the phrase gets the ask" do
-      update = variant("photo") { |message| message["caption"] = "Concordo" }
+      expect(deliver(fixture("photo_caption"))).to have_attributes(name: :ask)
+      update = variant("photo_caption") { |message| message["caption"] = "Concordo" }
 
       expect(deliver(update)).to have_attributes(name: :ask)
       stored_nothing
