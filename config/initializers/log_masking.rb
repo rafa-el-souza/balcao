@@ -21,11 +21,18 @@ module Balcao
 
     # A copy of the error, of its class and with its backtrace, whose message
     # is FILTERED (Exception#exception); an error whose class computes its
-    # message anyway is written as a RuntimeError that names that class.
+    # message anyway, or refuses to be copied, is written as a RuntimeError
+    # that names that class, so the line is never lost.
     def error(error)
       masked = error.exception(FILTERED)
       return masked if masked.message == FILTERED
 
+      stand_in(error)
+    rescue StandardError
+      stand_in(error)
+    end
+
+    def stand_in(error)
       RuntimeError.new("#{FILTERED} #{error.class}").tap { |copy| copy.set_backtrace(error.backtrace) if error.backtrace }
     end
 

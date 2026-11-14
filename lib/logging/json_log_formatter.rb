@@ -23,7 +23,7 @@ module Balcao
     FIELD = /\A([a-z][a-z_]*)=(.+)\z/
 
     def call(severity, time, _progname, message)
-      entry = { "time" => time.utc.iso8601(3), "level" => severity }
+      entry = { "time" => time.getutc.iso8601(3), "level" => severity }
       tags = []
       current_tags.each do |tag|
         name, value = tag.to_s.match(FIELD)&.captures

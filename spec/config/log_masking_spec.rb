@@ -56,6 +56,22 @@ RSpec.describe "SR-30 NFR-05 the log: an error by its class alone, one JSON obje
       expect(io.string).not_to include("98765")
     end
 
+    it "names by its class an error that refuses to be copied, so its line never fails the job" do
+      error = quoted
+      stub_const("UncopiedError", Class.new(StandardError) do
+        define_method(:exception) { |*args| args.empty? ? self : raise(ArgumentError, "no copies") }
+      end)
+      stub_const("OddJob", Class.new(ApplicationJob) do
+        discard_on UncopiedError
+        define_method(:perform) { raise UncopiedError, error }
+      end)
+
+      expect { OddJob.perform_now }.not_to raise_error
+
+      expect(io.string).to include("Discarded OddJob", "[FILTERED] UncopiedError")
+      expect(io.string).not_to include("98765")
+    end
+
     it "leaves the error itself as it was, for the job's own handling and the queue's record" do
       expect { run_out(QuotingJob.new) }.to raise_error(ActiveRecord::StatementInvalid, quoted)
     end
@@ -92,6 +108,14 @@ RSpec.describe "SR-30 NFR-05 the log: an error by its class alone, one JSON obje
 
       expect(lines).to eq([ { "time" => "2026-11-14T06:00:01.000Z", "level" => "INFO",
                               "message" => "nightly reset: expired 1 reservations" } ])
+    end
+
+    it "leaves the time it is given as it was" do
+      time = Time.new(2026, 11, 14, 3, 0, 1, "-03:00")
+
+      Balcao::JsonLogFormatter.new.call("INFO", time, nil, "x")
+
+      expect(time.utc_offset).to eq(-3 * 3600)
     end
 
     it "turns a tag of the form name=value into a field, and keeps the other tags in a list" do
