@@ -14,6 +14,11 @@ class Message < ApplicationRecord
   enum :status, { pending: "pending", sent: "sent", delivered: "delivered", read: "read", failed: "failed" },
        prefix: true, validate: { allow_nil: true }
 
+  # What a visitor sends, and what the attendant answers, is encrypted at rest
+  # with keys that live in the env file, never in the database (threat model
+  # SR-41); the app, and so the model, reads the plain text.
+  encrypts :body
+
   # PostgreSQL refuses a NUL in text: a body loses it, whoever wrote it, so a
   # model's reply carrying one is stored rather than breaking its turn on every
   # attempt (review finding V1 of pull request #18). The web intake drops it
@@ -25,8 +30,9 @@ class Message < ApplicationRecord
   validates :channel, inclusion: { in: Visitor::CHANNELS.values }
   validates :body, presence: true
 
-  # Stores an inbound message keyed by its channel's message id: Meta's on
-  # WhatsApp, and on the web the id the client generates for each message, so
+  # Stores an inbound message keyed by its channel's message id: on Telegram
+  # the visitor's row and Telegram's message id, which is counted per chat
+  # (FR-19), and on the web the id the client generates for each message, so
   # a request sent again after its response was lost is stored once (review
   # finding N2 of pull request #7). A redelivered message meets the unique
   # index and returns the message already stored, even if its conversation

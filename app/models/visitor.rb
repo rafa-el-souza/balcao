@@ -1,9 +1,16 @@
-# A person on one channel, known only by the hash of an identifier (FR-19,
-# threat model SR-10).
+# A person on one channel, known only by the hash of an identifier (FR-18,
+# FR-19, threat model SR-10).
+#
+# On Telegram the row is created by the visitor's agreement (FR-19, the
+# owner's decision of 2026-11-14) and holds the one thing a reply needs that
+# the hash cannot give back, the chat to send to, encrypted (SR-41); it goes
+# with the row (FR-05, FR-15).
 class Visitor < ApplicationRecord
-  CHANNELS = { web: "web", whatsapp: "whatsapp" }.freeze
+  CHANNELS = { web: "web", telegram: "telegram" }.freeze
 
   enum :channel, CHANNELS, validate: true
+
+  encrypts :telegram_chat_id
 
   # The database deletes conversations and reservations with the visitor (FR-05).
   has_many :conversations
@@ -24,6 +31,20 @@ class Visitor < ApplicationRecord
   # caller gets that row (NFR-02).
   def self.identify!(channel:, identity_hash:)
     visitor = find_by(channel:, identity_hash:) || create_or_find_by!(channel:, identity_hash:)
+    visitor.update_column(:last_seen_at, Time.current)
+    visitor
+  end
+
+  # The Telegram visitor its agreement creates (FR-19): the time of the
+  # agreement and the chat a reply goes to, which in a private chat is the
+  # sender's own id (threat model SR-42). When two agreements race, the
+  # unique index lets one row in and the other caller gets it as it was.
+  def self.agree!(identity_hash:, chat_id:)
+    visitor = find_by(channel: "telegram", identity_hash:) ||
+              create_or_find_by!(channel: "telegram", identity_hash:) do |agreed|
+                agreed.telegram_chat_id = chat_id.to_s
+                agreed.agreed_at = Time.current
+              end
     visitor.update_column(:last_seen_at, Time.current)
     visitor
   end

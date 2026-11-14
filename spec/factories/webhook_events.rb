@@ -1,7 +1,8 @@
 FactoryBot.define do
   factory :webhook_event do
-    sequence(:body_sha256) { |n| Digest::SHA256.hexdigest("webhook body #{n}") }
-    payload { { "object" => "whatsapp_business_account", "entry" => [] } }
+    sequence(:update_id) { |n| 734_120_000 + n }
+    kind { "message" }
+    payload { { update_id:, message: { message_id: 1, text: "oi" } }.to_json }
     received_at { Time.current }
   end
 end
