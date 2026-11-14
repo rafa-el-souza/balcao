@@ -9,6 +9,7 @@ require "rails_helper"
 RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored update" do
   include ActiveJob::TestHelper
   include ModelResponses
+  include TelegramBotApi
 
   RECORDED = %w[start text agree help photo emoji voice photo_caption sticker].freeze
 
@@ -40,6 +41,8 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
   end
 
   let(:sender_id) { fixture("text").dig("message", "from", "id") }
+  # What the Bot API received, in order (PR-19 sends every reply).
+  let!(:sent) { stub_bot_api }
   let(:identity) { Digest::SHA256.hexdigest("#{Rails.configuration.x.identity_pepper}#{sender_id}") }
 
   def agreed! = deliver(fixture("agree"))
@@ -115,7 +118,7 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
     it "answers /help and the delete command as always, storing nothing" do
       expect(deliver(fixture("help"))).to have_attributes(name: :help, reply: FixedReply.help("pt-BR"))
       deleted = deliver(variant("text") { |message| message["text"] = "/apagar" })
-      expect(deleted).to have_attributes(name: :deleted, reply: FixedReply.command(:delete, "pt-BR"))
+      expect(deleted).to have_attributes(name: :deleted, reply: FixedReply.telegram_deleted("pt-BR"))
       stored_nothing
     end
 
@@ -140,7 +143,9 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
       at = Time.zone.local(2026, 11, 14, 15, 0)
       outcome = travel_to(at) { agreed! }
 
-      expect(outcome).to have_attributes(name: :agreed, reply: FixedReply.greeting("pt-BR"), language: "pt-BR")
+      # The greeting is a stored reply, sent by its status (review finding T5
+      # of pull request #32), so the outcome names nothing to send.
+      expect(outcome).to have_attributes(name: :agreed, reply: nil, language: "pt-BR")
       visitor = Visitor.sole
       expect(visitor).to have_attributes(channel: "telegram", identity_hash: identity, telegram_chat_id: sender_id.to_s, agreed_at: at)
       conversation = Conversation.sole
@@ -148,7 +153,7 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
       inbound, outbound = conversation.messages.order(:created_at, :direction).partition(&:inbound?).map(&:sole)
       expect(inbound).to have_attributes(body: "Concordo", source: "command", channel: "telegram",
                                          external_id: "#{visitor.id}:3", webhook_event_id: @event.id)
-      expect(outbound).to have_attributes(body: FixedReply.greeting("pt-BR"), status: "pending")
+      expect(outbound).to have_attributes(body: FixedReply.greeting("pt-BR"), status: "sent")
       expect(Turn.sole).to have_attributes(state: "replied", inbound_message: inbound)
       expect(TraceEvent.sole.span_attributes).to eq("balcao.command.name" => "agree")
       expect(enqueued_jobs.map { |job| job["job_class"] }).not_to include("ProcessTurnJob")
@@ -160,8 +165,9 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
         message["from"] = message["from"].merge("language_code" => "en")
       end
 
-      expect(deliver(update)).to have_attributes(name: :agreed, reply: FixedReply.greeting("en"), language: "en")
+      expect(deliver(update)).to have_attributes(name: :agreed, reply: nil, language: "en")
       expect(Conversation.sole.language).to eq("en")
+      expect(sent.sole["text"]).to eq(FixedReply.greeting("en"))
     end
 
     it "leaves the next replies without the notice, which came with the ask (FR-01)" do
@@ -223,7 +229,7 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
 
         expect(outcome).to have_attributes(name: :not_text, reply: FixedReply.not_text("pt-BR"))
         expect(Message.count).to eq(before)
-        expect(a_request(:any, /telegram/)).not_to have_been_made
+        expect(a_request(:any, %r{api\.telegram\.org/(file/|bot[^/]+/getFile)})).not_to have_been_made
       end
     end
 
@@ -326,6 +332,107 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
     end
   end
 
+  # FR-19's outbound side, day 12: every reply leaves for the person's chat
+  # as plain text with the preview off (SR-43). A reply that is not stored
+  # goes to the chat of the update being read; a stored one by its status.
+  describe "the replies" do
+    def texts = sent.map { |body| body["text"] }
+
+    it "sends the ask with its one button, in the language of the person's app, and stores nothing" do
+      update = variant("start") { |message| message["from"] = message["from"].merge("language_code" => "es") }
+
+      deliver(update)
+
+      expect(sent.sole).to include("chat_id" => sender_id, "text" => FixedReply.ask("es"),
+                                   "reply_markup" => { "keyboard" => [ [ { "text" => "Acepto" } ] ], "resize_keyboard" => true },
+                                   "link_preview_options" => { "is_disabled" => true })
+      stored_nothing
+    end
+
+    it "sends the greeting the agreement stored, taking the button away, and marks it sent" do
+      agreed!
+
+      expect(sent.sole).to include("chat_id" => sender_id, "text" => FixedReply.greeting("pt-BR"),
+                                   "reply_markup" => { "remove_keyboard" => true })
+      expect(Message.outbound.sole).to have_attributes(status: "sent", parts_sent: 1)
+    end
+
+    # Review finding T5 of pull request #32: an agreement read again (its
+    # strip failed, or a second job ran) names a turn, not the greeting.
+    it "sends the greeting once when the agreement is read again" do
+      agreed = store(variant("agree"))
+      breaking = true
+      allow_any_instance_of(WebhookEvent).to receive(:strip!).and_wrap_original do |original, *args|
+        raise ActiveRecord::ConnectionFailed if breaking
+
+        original.call(*args)
+      end
+      lines = []
+      allow(Rails.logger).to receive(:info) { |line| lines << line }
+      TelegramUpdateJob.perform_now(agreed.id) # the strip breaks, and Active Job enqueues the next attempt
+      breaking = false
+
+      perform_enqueued_jobs(only: TelegramUpdateJob)
+
+      expect(agreed.reload).to have_attributes(status: "processed", payload: nil)
+      expect(lines).to include("telegram update #{agreed.update_id}: turn")
+      expect(texts).to eq([ FixedReply.greeting("pt-BR") ])
+      expect(Message.outbound.sole.status).to eq "sent"
+    end
+
+    it "answers /help and the deletion before the agreement without touching the button, the deletion saying whose the app's copy is (FR-05)" do
+      deliver(fixture("help"))
+      deliver(variant("text") { |message| message["text"] = "/apagar" })
+
+      expect(texts).to eq([ FixedReply.help("pt-BR"), FixedReply.telegram_deleted("pt-BR") ])
+      expect(sent).to all(satisfy { |body| !body.key?("reply_markup") })
+      expect(FixedReply.telegram_deleted("pt-BR")).to start_with(FixedReply.command(:delete, "pt-BR"))
+        .and include(I18n.t("telegram.own_copy", locale: "pt-BR"))
+    end
+
+    it "sends a visitor's fixed lines with the button taken away" do
+      agreed!
+      deliver(fixture("photo"))
+      deliver(variant("text") { |message| message["text"] = "a" * 1_001 })
+
+      expect(texts.last(2)).to eq([ FixedReply.not_text("pt-BR"), FixedReply.too_long("pt-BR") ])
+      expect(sent.last(2)).to all(include("reply_markup" => { "remove_keyboard" => true }))
+    end
+
+    it "sends nothing for an update it drops, a service message, or a text that becomes a turn (ProcessTurnJob answers it)" do
+      agreed!
+      sent.clear
+
+      deliver(variant("text") { |message| message["chat"] = message["chat"].merge("id" => 1) })
+      deliver(variant("text") { |message| message.delete("text") && message["pinned_message"] = { "message_id" => 1 } })
+      deliver(fixture("text"))
+
+      expect(sent).to be_empty
+    end
+
+    it "reads the update all the same when its reply cannot be sent, and logs it by its class" do
+      stub_request(:post, bot_api_url("sendMessage")).to_return(bot_api_error(403, "Forbidden: bot was blocked by the user"))
+      errors = []
+      allow(Rails.logger).to receive(:error) { |line| errors << line }
+
+      outcome = deliver(fixture("start"))
+
+      expect(outcome).to have_attributes(name: :ask)
+      expect(@event).to have_attributes(status: "processed", payload: nil)
+      expect(errors).to eq([ "telegram fixed reply ask: failed after 1 attempt, Telegram::Client::Error (403)" ])
+    end
+
+    # Review finding M3 of pull request #32: a kind of message Telegram adds
+    # later is something a person sent, not a service message.
+    it "answers a message of a kind it does not know with the line that it reads text here, and counts it" do
+      agreed!
+      update = variant("text") { |message| message.delete("text") && message["hologram"] = { "file_id" => "x" } }
+
+      expect(deliver(update)).to have_attributes(name: :not_text, reply: FixedReply.not_text("pt-BR"))
+      expect(texts.last).to eq(FixedReply.not_text("pt-BR"))
+    end
+  end
+
   describe "the stored update" do
     it "is read once: a second job for it does nothing" do
       event = WebhookEvent.record!(update_id: 734_120_102, kind: "message", payload: fixture("text").to_json)
@@ -385,6 +492,46 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
 
       texts = Turn.joins(:inbound_message).where(messages: { source: "text" }).order(:created_at, :id).map { |turn| turn.inbound_message.body }
       expect(texts).to eq(%w[primeira segunda])
+    end
+
+    # Review finding R1 of pull request #32: when the earlier update's read
+    # broke, the later one was read first, so a question right after the
+    # agreement got the ask.
+    it "waits for its own retry while an earlier update of the person is still unread, and reads itself at its last attempt" do
+      agree = store(variant("agree") { |message| message["message_id"] = 10 })
+      question = store(variant("text") { |message| message["message_id"] = 11 })
+      allow(Telegram::Inbound).to receive(:new).and_wrap_original do |original, update, **kwargs|
+        raise ActiveRecord::ConnectionFailed if update["update_id"] == agree.update_id
+
+        original.call(update, **kwargs)
+      end
+      allow(Rails.logger).to receive(:error)
+
+      TelegramUpdateJob.perform_later(question.id)
+      perform_enqueued_jobs(only: TelegramUpdateJob) # the first attempt waits
+      expect(question.reload.status).to eq "received"
+      perform_enqueued_jobs(only: TelegramUpdateJob) # the second waits too
+
+      expect(question.reload.status).to eq "received"
+      perform_enqueued_jobs(only: TelegramUpdateJob) # the last reads it, the order lost to the broken one
+
+      expect(question.reload).to have_attributes(status: "processed", payload: nil)
+      expect(agree.reload.status).to eq "received"
+    end
+
+    # Review finding M1 of pull request #32.
+    it "logs a given-up update before it strips it, so a strip that fails leaves the line" do
+      event = WebhookEvent.record!(update_id: 734_120_103, kind: "message", payload: fixture("text").to_json)
+      allow_any_instance_of(Telegram::Inbound).to receive(:call).and_raise(ActiveRecord::StatementInvalid)
+      allow_any_instance_of(WebhookEvent).to receive(:strip!).and_raise(ActiveRecord::ConnectionFailed)
+      errors = []
+      allow(Rails.logger).to receive(:error) { |line| errors << line }
+
+      TelegramUpdateJob.perform_later(event.id)
+      expect { perform_enqueued_jobs until enqueued_jobs.empty? }.to raise_error(ActiveRecord::StatementInvalid)
+
+      expect(errors).to include("telegram update 734120103: given up after 3 attempts, ActiveRecord::StatementInvalid",
+                                "telegram update 734120103: given up, not stripped: ActiveRecord::ConnectionFailed")
     end
 
     it "keeps the sender's hashed identity on an unread update for its order, and drops it once read" do

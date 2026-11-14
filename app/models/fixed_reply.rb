@@ -72,6 +72,10 @@ module FixedReply
                                        agree: CommandPhrases.current.agreement(AgentRunner::LANGUAGES.key(locale.to_s))), locale)
   end
 
+  # FR-05 on Telegram: the deletion's confirmation, then what the command does
+  # not reach, the copy of the chat in the visitor's own app (FR-19, /privacy).
+  def telegram_deleted(locale) = "#{command(:delete, locale)}\n\n#{I18n.t("telegram.own_copy", locale:)}"
+
   # FR-19: a message that is not text, and a text over 1,000 characters.
   def not_text(locale) = I18n.t("telegram.not_text", locale:)
 
