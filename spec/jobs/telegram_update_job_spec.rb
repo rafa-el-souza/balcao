@@ -399,6 +399,23 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
       expect(sent.last(2)).to all(include("reply_markup" => { "remove_keyboard" => true }))
     end
 
+    # Review finding C2 of pull request #33: the update's own line left before
+    # an older reply still pending, in two holds of the lock.
+    it "sends a stored reply still pending before a later update's fixed line" do
+      agreed!
+      visitor = Visitor.sole
+      conversation = visitor.conversations.sole
+      earlier = Turn.for_inbound!(Message.record_inbound!(conversation:, external_id: "#{visitor.id}:999999", body: "oi"))
+      stored = Message.record_outbound!(turn: earlier, body: "Olá! Em que posso ajudar?")
+      sent.clear
+      allow(AdvisoryLock).to receive(:hold).and_call_original
+
+      deliver(fixture("sticker"))
+
+      expect(texts).to eq([ stored.body, FixedReply.not_text(conversation.language) ])
+      expect(AdvisoryLock).to have_received(:hold).with("telegram-send:#{identity}").once
+    end
+
     it "sends nothing for an update it drops, a service message, or a text that becomes a turn (ProcessTurnJob answers it)" do
       agreed!
       sent.clear

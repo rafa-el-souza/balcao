@@ -17,7 +17,10 @@ module Telegram
   #   so it never goes into a job's arguments.
   #
   # Both are sent under a lock keyed by the person's hashed identity, so one
-  # person's replies leave one at a time and in order. Nothing here waits:
+  # person's replies leave one at a time and in order: a reply that is not
+  # stored goes after the person's stored replies still pending, in the same
+  # hold of the lock (review finding C2 of pull request #33), unless one of
+  # them waits for its time. Nothing here waits:
   # each call tries each part once, so neither the lock nor a worker's thread
   # is held through a wait (review finding C3 of pull request #33).
   # - A stored reply Telegram asked to wait for (a 429) or that failed on the
@@ -86,17 +89,15 @@ module Telegram
     def deliver_pending(visitor)
       chat = Chat.of(visitor) or return
 
-      AdvisoryLock.hold(lock(chat)) do
-        pending(visitor).each do |message|
-          break if message.next_attempt_at&.future? || !deliver(message, chat, visitor)
-        end
-      end
+      AdvisoryLock.hold(lock(chat)) { drain(visitor, chat) }
     end
 
-    # Sends a reply that is not stored, trying each part once; answers
-    # whether it left.
-    def send_fixed(chat, text, keyboard: nil, name: :reply)
+    # Sends a reply that is not stored, trying each part once, after the
+    # pending replies of the visitor given; answers whether it left.
+    def send_fixed(chat, text, keyboard: nil, name: :reply, visitor: nil)
       AdvisoryLock.hold(lock(chat)) do
+        stored = visitor && Chat.of(visitor)
+        drain(visitor, stored) if stored
         error = self.class.parts(text).lazy.filter_map { |part| send_part(chat, part, keyboard) }.first
         error.nil? || failed("telegram fixed reply #{name}", error, 1)
       end
@@ -105,6 +106,12 @@ module Telegram
     private
 
     def lock(chat) = "telegram-send:#{chat.identity}"
+
+    def drain(visitor, chat)
+      pending(visitor).each do |message|
+        break if message.next_attempt_at&.future? || !deliver(message, chat, visitor)
+      end
+    end
 
     def pending(visitor)
       Message.outbound.status_pending.where(channel: "telegram").joins(:conversation)

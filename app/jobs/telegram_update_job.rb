@@ -20,11 +20,11 @@
 #
 # The reply an update names is not stored (the ask, /help and the deletion
 # before the agreement, the limit's line, the fixed lines), so it goes to the
-# chat of the update, which nothing else keeps; then the person's stored
-# replies go by their status, the agreement's greeting among them (review
-# finding T5 of the same review). Both before the strip: a read that breaks
-# after a send sends again rather than never. A send that fails is logged and
-# the read goes on.
+# chat of the update, which nothing else keeps, after the person's stored
+# replies still pending, which go by their status, the agreement's greeting
+# among them (review finding T5 of the same review; finding C2 of pull
+# request #33). Both before the strip: a read that breaks after a send sends
+# again rather than never. A send that fails is logged and the read goes on.
 #
 # A read that breaks is tried again, three attempts in all; after the third
 # the update is stripped all the same and marked failed, and the line, written
@@ -88,13 +88,15 @@ class TelegramUpdateJob < ApplicationJob
 
     outbound = Telegram::Outbound.new
     visitor = Visitor.find_by(channel: "telegram", identity_hash: chat.identity)
-    if outcome.reply
-      keyboard = if outcome.name == :ask then Telegram::Outbound.agreement_keyboard(outcome.language)
-      elsif visitor then Telegram::Outbound::REMOVE_KEYBOARD
-      end
-      outbound.send_fixed(chat, outcome.reply, keyboard:, name: outcome.name)
+    return outbound.deliver_pending(visitor) if outcome.reply.nil? && visitor
+    return unless outcome.reply
+
+    keyboard = if outcome.name == :ask then Telegram::Outbound.agreement_keyboard(outcome.language)
+    elsif visitor then Telegram::Outbound::REMOVE_KEYBOARD
     end
-    outbound.deliver_pending(visitor) if visitor
+    # After the person's stored replies still pending (review finding C2 of
+    # pull request #33).
+    outbound.send_fixed(chat, outcome.reply, keyboard:, name: outcome.name, visitor:)
   end
 
   def give_up(error)
