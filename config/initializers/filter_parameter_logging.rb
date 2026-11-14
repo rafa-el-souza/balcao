@@ -5,13 +5,16 @@
 # See the ActiveSupport::ParameterFilter documentation for supported notations and behaviors.
 #
 # A visitor's message is personal data (threat model SR-30): `text` on the
-# API, `body` on the WhatsApp webhook and in the database. Rails reads no JSON
-# body as parameters (config/initializers/parameter_parsers.rb); these cover a
-# form body and every other log of a parameter (review finding V2 of pull
-# request #12).
+# API, `body` in the database, and a Telegram update's message as a whole (its
+# text, its caption, its sender, its chat and whatever else was sent, under
+# "message", "edited_message" and the other kinds that end in it), so an
+# update is logged as its update_id alone. Rails reads no JSON body as
+# parameters (config/initializers/parameter_parsers.rb); these cover a form
+# body and every other log of a parameter (review finding V2 of pull request
+# #12). The bot's token, which every Bot API URL carries, is a `token`.
 Rails.application.config.filter_parameters += [
   :passw, :email, :secret, :token, :_key, :crypt, :salt, :certificate, :otp, :ssn, :cvv, :cvc,
-  :text, :body
+  :text, :body, :message, :caption, :phone
 ]
 
 # A trace's token is the whole credential of a conversation's trace page

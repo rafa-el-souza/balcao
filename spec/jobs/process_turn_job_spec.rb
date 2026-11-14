@@ -742,7 +742,20 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       expect(enqueued_jobs).to be_empty
     end
 
-    # The raw phone and the BSUID join the list with the WhatsApp channel (PR-18).
+    it "carries no Telegram user or chat id in any span or broadcast of a Telegram visitor's turn (SR-12)" do
+      telegram = Visitor.agree!(identity_hash: Digest::SHA256.hexdigest("pepper7341200001"), chat_id: 7_341_200_001)
+      turn = inbound("tem dipirona?", conversation: Conversation.current_for!(telegram))
+      broadcasts = []
+      allow(ActionCable.server).to receive(:broadcast) { |stream, payload| broadcasts << [ stream, payload ] }
+
+      perform(turn)
+
+      written = spans(turn).map { |span| span.attributes.to_json }.join + broadcasts.to_json
+      expect(turn.reload.state).to eq("replied")
+      expect(written).not_to include("7341200001")
+      expect(written).not_to include(telegram.identity_hash)
+    end
+
     it "carries no secret, no identity and no system prompt in any span or broadcast (SR-12)" do
       turn = inbound("tem dipirona?")
       broadcasts = []

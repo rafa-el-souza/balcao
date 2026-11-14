@@ -234,11 +234,15 @@ RSpec.describe "FR-18 POST /api/messages stores the message and enqueues its tur
       expect(logged.inspect).not_to include("98765")
     end
 
-    it "SR-30 filters the message keys of the API and of the WhatsApp webhook" do
+    it "SR-30 filters the message keys of the API and a Telegram update's message as a whole" do
       filter = ActiveSupport::ParameterFilter.new(Rails.application.config.filter_parameters)
 
       expect(filter.filter("text" => "a", "body" => "b", "say" => "stock_pt"))
         .to eq("text" => "[FILTERED]", "body" => "[FILTERED]", "say" => "stock_pt")
+      update = JSON.parse(Rails.root.join("spec/fixtures/telegram/photo.json").read)
+      expect(filter.filter(update)).to eq("update_id" => update["update_id"], "message" => "[FILTERED]")
+      edited = JSON.parse(Rails.root.join("spec/fixtures/telegram/edited_message.json").read)
+      expect(filter.filter(edited)).to eq("update_id" => edited["update_id"], "edited_message" => "[FILTERED]")
     end
 
     it "SR-03 refuses a message from another origin, storing nothing" do
