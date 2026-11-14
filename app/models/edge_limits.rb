@@ -33,8 +33,9 @@ module EdgeLimits
     # Every turn of one visitor identity.
     Limit.new(name: "visitor/minute", limit: 10, period: 1.minute, reply: :now),
     Limit.new(name: "visitor/day", limit: 40, period: 1.day, reply: :today),
-    # The Telegram webhook's refusals, all sources together, named in the log
-    # above ten a minute (threat model SR-06); nothing is refused for them.
+    # The Telegram webhook's refusals, all sources together: the first of a
+    # minute and the eleventh, the alert, are named in the log (threat model
+    # SR-06); nothing is refused for them.
     Limit.new(name: "telegram/refused", limit: 10, period: 1.minute, reply: nil),
     # A limit's own line goes to a Telegram visitor at most once a minute, so
     # a flood costs no stream of replies (FR-19).

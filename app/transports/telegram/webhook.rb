@@ -8,8 +8,11 @@ module Telegram
   #
   # - The X-Telegram-Bot-Api-Secret-Token header is compared in constant time
   #   with the configured secret (threat model SR-06); a refusal is a bare
-  #   401, counted, and named in the log above ten a minute, never with what
-  #   was sent.
+  #   401, counted, never logged with what was sent. The log has one line for
+  #   the first refusal of a minute and one for the eleventh, the alert, so a
+  #   flood of forged requests does not multiply it (review finding T4 of
+  #   pull request #32), while a webhook registered with another secret still
+  #   leaves a line each minute it is refused.
   # - An authenticated update is stored keyed by its update_id (SR-07),
   #   encrypted (SR-41), with its sender's hashed identity when it is one the
   #   bot uses (SR-42), its reading enqueued, and answered 200 whatever it
@@ -42,10 +45,9 @@ module Telegram
     end
 
     def refuse
-      Rails.logger.warn("telegram webhook: refused, the secret did not match")
-      if EdgeLimits.over?("telegram/refused", "webhook")
-        Rails.logger.error("telegram webhook: more than 10 refused in a minute (threat model SR-06)")
-      end
+      count = EdgeLimits.count(EdgeLimits::LIMITS.fetch("telegram/refused"), "webhook")
+      Rails.logger.warn("telegram webhook: refused, the secret did not match (the first this minute)") if count == 1
+      Rails.logger.error("telegram webhook: more than 10 refused in a minute (threat model SR-06)") if count == 11
       answer(401)
     end
 

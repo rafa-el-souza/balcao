@@ -75,13 +75,20 @@ RSpec.describe "FR-19 SR-06 SR-07 SR-09 POST /webhooks/telegram", type: :request
       allow(Rails.logger).to receive(:warn) { |line| logged << [ :warn, line ] }
       allow(Rails.logger).to receive(:error) { |line| logged << [ :error, line ] }
 
+      # Review finding T4 of pull request #32: a line for each refusal, and the
+      # alert for each one past ten, multiplied the log in the flood it
+      # reported. One line opens a minute of refusals and one names the
+      # eleventh, however many follow.
       travel_to(Time.zone.local(2026, 11, 14, 15, 0)) do
-        11.times { deliver(update, secret: "forged-#{SecureRandom.hex(4)}") }
+        30.times { deliver(update, secret: "forged-#{SecureRandom.hex(4)}") }
       end
-
-      expect(logged.count { |level, _| level == :warn }).to eq(11)
+      expect(logged.select { |level, _| level == :warn }.map(&:last)).to contain_exactly(match(/refused/))
       expect(logged.select { |level, _| level == :error }.map(&:last)).to contain_exactly(match(/more than 10.*minute.*SR-06/))
+
+      travel_to(Time.zone.local(2026, 11, 14, 15, 1, 1)) { deliver(update, secret: "forged") }
+      expect(logged.count { |level, _| level == :warn }).to eq(2)
       expect(logged.map(&:last).join).not_to include("forged", "dipirona")
+      expect(WebhookEvent.count).to eq(0)
     ensure
       Rack::Attack.cache.store = store
     end
