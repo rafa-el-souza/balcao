@@ -32,7 +32,7 @@ module Budget
   def cap = Rails.configuration.x.budget_cap_usd
 
   def mode(at = Time.current)
-    state = BudgetState.for_month!(at)
+    state = month(at)
     automatic = automatic(state.spent_usd)
     record(state, automatic) unless state.automatic_mode == automatic
     serving(state.forced_mode, automatic)
@@ -54,7 +54,7 @@ module Budget
 
     costs = usages.map { |usage| [ usage, Prices.cost_usd(usage).round(8) ] }
     total = costs.sum(&:last)
-    state = BudgetState.for_month!(at)
+    state = month(at)
     state.with_lock do
       costs.each { |usage, cost| write_usage(turn, usage, cost) }
       state.update!(spent_usd: state.spent_usd + total)
@@ -64,6 +64,13 @@ module Budget
 
   def economy_allowed?
     ECONOMY_ALLOWED.exist? && YAML.safe_load_file(ECONOMY_ALLOWED)&.fetch("economy_allowed", false) == true
+  end
+
+  # The month's row. The call that opens it writes the month's first line,
+  # since a new month is a change too: the resume of a month the cap paused
+  # (review finding R2 of pull request #29).
+  def month(at)
+    BudgetState.for_month!(at).tap { |state| line(state, automatic(state.spent_usd)) if state.previously_new_record? }
   end
 
   def write_usage(turn, usage, cost)
@@ -93,5 +100,5 @@ module Budget
     Rails.logger.warn(format("budget: %s's automatic mode is %s at US$ %.2f of its cap of US$ %.2f%s",
                              state.month, automatic, state.spent_usd, cap, note))
   end
-  private_class_method :write_usage, :record, :line
+  private_class_method :month, :write_usage, :record, :line
 end

@@ -129,6 +129,24 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
         .with(/automatic mode is paused at US\$ 12\.00 of its cap of US\$ 10\.00; the forced economy mode may not serve yet, so the demo pauses\z/)
     end
 
+    # Review finding R2 of pull request #29: a new month is a change too.
+    it "writes one line when the next month opens, the resume of a month the cap paused" do
+      travel_to(Time.zone.local(2026, 11, 30, 22, 0)) do
+        BudgetState.for_month!.update!(spent_usd: BigDecimal("12"))
+        expect(Budget.mode).to eq("paused")
+      end
+      travel_to(Time.zone.local(2026, 12, 1, 0, 1)) { 2.times { expect(Budget.mode).to eq("normal") } }
+
+      expect(Rails.logger).to have_received(:warn)
+        .with("budget: 2026-12's automatic mode is normal at US$ 0.00 of its cap of US$ 10.00").once
+    end
+
+    it "writes the opening line when a charge opens the month, as at the turn of the month" do
+      travel_to(Time.zone.local(2026, 12, 1, 0, 0, 1)) { Budget.charge!(turn, [ usage ]) }
+
+      expect(Rails.logger).to have_received(:warn).with(/\Abudget: 2026-12's automatic mode is normal/).once
+    end
+
     it "follows a cap a deploy lowered below the spend, and one it raised" do
       BudgetState.for_month!.update!(spent_usd: BigDecimal("5"))
       Rails.configuration.x.budget_cap_usd = BigDecimal("4")
