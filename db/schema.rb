@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_14_120100) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_14_120200) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "fuzzystrmatch"
   enable_extension "pg_catalog.plpgsql"
@@ -152,6 +152,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_14_120100) do
     t.bigint "update_id", null: false
     t.string "kind", null: false
     t.text "payload"
+    t.string "identity_hash"
+    t.index ["identity_hash", "update_id"], name: "index_webhook_events_on_identity_hash_and_update_id", where: "(identity_hash IS NOT NULL)"
     t.index ["update_id"], name: "index_webhook_events_on_update_id", unique: true
   end
 

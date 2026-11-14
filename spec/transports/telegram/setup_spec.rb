@@ -25,7 +25,9 @@ RSpec.describe "FR-19 SR-06 SR-09 SR-42 the task that registers the bot's webhoo
       secret_token: Rails.configuration.x.telegram_webhook_secret,
       allowed_updates: [ "message" ], max_connections: Telegram::Bot::MAX_CONNECTIONS
     )
-    expect(Telegram::Bot::MAX_CONNECTIONS).to be <= 5
+    # One connection, so updates arrive in the order Telegram numbered them
+    # (review finding T2 of pull request #32).
+    expect(Telegram::Bot::MAX_CONNECTIONS).to eq 1
     expect(JSON.parse(out.string)).to eq(info)
   end
 

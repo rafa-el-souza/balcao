@@ -25,7 +25,8 @@ module Webhooks
 
       body = request.raw_post.to_s.dup.force_encoding(Encoding::UTF_8).scrub
       update = parse(body) or return not_an_update
-      event = WebhookEvent.record!(update_id: update["update_id"], kind: kind_of(update), payload: body)
+      event = WebhookEvent.record!(update_id: update["update_id"], kind: kind_of(update), payload: body,
+                                   identity_hash: Telegram::Inbound.new(update).identity)
       # An update sent again while still unread is enqueued again: its first
       # enqueue may have failed after the row was stored (the job reads it once).
       TelegramUpdateJob.perform_later(event.id) if event.received?

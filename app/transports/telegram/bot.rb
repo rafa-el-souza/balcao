@@ -12,8 +12,10 @@ module Telegram
     # the job drops any other all the same, since the list is kept on
     # Telegram's side.
     ALLOWED_UPDATES = %w[message].freeze
-    # Few connections at a time to the one web process (SR-09): Telegram's
-    # default is 40, and Puma runs 3 threads.
-    MAX_CONNECTIONS = 3
+    # One connection at a time to the one web process (SR-09; Telegram's
+    # default is 40), so updates arrive in the order Telegram numbered them,
+    # which TelegramUpdateJob keeps (review finding T2 of pull request #32);
+    # the webhook answers in milliseconds.
+    MAX_CONNECTIONS = 1
   end
 end

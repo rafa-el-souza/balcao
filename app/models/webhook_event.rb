@@ -5,10 +5,12 @@
 #   index and is the one already stored (SR-07, NFR-02). The id restarts at a
 #   random value after a week without updates, so it keys and never counts.
 # - The body is what a visitor sent, encrypted (SR-41), and only until its job
-#   has read it: then the row keeps its update_id and its kind, and nothing of
-#   the person or of their words, no digest included (FR-19; review finding
-#   RN3 of pull request #7). The nightly job deletes a row seven days old,
-#   read or not (FR-15).
+#   has read it, with the sender's hashed identity, by which a person's
+#   unread updates are read in order (review finding T2 of pull request #32):
+#   then the row keeps its update_id and its kind, and nothing of the person
+#   or of their words, no digest included (FR-19; review finding RN3 of pull
+#   request #7). The nightly job deletes a row seven days old, read or not
+#   (FR-15).
 class WebhookEvent < ApplicationRecord
   has_many :messages
 
@@ -23,13 +25,18 @@ class WebhookEvent < ApplicationRecord
   validates :update_id, numericality: { only_integer: true }
   validates :kind, format: { with: KIND }
   validates :received_at, presence: true
+  validates :identity_hash, format: { with: /\A\h{64}\z/ }, allow_nil: true
+
+  # A person's updates not read yet, in the order Telegram numbered them.
+  scope :unread_of, ->(identity_hash) { received.where(identity_hash:).order(:update_id) }
 
   # Stores an update the webhook has authenticated (SR-06), or returns the one
   # already stored with this update_id, as it is (SR-07).
-  def self.record!(update_id:, kind:, payload:, received_at: Time.current)
+  def self.record!(update_id:, kind:, payload:, identity_hash: nil, received_at: Time.current)
     create_or_find_by!(update_id:) do |event|
       event.kind = kind
       event.payload = payload
+      event.identity_hash = identity_hash
       event.received_at = received_at
     end
   end
@@ -37,6 +44,6 @@ class WebhookEvent < ApplicationRecord
   # The update as Telegram sent it, while it is unread.
   def update_hash = (JSON.parse(payload) if payload)
 
-  # Read: the body goes, and with it everything the update said.
-  def strip!(status) = update!(payload: nil, status:)
+  # Read: the body goes, and with it everything the update said and whose it was.
+  def strip!(status) = update!(payload: nil, identity_hash: nil, status:)
 end

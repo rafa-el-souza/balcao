@@ -26,10 +26,17 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
   # Stores the update as the webhook does and reads it as the queue would;
   # returns what it made.
   def deliver(update, kind: (update.keys - [ "update_id" ]).first)
-    event = WebhookEvent.record!(update_id: update["update_id"], kind:, payload: update.to_json)
+    event = store(update, kind:)
     outcome = TelegramUpdateJob.perform_now(event.id)
     @event = event.reload
     outcome
+  end
+
+  # Stores the update as the webhook does, with the sender's hashed identity
+  # when the update is one the bot uses.
+  def store(update, kind: (update.keys - [ "update_id" ]).first)
+    WebhookEvent.record!(update_id: update["update_id"], kind:, payload: update.to_json,
+                         identity_hash: Telegram::Inbound.new(update).identity)
   end
 
   let(:sender_id) { fixture("text").dig("message", "from", "id") }
@@ -351,6 +358,42 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
       expect(event.reload).to have_attributes(status: "failed", payload: nil)
       expect(errors).to include(match(/telegram update 734120102: given up after 3 attempts, ActiveRecord::StatementInvalid/))
       expect(errors.join).not_to include("dipirona")
+    end
+
+    # Review finding T2 of pull request #32: the lock kept a person's updates
+    # apart but not in order, so a question whose job took the lock before
+    # the agreement's got the ask, and two texts could become swapped turns.
+    it "reads a person's earlier unread update first, so a question sent after the agreement is a turn" do
+      agree = store(variant("agree") { |message| message["message_id"] = 10 })
+      question = store(variant("text") { |message| message["message_id"] = 11 })
+
+      outcome = TelegramUpdateJob.perform_now(question.id)
+
+      expect(outcome).to have_attributes(name: :turn)
+      expect(agree.reload).to have_attributes(status: "processed", payload: nil)
+      expect(Message.inbound.order(:created_at).map(&:body)).to eq([ "Concordo", "Vocês têm dipirona?" ])
+      expect(TelegramUpdateJob.perform_now(agree.id)).to be_nil
+    end
+
+    it "makes two quick texts turns in the order they were sent, whichever job runs first" do
+      agreed!
+      first = store(variant("text") { |message| message.merge!("message_id" => 10, "text" => "primeira") })
+      second = store(variant("text") { |message| message.merge!("message_id" => 11, "text" => "segunda") })
+      first.update_column(:update_id, second.update_id - 1)
+
+      TelegramUpdateJob.perform_now(second.id)
+
+      texts = Turn.joins(:inbound_message).where(messages: { source: "text" }).order(:created_at, :id).map { |turn| turn.inbound_message.body }
+      expect(texts).to eq(%w[primeira segunda])
+    end
+
+    it "keeps the sender's hashed identity on an unread update for its order, and drops it once read" do
+      event = store(fixture("text"))
+      expect(event.identity_hash).to eq(identity)
+
+      TelegramUpdateJob.perform_now(event.id)
+
+      expect(event.reload.identity_hash).to be_nil
     end
 
     it "reads one person's updates one at a time, under a lock keyed by the hashed identity" do

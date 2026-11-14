@@ -4,10 +4,14 @@
 # its update_id and its kind, and nothing of the person or of what they wrote
 # (FR-19; review finding RN3 of pull request #7).
 #
-# One person's updates are read one at a time, under an advisory lock keyed by
-# the person's hashed identity, so an agreement and the message after it are
-# never read side by side; an update with no usable sender is locked by its
-# own row. An update read already is left alone, so a second job for it (a
+# One person's updates are read one at a time and in the order Telegram
+# numbered them, under an advisory lock keyed by the person's hashed identity:
+# the job that gets the lock first reads the person's earlier updates still
+# unread, oldest first, and then its own, so an agreement and the question
+# after it are never read swapped (review finding T2 of pull request #32), as
+# ProcessTurnJob answers a conversation's turns. An earlier one that breaks is
+# left to its own job. An update with no usable sender is locked by its own
+# row. An update read already is left alone, so a second job for it (a
 # redelivery enqueued while it waited) does nothing.
 #
 # A read that breaks is tried again, three attempts in all; after the third
@@ -29,17 +33,26 @@ class TelegramUpdateJob < ApplicationJob
     event = WebhookEvent.find_by(id: event_id)
     return unless event&.received?
 
-    inbound = Telegram::Inbound.new(event.update_hash)
-    AdvisoryLock.hold(inbound.identity ? "telegram:#{inbound.identity}" : "telegram-update:#{event.id}") do
+    person = event.identity_hash
+    AdvisoryLock.hold(person ? "telegram:#{person}" : "telegram-update:#{event.id}") do
+      earlier(event).each { |waiting| read_earlier(waiting) } if person
       event.reload
-      read(event, inbound) if event.received?
+      read(event) if event.received?
     end
   end
 
   private
 
-  def read(event, inbound)
-    outcome = inbound.call(event)
+  def earlier(event) = WebhookEvent.unread_of(event.identity_hash).where(update_id: ...event.update_id).to_a
+
+  def read_earlier(event)
+    read(event)
+  rescue StandardError => e
+    Rails.logger.error("telegram update #{event.update_id}: not read before a later one: #{e.class}")
+  end
+
+  def read(event)
+    outcome = Telegram::Inbound.new(event.update_hash).call(event)
     event.strip!(outcome.status)
     Rails.logger.info("telegram update #{event.update_id}: #{outcome.name}")
     outcome
