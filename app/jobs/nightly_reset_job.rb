@@ -9,9 +9,12 @@
 #    with everything under them (the database cascades); messages, turns,
 #    spans and usage records older than seven days, a turn's spans and usage
 #    going with it; conversations whose last message went, or that never had
-#    one, once seven days old (a trace link dies with its conversation); and
+#    one, once seven days old (a trace link dies with its conversation);
 #    reservations seven days past their deadline, which outlive the
-#    conversation of their turn until then;
+#    conversation of their turn until then; the stored Telegram updates,
+#    read or not (FR-19); and the limits' counters, which live in the cache
+#    under an IP address or an identity's hash (EdgeLimits.purge; design §10,
+#    note of 2026-11-14, PR-17);
 # 3. the catalogue returns to the seed, its stock less the units that open
 #    reservations hold (CatalogueSeed), counted after the purge.
 #
@@ -43,7 +46,10 @@ class NightlyResetJob < ApplicationJob
       "spans" => TraceEvent.where(created_at: ...before).delete_all,
       "usage records" => UsageRecord.where(created_at: ...before).delete_all,
       "conversations" => Conversation.where(created_at: ...before).where.missing(:messages).delete_all,
-      "reservations" => Reservation.where(pickup_until: ...before).delete_all
-    }.slice("visitors", "conversations", "messages", "turns", "spans", "usage records", "reservations")
+      "reservations" => Reservation.where(pickup_until: ...before).delete_all,
+      "stored updates" => WebhookEvent.where(created_at: ...before).delete_all,
+      "limit counters" => EdgeLimits.purge(before)
+    }.slice("visitors", "conversations", "messages", "turns", "spans", "usage records", "reservations",
+            "stored updates", "limit counters")
   end
 end

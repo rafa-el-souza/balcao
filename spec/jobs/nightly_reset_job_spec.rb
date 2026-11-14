@@ -141,6 +141,58 @@ RSpec.describe "FR-15 SR-31 the nightly reset and the seven-day purge" do
       expect(TraceEvent.where(id: old_span.id)).to be_empty
     end
 
+    # FR-19: a stored Telegram update holds only its id and its kind once read,
+    # and goes at seven days, read or not.
+    it "deletes the stored Telegram updates older than 7 days, read or not, and keeps the newer" do
+      unread = at(three_am - 8.days) { create(:webhook_event) }
+      read = at(three_am - 8.days) { create(:webhook_event).tap { |event| event.strip!("processed") } }
+      recent = at(three_am - 6.days) { create(:webhook_event) }
+
+      run
+
+      expect(WebhookEvent.all).to contain_exactly(recent)
+      expect(WebhookEvent.where(id: [ unread.id, read.id ])).to be_empty
+    end
+
+    # FR-14's counters (design §10, note of 2026-11-14, PR-17): kept in the
+    # cache under the IP address and the identity's hash, outside the rows a
+    # deletion takes (FR-05), and kept by Solid Cache alone two weeks or more.
+    # The test database has only the primary's tables: the cache's are made
+    # in the example's transaction, as Solid Cache writes there in test.
+    describe "the limits' counters" do
+      let(:store) { SolidCache::Store.new(namespace: "test") }
+
+      before do
+        ActiveRecord::Migration.suppress_messages { load Rails.root.join("db/cache_schema.rb") }
+        SolidCache::Entry.reset_column_information
+        allow(Rack::Attack.cache).to receive(:store).and_return(store)
+      end
+
+      # Solid Cache dates a row by the database's clock, so the rows are dated
+      # back by hand.
+      def written(key, at:) = SolidCache::Entry.where(key: "test:#{key}").update_all(created_at: at)
+
+      it "deletes the counters older than seven days, a live one first written then included, and keeps the rest of the cache" do
+        EdgeLimits.over?("visitor/day", "old-identity")
+        EdgeLimits.over?("visitor/day", "new-identity")
+        EdgeLimits.over?("ip/turns", "203.0.113.9")
+        store.write("calendar", "not a counter")
+        written("limits:visitor/day:old-identity", at: three_am - 8.days)
+        written("limits:visitor/day:new-identity", at: three_am - 6.days)
+        written("limits:ip/turns:203.0.113.9", at: three_am - 8.days)
+        written("calendar", at: three_am - 8.days)
+        # Solid Cache never moves a row's creation time, so a window that
+        # lives on restarts at most once a week.
+        EdgeLimits.over?("ip/turns", "203.0.113.9")
+        expect(SolidCache::Entry.where(key: "test:limits:ip/turns:203.0.113.9").pick(:created_at)).to eq(three_am - 8.days)
+
+        run
+
+        expect(SolidCache::Entry.pluck(:key)).to include("test:limits:visitor/day:new-identity", "test:calendar")
+        expect(SolidCache::Entry.pluck(:key).grep(/limits/)).to eq([ "test:limits:visitor/day:new-identity" ])
+      end
+    end
+
     it "keeps the month's spend, which the ledger needs past the usage records' seven days (FR-14)" do
       state = at(three_am - 19.days) { BudgetState.for_month!.tap { |month| month.update!(spent_usd: BigDecimal("3.5")) } }
 
@@ -175,7 +227,7 @@ RSpec.describe "FR-15 SR-31 the nightly reset and the seven-day purge" do
     run
 
     expect(Rails.logger).to have_received(:info).with(
-      /\Anightly reset: expired 1 reservations, reset \d+ products; deleted 0 visitors, 0 conversations, 0 messages, 0 turns, 0 spans, 0 usage records, 0 reservations\z/
+      /\Anightly reset: expired 1 reservations, reset \d+ products; deleted 0 visitors, 0 conversations, 0 messages, 0 turns, 0 spans, 0 usage records, 0 reservations, 0 stored updates, 0 limit counters\z/
     )
   end
 

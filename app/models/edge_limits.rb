@@ -71,6 +71,23 @@ module EdgeLimits
     0
   end
 
+  # Deletes the counters first written before the time given, for the
+  # nightly job (FR-15, the privacy page; design §10, note of 2026-11-14,
+  # PR-17): they key by an IP address or an identity's hash, and Solid Cache
+  # alone deletes a row two weeks after it was first written, and only when
+  # later writes set its expiry off. Solid Cache never moves a row's creation
+  # time, so a counter still counting is deleted too, which may restart a
+  # live window at most once a week. Any other store (the memory store of the
+  # specs) keeps its counters in memory, and nothing is deleted there.
+  def purge(before)
+    store = Rack::Attack.cache.store
+    return 0 unless store.is_a?(SolidCache::Store)
+
+    prefix = [ store.options[:namespace], "limits:" ].compact.join(":")
+    SolidCache::Entry.where("key LIKE ?", "#{ActiveRecord::Base.sanitize_sql_like(prefix)}%")
+                     .where(created_at: ...before).delete_all
+  end
+
   # --- Which requests count (Rack::Attack's request, a Rack::Request) --------
   #
   # Rack::Attack normalizes PATH_INFO with the router's own normalize_path
