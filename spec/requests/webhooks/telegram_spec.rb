@@ -49,6 +49,25 @@ RSpec.describe "FR-19 SR-06 SR-07 SR-09 POST /webhooks/telegram", type: :request
       end
     end
 
+    # Review finding T3 of pull request #32: Rails' controller
+    # instrumentation read a request's parameters before any action, so a
+    # form or multipart body was parsed, written to tempfiles and logged
+    # before the secret was checked.
+    it "parses no form or multipart body before the secret, and logs nothing of it" do
+      seen = []
+      expect(Rack::Multipart).not_to receive(:parse_multipart)
+      upload = Rack::Test::UploadedFile.new(StringIO.new("x" * 100), "text/plain", original_filename: "x.txt")
+
+      ActiveSupport::Notifications.subscribed(->(*, payload) { seen << payload[:params] }, "start_processing.action_controller") do
+        post "/webhooks/telegram", params: { a: "x" * 1000 }, headers: { "X-Telegram-Bot-Api-Secret-Token" => "forged" }
+        expect(response).to have_http_status(:unauthorized)
+        post "/webhooks/telegram", params: { file: upload }, headers: { "X-Telegram-Bot-Api-Secret-Token" => "forged" }
+        expect(response).to have_http_status(:unauthorized)
+      end
+
+      expect(seen.compact.flat_map(&:keys)).not_to include("a", "file")
+    end
+
     it "counts the refusals and says so in the log above ten a minute, never with what was sent" do
       store = Rack::Attack.cache.store
       Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new

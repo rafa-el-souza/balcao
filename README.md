@@ -32,7 +32,7 @@ whose opening comment says what it does and why.
    validates the message, stores it once however often the browser sends it,
    queues a job and answers at once; the reply will come over a WebSocket.
    From Telegram,
-   [`app/controllers/webhooks/telegram_controller.rb`](app/controllers/webhooks/telegram_controller.rb)
+   [`app/transports/telegram/webhook.rb`](app/transports/telegram/webhook.rb)
    checks the secret Telegram sends before it reads the update, and
    [`app/transports/telegram/inbound.rb`](app/transports/telegram/inbound.rb)
    asks a new person to agree before anything of theirs is kept.
@@ -129,15 +129,14 @@ little about this one; `app/agent/`, `app/transports/`, `evals/`, `ops/`,
 `web/` and `docs/` are the project's own. What each holds:
 
 - [`app/controllers/`](app/controllers) — the HTTP endpoints: the JSON API
-  under `api/`, Telegram's webhook under `webhooks/`, and the controller that
-  sends the web app's pages.
+  under `api/`, and the controller that sends the web app's pages.
   [`config/routes.rb`](config/routes.rb) lists every URL and the code behind
   it.
 - [`app/jobs/`](app/jobs) — work done after a request is answered; here, the
   job that answers a message and the one that reads a Telegram update.
-- [`app/transports/`](app/transports) — the Telegram bot's side: the Bot API
-  client, what an update makes of the conversation, and the task that
-  registers the webhook.
+- [`app/transports/`](app/transports) — the Telegram bot's side: the
+  webhook, the Bot API client, what an update makes of the conversation, and
+  the task that registers the webhook.
 - [`app/agent/`](app/agent) — everything that talks to the model: the runner,
   the system prompt, the model policy, the tools, and the fake model the
   tests run on.
