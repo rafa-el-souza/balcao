@@ -156,10 +156,13 @@ function budgetOf(
   };
 }
 
-// A turn's root closes with the mode it ran in (app/models/turn_processor.rb).
+// A turn's root closes with the month's mode after the turn's own charge
+// (app/models/turn_processor.rb), newer than any answer the page had while
+// the turn ran. The mode the turn ran in, read when it started, is not the
+// month's now (review finding C3 of pull request #29).
 function modeClosedBy(span: Span): Mode | null {
   return span.name === "balcao.turn" && span.finished_at !== null
-    ? modeOf(span.attributes["balcao.turn.mode"])
+    ? modeOf(span.attributes["balcao.budget.mode"])
     : null;
 }
 

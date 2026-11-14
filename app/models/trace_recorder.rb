@@ -25,7 +25,7 @@
 # turn goes on.
 class TraceRecorder
   ATTRIBUTES = Set.new(%w[
-    balcao.channel balcao.message.source balcao.turn.mode balcao.turn.outcome
+    balcao.channel balcao.message.source balcao.turn.mode balcao.turn.outcome balcao.budget.mode
     balcao.command.name balcao.message.author balcao.message.characters balcao.latency_ms balcao.cost.usd
     balcao.system_prompt.characters balcao.system_prompt.sha256
     balcao.tool_result.characters balcao.tool_result.count balcao.tool_result.unit balcao.tool_result.refusal

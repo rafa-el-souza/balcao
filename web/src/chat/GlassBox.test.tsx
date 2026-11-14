@@ -824,19 +824,39 @@ describe("FR-18 the conversation's stream, with the polling as its fallback", ()
 
   // FR-14: a turn the month's pause answered closes with its mode, and the
   // glass box's head follows it without asking the server.
-  it("takes the budget's mode a turn the stream closes recorded", async () => {
+  it("takes the month's mode a turn the stream closes recorded, after the turn's own charge", async () => {
     const cable = await live();
     cable.connect();
     await waitFor(() => {
       expect(within(glass()).getByText("normal")).toBeInTheDocument();
     });
 
-    const [root] = answeredTurn("t1", { outcome: "paused", mode: "paused" });
+    // The turn ran in normal mode and its charge reached the cap (review
+    // finding C3 of pull request #29).
+    const [root] = answeredTurn("t1", { mode: "normal", budgetMode: "paused" });
     if (root) cable.send({ type: "span", span: root });
 
     await waitFor(() => {
       expect(within(glass()).getByText("pausado")).toBeInTheDocument();
     });
+  });
+
+  it("keeps a pause the polling answered when a turn that started before it closes", async () => {
+    server.defaults.current = conversation(1, [], false, [], {
+      mode: "paused",
+      brl: BRL,
+    });
+    const cable = await live();
+    cable.connect();
+    await waitFor(() => {
+      expect(within(glass()).getByText("pausado")).toBeInTheDocument();
+    });
+
+    const [root] = answeredTurn("t1", { mode: "normal" });
+    if (root) cable.send({ type: "span", span: root });
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+
+    expect(within(glass()).getByText("pausado")).toBeInTheDocument();
   });
 
   // Design §10, note of 2026-11-13 on the chat's stream: the reply is drawn

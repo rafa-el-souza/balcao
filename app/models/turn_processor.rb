@@ -24,7 +24,10 @@
 #   (give_up, NFR-03).
 #
 # Every way a turn ends is an outcome on its root span, which the glass box
-# words (web/src/locales, instrument.outcomes): OUTCOMES. A slice that adds or
+# words (web/src/locales, instrument.outcomes): OUTCOMES. The root also carries
+# the mode the turn ran in and the month's mode when it closed, after its own
+# charge, which the glass box's head follows (FR-14; review finding C3 of pull
+# request #29). A slice that adds or
 # renames one gives the panel its words in the same change (design §10, note
 # of 2026-11-12); spec/models/turn_outcomes_spec.rb holds the two together.
 #
@@ -287,7 +290,17 @@ class TurnProcessor
     outbound.finish(attributes: { "balcao.message.characters" => message.body.length })
     @turn.update!(state:, latency_ms:)
     @root.finish(attributes: { "balcao.turn.mode" => @root.attributes["balcao.turn.mode"],
-                               "balcao.turn.outcome" => outcome.to_s, "error.type" => error&.class&.name })
+                               "balcao.turn.outcome" => outcome.to_s, "error.type" => error&.class&.name,
+                               "balcao.budget.mode" => month_mode })
+  end
+
+  # The month's mode as the turn closes; none when it cannot be read, since
+  # the reply is stored and only the head's word would be missing.
+  def month_mode
+    Budget.mode
+  rescue StandardError => e
+    Rails.logger.error("turn #{@turn.id}: the month's mode not read: #{e.class}")
+    nil
   end
 
   # A turn that broke outside the model (the database, a bug): its spans are

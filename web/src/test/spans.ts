@@ -41,8 +41,10 @@ export interface TurnOptions {
   // The two model calls' costs in US dollars (app/models/turn_trace.rb), or
   // none, as a turn traced before the costs.
   costs?: [number, number];
-  // The budget's mode the root records when the turn closes.
+  // The mode the turn ran in, and the month's mode when it closed, which the
+  // root records (app/models/turn_processor.rb).
   mode?: string;
+  budgetMode?: string;
 }
 
 // An answered turn: received at minute:41, a model call that asks for a tool,
@@ -88,6 +90,9 @@ export function answeredTurn(turn: string, options: TurnOptions = {}) {
         "balcao.channel": "web",
         "balcao.turn.outcome": options.outcome ?? "replied",
         ...(options.mode ? { "balcao.turn.mode": options.mode } : {}),
+        ...(options.budgetMode
+          ? { "balcao.budget.mode": options.budgetMode }
+          : {}),
       },
       true,
     ),

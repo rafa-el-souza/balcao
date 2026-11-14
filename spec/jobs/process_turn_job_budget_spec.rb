@@ -121,6 +121,17 @@ RSpec.describe "FR-14 SR-02 FR-12 the budget in a turn: the pause before the mod
       expect(turn.outbound_message.body).to eq(FixedReply.with_notice(FixedReply.paused("es"), "es"))
     end
 
+    # Review finding C3 of pull request #29: the glass box's head follows the
+    # month's mode, which the turn's own charge may have changed.
+    it "closes a turn's root with the mode it ran in and the month's mode after its own charge" do
+      BudgetState.for_month!.update!(spent_usd: BigDecimal("9.999"))
+      turn = inbound("oi")
+
+      perform(turn)
+
+      expect(root(turn).span_attributes).to include("balcao.turn.mode" => "normal", "balcao.budget.mode" => "paused")
+    end
+
     it "answers the turn that reaches the cap, and pauses the next one" do
       BudgetState.for_month!.update!(spent_usd: BigDecimal("9.999"))
       responses.replace([ reply("[pt] Olá!") ])
