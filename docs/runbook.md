@@ -274,6 +274,82 @@ the host around the answer.
   is logged by its class, never its message (SR-30): the trace of the turn
   (the glass box, the trace page) says what the visitor saw.
 
+## The Telegram bot (from PR-18 and PR-19)
+
+The demo's bot is `@BalcaoDemoBot` (FR-19, ADR-0016, ADR-0017). What only
+BotFather holds is set there by hand; everything else is set from the
+repository by one task, run inside the application's container, where the
+token already is (SR-38). Each line below runs from the workstation, with
+the env file loaded in the same call.
+
+- **BotFather's checklist** (once, and again only for what changes):
+  - the bot, made with `/newbot`; its username is permanent;
+  - its token, pasted into the destination's env file as
+    `TELEGRAM_BOT_TOKEN` (the boot refuses a value not of BotFather's
+    shape, SR-25);
+  - its privacy policy, `https://balcao.rafasouza.dev.br/privacy`, in the
+    bot's settings under `/mybots` (Telegram's developer terms require one,
+    ADR-0016);
+  - out of groups: `/setjoingroups`, disabled (SR-42; the webhook drops a
+    group's message anyway);
+  - its photo, the favicon's mark, with `/setuserpic` (an upload through the
+    Bot API would be a new photo at every run of the task).
+
+  The name, the description, the about text and the command menu are the
+  task's: an edit made in BotFather is written over at its next run.
+- **The webhook's secret** is generated: `bin/secrets-example` prints a
+  `TELEGRAM_WEBHOOK_SECRET` line when the env file has none.
+- **The task:**
+  `kamal app exec -d ensaio --roles=web --reuse "bin/rails telegram:setup"`.
+  Run it after the first deploy, after a deploy that changes the bot's texts
+  (`telegram.menu` and `telegram.profile` in `config/locales/`, the commands'
+  phrases in `config/commands.yml`) and after each rotation below. It sets
+  the webhook (the URL, the secret, `message` updates alone, one
+  connection), then reads the command menu of private chats and the
+  profile (name, description, short description) for the default language,
+  which is Portuguese, and for `en` and `es`, and writes only what differs;
+  it prints one line per setting (`written`, `unchanged`, or `not written`
+  with Telegram's answer) and ends with `getWebhookInfo`. It exits 1 when a
+  setting was not written: Telegram limits `setMyName` and its neighbours,
+  and a 429 names the wait (sometimes hours); the others were written, and a
+  run after that wait writes the rest.
+- **The smoke** reads `getWebhookInfo`, at the end of the task or alone:
+  `kamal app exec -d ensaio --roles=web --reuse "bin/rails runner 'puts JSON.pretty_generate(Telegram::Client.new.webhook_info)'"`.
+  Expect `url` at `/webhooks/telegram` on the demo's name,
+  `max_connections` 1, `allowed_updates` `["message"]`, a
+  `pending_update_count` near 0, and no `last_error_date` after the deploy:
+  a `last_error_message` of 401 means the secret Telegram sends differs from
+  the app's (run the task), a timeout that the app did not answer. Then, on
+  a phone: the description in the empty chat, the menu, and Start answered
+  with the ask and its button.
+- **Rotating the webhook's secret** (when it may have leaked, SR-06): delete
+  its line from the env file, append the one `bin/secrets-example` prints,
+  `bin/deploy -d ensaio`, then the task at once. Between the two, Telegram's
+  deliveries meet a 401 (one log line a minute) and Telegram keeps the
+  updates and sends them again, for up to 24 hours, once the task has
+  registered the new secret.
+- **Rotating the token** (when it may have leaked; at M3 for the production
+  set): BotFather's `/token` makes a new one and the old one stops working;
+  paste it into the env file, `bin/deploy -d ensaio`, then the task, which
+  registers the webhook again with the secret (SR-06). Until the deploy, the
+  bot sends nothing.
+- **A reply that did not leave** is marked `failed` on its message, and the
+  log has one `telegram reply <id>: failed after N attempts` line naming the
+  error by its class and Telegram's code (a 403 is a visitor who blocked the
+  bot), the wait a 429 named and, for a reply cut in parts, the part that
+  failed. A reply Telegram asked to wait for, or that failed on the way,
+  stays `pending` with its time (`next_attempt_at`) until `TelegramReplyJob`
+  tries it again, three attempts in all.
+- **A reply that is never stored** (the ask, `/help` and the deletion
+  before the agreement, the fixed lines, the deletion's confirmation) is
+  tried once, since nothing keeps its chat to try again; one that could not
+  be sent has a `telegram fixed reply <name>: failed after 1 attempt` line.
+- **Replies left pending** (after a stop, an outage, or the replies PR-18
+  stored before day 12) leave before the person's next reply, or at once
+  with:
+  `kamal app exec -d ensaio --roles=job --reuse "bin/rails runner 'Visitor.where(channel: :telegram.to_s).find_each { |visitor| TelegramReplyJob.perform_later(visitor.id) }'"`.
+  A reply marked `failed` is never sent again.
+
 ## Bump day (monthly)
 
 - Dependabot's pull requests (gems, npm, base-image digests, Actions).

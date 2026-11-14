@@ -63,3 +63,24 @@ pt-BR:
     ask: "Para responder, o modelo de IA da Anthropic lê cada mensagem que você manda. A política de privacidade conta o resto: %{privacy}\nSe estiver de acordo, toque em “%{agree}”."
     not_text: "Por aqui eu leio só texto: escreva a sua pergunta numa mensagem."
     too_long: "Sua mensagem passou de 1.000 caracteres, o limite da demo. Pode escrever uma mais curta?"
+    # FR-05 on Telegram: after the deletion's confirmation, what the command
+    # does not reach, the copy of the chat in the visitor's own app, as
+    # /privacy says it (FixedReply.telegram_deleted).
+    own_copy: "As mensagens que continuam neste chat são a sua cópia, no seu Telegram: a opção de limpar o histórico, no próprio Telegram, as apaga."
+    # FR-19, written by bin/rails telegram:setup (Telegram::Setup): the command
+    # menu of private chats, each command named by its first phrase with a
+    # slash in config/commands.yml, the deletion last (Telegram allows 1 to
+    # 256 characters a description); and the profile: the name (up to 64)
+    # says it is a demo, the description the empty chat shows before Start
+    # (up to 512) says what FR-01's notice says and names the model provider
+    # and the privacy page, and the short description of the profile page
+    # and of a shared link (up to 120).
+    menu:
+      reset: "começa a conversa de novo"
+      trace: "mostra como eu funciono nesta conversa"
+      help: "o que eu faço e os comandos"
+      delete: "apaga os seus dados"
+    profile:
+      name: "Balcão (demo)"
+      description: "Demonstração de portfólio: o atendente de IA da %{store}, uma farmácia fictícia. Consulta preços e estoque e reserva produtos; dúvidas de saúde ficam com o farmacêutico da loja. Para responder, o modelo de IA da Anthropic lê cada mensagem, que fica guardada por 7 dias; /apagar apaga tudo. Antes de ler a primeira, o atendente pede o seu “%{agree}”. Privacidade: %{privacy}"
+      short_description: "Demo de portfólio: o atendente de IA de uma farmácia fictícia. As mensagens ficam guardadas por 7 dias."

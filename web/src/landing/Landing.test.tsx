@@ -1,9 +1,16 @@
 import { act, fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { DOCUMENTS, GITHUB_URL, LINKEDIN_URL, MAILTO } from "../identity";
+import {
+  BOT_URL,
+  DOCUMENTS,
+  GITHUB_URL,
+  LINKEDIN_URL,
+  MAILTO,
+} from "../identity";
 import { LANG_COOKIE, readLocaleCookie } from "../locale";
 import en from "../locales/en.json";
+import es from "../locales/es.json";
 import ptBR from "../locales/pt-BR.json";
 import openers from "../openers.json";
 import { renderPage } from "../test/render";
@@ -135,14 +142,53 @@ describe("FR-25 the landing's contact and signature", () => {
 // forward from PR-19, so the web demo shown from day 10 agrees with its own
 // privacy page (design §10, note 2026-11-14, PR-17).
 describe("FR-19 the landing's stack names the bot's channel", () => {
-  it("lists the Telegram Bot API, and WhatsApp nowhere, in each language", () => {
-    for (const locale of ["pt-BR", "en", "es"] as const) {
+  it("lists the Telegram Bot API, and names WhatsApp only in the receipt's line on why, in each language", () => {
+    for (const [locale, texts] of [
+      ["pt-BR", ptBR],
+      ["en", en],
+      ["es", es],
+    ] as const) {
       const { unmount } = renderPage(<Landing />, locale);
 
       expect(screen.getByText("Telegram Bot API")).toBeInTheDocument();
-      expect(document.body.textContent).not.toMatch(/WhatsApp/);
+      const why = screen.getByText(texts.landing.bot.why);
+      expect(
+        document.body.textContent.replace(why.textContent, ""),
+      ).not.toMatch(/WhatsApp/);
       unmount();
     }
+  });
+});
+
+// Day 12 (design §6.8, docs/prototype/landing.html): the bot's QR on a
+// receipt of its own, its handle as the link, since a phone cannot scan its
+// own screen, and one line on why the demo talks on Telegram (ADR-0016).
+describe("FR-19 the landing's receipt opens the bot", () => {
+  it("shows the bot's QR, its link and why Telegram, in each language", () => {
+    for (const [locale, texts] of [
+      ["pt-BR", ptBR],
+      ["en", en],
+      ["es", es],
+    ] as const) {
+      const { unmount } = renderPage(<Landing />, locale);
+      const receipt = screen.getByRole("region", {
+        name: texts.landing.bot.title,
+      });
+
+      expect(
+        within(receipt).getByRole("img", { name: /t\.me\/BalcaoDemoBot/ }),
+      ).toBeInTheDocument();
+      expect(
+        within(receipt).getByRole("link", { name: "@BalcaoDemoBot" }),
+      ).toHaveAttribute("href", BOT_URL);
+      expect(receipt).toHaveTextContent(texts.landing.bot.open);
+      expect(receipt).toHaveTextContent(texts.landing.bot.why);
+      unmount();
+    }
+  });
+
+  it("links the bot's own address, which the QR encodes", () => {
+    expect(BOT_URL).toBe("https://t.me/BalcaoDemoBot");
   });
 });
 
@@ -164,11 +210,13 @@ describe("Design §6.7 the landing leads to the privacy page", () => {
 // The drawing is the target; a line whose source arrives later is left out,
 // not shown as a promise (docs/prototype/landing.html, notes).
 describe("Design §10 the landing shows nothing before its source exists", () => {
-  it("has no figure, no status link, no offer, no QR and no example conversations yet", () => {
+  it("has no figure, no status link, no offer and no example conversations yet, and no picture but the bot's QR", () => {
     renderPage(<Landing />);
 
     expect(document.body.textContent).not.toMatch(/R\$|US\$|%/);
     expect(screen.queryByRole("link", { name: /status/i })).toBeNull();
-    expect(screen.queryByRole("img")).toBeNull();
+    expect(
+      screen.getAllByRole("img").map((img) => img.getAttribute("aria-label")),
+    ).toEqual([ptBR.landing.bot.qr.replace("{{link}}", "t.me/BalcaoDemoBot")]);
   });
 });

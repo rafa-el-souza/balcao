@@ -16,3 +16,8 @@ export const DOCUMENTS = {
   threats: `${REPOSITORY_URL}/blob/main/docs/threat-model.md`,
   evals: `${REPOSITORY_URL}/tree/main/evals`,
 } as const;
+
+// The demo's Telegram bot (FR-19, ADR-0016): its username is permanent, and
+// the landing's QR encodes its link (botQr.ts).
+export const BOT_USERNAME = "BalcaoDemoBot";
+export const BOT_URL = `https://t.me/${BOT_USERNAME}`;

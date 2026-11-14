@@ -14,6 +14,12 @@
     "headline": "Um atendente de IA para uma farmácia de bairro.",
     "lede": "Fictícia. Funcionando. Com a caixa de vidro aberta.",
     "say": "Diga:",
+    "bot": {
+      "title": "Abrir no Telegram",
+      "qr": "QR code do link do bot, {{link}}",
+      "open": "aponte a câmera, ou abra",
+      "why": "Por que Telegram: a política do WhatsApp para empresas não aceita uma farmácia sem licença, e esta é fictícia."
+    },
     "does": {
       "title": "O que ele faz",
       "stock": "Consulta estoque e preço, e reserva o produto para retirada.",

@@ -12,6 +12,13 @@ RSpec.describe "FR-03 system prompt (FR-01, FR-02, FR-05, FR-09, FR-26, SR-21, d
     expect(prompt).to include("Monday: 08:00 to 20:00", "Saturday: 08:00 to 14:00", "Sunday: closed")
   end
 
+  # FR-19 (ADR-0016): the channels are the website's chat and Telegram, whose
+  # replies leave as plain text (threat model SR-43).
+  it "names the channels the attendant talks on, Telegram among them, and asks for plain text since Telegram shows it as it is" do
+    expect(prompt).to include("on the pharmacy's website chat and on Telegram.", "since Telegram shows it as it is")
+    expect(prompt).not_to include("WhatsApp")
+  end
+
   it "asks for times and prices written as the facts write them, so a reply states them exactly" do
     expect(prompt).to match(/times and prices exactly as/)
   end

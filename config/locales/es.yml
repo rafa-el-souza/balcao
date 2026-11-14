@@ -39,3 +39,13 @@ es:
     ask: "Para responder, el modelo de IA de Anthropic lee cada mensaje que mandas. La política de privacidad cuenta el resto: %{privacy}\nSi estás de acuerdo, toca “%{agree}”."
     not_text: "Por aquí solo leo texto: escribe tu pregunta en un mensaje."
     too_long: "Tu mensaje pasa de 1.000 caracteres, el límite de la demo. ¿Puedes escribir uno más corto?"
+    own_copy: "Los mensajes que siguen en este chat son tu copia, en tu Telegram: la opción de borrar el historial, en el propio Telegram, los borra."
+    menu:
+      reset: "empieza la conversación de nuevo"
+      trace: "muestra cómo funciono en esta conversación"
+      help: "lo que hago y los comandos"
+      delete: "borra tus datos"
+    profile:
+      name: "Balcão (demo)"
+      description: "Demo de portafolio: el asistente de IA de %{store}, una farmacia ficticia. Consulta precios y existencias y reserva productos; las dudas de salud son para el farmacéutico de la tienda. Para responder, el modelo de IA de Anthropic lee cada mensaje, que se guarda 7 días; /borrar lo borra todo. Antes de leer el primero, el asistente pide tu “%{agree}”. Privacidad: %{privacy}"
+      short_description: "Demo de portafolio: el asistente de IA de una farmacia ficticia. Los mensajes se guardan 7 días."

@@ -743,6 +743,8 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
     end
 
     it "carries no Telegram user or chat id in any span or broadcast of a Telegram visitor's turn (SR-12)" do
+      extend TelegramBotApi
+      stub_bot_api # the reply leaves for the chat (FR-19), which the spans and the stream never name
       telegram = Visitor.agree!(identity_hash: Digest::SHA256.hexdigest("pepper7341200001"), chat_id: 7_341_200_001)
       turn = inbound("tem dipirona?", conversation: Conversation.current_for!(telegram))
       broadcasts = []

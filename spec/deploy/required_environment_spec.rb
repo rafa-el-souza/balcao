@@ -50,6 +50,22 @@ RSpec.describe "SR-25 production refuses to boot when a required variable is bla
       expect { described_class.verify!(complete.merge("TELEGRAM_WEBHOOK_SECRET" => "A-z_09" * 42)) }.not_to raise_error
     end
 
+    # Review findings C3 and L5 of pull request #32: the JSON log writes a
+    # token of five digits or more and a key of thirty characters or more as
+    # [FILTERED] (SR-30), so the boot check takes no other: a token that
+    # boots is one no log line can carry.
+    it "takes only a bot token of the shape the log masks" do
+      require_relative "../../lib/logging/json_log_formatter"
+
+      [ "123456789:AAshort-key_29-characters-x", "1234:AA#{"k" * 33}" ].each do |value|
+        expect { described_class.verify!(complete.merge("TELEGRAM_BOT_TOKEN" => value)) }
+          .to raise_error(described_class::Missing, /TELEGRAM_BOT_TOKEN/)
+      end
+      shortest = "12345:AA#{"k" * 28}"
+      expect { described_class.verify!(complete.merge("TELEGRAM_BOT_TOKEN" => shortest)) }.not_to raise_error
+      expect("bot#{shortest}/sendMessage".gsub(Balcao::JsonLogFormatter::BOT_TOKEN, "[FILTERED]")).to eq("bot[FILTERED]/sendMessage")
+    end
+
     it "refuses a model adapter other than the real one, naming the variable and never its value" do
       expect { described_class.verify!(complete.merge("MODEL_ADAPTER" => "fake")) }
         .to raise_error(described_class::Missing) { |error|

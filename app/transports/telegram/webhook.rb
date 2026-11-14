@@ -20,6 +20,10 @@ module Telegram
   #   (SR-09); TelegramUpdateJob decides what it is.
   # - An authenticated body that is not an update at all is answered 200 too,
   #   with a line in the log, and nothing is stored.
+  # - Every answer carries Rails' default headers and the Permissions-Policy
+  #   (config/application.rb), which a controller's response would add and a
+  #   Rack endpoint's does not (threat model SR-03; review finding R2 of pull
+  #   request #32).
   class Webhook
     HEADER = "HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN".freeze
     EMPTY = { "content-type" => "text/plain; charset=utf-8", "cache-control" => "no-store" }.freeze
@@ -71,6 +75,6 @@ module Telegram
       kind.match?(WebhookEvent::KIND) ? kind : "unknown"
     end
 
-    def answer(status) = [ status, EMPTY.dup, [] ]
+    def answer(status) = [ status, Rails.application.config.action_dispatch.default_headers.transform_keys(&:downcase).merge(EMPTY), [] ]
   end
 end

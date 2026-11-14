@@ -39,3 +39,13 @@ en:
     ask: "To answer, Anthropic's AI model reads each message you send. The privacy policy tells the rest: %{privacy}\nIf you agree, tap “%{agree}”."
     not_text: "Here I read text only: write your question in a message."
     too_long: "Your message is over 1,000 characters, the demo's limit. Could you write a shorter one?"
+    own_copy: "The messages still in this chat are your own copy, in your Telegram: Telegram's own option to clear the history deletes them."
+    menu:
+      reset: "starts the conversation over"
+      trace: "shows how I work in this conversation"
+      help: "what I do, and the commands"
+      delete: "deletes your data"
+    profile:
+      name: "Balcão (demo)"
+      description: "Portfolio demo: the AI attendant of %{store}, a fictional pharmacy. It looks up prices and stock and reserves products; health questions are for the shop's pharmacist. To answer, Anthropic's AI model reads each message, which is kept for 7 days; /delete deletes everything. Before it reads the first one, the attendant asks for your “%{agree}”. Privacy: %{privacy}"
+      short_description: "Portfolio demo: the AI attendant of a fictional pharmacy. Messages are kept for 7 days."

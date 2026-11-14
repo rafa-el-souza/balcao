@@ -1,6 +1,6 @@
 # Balcão — design document
 
-**Status:** v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
+**Status:** v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
 coding session, reading this file top to bottom.
 
 Balcão ("the counter", where a pharmacist serves customers) is an AI attendant
@@ -1112,6 +1112,9 @@ erDiagram
     uuid turn_id
     uuid webhook_event_id
     string status
+    integer parts_sent
+    integer send_attempts
+    datetime next_attempt_at
   }
   TURN {
     uuid id
@@ -1754,6 +1757,103 @@ registered, display name, Live mode) closed on 2026-11-14 (ADR-0016).
 ## 10. Open decisions
 
 Tracked here until resolved; each resolution becomes an ADR or an edit.
+
+- Note 2026-11-14 (PR-19; FR-03, FR-05, FR-12, FR-19, NFR-02, NFR-03,
+  SR-03, SR-10, SR-22, SR-25, SR-30, SR-41, SR-43; ADR-0016, ADR-0017).
+  Telegram's outbound side, day 12's slice:
+  - **The client** gains `sendMessage`, `sendChatAction` and the command
+    menu's and the profile's methods, each with the `get` that reads it back
+    (§6.6). Its errors tell a wait (a 429, with the seconds it names) from a
+    refusal (any other code) and from a failure of the way there (no code,
+    the library error's class), and keep no cause, which Rake would print
+    (review finding L1 of pull request #32).
+  - **A stored reply is sent by its status** (`Telegram::Outbound`), never
+    by what made it (finding T5 of the same review): after a turn
+    (ProcessTurnJob, its dead letter included) and after an update is read
+    (TelegramUpdateJob), the visitor's pending replies leave oldest first,
+    each marked `sent` when Telegram answers ok, part by part when it was
+    cut (`message.parts_sent`, §6.5), so a new attempt starts at the first
+    part not sent and a reply marked sent is never sent again (NFR-02). A
+    reply a job stored before it stopped leaves when the job runs again.
+  - **A reply that is not stored** (the ask, `/help` and the deletion before
+    the agreement, the limit's line, the fixed lines, the deletion's
+    confirmation) is sent where it is made, to the chat of the update being
+    read or of the row read before the deletion took it: the chat id lives on
+    the visitor's row alone (SR-10, SR-41), so it never goes into a job's
+    arguments, which the queue keeps in plain text. One person's replies,
+    stored or not, leave under a lock keyed by the hashed identity, one at a
+    time and in order.
+  - **No send waits inside a job** (review finding C3 of pull request #33,
+    `atacante`: a wait held the person's lock and a worker's thread, and the
+    person's other jobs each held a thread waiting for that lock, so a
+    stranger's burst could stall every visitor's turns). Each call tries each
+    part once. A stored reply Telegram asked to wait for (a 429, the seconds
+    it names) or that failed on the way (the job's backoff, Active Job's
+    `polynomially_longer` without its jitter: 3 s, then 18 s) records its
+    attempt and its time (`message.send_attempts`, `next_attempt_at`, §6.5)
+    and is tried again by `TelegramReplyJob`, scheduled for that time, whose
+    argument is the visitor's row, never the chat; until then it and the
+    person's later replies stay pending, in order, and a drain meanwhile
+    leaves them be. Three attempts in all, then `failed` and one log line
+    with the error's class and Telegram's code; any other answer that is not
+    ok fails it at once. A failed reply is never sent again (the runbook's
+    part on the bot). A reply that is not stored is tried once: nothing keeps
+    its chat to try it again.
+  - **The cut** at 4,096 UTF-16 units falls between paragraphs, then lines,
+    then words, then grapheme clusters; no part is blank.
+  - **The keyboard.** The ask shows the agreement's one button (the phrase
+    of the ask's language, `CommandPhrases#agreement`, on a reply keyboard
+    resized to its row). Every reply to a person who agreed takes it away,
+    the greeting first, so a greeting that did not arrive leaves no button
+    up; a reply before the agreement leaves it as it is.
+  - **The typing status** runs in a thread of its own while the model works
+    (TurnProcessor's model path; a command's reply is at once and gets
+    none), sent at once and every 4 s; a failure is one log line, never the
+    turn's (NFR-03).
+  - **The deletion's confirmation on Telegram** (FR-05) is the web's
+    followed by `telegram.own_copy`, the copy of the chat in the visitor's
+    app as /privacy says it, before the agreement (Telegram::Inbound) and
+    after it (TurnProcessor reads the chat before `Visitor#erase!`).
+  - **The task** (`bin/rails telegram:setup`) writes the command menu of
+    private chats (each command named by its first phrase with a slash in
+    `config/commands.yml`, described in `telegram.menu`, the delete command
+    last; `/start` is left to Telegram's own Start button) and the profile
+    (`telegram.profile`: a name that says demo, a description that names the
+    model provider, the seven days, the delete command, the agreement's
+    phrase and the privacy page, and a short description), for the empty
+    language code in Portuguese, FR-02's default, and for `en` and `es`. It
+    reads each first and writes only where it differs, prints one line per
+    setting and fails when one was not written: Telegram limits `setMyName`
+    and its neighbours, and a later run writes the rest.
+  - **The system prompt** names Telegram as the channel and as the reason
+    for plain text (FR-03).
+  - **The landing's receipt** (§6.8) was drawn again before it was built: the
+    bot's QR, its handle as the link, since a phone cannot scan its own
+    screen, and under a dashed rule the line on why the demo talks on
+    Telegram, which rests on WhatsApp's business policy alone. Until the
+    live numbers (M3) it opens the third column on a desk, takes the second
+    column under the chips between 40 and 60rem, and follows the chips on a
+    phone. The QR is the bot's link in byte mode, version 2, level M,
+    encoded once outside the repository and scanned on a phone before it was
+    committed as its rows (`web/src/landing/botQr.ts`); its spec reads the
+    symbol back to the link, so a new link (FR-23's source at M5) fails it
+    until the QR is encoded again.
+  - **The review items of pull request #32 the owner took into this slice**
+    (2026-11-14): the boot check takes only a bot token of the shape the log
+    masks (C3, L5); a `name=value` tag's value is masked and scrubbed (V3,
+    L4); `give_up` logs before it strips (M1); a message of a kind Bot API
+    10.4 does not list is something a person sent, answered with the line
+    for a message that is not text, and a service message is one that holds
+    a field of `SERVICE` beside `CONTENT` (M3); the client's errors keep no
+    cause (L1); a later update waits for its own next attempt while an
+    earlier one of the same person is still unread, and reads itself at its
+    last attempt (R1); the webhook's answers carry Rails' default headers
+    and the Permissions-Policy (R2).
+  - **What PR-18 stored before day 12** (the agreement's greeting and the
+    turns' replies, all `pending`) leaves before the reply to the person's
+    next message, or at once with the runbook's line for replies left
+    pending, run by hand after the slice's deploy (review finding V3 of pull
+    request #33: the note promised a send at the deploy that no code made).
 
 - Note 2026-11-14 (PR-18; FR-05, FR-14, FR-15, FR-18, FR-19, NFR-02, SR-06,
   SR-07, SR-09, SR-10, SR-12, SR-22, SR-25, SR-30, SR-41, SR-42; ADR-0016,

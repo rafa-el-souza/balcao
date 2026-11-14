@@ -163,6 +163,21 @@ RSpec.describe "FR-19 SR-06 SR-07 SR-09 POST /webhooks/telegram", type: :request
     expect(WebhookEvent.sole.kind).to eq("unknown")
   end
 
+  # Review finding R2 of pull request #32: a Rack endpoint's answer passes no
+  # controller, which is what writes Rails' default headers, so the endpoint
+  # writes them itself (SR-03's "every answer").
+  it "answers with Rails' default headers and the Permissions-Policy, a refusal and an empty body alike (SR-03)" do
+    deliver(update)
+    accepted = response.headers.to_h
+    deliver(update, secret: "forged")
+
+    [ accepted, response.headers.to_h ].each do |headers|
+      expect(headers).to include("x-content-type-options" => "nosniff", "x-frame-options" => "SAMEORIGIN",
+                                 "referrer-policy" => "strict-origin-when-cross-origin", "cache-control" => "no-store")
+      expect(headers["permissions-policy"]).to include("camera=()", "microphone=()", "geolocation=()")
+    end
+  end
+
   it "takes no format extension, so the endpoint has one path" do
     post "/webhooks/telegram.json", params: update.to_json,
                                     headers: { "Content-Type" => "application/json", "X-Telegram-Bot-Api-Secret-Token" => secret }
