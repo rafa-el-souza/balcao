@@ -90,7 +90,9 @@ what each folder holds.
   shows it).
 - Answers on Telegram too, since WhatsApp's business policy rules out a
   pharmacy without a licence
-  ([ADR-0016](docs/adr/0016-telegram-bot-api-as-the-messaging-channel.md));
+  ([ADR-0016](docs/adr/0016-telegram-bot-api-as-the-messaging-channel.md)),
+  and as a plain text channel on purpose
+  ([ADR-0017](docs/adr/0017-the-telegram-bot-stays-a-text-channel.md));
   voice notes after the MVP.
 - Shows the **glass box**: a live trace of your conversation with model,
   tools, latency, tokens and cost.

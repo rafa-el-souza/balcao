@@ -1,6 +1,6 @@
 # Balcão — design document
 
-**Status:** v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram; §1, §2, J2, FR-05, FR-10, FR-11, FR-12, FR-19, NFR-02, §6, §8, §9 and §12 follow it, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
+**Status:** v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
 coding session, reading this file top to bottom.
 
 Balcão ("the counter", where a pharmacist serves customers) is an AI attendant
@@ -107,6 +107,9 @@ and FR-10 keeps the operator inside 24 hours anyway.
   policy forbids messaging that facilitates the exchange of drugs, and
   Signal has no bot API and its terms forbid auto-messaging. The
   transport port makes other channels possible; none is planned.
+- On Telegram, nothing beyond a private chat in text: no groups, no
+  replies streamed or formatted, no buttons that call back, no Mini App
+  (ADR-0017 gives the rule and the list).
 - No multi-tenant / multi-pharmacy support.
 - No clinical content: no dosages, interactions, diagnoses, or substitutions
   — ever, in any version.
@@ -125,8 +128,9 @@ trace panel light up with a tool call, asks "pode reservar duas caixas?", gets
 a reservation code, clicks the trace to see tokens and cost, then opens the
 ADRs. Total: under five minutes, no sign-up.
 
-**J2 — the client who scans the QR code.** Opens the bot in Telegram, taps
-Start, receives the demo notice and a greeting, sends a voice note asking whether
+**J2 — the client who scans the QR code.** Opens the bot in Telegram, reads
+in the empty chat that it is a demo, taps Start, receives the demo notice
+and a greeting, sends a voice note asking whether
 the pharmacy delivers to Santa Tereza, gets an answer in text, asks for an
 appointment to take a shot, receives three slots, picks one, gets a
 confirmation and a link to the live calendar.
@@ -211,6 +215,9 @@ never through a tool, so no prompt injection can trigger it.
   deleted rows, so deletion does not reset it.
 - Given a deleted identity, When the same Telegram user or token writes again,
   Then a new conversation starts with the FR-01 notice.
+- On Telegram the confirmation adds that the messages still shown in the
+  chat are the visitor's own copy, which the app's "clear history" removes:
+  the command erases what the server holds (ADR-0017).
 
 ### 4.2 Pharmacy work (tools)
 
@@ -464,8 +471,9 @@ levels (ADR-0003), with a daily slice and per-source limits (ADR-0012).
   committed files, FR-22); reservations whose pickup
   deadline passed more than 7 days ago are deleted (an open reservation
   outlives the purge of its turn's conversation); visitors not seen for 7
-  days are deleted with everything left under them; daily aggregates are
-  kept.
+  days are deleted with everything left under them; a stored Telegram
+  update older than 7 days is deleted too (FR-19; from PR-18, when they
+  exist); daily aggregates are kept.
 - Given a reservation made at 18:00 with pickup until the end of the next
   business day, When the 03:00 job runs, Then the reservation is still
   open and its stock still reserved.
@@ -488,6 +496,8 @@ referrer counters (FR-23), and a link to the current eval scorecard.
 - Given no session, When the console is opened, Then it asks for
   credentials; after 5 failed attempts from one IP in 15 minutes, further
   attempts are refused for an hour.
+- "Turn into eval case" is offered on web conversations only: a Telegram
+  conversation never becomes a case in V1 (ADR-0016).
 
 **FR-17 Canary.** A scheduled in-process probe exercises the turn pipeline.
 - Every 10 minutes, a job creates an inbound message with the fixed canary
@@ -536,36 +546,116 @@ Cloudflare line under the widget is absent.
   client polls `GET /api/conversations/current` every 3 s.
 - Message length is capped at 1,000 characters; the UI says so.
 - Commands (`/reiniciar`, `/apagar`, `/trace`) are ordinary messages
-  matched server-side; the chat's buttons send them.
+  matched server-side; the chat's buttons send them. `/help` and `/start`,
+  which FR-19 adds for Telegram, are matched here too and have no button.
 
-**FR-19 Telegram channel.** Telegram's Bot API, one bot (ADR-0016; until
-2026-11-14 this requirement was the WhatsApp Cloud API).
-- The webhook is registered with `setWebhook` (the public URL, a secret
-  token, and `message` as the only update type) by one API call the
-  runbook names; the application never registers it at boot.
+**FR-19 Telegram channel.** Telegram's Bot API, one bot, private chats in
+text (ADR-0016 for the channel, ADR-0017 for what the bot uses of the
+platform; until 2026-11-14 this requirement was the WhatsApp Cloud API).
+
+*The bot, set from the repository.*
+- One task of the repository, named in the runbook and safe to run again,
+  sets what the Bot API lets a bot set about itself, from tracked files:
+  the webhook (`setWebhook`: the public URL, the secret token, `message`
+  as the only kind of update, a small `max_connections`), the command menu
+  (`setMyCommands`, for private chats, the delete command last) and the
+  profile (`setMyName`, `setMyDescription`, `setMyShortDescription`), each
+  in pt, en and es, with the Portuguese texts for every other language
+  (FR-02's default). The texts live in the locale files (NFR-09). The task
+  ends by printing `getWebhookInfo`, which the runbook's smoke reads. The
+  application registers nothing at boot.
+- The bot's name says it is a demo. Its description, which Telegram shows
+  in the empty chat before Start, says what FR-01's notice says and names
+  the model provider and the privacy page; the first reply carries the
+  notice all the same, since nothing shows that the description was read.
+- What stays in BotFather is the owner's, on the runbook's checklist: the
+  bot's creation, its token, `/privacy` as its privacy policy, its photo
+  (the favicon's mark) and the switch that keeps it out of groups.
+
+*Inbound.*
 - Given an inbound update, Then the `X-Telegram-Bot-Api-Secret-Token`
   header is compared with the configured secret in constant time before
   any parsing; failures return 401 and are counted.
-- Given a valid update, Then the endpoint persists it keyed by its
-  `update_id` and returns 200 within 2 seconds; the background job stores
-  the message it carries keyed by its chat id and message id (an audio
-  message once transcribed, FR-11). A redelivered update is a no-op.
-  (`update_id` restarts at a random value after a week without updates, so
-  it keys, it does not count.)
-- Given a visitor message, Then the reply is sent with `sendMessage` to the
-  chat it came from; nothing is ever sent to a chat that has not written
-  first (§2.2).
-- Given `/start`, with or without a deep-link parameter, Then it is the
-  visitor's first message: the FR-01 notice and the greeting follow; the
-  parameter is ignored in V1.
+- Given an authenticated update, Then the endpoint persists it keyed by
+  its `update_id` and returns 200 within 2 seconds whatever it holds, so
+  Telegram never sends again an update the application cannot use; the
+  background job stores the message it carries keyed by its chat id and
+  message id (an audio message once transcribed, FR-11). A redelivered
+  update is a no-op. (`update_id` restarts at a random value after a week
+  without updates, so it keys, it does not count.) An authenticated body
+  that is not an update at all is answered 200 too, and counted.
+- Once its job has read it, a stored update keeps only its `update_id` and
+  its kind: the text, the sender, the chat and all else are dropped
+  (review finding RN3 of pull request #7). The nightly job deletes a
+  stored update older than seven days, read or not (FR-15).
+- Given an update that is not a message in a private chat from a person
+  (another kind of update, a group or a channel, a chat whose id is not
+  its sender's, a sender that is a bot), Then it is dropped: no visitor,
+  no turn, no reply (threat model SR-42).
 - Visitor identity is `sha256(pepper || user id)`, the id of the message's
-  sender (`from.id`). The id is stable and is personal data: never logged
-  raw, never in a trace. Telegram sends no phone number unless the visitor
-  shares a contact; the bot asks for none, and a shared contact is ignored,
-  so its number reaches no message, log or trace (SR-10).
-- The outbound message is marked sent when `sendMessage` answers `ok`, and
-  failed otherwise (NFR-03). Other message kinds (stickers, photos,
-  documents) are stored and ignored.
+  sender (`from.id`), which in a private chat is the chat's id too. The id
+  is stable and is personal data: never logged raw, never in a trace.
+  Telegram sends no phone number unless the visitor shares a contact; the
+  bot asks for none, and a shared contact is answered like any message
+  that is not text, its number dropped with the rest of its update
+  (SR-10).
+- A visitor's first conversation starts in the language of the sender's
+  app (`language_code`) when it is one of the three, else in Portuguese;
+  from the first message on, FR-02 follows what the visitor writes.
+
+*What each message gets.*
+- Given a text message, Then it is a turn like the web chat's (FR-18):
+  the same commands, the same 1,000 characters (a longer text gets a fixed
+  line that says so, with no model call), the same limits and pause of
+  FR-14, counted by the visitor's identity. A limit's own line goes to a
+  visitor at most once a minute, so a flood costs neither a model call nor
+  a stream of replies.
+- Given `/start`, Then the reply is a fixed greeting with no model call:
+  who the attendant is, what it does and what it leaves to the pharmacist,
+  and where the commands are; FR-01's notice comes first when it opens the
+  conversation. A deep-link parameter after it is ignored until FR-23
+  reads it (M5).
+- Given `/help`, Then the reply is a fixed text with no model call: what
+  the attendant does, the commands and the privacy page. Telegram requires
+  both commands of every bot. They live in `config/commands.yml` with the
+  others (FR-04, FR-05, FR-12), so every channel matches them before the
+  model; a command followed by `@` and the bot's own username is that
+  command.
+- Given a message that is not text (a photo, a sticker, a document, a
+  location, a contact, a voice note until M4 brings FR-11), Then the reply
+  is one fixed line in the conversation's language saying that the
+  attendant reads text here; no model is called, no file is fetched and a
+  caption is not read. A service message, which the app writes and not the
+  visitor, gets no reply.
+
+*Outbound.*
+- Given a reply, Then it is sent with `sendMessage` to the chat the
+  message came from, as plain text: no parse mode, and link previews
+  disabled (SR-43). Nothing is ever sent to a chat that has not written
+  first (§2.2).
+- While a turn runs, the chat shows Telegram's typing status
+  (`sendChatAction`), renewed while the model works, since Telegram clears
+  it after five seconds; a status that fails to send never fails the turn.
+- A reply longer than Telegram's 4,096 characters goes as consecutive
+  messages, cut between paragraphs.
+- The outbound message is marked sent when `sendMessage` answers `ok`. An
+  answer of 429 is tried again after the time it names and a transport
+  error with the job's backoff, three attempts in all; then the message is
+  marked failed, with a log line that names the error by its class
+  (NFR-03, SR-30); any other refusal, a visitor who blocked the bot for
+  one, marks it failed at once. `sendMessage` takes no idempotency key, so a send whose
+  answer was lost may arrive twice; a message marked sent is never sent
+  again (NFR-02).
+
+*After the MVP (ADR-0017); none of these adds a kind of update.*
+- **M4, the bot's finish:** a reply that carries a reservation code has a
+  button that copies it (`copy_text`; FR-07); the greeting carries FR-21's
+  three openers as a reply keyboard, whose tap sends the text as an
+  ordinary message; the `/trace` reply opens the trace page from a button
+  (FR-12).
+- **M2:** the slots FR-08 offers come as a reply keyboard, settled with
+  FR-08.
+- **M5:** the deep link's parameter counts the visit's source (FR-23).
 
 ### 4.6 Added 2026-11-02 after the independent review
 
@@ -605,6 +695,9 @@ score on the status page; it sends nothing.
   message with the allow-listed text is sent and the glass box starts.
 - Given `/chat?say=anything-else`, When the page loads, Then nothing is
   sent and the chat opens empty (threat model SR-34).
+- On Telegram, from M4, the same three texts come as a reply keyboard
+  under the greeting (FR-19): a tap sends the text as an ordinary message,
+  so only a listed text has a button.
 
 **FR-22 Exhibit traces.** Three example traces are committed files, not
 live conversations: a Portuguese reservation, a Spanish booking, an
@@ -627,6 +720,11 @@ aggregate counter with no identity; shown only in the console.
 - Given `?utm_source=linkedin`, When a session is issued, Then the day's
   `linkedin` counter increments by one and no per-visitor record carries
   the value; an unknown value counts as `other`.
+- On Telegram the source is the deep link's parameter
+  (`t.me/<bot>?start=src_linkedin` reaches the bot as `/start
+  src_linkedin`): each such start counts one against the same allow-list,
+  as each session does. It ships with the rest of this requirement (M5);
+  until then the parameter is ignored (FR-19).
 
 **FR-24 Intent mix.** Retired on 2026-11-04 and moved to §11 (V2-5); the
 identifier is kept so that references resolve and is outside the
@@ -687,13 +785,18 @@ per-visitor window, the daily slice) use `travel_to`.
   reservations (code, product, quantity, pickup deadline), as FR-20 keeps
   tool facts. A model choosing another product on a second run cannot
   reserve twice, and the visitor always learns the code.
+- Given a Telegram reply marked sent, When its job runs again, Then
+  nothing is sent. `sendMessage` takes no idempotency key, so a reply
+  whose answer was lost on the way may be sent a second time: the one
+  duplicate the design accepts (FR-19).
 
 **NFR-03 Resilience.** A model-provider error or timeout produces a
 polite fallback reply (text key `fallback.model_error`) and a trace entry
 with `error` set on the model span, never a silent drop; jobs retry with
 backoff (3 attempts) and then land in a dead-letter state visible in the
 console. While a turn runs, the web client shows a "pensando…" state and,
-after 10 s, a visible note that the answer is taking longer; the turn's
+after 10 s, a visible note that the answer is taking longer; on Telegram
+the chat shows the typing status meanwhile (FR-19); the turn's
 wall clock is 60 s (SR-20).
 - Given the model API returns 529 three times, When the turn runs, Then
   the visitor gets the fallback text, the turn is `failed`, the trace
@@ -842,9 +945,11 @@ sees the earlier reply in context. Commands (FR-04, FR-05, FR-12 `/trace`)
 and fixed replies short-circuit before the model.
 
 **Transport port.** Adapters implement `receive(raw) → Inbound`,
-`send(outbound)`, `fetch_media(ref)`. The web adapter is HTTP + cable; the
-Telegram adapter is webhook + Bot API (ADR-0016). Adding a channel means one adapter
-and one ADR.
+`send(outbound)`, `fetch_media(ref)` and, where the channel has one, a sign
+that a reply is on its way (`typing`): the web page draws its own, the
+Telegram adapter sends the typing status (FR-19). The web adapter is HTTP +
+cable; the Telegram adapter is webhook + Bot API (ADR-0016). Adding a
+channel means one adapter and one ADR.
 
 **AgentRunner.** Wraps the official Anthropic Ruby SDK's tool runner. It
 builds the message list from the conversation (last 30 turns, oldest
@@ -1101,6 +1206,8 @@ and reservations, and deleting a conversation deletes its messages, turns,
 trace events and usage records, while a reservation outlives its turn
 (FR-05, FR-15). Check constraints keep
 stock and price at or above zero and a reservation's quantity above zero.
+A stored Telegram update keeps its payload only until its job has read it,
+then its `update_id` and its kind (FR-19).
 `trace_event.span_attributes` is ADR-0010's `attributes` (a name Active
 Record keeps for itself); `usage_record` carries the model and the cache
 writes apart from the reads (`cached_tokens`), since FR-14 prices them
@@ -1133,6 +1240,13 @@ committed as `docs/openapi.yaml`):
 the holder of the visitor cookie), `trace:<token>` (read-only trace page),
 `calendar` (public bookings list, FR-08).
 
+**Telegram Bot API, the methods the application calls** (one client class,
+which exposes no other; FR-19, ADR-0017): `sendMessage` and
+`sendChatAction` in a turn; `setWebhook`, `getWebhookInfo`,
+`setMyCommands`, `setMyName`, `setMyDescription` and
+`setMyShortDescription` in the task that sets the bot; `getFile` from M4
+(FR-11).
+
 **Tools exposed to the model** (names are part of the evals):
 `get_store_info(topic)`, `search_products(query, limit)`,
 `create_reservation(product_id, quantity)`, `list_slots(service, days)`,
@@ -1148,8 +1262,11 @@ engineering section with links), `/chat` (chat + trace panel side by side;
 on narrow screens the panel is a drawer), `/trace/:token`, `/trace/exhibit-:n`
 (the committed files of FR-22, rendered by the same component, never
 fetched from the API), `/privacy` (one screen, trilingual: fictional demo,
-seven-day retention, the delete command, the processors named, Telegram
-for the bot and, once Turnstile ships, Cloudflare; it is the bot's own
+seven-day retention, the delete command and what it does not reach, the
+copy of the chat in the visitor's own Telegram, the processors named, the
+model provider, Telegram for the bot and, once Turnstile ships,
+Cloudflare, and that a web conversation may become a rewritten,
+unidentified test case while a Telegram one never does; it is the bot's own
 privacy policy, set in BotFather, which Telegram's developer terms require
 and whose standard policy would forbid sending a message to the model,
 ADR-0016, so it exists from the MVP),
@@ -1404,7 +1521,7 @@ inside the app.
 ## 7. Security
 
 Specified in `threat-model.md`. Summary of what the architecture commits to:
-signed and deduplicated webhooks; typed tools with server-side validation
+authenticated and deduplicated webhooks; typed tools with server-side validation
 and no code execution; the model never sees secrets, other conversations or
 raw identities; rate limits and budget caps at three levels; secrets as
 environment variables injected by Kamal from the operator's env file, never
@@ -1450,7 +1567,10 @@ the cloud firewall; dependency and static analysis in CI.
   configurations. On `ensaio` as a rehearsal host (from M3):
   `MODEL_ADAPTER=fake` by default (recorded replies, no key; the status
   page says so), the dev/eval key when a real-model rehearsal is wanted,
-  an empty monitor URL, `X-Robots-Tag: noindex` (`NOINDEX=true`). Visitor
+  an empty monitor URL, `X-Robots-Tag: noindex` (`NOINDEX=true`),
+  throwaway values for the bot token and the webhook secret and no webhook
+  registered (a bot has one webhook, and the demo's stays where the demo
+  is). Visitor
   data on a rehearsal host exists until the host is destroyed and is never
   backed up off-host. **On `ensaio` as the MVP host** (until M3):
   `APP_HOST=balcao.rafasouza.dev.br`, `MODEL_ADAPTER=real` with the
@@ -1499,8 +1619,10 @@ the cloud firewall; dependency and static analysis in CI.
   M3): the operator checklist for production (workstation
   requirements of SR-37, the pinned `kamal` version, fetch, review the
   deploy-path diff, fast-forward, `kamal deploy`, post-deploy smoke), roll
-  back, rotate the model key, rotate the bot token, force a mode, restore
-  from backup, reset the demo, and what to do when the canary fails.
+  back, rotate the model key, rotate the bot token and the webhook secret,
+  set the bot (the task of FR-19 and the BotFather checklist), force a
+  mode, restore from backup, reset the demo, and what to do when the
+  canary fails.
 
 ---
 
@@ -1511,7 +1633,7 @@ session implementing with the owner reviewing pull requests. The estimates
 are the specification's, carry their slack inside the number, and are
 checked against reality: every slice's handoff records the estimate and the
 actual hours, and the next slice's estimate is corrected from that table,
-not from feel. The whole plan is about 39 days; the first twelve are the
+not from feel. The whole plan is about 40 days; the first twelve are the
 MVP, which is showable on the web at day 10 and on Telegram at day 12.
 
 ### 9.1 The MVP (days 1–12)
@@ -1539,7 +1661,7 @@ gitleaks), specs citing their ids, `bin/evals` live with the scorecard run
 locally on the normal model and committed by hand; SR-01, SR-02 (pause
 only), SR-03 (cookie, Origin, CSP without a third party), SR-04, SR-05,
 SR-06, SR-07, SR-09, SR-10 (SR-08 retired, ADR-0016), SR-11, SR-12, SR-16, SR-17, SR-20, SR-25 (gitignore, scan,
-boot check), SR-27, SR-28, SR-30, SR-32, SR-34, SR-36, SR-41 and the `bin/deploy`
+boot check), SR-27, SR-28, SR-30, SR-32, SR-34, SR-36, SR-41, SR-42, SR-43 and the `bin/deploy`
 guard spec of SR-38, with tests; the lean review policy of ADR-0013 on
 every pull request.
 
@@ -1557,8 +1679,8 @@ every pull request.
 | 8 | PR-13 `create_reservation` keyed by the turn and the product (NFR-02), the limits and the prescription refusal (FR-07), with the drawings' reason code and their FR-07 question (§10, note 2026-11-12) · PR-14 `bin/evals` live runner, the suites `greeting`, `language`, `store`, `catalogue`, `reservation`, `boundary`, `memory` on the normal model, the first scorecard | A reservation code in the chat; the boundary measured |
 | 9 | PR-15 boundary prompt iteration to 100 %, the fixed offer line, the decline texts in three locales · PR-16 the budget ledger with the monthly cap's pause (FR-14), the nightly job (FR-15), log masking (SR-30), and the cost, rate and mode the drawings ask for, the price table's cache-write column included (§10, note 2026-11-12; done as §10, note 2026-11-14 on PR-16, says) | Wallet fenced; the demo honest about the boundary |
 | 10 | PR-17 `/privacy` page, the QR placeholder on the landing, README sixty-second tour (written ahead of its day, §10, note 2026-11-14; kept true here), design and README status lines made true, the hours table in the handoff | **Web demo showable** |
-| 11 | PR-18 Telegram inbound (ADR-0016): the webhook with the `X-Telegram-Bot-Api-Secret-Token` header compared in constant time before parsing (SR-06), the update persisted keyed by its `update_id` and each message by its chat id and message id, 200 within 2 s, processing through `ProcessTurnJob` (SR-07, SR-09), identity `sha256(pepper ‖ Telegram user id)` (SR-10, FR-19), visitors' words encrypted at rest (SR-41), the channel value `whatsapp` renamed `telegram`, tests against the update payloads recorded from the demo bot | Inbound messages traced on the host |
-| 12 | PR-19 Telegram outbound: the Bot API client with timeouts, `sendMessage` replies to the chat that wrote, the `/trace` reply with the tokenised link, the QR on the landing (the bot's `t.me` link) and the landing's stack line, the system prompt's sentence about the channel, the bot token and the webhook secret as Kamal env secrets, `setWebhook` as a runbook step; the owner creates the bot in BotFather and sets `/privacy` as its privacy policy; the first real conversation from the test customer's phone · slack | **J2 minus voice, live** |
+| 11 | PR-18 Telegram inbound (ADR-0016, ADR-0017): the webhook with the `X-Telegram-Bot-Api-Secret-Token` header compared in constant time before parsing (SR-06), the update persisted keyed by its `update_id`, answered 200 within 2 s whatever it holds, stripped once read and purged at seven days (SR-07, SR-09, FR-15), each message keyed by its chat id and message id and processed through `ProcessTurnJob`, private chats and `message` updates alone (SR-42), identity `sha256(pepper ‖ Telegram user id)` and the first conversation's language from the app's (SR-10, FR-19), `/start` and `/help` in `config/commands.yml` with their fixed texts, the fixed lines for a message that is not text and for one over 1,000 characters, the limits of FR-14 by the visitor's identity, visitors' words encrypted at rest (SR-41), the channel value `whatsapp` renamed `telegram`, tests against the update payloads recorded from the demo bot | Inbound messages traced on the host |
+| 12 | PR-19 Telegram outbound: the Bot API client with timeouts and the methods of §6.6 alone, `sendMessage` replies to the chat that wrote, in plain text with link previews off (SR-43), the typing status while a turn runs, the retry on 429 and the split at 4,096 characters, the `/trace` reply with the tokenised link, the task that sets the webhook, the command menu and the profile in three languages from tracked files, the QR on the landing (the bot's `t.me` link) and the landing's stack line, the system prompt's sentence about the channel, the bot token and the webhook secret as Kamal env secrets, the runbook's BotFather checklist and its smoke over `getWebhookInfo`; the owner creates the bot in BotFather, keeps it out of groups and sets `/privacy` as its privacy policy; the first real conversation from the test customer's phone · slack | **J2 minus voice, live** |
 
 The slack is one day spread over the plan and is expected to be spent on
 the first deploy (day 2) and on the boundary at 100 % (day 9); if both go
@@ -1572,12 +1694,12 @@ the order below. Each is shippable; "days" is the unit above.
 
 | Order | Milestone | Scope (what remains after the MVP) | Days | Done when |
 |---|---|---|---|---|
-| 1 | M4 Voice | FR-11 voice notes with the ADR-0005 measurement recorded as ADR-0014; the portable QR card for profiles | 2 | J2 works with a voice note on the demo bot |
-| 2 | M2 Pharmacy work, complete | SR-39 Turnstile (the first slice, ADR-0012); FR-20 guardrail with the two must-not-replace cases and the fixed-reply unit suite (SR-18); FR-08 + bookings list + `calendar` stream, FR-15's slot step; FR-10 state machine with presence toggle + push (SR-35); FR-16 console with auth, lockout, block list, "copy trace as JSON" and "turn into eval case"; FR-09 on the economy model and `economy_allowed` committed; `injection` suite at 10 cases in the seven families; the first full eval run (`workflow_dispatch`, the `evals` environment) and committed scorecard with the unstable count; `bin/traceability` report at milestone close | 10 | J3 works; boundary suite at 100 % on both models |
+| 1 | M4 Voice, and the bot's finish | The bot's finish, as the first slice (ADR-0017, FR-19): the button that copies a reservation code, FR-21's openers as a reply keyboard under the greeting, the button that opens the trace; FR-11 voice notes with the ADR-0005 measurement recorded as ADR-0014; the portable QR card for profiles | 2.5 | J2 works with a voice note on the demo bot, and the bot's three buttons do their work on the owner's phone |
+| 2 | M2 Pharmacy work, complete | SR-39 Turnstile (the first slice, ADR-0012); FR-20 guardrail with the two must-not-replace cases and the fixed-reply unit suite (SR-18); FR-08 + bookings list + `calendar` stream, FR-15's slot step, the offered slots as a reply keyboard on Telegram (ADR-0017); FR-10 state machine with presence toggle + push (SR-35), the operator's alert through the bot weighed against a push service (ADR-0017); FR-16 console with auth, lockout, block list, "copy trace as JSON" and "turn into eval case"; FR-09 on the economy model and `economy_allowed` committed; `injection` suite at 10 cases in the seven families; the first full eval run (`workflow_dispatch`, the `evals` environment) and committed scorecard with the unstable count; `bin/traceability` report at milestone close | 10 | J3 works; boundary suite at 100 % on both models |
 | 3 | M3 Operation | FR-13 status page + live strip (cached), with the sources the drawing still lacks (§10, note 2026-11-12); FR-14 modes + daily slice + kill switch + operator notification; FR-17 in-process canary; resource limits in Kamal; nightly `pg_dump` and one restore drill into a throwaway container in the operator account; runbook completed (operator checklist with SR-37, the SR-38 deploy-path review and SR-27's kamal-proxy put on the host by its digest before `kamal deploy`, as `bin/deploy` does, roll back, rotations, modes, restore, reset, canary failure, the per-slice rehearsal flow with the Certificate Transparency count, which also checks that every certificate logged for the domain's names came from Let's Encrypt, since the domain's DNS service offers no CAA record); the visitor cookie renamed `__Host-balcao_visitor` (threat model R7), a clean cut with no migration, since the MVP host's data dies with it; `docs/traceability.yml`; threat-model verification table filled; the two-account deploy of ADR-0011: production host created by the owner from `ops/cloud-init.yml`, the demo name moved to it, the MVP host destroyed, `ensaio.rafasouza.dev.br` on the reserved IP, the bot token reissued for the production set; the CI furniture: `bin/evals --recorded` over the `fast` subset with recordings, the NFR-10 gate, the SimpleCov ratchet, actionlint, the static secrets check, the `.kamal/hooks` absence check, rswag OpenAPI | 10 | Shipped on the production host, then the soak passes after 7 consecutive days with canary success ≥ 99 % (NFR-04), no manual restart or deploy, spend within projection, a nightly dump present every night, and one restore drill from a production dump into a throwaway container in the operator account; a failed day restarts the week |
-| 4 | M5 Polish | FR-22 static exhibits (three committed trace files); FR-23 referrers; landing copy in both registers and three languages with FR-25; Spanish review pass; README sixty-second tour with links to five files (webhook secret check, reservation idempotency test, model policy, boundary eval cases, deploy config), 8-second GIF, social preview image, 30-second video; scorecard at 60 cases (15 `injection`); NFR-10 gate over all six public pages; traceability gate on in CI; an "OWASP LLM Top 10" column in the threat model's SR table; ADR review; the review policy revisited with the PR records (ADR-0013) | 5 | A stranger completes J1 without help |
+| 4 | M5 Polish | FR-22 static exhibits (three committed trace files); FR-23 referrers, the bot's deep-link parameter among them; landing copy in both registers and three languages with FR-25; Spanish review pass; README sixty-second tour with links to five files (webhook secret check, reservation idempotency test, model policy, boundary eval cases, deploy config), 8-second GIF, social preview image, 30-second video; scorecard at 60 cases (15 `injection`); NFR-10 gate over all six public pages; traceability gate on in CI; an "OWASP LLM Top 10" column in the threat model's SR table; ADR review; the review policy revisited with the PR records (ADR-0013) | 5 | A stranger completes J1 without help |
 
-Total: 12 + 2 + 10 + 10 + 5 = 39 days, plus the soak's calendar week.
+Total: 12 + 2.5 + 10 + 10 + 5 = 39.5 days, plus the soak's calendar week.
 The owner creates the bot in BotFather before day 11. Meta's lane (number
 registered, display name, Live mode) closed on 2026-11-14 (ADR-0016).
 
@@ -1587,42 +1709,82 @@ registered, display name, Live mode) closed on 2026-11-14 (ADR-0016).
 
 Tracked here until resolved; each resolution becomes an ADR or an edit.
 
-- Note 2026-11-14 (ADR-0016; FR-19 and what follows it). The setup on
-  Meta's side did not go through, and WhatsApp's business policy rules out
-  a pharmacy without a licence. The same day, after a survey kept outside the repository, the owner
-  decided that Telegram's Bot API replaces the WhatsApp Cloud API; ADR-0016
-  gives the options, the rules that closed the official WhatsApp route and
-  the sources. This document follows it:
+- Note 2026-11-14 (ADR-0016 and ADR-0017; FR-19 and what follows it). The
+  setup on Meta's side did not go through, and WhatsApp's business policy
+  rules out a pharmacy without a licence. The same day, after a survey kept
+  outside the repository, the owner decided that Telegram's Bot API
+  replaces the WhatsApp Cloud API; ADR-0016 gives the options, the rules
+  that closed the official WhatsApp route and the sources. A second survey,
+  of the Bot API's reference and of the platform's guides and terms, went
+  through what the platform offers a bot; ADR-0017 gives the rule that
+  decides what the bot uses of it, what the rule lets in and what it keeps
+  out. This document follows both:
   - **§1 to §3:** the opening line, the audiences, the vocabulary, §1.4
     (Telegram has no service window), G1, the §2.2 non-goals (no proactive
     messages, which Telegram now enforces; no WhatsApp, Instagram or
-    Signal) and J2, which starts with Start in Telegram.
-  - **Requirements:**
-    - FR-05 counts and deletes by the Telegram user id.
+    Signal; on Telegram, a private chat in text and no more) and J2, which
+    starts with the bot's description and Start in Telegram.
+  - **FR-19** is rewritten for the Bot API, in five parts:
+    - **The bot is set from the repository.** One task registers the
+      webhook and writes the command menu and the profile, in the three
+      languages, from tracked files; BotFather keeps what it alone has.
+    - **Inbound:** the secret header, `update_id`, the stored update
+      stripped once read, private chats and `message` updates alone,
+      identity by the user id, the first conversation in the language of
+      the visitor's app.
+    - **What each message gets:** a text is a turn; `/start` and `/help`
+      are fixed replies, which Telegram requires of every bot; a photo, a
+      sticker or, before M4, a voice note gets one fixed line, since
+      Telegram asks a bot to answer every message.
+    - **Outbound:** plain text with link previews off, the typing status,
+      the retry on Telegram's 429.
+    - **After the MVP:** three buttons at M4, the slots at M2, the visit's
+      source at M5.
+  - **The other requirements:**
+    - FR-05 counts and deletes by the Telegram user id, and its
+      confirmation says what the command does not reach: the copy of the
+      chat in the visitor's own app.
     - FR-10 keeps the operator's 24 hours as the project's own rule, since
       the bot never writes to a visitor who has gone quiet.
     - FR-11 fetches the audio by file id.
     - FR-12 gives the trace link on Telegram.
-    - FR-19 is rewritten for the Bot API.
-    - NFR-02 keys a Telegram message by its chat id and message id.
+    - FR-15's purge takes the stored updates.
+    - FR-16 offers "turn into eval case" on web conversations only.
+    - FR-18 matches `/help` and `/start` too.
+    - FR-21 and FR-23 say what their Telegram side is and when it ships
+      (M4, M5).
+    - NFR-02 keys a Telegram message by its chat id and message id, and
+      names the one duplicate it accepts: a send whose answer was lost.
+    - NFR-03 has the typing status beside "pensando…".
   - **§6:**
-    - the context diagram, the folder tree and the transport port;
-    - `webhook_event.update_id` (§6.5);
-    - the route `/webhooks/telegram` (§6.6);
-    - `/privacy` as the bot's own privacy policy (§6.7);
+    - the context diagram, the folder tree and the transport port, which
+      gains the sign that a reply is on its way;
+    - `webhook_event.update_id` and the stripped update (§6.5);
+    - the route `/webhooks/telegram` and the Bot API methods the
+      application calls, a closed list (§6.6);
+    - `/privacy` as the bot's own privacy policy, with what the delete
+      command does not reach and which conversations may become a test
+      case (§6.7);
     - the landing's QR, its stack line and the console's channel label
       (§6.8);
     - encryption at rest for a visitor's words (§6.9, SR-41).
   - **§8 and the runbook:** the bot token and the webhook secret take the
-    Meta values' place.
+    Meta values' place; a rehearsal host carries throwaway ones and
+    registers no webhook; the runbook gains the task that sets the bot and
+    the BotFather checklist.
   - **§9:**
     - days 11 and 12 are rewritten;
+    - M4 opens with the bot's finish and grows by half a day, so the plan
+      is 39.5 days;
     - M4 drops the Meta policy pass: its 18+ line came from WhatsApp's
       policy on over-the-counter medicine, and Telegram's developer terms
       have no such rule. M4 now ends on the demo bot;
+    - M2 has the slots as a reply keyboard and weighs the operator's alert
+      through the bot;
     - M3 reissues the bot token;
-    - M5's tour links the webhook secret check;
-    - §12 renames FR-19.
+    - M5's tour links the webhook secret check, and its FR-23 reads the
+      bot's deep link;
+    - §11 gains V2-6, streamed replies on both channels, and §12 follows.
   - **Earlier notes:** the earlier notes of this section that speak of
     Meta, the BSUID, the phone number, status notifications or the 24-hour
     window stay as written. Where one gives PR-18 or PR-19 an instruction,
@@ -1630,8 +1792,8 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     - the user id where it says BSUID;
     - no phone number, since the bot never asks for one;
     - no status notifications to deduplicate;
-    - the stripping of review finding RN3 of pull request #7 applies to the
-      update's text, sender and chat.
+    - the stripping of review finding RN3 of pull request #7 keeps a
+      stored update's `update_id` and its kind, and nothing else.
 
     Where Telegram has no counterpart, the slice drops the instruction.
   - **Left to the code slices:** the code, the specs and `.env.example`
@@ -1641,12 +1803,21 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     - the system prompt's sentence on plain text;
     - the landing's stack line in the three locale files;
     - the `META_*` names.
-  - **The drawings:** `docs/prototype/` still shows WhatsApp on the
-    landing's receipt and stack line, on the privacy page and in a note of
-    the trace page. PR-17 redraws the privacy page, and PR-19 the landing's
-    receipt, before building them.
-  - **Open, the owner's call:** FR-25's offer still lists "WhatsApp number
-    and Business Manager" in the setup it sells to clients.
+
+    The same slices write what is new: `start` and `help` in
+    `config/commands.yml`, and in the locale files the bot's greeting, its
+    help, its fixed lines, its menu and its profile.
+  - **The drawings and the bot's texts:** `docs/prototype/` still shows
+    WhatsApp on the landing's receipt and stack line, on the privacy page
+    and in a note of the trace page. PR-17 redraws the privacy page with
+    §6.7's sentences, and PR-19 the landing's receipt, with one line
+    saying why the demo talks on Telegram, before building them. The
+    session cannot open Telegram's apps, so the bot's texts are read in
+    the three languages in their pull request, and what the bot looks
+    like is checked on the owner's phone after the deploy, on day 12 and
+    at M4's finish; no pull request waits for it.
+  - **FR-25's offer is unchanged (the owner, 2026-11-14):** what it sets
+    up for a client is the client's channel, not the demo's.
 - Note 2026-11-14 (PR-16; FR-12, FR-14, FR-15, NFR-05, SR-02, SR-30, SR-31;
   ADR-0003, ADR-0012). The budget's ledger with the monthly cap's pause, the
   nightly job, the logs, and the cost, rate and mode the drawings ask for,
@@ -3168,6 +3339,13 @@ days, low priority.
 
 **V2-4 Week-grid calendar** if the list (FR-08) proves insufficient.
 
+**V2-6 Replies streamed as they are written, on both channels** (ADR-0017
+keeps them out of V1). The web chat over its cable and Telegram with
+message drafts. It needs the model called in streaming through the tool
+loop, a guardrail (FR-20) that judges a text before it is whole or a
+design that shows only what has been checked, and an ADR of its own; on
+Telegram the stop button is one more kind of update (threat model SR-42).
+
 ## 12. Requirement index
 
 | Id | Title | Milestone |
@@ -3190,9 +3368,9 @@ days, low priority.
 | FR-16 | Operator console | M2 |
 | FR-17 | Canary (in-process) | M3 |
 | FR-18 | Web channel | MVP (Turnstile at M2, first slice) |
-| FR-19 | Telegram channel (ADR-0016) | MVP |
+| FR-19 | Telegram channel (ADR-0016, ADR-0017) | MVP (the bot's finish at M4) |
 | FR-20 | Guardrail check | M2 |
-| FR-21 | Prefilled openers | MVP |
+| FR-21 | Prefilled openers | MVP (on Telegram at M4) |
 | FR-22 | Exhibit traces (committed files) | M5 |
 | FR-23 | Referrer counting | M5 |
 | FR-24 | Intent mix (retired, §11 V2-5) | — |
