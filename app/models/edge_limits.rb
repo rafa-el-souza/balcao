@@ -46,10 +46,21 @@ module EdgeLimits
     count(limit, discriminator) > limit.limit
   end
 
+  # A cache that cannot count (its database down, Solid Cache answering nil
+  # and false) lets the event through uncounted, and the log names the limit,
+  # never the source: the month's budget cap still bounds the spend (FR-14;
+  # review finding C4 of pull request #12, the owner's decision of
+  # 2026-11-14). Before, every API request answered 500.
   def count(limit, discriminator)
     store = Rack::Attack.cache.store
     key = "limits:#{limit.name}:#{discriminator}"
-    store.increment(key, 1, expires_in: limit.period) || (store.write(key, 1, expires_in: limit.period) && 1)
+    store.increment(key, 1, expires_in: limit.period) || (store.write(key, 1, expires_in: limit.period) && 1) ||
+      uncounted(limit)
+  end
+
+  def uncounted(limit)
+    Rails.logger.warn("limits: #{limit.name} not counted: the cache did not answer")
+    0
   end
 
   # --- Which requests count (Rack::Attack's request, a Rack::Request) --------
