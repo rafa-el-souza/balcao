@@ -31,7 +31,9 @@ module Balcao
       tags = []
       current_tags.each do |tag|
         name, value = tag.to_s.match(FIELD)&.captures
-        name ? entry[name] = value : tags << text(tag.to_s)
+        # A field's value is written as a message is, masked and scrubbed
+        # (review findings V3 and L4 of pull request #32).
+        name ? entry[name] = text(value) : tags << text(tag.to_s)
       end
       entry["tags"] = tags if tags.any?
       entry["message"] = message_of(message)

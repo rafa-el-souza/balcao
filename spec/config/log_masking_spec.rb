@@ -145,6 +145,15 @@ RSpec.describe "SR-30 NFR-05 the log: an error by its class alone, one JSON obje
                                     "level" => "WARN", "message" => "budget: paused")
     end
 
+    # Review findings V3 and L4 of pull request #32: a field's value is
+    # written as a message is, masked and scrubbed.
+    it "masks a bot's token and scrubs bytes that are not UTF-8 in a name=value tag's value too (SR-30)" do
+      token = "7341200001:AAH-invented_token_for-the-log-spec01"
+      json_logger.tagged("request_id=#{token}", "path=raw \xFF".dup.force_encoding(Encoding::BINARY)) { json_logger.info("x") }
+
+      expect(lines.sole).to include("request_id" => "[FILTERED]", "path" => "raw �")
+    end
+
     it "keeps a message of several lines, a backtrace's, in one line of the log" do
       json_logger.tagged("request_id=3f1c") { json_logger.error("RuntimeError ([FILTERED]):\napp/x.rb:1\napp/y.rb:2") }
 
