@@ -141,6 +141,28 @@ RSpec.describe "FR-15 SR-31 the nightly reset and the seven-day purge" do
       expect(TraceEvent.where(id: old_span.id)).to be_empty
     end
 
+    # Review finding V1 of pull request #32: an image before PR-18 (one the
+    # deploy's window still runs, or one returned to) writes bodies in plain
+    # text, which the migration that encrypted the stored ones never visits
+    # again; the night encrypts them (SR-41).
+    it "encrypts the bodies an image before PR-18 wrote in plain text, and leaves the encrypted ones as they were" do
+      conversation = create(:conversation)
+      plain = SecureRandom.uuid
+      Message.connection.execute(Message.sanitize_sql([ <<~SQL.squish, plain, conversation.id ]))
+        INSERT INTO messages (id, conversation_id, channel, direction, author, source, body, created_at, updated_at)
+        VALUES (?, ?, 'web', 'inbound', 'visitor', 'text', 'escrito em texto puro', now(), now())
+      SQL
+      encrypted = message(conversation, at: three_am - 1.hour, text: "cifrado")
+      stored = ->(id) { Message.connection.select_value(Message.sanitize_sql([ "SELECT body FROM messages WHERE id = ?", id ])) }
+      before = stored.(encrypted.id)
+
+      run
+
+      expect(stored.(plain)).not_to include("texto puro")
+      expect(Message.find(plain).body).to eq("escrito em texto puro")
+      expect(stored.(encrypted.id)).to eq(before)
+    end
+
     # FR-19: a stored Telegram update holds only its id and its kind once read,
     # and goes at seven days, read or not.
     it "deletes the stored Telegram updates older than 7 days, read or not, and keeps the newer" do
@@ -227,7 +249,7 @@ RSpec.describe "FR-15 SR-31 the nightly reset and the seven-day purge" do
     run
 
     expect(Rails.logger).to have_received(:info).with(
-      /\Anightly reset: expired 1 reservations, reset \d+ products; deleted 0 visitors, 0 conversations, 0 messages, 0 turns, 0 spans, 0 usage records, 0 reservations, 0 stored updates, 0 limit counters\z/
+      /\Anightly reset: expired 1 reservations, reset \d+ products; deleted 0 visitors, 0 conversations, 0 messages, 0 turns, 0 spans, 0 usage records, 0 reservations, 0 stored updates, 0 limit counters; encrypted 0 plain bodies\z/
     )
   end
 

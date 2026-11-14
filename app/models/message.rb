@@ -39,6 +39,18 @@ class Message < ApplicationRecord
   validates :channel, inclusion: { in: Visitor::CHANNELS.values }
   validates :body, presence: true
 
+  # Encrypts in place the bodies an image before PR-18 wrote in plain text,
+  # for the nightly job (threat model SR-41; review finding V1 of pull request
+  # #32), and answers how many. Only a row's stored value is read to tell.
+  def self.encrypt_plain_bodies
+    find_each.count do |message|
+      next false if message.encrypted_attribute?(:body)
+
+      message.encrypt
+      true
+    end
+  end
+
   # Stores an inbound message keyed by its channel's message id: on Telegram
   # the visitor's row and Telegram's message id, which is counted per chat
   # (FR-19), and on the web the id the client generates for each message, so

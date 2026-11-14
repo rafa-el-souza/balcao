@@ -1,6 +1,6 @@
 # FR-15: every day at 03:00 São Paulo (config/recurring.yml) the fictional
 # data is rebuilt and what passed its seven days is deleted (threat model
-# SR-31, the privacy page), in three steps, each safe to run again, so a run
+# SR-31, the privacy page), in four steps, each safe to run again, so a run
 # retried after failing midway ends as one clean run would:
 #
 # 1. reservations past their pickup deadline expire; their units come back
@@ -16,7 +16,9 @@
 #    under an IP address or an identity's hash (EdgeLimits.purge; design §10,
 #    note of 2026-11-14, PR-17);
 # 3. the catalogue returns to the seed, its stock less the units that open
-#    reservations hold (CatalogueSeed), counted after the purge.
+#    reservations hold (CatalogueSeed), counted after the purge;
+# 4. a message body an image before PR-18 wrote in plain text is encrypted
+#    (threat model SR-41; review finding V1 of pull request #32).
 #
 # The month's spend is the budget's row, which no step touches (FR-14).
 # Bookings' slots join at M2. The log line counts, and names nothing.
@@ -32,8 +34,9 @@ class NightlyResetJob < ApplicationJob
     expired = Reservation.open.where(pickup_until: ..now).update_all(state: "expired", updated_at: now)
     deleted = purge(now - RETENTION)
     reset = CatalogueSeed.seed!
+    encrypted = Message.encrypt_plain_bodies
     Rails.logger.info("nightly reset: expired #{expired} reservations, reset #{reset} products; deleted " +
-                      deleted.map { |name, count| "#{count} #{name}" }.join(", "))
+                      deleted.map { |name, count| "#{count} #{name}" }.join(", ") + "; encrypted #{encrypted} plain bodies")
   end
 
   private

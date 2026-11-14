@@ -42,6 +42,13 @@ RSpec.describe "SR-41 the messages stored in plain text before PR-18 are encrypt
       .to eq("chegou durante o deploy")
   end
 
+  # Review finding V1 of pull request #32: rolling it back would only look
+  # undone, the bodies staying encrypted for code that cannot read them.
+  it "cannot be rolled back, since the bodies stay encrypted" do
+    expect { ActiveRecord::Migration.suppress_messages { EncryptMessageBodies.new.down } }
+      .to raise_error(ActiveRecord::IrreversibleMigration, /SR-41/)
+  end
+
   it "leaves a body already encrypted as it was, and can run again" do
     encrypted = create(:message, conversation:, body: "Temos, sim.")
     before = stored(encrypted.id)
