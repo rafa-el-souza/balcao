@@ -226,7 +226,7 @@
       "record": "The technical record of each reply: the model, the tools, the time and the cost. It is what the glass box shows, and how the demo keeps its own spending in check.",
       "web": "On the website, an identifier of your browser, in a cookie, to recognise your conversation and delete everything of yours at once. The server keeps only a fingerprint of it (a hash), not the identifier. Another cookie keeps the language you choose.",
       "telegram": "On Telegram, an identifier derived from your account, for the same purpose; the chat's number, encrypted, to send the replies; and the time you agreed. Telegram also sends the bot your name, your username and your app's language: the language picks the language of the first reply, and the rest is discarded right after it is read. The bot does not ask for your phone number.",
-      "ip": "On the website, the IP address of each visit, to count the usage limits that protect the demo from abuse. The server's technical records (the logs) note that address and your browser's identification. On Telegram, it is Telegram itself that talks to the server, and your IP never reaches Balcão."
+      "ip": "On the website, the IP address of whoever is chatting, to count the usage limits that protect the demo from abuse. The server's technical records (the logs) note the address and the browser's identification of each visit. On Telegram, it is Telegram itself that talks to the server: your IP reaches Balcão only if you open a link to the website, such as the trace's."
     },
     "agreement": {
       "title": "On Telegram, the bot asks first",

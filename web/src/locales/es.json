@@ -226,7 +226,7 @@
       "record": "El registro técnico de cada respuesta: el modelo, las herramientas, el tiempo y el costo. Es lo que muestra la caja de cristal, y con él la demostración controla su propio gasto.",
       "web": "En el sitio, un identificador de tu navegador, en una cookie, para reconocer tu conversación y borrar todo lo tuyo de una vez. El servidor guarda solo una huella de él (un hash), no el identificador. Otra cookie guarda el idioma que elijas.",
       "telegram": "En Telegram, un identificador derivado de tu cuenta, con el mismo fin; el número del chat, cifrado, para enviar las respuestas; y la hora en que aceptaste. Telegram también le envía al bot tu nombre, tu nombre de usuario y el idioma de la aplicación: el idioma elige la lengua de la primera respuesta, y lo demás se descarta apenas se lee. El bot no pide tu teléfono.",
-      "ip": "En el sitio, la dirección IP de cada acceso, para contar los límites de uso que protegen la demostración del abuso. Los registros técnicos del servidor (los logs) anotan esa dirección y la identificación del navegador. En Telegram, quien habla con el servidor es el propio Telegram, y tu IP no llega a Balcão."
+      "ip": "En el sitio, la dirección IP de quien conversa, para contar los límites de uso que protegen la demostración del abuso. Los registros técnicos del servidor (los logs) anotan la dirección y la identificación del navegador de cada acceso. En Telegram, quien habla con el servidor es el propio Telegram: tu IP solo llega a Balcão si abres un enlace del sitio, como el del trace."
     },
     "agreement": {
       "title": "En Telegram, el bot pregunta antes",

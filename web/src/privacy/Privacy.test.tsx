@@ -206,6 +206,23 @@ describe("Design §6.7 the privacy page says what the server really keeps", () =
   });
 });
 
+// Review finding C2: the bot sends links to the site (the trace's, the privacy
+// page's), and opening one reaches the server from the visitor's own device.
+describe("FR-19 the privacy page on what reaches the server from Telegram", () => {
+  it("says a Telegram visitor's IP reaches the site when they open one of its links", () => {
+    renderPage(<Privacy />);
+
+    expect(text()).toContain(plain(pt.kept.ip));
+    expect(pt.kept.ip).toMatch(
+      /o seu IP só chega ao Balcão se você abrir um link do site/,
+    );
+    expect(en.privacy.kept.ip).toMatch(
+      /only if you open a link to the website/,
+    );
+    expect(es.privacy.kept.ip).toMatch(/abres un enlace del sitio/);
+  });
+});
+
 describe("FR-25 the privacy page's contact and signature", () => {
   it("names the person responsible and the e-mail for any request", () => {
     renderPage(<Privacy />);
