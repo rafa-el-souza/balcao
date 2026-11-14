@@ -1,0 +1,62 @@
+/* The privacy page: the counter's own voice, one column (docs/prototype/styles.css, "The privacy
+   page" and "On a wide window the one block of a page"). */
+
+.page {
+  --page-pad: max(var(--space-6), calc((100vw - var(--page-max)) / 2));
+  padding: 0 var(--page-pad) var(--space-12);
+}
+
+.prose {
+  max-width: var(--measure);
+  padding: var(--space-8) 0 0;
+}
+
+.prose h1 {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-xl);
+  font-weight: 500;
+  letter-spacing: -0.022em;
+  line-height: var(--leading-tight);
+}
+
+.prose h2 {
+  margin: var(--space-8) 0 var(--space-2);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.prose p,
+.prose ul {
+  margin: 0 0 var(--space-3);
+}
+
+.prose ul {
+  padding-left: 1.2em;
+}
+
+.prose code {
+  font-family: var(--font-instrument);
+  font-size: var(--text-sm);
+}
+
+.advice {
+  margin: var(--space-6) 0;
+}
+
+.colophon {
+  max-width: var(--measure);
+  margin-top: var(--space-12);
+  padding-top: var(--space-4);
+  border-top: var(--rule-hairline);
+}
+
+/* On a wide window the column of text stands in the middle; what is inside it keeps its own
+   alignment. */
+@media (width >= 60rem) {
+  .prose,
+  .colophon {
+    margin-inline: auto;
+  }
+}

@@ -104,7 +104,7 @@ describe("FR-25 the landing's contact and signature", () => {
       LINKEDIN_URL,
     );
     expect(
-      footer.getByRole("link", { name: ptBR.landing.signature.email }),
+      footer.getByRole("link", { name: ptBR.signature.email }),
     ).toHaveAttribute("href", MAILTO);
   });
 
@@ -127,6 +127,37 @@ describe("FR-25 the landing's contact and signature", () => {
       DOCUMENTS.threats,
       DOCUMENTS.evals,
     ]);
+  });
+});
+
+// The stack names the channel the project uses, Telegram's Bot API, since
+// WhatsApp's business policy rules out the demo's pharmacy (ADR-0016). Moved
+// forward from PR-19, so the web demo shown from day 10 agrees with its own
+// privacy page (design §10, note 2026-11-14, PR-17).
+describe("FR-19 the landing's stack names the bot's channel", () => {
+  it("lists the Telegram Bot API, and WhatsApp nowhere, in each language", () => {
+    for (const locale of ["pt-BR", "en", "es"] as const) {
+      const { unmount } = renderPage(<Landing />, locale);
+
+      expect(screen.getByText("Telegram Bot API")).toBeInTheDocument();
+      expect(document.body.textContent).not.toMatch(/WhatsApp/);
+      unmount();
+    }
+  });
+});
+
+// The privacy page is reached from the landing's warning, the stamp that says
+// how long messages are kept (docs/prototype/landing.html; design §6.7).
+describe("Design §6.7 the landing leads to the privacy page", () => {
+  it("links the privacy page from its warning, in the page's language", () => {
+    renderPage(<Landing />, "en");
+    const warning = screen
+      .getByText(en.landing.warning.label)
+      .closest("p") as HTMLElement;
+
+    expect(
+      within(warning).getByRole("link", { name: en.privacy.link }),
+    ).toHaveAttribute("href", "/privacy");
   });
 });
 

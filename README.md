@@ -150,7 +150,8 @@ are the project's own. What each holds:
   files, the cloud-init file and the CI. Each test says first which
   requirement or design section it proves.
 - [`web/`](web) — the React and TypeScript app: `src/chat/` is the chat and
-  the glass box, `src/trace/` the trace page, `src/landing/` the landing.
+  the glass box, `src/trace/` the trace page, `src/landing/` the landing,
+  `src/privacy/` the privacy page.
   Tests sit beside what they test; `test/` holds the checks on the build as
   a whole.
 - [`evals/`](evals) and [`lib/evals/`](lib/evals) — the conversation's cases,
@@ -204,7 +205,10 @@ pharmacist is a fixed line with the store's phone and hours, every model
 call is charged to the month at a dated price table and shown in the glass
 box in dollars and reais, the demo pauses with a fixed reply at its monthly
 cap, and every night at 03:00 the demo's stock is reset and whatever is older
-than seven days is deleted. See the delivery plan in the design document.
+than seven days is deleted; since day 10 a privacy page, which is also the
+Telegram bot's own policy, says what is kept and what for, for how long, how
+to delete it sooner and who processes it. See the delivery plan in the design
+document.
 
 ## Running locally
 

@@ -55,6 +55,21 @@ RSpec.describe "Design §6.7 the web app's shell is sent fresh on every visit", 
     expect(response).to redirect_to("/trace#Xy7GqR2mN8pLw4Kd9sTzVb3H")
   end
 
+  # The privacy page is the bot's own privacy policy too, the URL the owner
+  # sets in BotFather (FR-19, ADR-0016), so it is a plain page that search and
+  # Telegram's link reach like the landing.
+  it "serves the privacy page at /privacy, with a trailing slash too (design §6.7, FR-19)" do
+    get "/privacy"
+
+    expect(response).to have_http_status(:ok)
+    expect(response.body).to include(%(data-page="privacy"))
+    expect(response.headers["Cache-Control"]).to eq "no-cache"
+    expect(response.headers["X-Robots-Tag"]).to be_nil
+
+    get "/privacy/"
+    expect(response.body).to include(%(data-page="privacy"))
+  end
+
   it "has no shell for a path that is not a page" do
     get "/chats"
 
@@ -124,7 +139,7 @@ RSpec.describe "Design §6.7 the build's pages and the server's routes agree" do
   end
 
   it "routes each page's path to the action of its name" do
-    expect(pages).to include("landing" => "/", "chat" => "/chat", "trace" => "/trace")
+    expect(pages).to include("landing" => "/", "chat" => "/chat", "trace" => "/trace", "privacy" => "/privacy")
     pages.each do |page, path|
       expect(Rails.application.routes.recognize_path(path)).to include(controller: "spa", action: page), path
     end

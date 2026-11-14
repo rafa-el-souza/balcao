@@ -33,7 +33,7 @@
         "React",
         "Postgres",
         "Claude",
-        "WhatsApp Cloud API",
+        "Telegram Bot API",
         "1 VM"
       ],
       "design": "design doc",
@@ -44,13 +44,13 @@
     "warning": {
       "label": "Notice:",
       "text": "this is a demo, and the data is fictional. Messages are kept for 7 days; “delete my data” deletes your data from Balcão."
-    },
-    "signature": {
-      "by": "Made by",
-      "github": "GitHub",
-      "linkedin": "LinkedIn",
-      "email": "e-mail"
     }
+  },
+  "signature": {
+    "by": "Made by",
+    "github": "GitHub",
+    "linkedin": "LinkedIn",
+    "email": "e-mail"
   },
   "chat": {
     "title": "Conversation · Balcão",
@@ -194,7 +194,7 @@
     "heading_one": "Conversation <token>{{token}}</token>, started on {{date}} at {{time}}, with {{count}} turn",
     "heading_other": "Conversation <token>{{token}}</token>, started on {{date}} at {{time}}, with {{count}} turns",
     "loading": "Conversation trace",
-    "share": "Anyone with this link sees this conversation. It stops working 7 days after the last message, or at once if the person deletes their data.",
+    "share": "Anyone with this link sees this conversation. It stops working between 7 and 8 days after the last message, or at once if the person deletes their data.",
     "loadFailed": "I could not load this trace right now. Reload the page in a little while.",
     "total_one": "total · {{count}} turn",
     "total_other": "total · {{count}} turns",
@@ -204,9 +204,67 @@
     "outputTokens": "output tokens",
     "turnsTime": "turns' time",
     "goneHeading": "This conversation is no longer here",
-    "goneNote": "A trace link works for up to 7 days after the last message, and stops working sooner if the person deletes their own data.",
+    "goneNote": "A trace link works for at most 8 days after the last message, and stops working sooner if the person deletes their own data.",
     "startChat": "Start a conversation",
     "home": "Home",
     "roll": "Record of the conversation"
+  },
+  "privacy": {
+    "title": "Privacy · Balcão",
+    "pageName": "privacy",
+    "link": "Privacy",
+    "heading": "Privacy",
+    "what": "Balcão is a portfolio demo. Farmácia Vida Longa does not exist: the products, the prices, the address and the phone number are made up, and nothing the attendant says is health advice. This page covers the website and Balcão's bot on Telegram.",
+    "advice": {
+      "label": "Notice:",
+      "text": "do not write real personal or health data here."
+    },
+    "kept": {
+      "title": "What is kept, and what for",
+      "messages": "The messages you send and the replies, so that the attendant answers remembering what you already said.",
+      "reservations": "The reservations you make, so that they hold until their pickup deadline.",
+      "record": "The technical record of each reply: the model, the tools, the time and the cost. It is what the glass box shows, and how the demo keeps its own spending in check.",
+      "web": "On the website, an identifier of your browser, in a cookie, to recognise your conversation and delete everything of yours at once. The server keeps only a fingerprint of it (a hash), not the identifier. Another cookie keeps the language you choose.",
+      "telegram": "On Telegram, an identifier derived from your account, for the same purpose; the chat's number, encrypted, to send the replies; and the time you agreed. Telegram also sends the bot your name, your username and your app's language: the language picks the language of the first reply, and the rest is discarded right after it is read. The bot does not ask for your phone number.",
+      "ip": "On the website, the IP address of whoever is chatting, to count the usage limits that protect the demo from abuse. The server's technical records (the logs) note the address and the browser's identification of each visit. On Telegram, it is Telegram itself that talks to the server: your IP reaches Balcão only if you open a link to the website, such as the trace's."
+    },
+    "agreement": {
+      "title": "On Telegram, the bot asks first",
+      "text": "On your first message, the bot explains what happens to what you write and shows a button: <strong>I agree</strong>. Until you agree, no model reads what you write, and Balcão drops each message as soon as it is read: all that stays of you is a counter for the usage limits. The delete command withdraws your agreement, and so does the nightly cleanup when it deletes your identifier: the bot then asks again on your next message."
+    },
+    "retention": {
+      "title": "For how long",
+      "intro": "On Balcão's server, a cleanup runs every night, with no one asking:",
+      "items": [
+        "each message is deleted between 7 and 8 days after it was sent, with the technical record of its reply;",
+        "each reservation is deleted between 7 and 8 days after its pickup deadline;",
+        "your identifier is deleted between 7 and 8 days after you last used Balcão, with everything still linked to it."
+      ],
+      "logs": "The logs have no fixed term: they are overwritten as they fill up, and may keep a visit for more than 7 days. The text of the messages never goes into them.",
+      "counters": "The counters of the usage limits have no fixed term either, for now. They are kept apart, under the IP address and the identifier, and do not reset when you delete your data, so that deleting is not a way around the limit.",
+      "totals": "Apart from that, only totals that identify no one stay, such as the month's spending on the model."
+    },
+    "deletion": {
+      "title": "How to delete sooner",
+      "text": "Send <cmd>/delete</cmd> or “delete my data” in the conversation. The messages, the reservations, the technical record of the replies and your identifier are deleted from Balcão at once; only the counters of the usage limits stay, as the section above says. The copies in transit, which carry the replies to the page, are gone within 10 minutes.",
+      "telegram": "On Telegram, the command also withdraws your agreement. The messages still in the chat are your own copy, in your app and on Telegram's servers: Telegram's own option to clear the history deletes them."
+    },
+    "readers": {
+      "title": "Who sees the conversation",
+      "trace": "Anyone with the trace link sees the conversation. The link stops working between 7 and 8 days after the last message, or at once if you delete your data.",
+      "cases": "The demo's operator may read the conversations to fix mistakes. A website conversation in which the attendant gets something wrong may become a test case in the project's public repository: rewritten, in other words, and with nothing that identifies who wrote it. A Telegram conversation never becomes a test case."
+    },
+    "processors": {
+      "title": "Who processes the data",
+      "items": [
+        "Anthropic: the language model, which receives the conversation's text in order to reply.",
+        "Hetzner: the server's hosting, where the database and the logs are.",
+        "Telegram: conversations with the bot go through Telegram's servers, under Telegram's own privacy policy."
+      ]
+    },
+    "contact": {
+      "title": "Contact",
+      "text": "The person responsible for the data is {{name}}. For any request about your data, write to <email>{{email}}</email>."
+    }
   }
 }
