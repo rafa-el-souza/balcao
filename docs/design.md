@@ -1776,13 +1776,19 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     catalogue: 0.2 s at 3,000 products and 0.7 to 1 s at 10,000, on two
     cores.
   - **The test** (`spec/models/product_search_work_spec.rb`) counts the
-    rows the plan reads (EXPLAIN ANALYZE) at 50 and 200 products, under
-    the worst plan the planner may choose: nested loops only, in written
-    order, with no node that keeps an inner side's rows. Two rewrites of
-    this slice were linear only on the planner's good day, one through a
-    hash join and one while the planner kept the query's row aside (it
-    did at 200 products and not at 10,000); the test fails both, and the
-    search it replaces.
+    rows the plan reads (EXPLAIN ANALYZE) at 50 and 200 products, with the
+    planner held to nested loops, to the join tree as written and to no
+    node that keeps an inner side's rows. Two rewrites of this slice were
+    linear only on the planner's good day, one through a hash join and one
+    while the planner kept the query's row aside (it did at 200 products
+    and not at 10,000). The test fails the first on any day and the
+    search it replaces, and it failed the second in the slice's runs, where
+    the estimates put the products on the outer side. Its limits, from the
+    review of pull request
+    #31, are written for the owner there: which side of a join is outer
+    stays the planner's choice, a small square term passes the eightfold
+    bound, and neither work inside an expression nor the close and partial
+    paths are measured.
   - **Left for later.** Every call still folds and stems every product,
     about half of the time at 10,000. Computing that when the catalogue is
     loaded, with a trigram index, is ADR-0009's revisit, due with the

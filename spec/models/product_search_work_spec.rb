@@ -8,13 +8,19 @@ require "rails_helper"
 # catalogue of a few thousand products failed every search (design §10, the
 # note of the catalogue search slice). This counts the rows the plan reads,
 # from EXPLAIN ANALYZE, which follows the query's shape and not the speed of
-# the machine that runs it. The example takes the plan a search may meet at
-# its worst: nested loops only, in the order the SQL writes its joins, with
-# no node that keeps an inner side's rows for the next loop. The planner
-# chooses all three by its estimates, which run low on a catalogue just
-# loaded, and a search that is linear only through a hash join, or only when
-# the planner keeps the one-row query aside, reads the square again there (a
-# rewrite of this slice did, at 10,000 products, and passed at 200).
+# the machine that runs it. The example holds the planner to nested loops,
+# to the join tree as the SQL writes it, and to no node that keeps an inner
+# side's rows for the next loop, three things it otherwise picks by its
+# estimates, which run low on a catalogue just loaded; a search linear only
+# through a hash join reads the square again there. Which side of each join
+# is outer stays the planner's choice, so a search square on one side only
+# passes on a day the estimates put the other side outer: of this slice's
+# two rewrites, the count fails the one linear only through a hash join on
+# any day, and failed the one square only with the products outer in the
+# slice's runs. Nor does the count see a small square term under the
+# eightfold bound, work inside an expression, or the close and partial
+# paths "dipirona" does not take (review findings C1, C2, C3 and V1 of pull
+# request #31, written for the owner).
 RSpec.describe "FR-06 ADR-0009 the catalogue search's work grows with the catalogue, not with its square" do
   before do
     %w[enable_hashjoin enable_mergejoin enable_material enable_memoize].each do |setting|
