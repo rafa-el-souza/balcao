@@ -1,5 +1,9 @@
 # Balcão
 
+[![The demo, online or offline](https://img.shields.io/website?url=https%3A%2F%2Fbalcao.rafasouza.dev.br%2Fup&label=demo&up_message=online&down_message=offline)](https://balcao.rafasouza.dev.br)
+[![CI on main](https://img.shields.io/github/actions/workflow/status/rafa-el-souza/balcao/ci.yml?branch=main&label=CI)](https://github.com/rafa-el-souza/balcao/actions/workflows/ci.yml?query=branch%3Amain)
+[![The clinical boundary's eval cases, as last committed](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2Frafa-el-souza%2Fbalcao%2Fmain%2Fevals%2Fscorecard.md&search=%5C%7C%20boundary%20%5C%7C%20%5Cd%2B%20%5C%7C%20(%5Cd%2B%2F%5Cd%2B)&replace=%241&label=clinical%20boundary%20evals)](evals/scorecard.md)
+
 > An AI attendant for a neighbourhood pharmacy, on the web and on WhatsApp,
 > built to be used, watched and audited.
 
