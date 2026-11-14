@@ -1,6 +1,6 @@
 # ADR-0012: Daily budget slice, per-IP limits and Turnstile at session creation
 
-**Status:** accepted · **Date:** 2026-11-04 (amended 2026-11-09, before the first commit: the schedule in the last consequence) · Extends ADR-0003.
+**Status:** accepted · **Date:** 2026-11-04 (amended 2026-11-09, before the first commit: the schedule in the last consequence) · Extends ADR-0003 · The line "WhatsApp is unaffected" amended by [ADR-0016](0016-telegram-bot-api-as-the-messaging-channel.md) on 2026-11-14: it reads for Telegram.
 
 ## Context
 

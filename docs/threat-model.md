@@ -1,6 +1,6 @@
 # Balcão — threat model
 
-**Status:** v1.10, 2026-11-14 (PR-16: SR-30 says an error's message never reaches a log line and production's lines are JSON; SR-31 names the nightly job that enforces it); v1.9, 2026-11-13 (the cable slice, ADR-0015: SR-03 and SR-04 cover the cable's handshake and messages, SR-40 added, SR-32 names the cable's copies; R8 accepted); v1.8, 2026-11-13 (the edge pull request: SR-03 names the headers beside the policy, SR-27 the pinned kamal-proxy; R6 and R7 accepted); v1.7, 2026-11-09 (night: A3, SR-10, SR-12 and SR-30 cover the WhatsApp BSUID); v1.6, 2026-11-09 (the MVP amendment: A4b, SR-37, SR-38, SR-39 and R5 note the single host until M3; the verification plan has an MVP row); v1.5, 2026-11-04 (night, after three independent reviews:
+**Status:** v1.11, 2026-11-14 (ADR-0016, the messaging channel is Telegram, and ADR-0017, what the bot uses of the platform: A2, A3, A4b, T1, T2, S2, S6, SR-06, SR-07, SR-09, SR-10, SR-12, SR-22, SR-30, SR-31, SR-32, SR-33, R2, R5 and the verification plan follow them; SR-08 retired; SR-41, SR-42 and SR-43 added; R9 accepted); v1.10, 2026-11-14 (PR-16: SR-30 says an error's message never reaches a log line and production's lines are JSON; SR-31 names the nightly job that enforces it); v1.9, 2026-11-13 (the cable slice, ADR-0015: SR-03 and SR-04 cover the cable's handshake and messages, SR-40 added, SR-32 names the cable's copies; R8 accepted); v1.8, 2026-11-13 (the edge pull request: SR-03 names the headers beside the policy, SR-27 the pinned kamal-proxy; R6 and R7 accepted); v1.7, 2026-11-09 (night: A3, SR-10, SR-12 and SR-30 cover the WhatsApp BSUID); v1.6, 2026-11-09 (the MVP amendment: A4b, SR-37, SR-38, SR-39 and R5 note the single host until M3; the verification plan has an MVP row); v1.5, 2026-11-04 (night, after three independent reviews:
 SR-01, SR-02, SR-11, SR-24, SR-25, SR-26, SR-27, SR-29, SR-31, SR-37,
 SR-38, R3 and the verification plan rewritten; the workstation recipe moved
 to the runbook; v1.4 the same day, testing-strategy review: SR-21 names the
@@ -18,10 +18,10 @@ at every milestone; a change in surface (new channel, new tool) reopens it.
 | Asset | Why it matters | Worst case |
 |---|---|---|
 | A1 Model API key and its credit | Real money; monthly credit is finite | Drained credit, service paused, bill |
-| A2 Meta app secret, access token, verify token | Lets anyone send as the pharmacy or read webhooks | Impersonation, spam from our number, number banned |
-| A3 Visitor messages and identities | Strangers' words, phone numbers and WhatsApp user ids (BSUID); LGPD applies even to a demo | Leak, doxxing, legal exposure, reputation |
+| A2 Telegram bot token and webhook secret (ADR-0016) | The token lets anyone send as the pharmacy's bot, read its pending updates or move its webhook; the secret lets anyone post updates the webhook accepts | Impersonation, spam from our bot, the bot banned |
+| A3 Visitor messages and identities | Strangers' words and Telegram user ids, which are the chat ids a reply needs (a phone number arrives only when a visitor shares a contact, and is dropped); LGPD applies even to a demo | Leak, doxxing, legal exposure, reputation |
 | A4a The production VM and its credentials (production SSH key, the production secret set, database password, the model key, the Turnstile secret key; a registry token only if the Docker Hub fallback of design §8 is used) | Everything else lives there | Takeover, pivot to other accounts, cryptomining |
-| A4b What the development account can reach, where the coding agent runs: the rehearsal cloud-project token, the rehearsal SSH key (a registry token only under the Docker Hub fallback), the throwaway env set, the dev/eval model key and its spend limit, the fine-grained GitHub token (contents, pull requests, workflows on this repo), the agent's own token, the cloud and GitHub CLI config files, the shell history, and the owner's private notes kept beside the spec; **until M3, also the Meta app secret, access token and verify token of the demo number** (the single host of design §8 is deployed from this account). No DNS credential and no production credential | The agent (T8) can be steered | The dev/eval workspace credit drained; rehearsal resources up to the project limit; a rehearsal host reached; private notes pasted into a tracked file |
+| A4b What the development account can reach, where the coding agent runs: the rehearsal cloud-project token, the rehearsal SSH key (a registry token only under the Docker Hub fallback), the throwaway env set, the dev/eval model key and its spend limit, the fine-grained GitHub token (contents, pull requests, workflows on this repo), the agent's own token, the cloud and GitHub CLI config files, the shell history, and the owner's private notes kept beside the spec; **until M3, also the bot token and webhook secret of the demo bot** (the single host of design §8 is deployed from this account). No DNS credential and no production credential | The agent (T8) can be steered | The dev/eval workspace credit drained; rehearsal resources up to the project limit; a rehearsal host reached; private notes pasted into a tracked file |
 | A5 Operator console | Can read conversations, reply as the pharmacy, flip modes | Impersonation of the pharmacist, harassment of visitors |
 | A6 The project's reputation | The whole point of the project | A screenshot of the bot giving dosage advice or insulting someone |
 | A7 Fictional data integrity | Stock, prices, bookings | Nonsense in the demo; low impact, nightly reset |
@@ -30,8 +30,8 @@ at every milestone; a change in surface (new channel, new tool) reopens it.
 
 | Actor | Capability | Motive |
 |---|---|---|
-| T1 Curious visitor | Browser, WhatsApp, prompt tricks | Fun, testing limits (this is the common case) |
-| T2 Scripted abuser | Scripts against the public API or the number | Free model access, denial of wallet |
+| T1 Curious visitor | Browser, Telegram, prompt tricks | Fun, testing limits (this is the common case) |
+| T2 Scripted abuser | Scripts against the public API or the bot | Free model access, denial of wallet |
 | T3 Prompt injector | Crafted messages, pasted documents, voice notes | Make the bot misbehave, extract the prompt, trigger tools |
 | T4 Network attacker | Scanning, exploits against exposed services | Takeover of the VM |
 | T5 Supply chain | Malicious or vulnerable dependency | Takeover, exfiltration |
@@ -41,9 +41,9 @@ at every milestone; a change in surface (new channel, new tool) reopens it.
 
 ## 3. Attack surfaces
 
-S1 Web chat API and Action Cable · S2 WhatsApp webhook endpoint · S3 Trace
+S1 Web chat API and Action Cable · S2 Telegram webhook endpoint · S3 Trace
 pages · S4 Operator console · S5 The model and its tools · S6 Media download
-from Meta's CDN and transcription · S7 SSH and the host · S8 CI and deploy
+from Telegram's file host and transcription · S7 SSH and the host · S8 CI and deploy
 pipeline · S9 Logs, backups and traces at rest · S10 The repository itself ·
 S11 Notifications to the operator.
 
@@ -64,22 +64,25 @@ Each mitigation is a requirement (SR-xx) with a test or a verification step.
 | Cable sockets, commands or log lines from a script exhaust the one web process (T2) | DoS | **SR-40** (ADR-0015) At most 500 cable sockets per process and 20 per source (the client's address as SR-36 reads it), counted from Action Cable's takeover until it closes the socket, and refused before the takeover with a plain 429 or 503 the page's client retries; 20 commands per connection a minute, the 21st closing it for good; each line of the cable's log cut at 2 KB; a connection whose socket closed while it opened is held neither in Action Cable's own list of connections nor in its pub/sub, which kept it before (a slow leak), and a channel's stream goes once its subscribe is done if the channel or its socket is gone by then. Tests: the 21st socket of a source is refused, and so is one past the process's cap whatever its source, and a closed socket frees its place; the 21st command closes; a long line is cut; a connection closed while it opened is in neither Action Cable's list nor its pub/sub; a stream whose channel closed before its subscribe was done is let go. |
 | Reading another visitor's conversation | Information disclosure | **SR-05** Every query is scoped by the visitor derived from the token; no id-based lookup without that scope; test proves cross-visitor access returns 404. |
 
-### S2 WhatsApp webhook
+### S2 Telegram webhook and bot (ADR-0016, ADR-0017)
 
 | Threat | STRIDE | Mitigation |
 |---|---|---|
-| Forged events (T6) | Spoofing | **SR-06** `X-Hub-Signature-256` HMAC verified against the app secret with constant-time comparison on the raw body, before parsing; failures 401, counted and alerted above 10/min. |
-| Replayed events | Tampering | **SR-07** The raw event keyed by the SHA-256 of its body and each message by its Meta message id, both unique; duplicates return 200 and do nothing. |
-| Verification endpoint abuse | Spoofing | **SR-08** Verify token compared constant-time; the endpoint does nothing else. |
-| Slow processing blocks Meta retries | DoS | **SR-09** Webhook stores and enqueues only; returns inside 2 s; processing in Solid Queue. |
-| Phone numbers leak (A3) | Information disclosure | **SR-10** Identity is `sha256(pepper ‖ BSUID)` (Meta's business-scoped user id, present on every event; the phone may be absent for users with a username, FR-19); the number, when Meta sends it, is stored encrypted with Active Record Encryption only for the reply path, and replies go by BSUID otherwise; the BSUID is personal data like the phone; log filters mask anything matching a phone pattern or a BSUID field; the pepper lives in secrets. |
+| Forged events (T6) | Spoofing | **SR-06** The `X-Telegram-Bot-Api-Secret-Token` header compared in constant time with the configured secret, before parsing; failures 401, counted and alerted above 10/min. Telegram sends a shared secret, not a signature of the body, so a leaked secret works until the webhook is registered again with a new one: the runbook does it with every rotation of the bot token, and alone when only the secret is in doubt. Whoever holds the secret can write as any Telegram user (a message, a reset, a deletion, model calls up to SR-02's cap) but reads nothing: a reply goes through Telegram to that user's own chat (SR-42). Telegram's published source ranges are not enforced: Telegram says they "might change", and the secret already gates the endpoint. |
+| Replayed events | Tampering | **SR-07** The raw update keyed by its `update_id` and each message by its visitor and its message id, both unique; duplicates return 200 and do nothing. (`update_id` restarts at a random value after a week without updates, so it is a key, not a counter.) |
+| Webhook registration | Spoofing | **SR-08** Retired 2026-11-14 (ADR-0016): Telegram has no verification handshake; the webhook is registered by an API call made with the bot token (A2). The id is not reused: it is kept so that references resolve, and is outside the traceability set. |
+| Slow processing makes Telegram retry | DoS | **SR-09** Webhook stores and enqueues only; returns inside 2 s; processing in Solid Queue. An authenticated update is answered 200 whatever it holds, so one the application cannot use is never sent again; the webhook is registered with a small `max_connections`, so Telegram opens few connections at a time to the one web process. |
+| Unbounded model calls through the bot (T2 → A1) | DoS | The per-visitor limits of FR-14 count a Telegram visitor by its identity (SR-01's per-IP limits see only Telegram's addresses, and a Telegram account costs a phone number to mint, ADR-0012); `/start`, `/help`, the ask for agreement, the answer to a message that is not text or is too long and a limit's own line call no model, and the limit's line goes to a visitor at most once a minute; SR-02's gates apply as on the web. |
+| Visitor ids leak (A3) | Information disclosure | **SR-10** Identity is `sha256(pepper ‖ Telegram user id)`. The raw id, which a reply needs as the chat to send to, is kept in one place, the visitor's row, encrypted (SR-41), and goes when the row goes (FR-05, FR-15); messages are keyed by the visitor and the message id, so no other row holds it; it is never logged (SR-30) and never in a trace (SR-12). Before a person agrees to the bot's ask, the application keeps nothing of that person but the limits' counter under the hashed identity: no row, no message, and no model reads a word (FR-19). The bot never asks for a phone number (no contact-request button), and a contact a visitor shares anyway is answered like any message that is not text and dropped with its update, so its number reaches no message, log or trace. A stored update keeps only its `update_id` and its kind once its job has read it, and is deleted after seven days (SR-31). The pepper lives in secrets. Tests: a message before the agreement leaves no visitor, no message and no model call; the row's chat id is ciphertext in the database; a read update holds neither its text nor an id of its sender. |
+| A group, a channel or another bot reaches the bot; a forged update points a reply at another chat (T1, T6) | Information disclosure / Spoofing | **SR-42** (ADR-0017) An update is used only when it is a `message` in a private chat whose id is its sender's and whose sender is not a bot; anything else is dropped, with no visitor, no turn and no reply. In a group one conversation would mix several people's words and a reply would show one person's reservation to all; with the chat's id tied to the sender's, a reply only ever goes to the visitor it answers. The webhook asks Telegram for `message` updates alone (`allowed_updates`), and the application drops the other kinds all the same, since that list is kept on Telegram's side; the bot is also kept out of groups in BotFather (runbook). Tests: a group's message, a message whose chat is not its sender's, a bot's message and a `callback_query` each leave no turn and no reply, and every update recorded from a private chat with the demo bot passes the rule. |
+| What the model writes becomes markup, a link or a preview in the visitor's app (T3) | Tampering | **SR-43** (ADR-0017) A reply leaves as plain text: `sendMessage` with no parse mode over any text the model or a visitor wrote, and with link previews disabled, so no link hides behind a word and no stranger's page draws its card in the chat. Telegram's apps still draw a URL or a `/command` in any text as a link: the URL shows whole, and the only commands are the visitor's own (FR-04, FR-05, FR-12, FR-19), which a tap sends as the visitor and which act on that visitor's own data alone. Tests: a reply that carries Markdown and HTML link syntax is sent unparsed, and every send disables the preview. |
 
 ### S3 Trace pages
 
 | Threat | STRIDE | Mitigation |
 |---|---|---|
 | Enumeration of traces | Information disclosure | **SR-11** 128-bit random token, lookups rate limited, 404 on miss, no listing endpoint; the exhibits (FR-22) are committed static files, not database traces, and carry no identity (tested on the fixture). |
-| Trace reveals secrets or the system prompt | Information disclosure | **SR-12** Trace events are built from an allow-list of fields; the system prompt is summarised as "system prompt (N tokens, cached)"; tool results truncated; a test asserts no secret value, no raw phone and no BSUID can appear in any event payload. |
+| Trace reveals secrets or the system prompt | Information disclosure | **SR-12** Trace events are built from an allow-list of fields; the system prompt is summarised as "system prompt (N tokens, cached)"; tool results truncated; a test asserts no secret value, no raw phone and no Telegram user or chat id can appear in any event payload. |
 
 ### S4 Operator console
 
@@ -104,7 +107,7 @@ Each mitigation is a requirement (SR-xx) with a test or a verification step.
 
 | Threat | STRIDE | Mitigation |
 |---|---|---|
-| SSRF through a media URL | Tampering | **SR-22** Media is fetched only by Meta media id through the Graph API, never by a URL from the payload; the HTTP client allows only Meta hosts. |
+| SSRF through a media URL | Tampering | **SR-22** Media is fetched only by its file id, through `getFile` and Telegram's file host, never by a URL from the payload; the HTTP client allows only `api.telegram.org` and calls only the methods design §6.6 lists; the file URL carries the bot token, as every Bot API URL does, so no URL of the client is logged (SR-30) or stored. |
 | Oversized or malicious audio | DoS | **SR-23** 2 MB and 60 s caps enforced before download completes; content type checked; the transcription adapter runs with a timeout. |
 | Transcript used as injection | — | Same as SR-16; transcripts are visitor text. |
 
@@ -130,16 +133,17 @@ Each mitigation is a requirement (SR-xx) with a test or a verification step.
 
 | Threat | STRIDE | Mitigation |
 |---|---|---|
-| PII in logs | Information disclosure | **SR-30** Structured logs (one JSON object per line in production, NFR-05) with parameter filtering for phone, BSUID (`user_id`, `from_user_id`, `recipient_user_id`), the message (`text` on the API, `body` on the webhook and in the database), token and secret-like keys; an error's message never reaches a line, since it may quote the visitor (a database error quotes the row it refused): the app's lines, Active Job's and Solid Queue's lines of a failed job and a request's error line name an error and its causes by their classes. Tests: a message containing a phone number leaves no trace of it in the log; a job and a request that fail with a message quoting one are logged by class alone. |
-| Retention | — | **SR-31** Messages and traces deleted after 7 days, reservations 7 days after their pickup deadline, and visitors not seen for 7 days with everything under them (FR-15, by the nightly job at 03:00 São Paulo from the MVP); backups rotate at 7 days; aggregates carry no identity; no exemption: the exhibits (FR-22) are committed files outside the database, exported with identities stripped (test: the export of a conversation with a phone and a cookie yields neither). |
-| Visitor's right to deletion | — | **SR-32** FR-05 deletion is a deterministic command matched before any model call (no tool, so no injection path); synchronous and complete, releasing stock and slots; the rate counter lives outside the deleted rows; a test deletes and asserts zero rows for that identity. One exception: the copies the cable's pub/sub keeps of each broadcast (a conversation's replies, spans and deletion word, in the cable database) are kept 5 minutes and trimmed every 5, so they outlive a deletion by about 10 minutes at most (ADR-0015). |
+| PII in logs | Information disclosure | **SR-30** Structured logs (one JSON object per line in production, NFR-05) with parameter filtering for phone numbers, a Telegram update's `message` as a whole (its text, its caption, its sender, its chat and whatever else a visitor sent: an update is logged as its `update_id` alone), the message (`text` on the API, `body` in the database), the bot token wherever it appears (every Bot API URL carries it), token and secret-like keys; an error's message never reaches a line, since it may quote the visitor (a database error quotes the row it refused): the app's lines, Active Job's and Solid Queue's lines of a failed job and a request's error line name an error and its causes by their classes. Tests: a message containing a phone number leaves no trace of it in the log; a job and a request that fail with a message quoting one are logged by class alone. |
+| Visitors' words at rest (A3) | Information disclosure | **SR-41** (ADR-0016) Every column that stores what a visitor sent (message bodies, transcripts, stored webhook payloads, trace attributes that quote a message) and the Telegram chat id a reply needs (SR-10) is encrypted with Active Record Encryption; the keys live in secrets, never in the database. Telegram's developer terms ask that "user data is always encrypted at rest and stored separately from its encryption key"; that the rows the application writes about a visitor (a reservation's product and code, a conversation's language), which hang from the hashed identity, are not that user data is the project's reading (R9). Test: the stored value is ciphertext and the model reads the plain text. |
+| Retention | — | **SR-31** Messages, traces and stored Telegram updates deleted after 7 days, reservations 7 days after their pickup deadline, and visitors not seen for 7 days with everything under them (FR-15, by the nightly job at 03:00 São Paulo from the MVP); backups rotate at 7 days; aggregates carry no identity; no exemption: the exhibits (FR-22) are committed files outside the database, exported with identities stripped (test: the export of a conversation with a phone and a cookie yields neither). |
+| Visitor's right to deletion | — | **SR-32** FR-05 deletion is a deterministic command matched before any model call (no tool, so no injection path); synchronous and complete, releasing stock and slots; the rate counter lives outside the deleted rows; a test deletes and asserts zero rows for that identity. One exception: the copies the cable's pub/sub keeps of each broadcast (a conversation's replies, spans and deletion word, in the cable database) are kept 5 minutes and trimmed every 5, so they outlive a deletion by about 10 minutes at most (ADR-0015). On Telegram the command erases what the server holds, the agreement with it; the chat shown in the visitor's app is the visitor's own copy, and the confirmation and `/privacy` say so (FR-05). |
 
 ### S10 Repository
 
 | Threat | STRIDE | Mitigation |
 |---|---|---|
 | Secret committed | Information disclosure | SR-25 hooks and scan; rotation procedure in the runbook. |
-| Private data in fixtures | — | **SR-33** All seed and fixture data is invented; names checked against no real business of that name before publication. |
+| Private data in fixtures | — | **SR-33** All seed and fixture data is invented; names checked against no real business of that name before publication. The Telegram updates recorded from the demo bot for the specs are committed with invented ids, names and usernames in place of the real ones. |
 
 ### S11 Notifications (push and email to the operator)
 
@@ -152,7 +156,7 @@ Each mitigation is a requirement (SR-xx) with a test or a verification step.
 
 - **R1** One VM, no high availability. Accepted: a demo; the canary and
   monitor limit the blind time.
-- **R2** The public number can receive abuse from anyone. Accepted: Meta's
+- **R2** The public bot can receive abuse from anyone. Accepted: Telegram's
   own limits plus SR-01/SR-02 bound the cost; the operator can block an
   identity from the console (M2) and pause the channel.
 - **R3** A trace link, once shared, shows that conversation to anyone
@@ -177,10 +181,10 @@ Each mitigation is a requirement (SR-xx) with a test or a verification step.
   monthly. **MVP extension (2026-11-09, owner-approved):** until M3 the
   demo itself runs on one host of this project, deployed from the
   development account with the rehearsal-grade secret set, the
-  spend-limited dev/eval model key and the demo number's Meta token (A4b).
+  spend-limited dev/eval model key and the demo bot's token (A4b).
   So a steered agent can also deface the demo, read seven days of visitor
-  messages on that host, or send as the demo number until the owner
-  rotates the token in WhatsApp Manager. Accepted because the exposure is
+  messages on that host, or send as the demo bot until the owner
+  revokes the token in BotFather. Accepted because the exposure is
   bounded by the two spend limits, the seven-day retention, the token
   rotation and the owner's daily glance at the host, and because the
   alternative (the operator account and the production key inside the
@@ -220,13 +224,34 @@ Each mitigation is a requirement (SR-xx) with a test or a verification step.
   while a turn waits and every page's cable client keeps trying, so the
   updates come back as the sockets go. Turnstile (SR-39) gates sessions,
   not sockets, so this stays open until a challenge reaches the handshake.
+- **R9** (added 2026-11-14, ADR-0016) The messaging channel is another
+  company's platform, and three things can take it away or change its
+  face.
+  - **Telegram may read its terms against the demo.** They forbid a bot
+    used "to provide, link to, aggregate, host, index, distribute, lend
+    out, exchange, trade, rent, sell or facilitate the sale of illegal,
+    pirated, regulated or questionable goods and services" and do not
+    define "regulated". The project's reading is that a pharmacy which
+    does not exist provides, indexes and sells nothing: its catalogue,
+    its stock and its reservations are fiction, said so before the first
+    message. The reach of "user data" in the rule on encryption is a
+    reading too (SR-41). Both are the project's, not Telegram's.
+  - **A court may suspend Telegram in Brazil again,** as courts ordered in
+    2022 and in 2023.
+  - **Telegram may show its own ads** in a bar above the chat with the
+    bot. Its pages speak of popular bots and give no number, and they
+    document no switch for a bot's owner.
+
+  Accepted: nothing lives on Telegram alone, the bot's description and its
+  ask say it is a demo, and the day the bot goes the project stands on the
+  web channel, as ADR-0004 planned.
 
 ## 6. Verification plan
 
 | Milestone | Security work |
 |---|---|
-| MVP (days 1–12, design §9.1) | SR-25 (gitignore, scan, boot check), SR-27, SR-28, SR-29 in place and visible in CI; SR-24 verified by the runbook host checklist on the MVP host, created from `ops/cloud-init.yml`; the `bin/deploy` guard spec of SR-38; the deploy green on `balcao.rafasouza.dev.br`; SR-01, SR-02 (the monthly pause), SR-03 (cookie, Origin, CSP without a third party, the headers beside it), SR-04, SR-05, SR-11, SR-12, SR-16, SR-17, SR-20, SR-27's pinned kamal-proxy, SR-30, SR-31's nightly purge, SR-32, SR-34, SR-36, SR-40 with tests; SR-06..10 with tests against the payloads recorded from the test number; SR-21's hostile-product-name seed, an eval overlay on the catalogue (`evals/seeds/hostile_product_name.yml`) |
-| M4 (voice, first after the MVP) | SR-22, SR-23 with tests |
+| MVP (days 1–12, design §9.1) | SR-25 (gitignore, scan, boot check), SR-27, SR-28, SR-29 in place and visible in CI; SR-24 verified by the runbook host checklist on the MVP host, created from `ops/cloud-init.yml`; the `bin/deploy` guard spec of SR-38; the deploy green on `balcao.rafasouza.dev.br`; SR-01, SR-02 (the monthly pause), SR-03 (cookie, Origin, CSP without a third party, the headers beside it), SR-04, SR-05, SR-11, SR-12, SR-16, SR-17, SR-20, SR-27's pinned kamal-proxy, SR-30, SR-31's nightly purge, SR-32, SR-34, SR-36, SR-40 with tests; SR-06, SR-07, SR-09, SR-10, SR-41, SR-42 and SR-43 with tests against the update payloads recorded from the demo bot (SR-08 retired, ADR-0016), and SR-22's rules for the Bot API client (its one host, its closed list of methods, no URL logged); SR-21's hostile-product-name seed, an eval overlay on the catalogue (`evals/seeds/hostile_product_name.yml`) |
+| M4 (voice, first after the MVP) | SR-22's media fetch and SR-23 with tests |
 | M2 | SR-39 (the first slice), SR-13..15, SR-18, SR-19, SR-21 (`injection` at 10), SR-35 |
 | M3 | SR-02 full (incl. the daily slice and the `economy_allowed` false case), SR-25's static secrets check and the `.kamal/hooks` check in CI, SR-26 (restore drill into a container), SR-31, SR-37 and SR-38 checklists in the runbook, `docs/traceability.yml` for the step-and-measurement ids; an external port scan recorded; the R5 MVP extension closed; R7 closed by the `__Host-` cookie |
 | M5 | SR-33 (seed names checked); full re-read of this document; an "OWASP LLM Top 10" column added to the SR tables; accepted risks confirmed or closed |
