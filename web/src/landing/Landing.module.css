@@ -137,12 +137,17 @@
   color: inherit;
 }
 
+/* The QR keeps its own colours, dark modules on a light ground of its own, even where a
+   high-contrast theme forces the receipt's ground to the system's canvas, dark in a dark theme:
+   a QR drawn in forced colours cannot be read (review finding W1 of pull request #33). */
 .qr {
   display: block;
   width: 7.5rem;
   height: 7.5rem;
   margin: var(--space-1) auto;
   fill: var(--color-instrument-ink);
+  background-color: var(--color-paper-2);
+  forced-color-adjust: none;
 }
 
 .bot .why {
