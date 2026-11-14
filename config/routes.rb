@@ -27,6 +27,7 @@ Rails.application.routes.draw do
   root "spa#landing"
   get "chat", to: "spa#chat"
   get "trace", to: "spa#trace"
+  get "privacy", to: "spa#privacy"
   # A trace's link carries its token after the "#", which no browser sends
   # (review finding V3 of pull request #17). A link given before then is moved
   # there by a plain answer: Rails' redirect would log the new address whole,

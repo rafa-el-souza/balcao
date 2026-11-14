@@ -24,47 +24,52 @@
 
   <article class="prose">
     <h1 id="title">Privacidade</h1>
-    <p id="what">O Balcão é uma demonstração de portfólio. A Farmácia Vida Longa não existe: os produtos, os preços, o endereço e o telefone são inventados, e nada do que o atendente diz é orientação de saúde.</p>
+    <p id="what">O Balcão é uma demonstração de portfólio. A Farmácia Vida Longa não existe: os produtos, os preços, o endereço e o telefone são inventados, e nada do que o atendente diz é orientação de saúde. Esta página vale para o site e para o bot do Balcão no Telegram.</p>
     <p class="stamp" id="advice"><strong>Aviso:</strong> não escreva aqui dados pessoais ou de saúde de verdade.</p>
 
-    <h2 id="kept">O que fica guardado</h2>
+    <h2 id="kept">O que fica guardado, e para quê</h2>
     <ul>
-      <li>As mensagens que você envia e as respostas.</li>
-      <li>As reservas que você fizer.</li>
-      <li>Um identificador do seu navegador (um cookie) ou, no WhatsApp, o da sua conta.</li>
-      <li>No WhatsApp, o seu número de telefone, quando a Meta o envia. Ele fica guardado cifrado.</li>
-      <li>O seu endereço IP, usado para contar os limites de uso.</li>
-      <li>O registro técnico de cada resposta: o modelo, as ferramentas, o tempo e o custo. É o que a caixa de vidro mostra.</li>
+      <li>As mensagens que você envia e as respostas, para o atendente responder lembrando do que você já disse.</li>
+      <li>As reservas que você fizer, para valerem até o prazo de retirada.</li>
+      <li>O registro técnico de cada resposta: o modelo, as ferramentas, o tempo e o custo. É o que a caixa de vidro mostra, e é com ele que a demonstração controla o próprio gasto.</li>
+      <li id="kept-web">No site, um identificador do seu navegador, num cookie, para reconhecer a sua conversa e apagar tudo o que é seu de uma vez. O servidor guarda só uma impressão dele (um hash), não o identificador. Outro cookie guarda o idioma que você escolher.</li>
+      <li id="kept-telegram">No Telegram, um identificador derivado da sua conta, para o mesmo fim; o número do chat, cifrado, para mandar as respostas; e a hora em que você concordou. O Telegram também manda ao bot o seu nome, o seu nome de usuário e o idioma do aplicativo: o idioma escolhe a língua da primeira resposta, e o resto é descartado logo depois de lido. O bot não pede o seu telefone.</li>
+      <li id="kept-ip">No site, o endereço IP de quem conversa, para contar os limites de uso que protegem a demonstração de abuso. Os registros técnicos do servidor (os logs) anotam o endereço e a identificação do navegador de cada acesso. No Telegram, quem fala com o servidor é o próprio Telegram: o seu IP só chega ao Balcão se você abrir um link do site, como o do trace.</li>
     </ul>
+
+    <h2 id="agreement">No Telegram, o bot pergunta antes</h2>
+    <p>Na primeira mensagem, o bot explica o que acontece com o que você escreve e mostra um botão: <strong>Concordo</strong>. Até você concordar, nenhum modelo lê o que você escreve, e o Balcão descarta cada mensagem assim que ela é lida: de você, fica só um contador dos limites de uso. O comando de apagar desfaz a concordância, e a limpeza da noite também, quando apaga o seu identificador: o bot pergunta de novo na mensagem seguinte.</p>
 
     <h2 id="retention">Por quanto tempo</h2>
     <p>No servidor do Balcão, a limpeza roda toda noite, sem ninguém pedir:</p>
     <ul>
-      <li>cada mensagem é apagada 7&nbsp;dias depois de enviada, com o registro técnico da resposta;</li>
-      <li>cada reserva é apagada 7&nbsp;dias depois do prazo de retirada;</li>
-      <li>o seu identificador é apagado 7&nbsp;dias depois da sua última visita;</li>
-      <li>as cópias de segurança do servidor guardam o que foi apagado por até mais 7&nbsp;dias.</li>
+      <li>cada mensagem é apagada entre 7 e 8&nbsp;dias depois de enviada, com o registro técnico da resposta;</li>
+      <li>cada reserva é apagada entre 7 e 8&nbsp;dias depois do prazo de retirada;</li>
+      <li>o seu identificador é apagado entre 7 e 8&nbsp;dias depois da última vez que você usar o Balcão, com tudo o que ainda estiver ligado a ele;</li>
+      <li id="retention-backups" data-arrives="M3">as cópias de segurança do servidor guardam o que foi apagado por até mais 7&nbsp;dias.</li>
     </ul>
-    <p>As contagens de uso da demonstração (quantas mensagens por dia) ficam, porque não identificam ninguém.</p>
+    <p id="retention-logs">Os logs não têm prazo fixo: eles se renovam à medida que enchem e podem guardar um acesso por mais de 7&nbsp;dias. Neles nunca entra o texto das mensagens.</p>
+    <p id="retention-counters">Os contadores dos limites de uso também não têm prazo fixo, por enquanto. Eles ficam à parte, guardados pelo endereço IP e pelo identificador, e não zeram quando você apaga seus dados, para que apagar não seja um jeito de furar o limite.</p>
+    <p>Fora isso, ficam só totais que não identificam ninguém, como o gasto do mês com o modelo.</p>
 
     <h2 id="deletion">Como apagar antes</h2>
-    <p>Envie <code>/apagar</code> ou “apagar meus dados” na conversa. As mensagens, as reservas abertas, o histórico e o seu identificador são apagados do Balcão na hora. As cópias de segurança perdem esses dados em até 7&nbsp;dias.</p>
-    <p>No WhatsApp, o comando apaga a cópia que está no Balcão. A conversa continua no seu aplicativo e nos servidores da Meta, e lá quem apaga é você.</p>
+    <p>Envie <code>/apagar</code> ou “apagar meus dados” na conversa. As mensagens, as reservas, o registro técnico das respostas e o seu identificador são apagados do Balcão na hora; ficam só os contadores dos limites de uso, como diz a seção anterior. As cópias de passagem, que levam as respostas até a página, somem em até 10&nbsp;minutos<span data-arrives="M3">, e as cópias de segurança, em até 7&nbsp;dias</span>.</p>
+    <p id="deletion-telegram">No Telegram, o comando também desfaz a sua concordância. As mensagens que continuam no chat são a sua cópia, no seu aplicativo e nos servidores do Telegram: a opção de limpar o histórico, no próprio Telegram, as apaga.</p>
 
     <h2 id="readers">Quem vê a conversa</h2>
-    <p>Quem tiver o link do trace vê a conversa. O link deixa de funcionar 7&nbsp;dias depois da última mensagem, ou na hora, se você apagar seus dados.</p>
-    <p>O operador da demonstração pode ler as conversas para corrigir erros. Uma conversa em que o atendente erra pode virar um caso de teste no repositório público do projeto: reescrita, com outras palavras, e sem nada que identifique quem escreveu.</p>
+    <p>Quem tiver o link do trace vê a conversa. O link deixa de funcionar entre 7 e 8&nbsp;dias depois da última mensagem, ou na hora, se você apagar seus dados.</p>
+    <p id="test-cases">O operador da demonstração pode ler as conversas para corrigir erros. Uma conversa do site em que o atendente erra pode virar um caso de teste no repositório público do projeto: reescrita, com outras palavras, e sem nada que identifique quem escreveu. Uma conversa do Telegram nunca vira caso de teste.</p>
 
     <h2 id="processors">Quem processa os dados</h2>
     <ul>
-      <li>Anthropic: o modelo de linguagem, que recebe o texto das mensagens para responder.</li>
-      <li>Hetzner: a hospedagem do servidor.</li>
-      <li>Meta: quando a conversa é pelo WhatsApp.</li>
-      <li>Cloudflare: a verificação anti-bot, quando estiver ativa; ela vê o seu IP.</li>
+      <li>Anthropic: o modelo de linguagem, que recebe o texto da conversa para responder.</li>
+      <li>Hetzner: a hospedagem do servidor, onde ficam o banco de dados e os logs.</li>
+      <li>Telegram: as conversas com o bot passam pelos servidores do Telegram, sob a política de privacidade dele.</li>
+      <li data-arrives="M2">Cloudflare: a verificação anti-bot do site; ela vê o seu IP.</li>
     </ul>
 
     <h2 id="contact">Contato</h2>
-    <p><a id="contact-email" href="mailto:rafasouza.dev@pm.me?subject=Balc%C3%A3o%3A%20contato">rafasouza.dev@pm.me</a></p>
+    <p>O responsável pelos dados é Rafa Souza. Para qualquer pedido sobre os seus dados, escreva para <a id="contact-email" href="mailto:rafasouza.dev@pm.me?subject=Balc%C3%A3o%3A%20contato">rafasouza.dev@pm.me</a>.</p>
   </article>
 
   <footer class="colophon">
@@ -78,12 +83,13 @@
 <aside class="notes" lang="en">
   <h2>Notes</h2>
   <ul>
-    <li>Route <code>/privacy</code>; design §6.7 lists what it says (fictional demo, seven-day retention, the delete command, the processors) and has no sketch for it.</li>
-    <li>Every sentence here is a draft until it becomes the locale files. Retention and deletion were checked against FR-05, FR-15 and the backups' rotation on 2026-11-12: each kind of record has its own clock, the backups hold deleted rows for up to seven more days (from M3, when backups exist), and on WhatsApp the command erases only this server's copy. The page also says that a conversation may become a public test case, rewritten and unidentified.</li>
-    <li>The stamped advice and the "Quem vê a conversa" section are not in §6.7's list; proposed.</li>
-    <li>It is the privacy-policy URL of the Meta app, so it reads alone, without the landing.</li>
+    <li>Route <code>/privacy</code>; design §6.7 lists what it says and has no sketch for it. Redrawn on 2026-11-14 for the Telegram bot (ADR-0016, ADR-0017, FR-19): the page is the bot's own privacy policy, set in BotFather, so it reads alone, without the landing, and says first that it covers both channels.</li>
+    <li>Telegram's developer terms ask a policy to detail "what data they store, how they collect it, and for what purpose": each kept item says what it is for.</li>
+    <li>The bot's ask (FR-19, the owner's decision of 2026-11-14) has its own section: before the tap nothing of the person is kept but the limits' counter under the hashed identity (SR-10). The delete command withdraws the agreement and leaves the chat in the visitor's app, which is the visitor's own copy (FR-05, SR-32). A web conversation may become a rewritten, unidentified test case; a Telegram one never does (ADR-0016). The bot asks for no phone number, and the name and username Telegram sends are dropped once the update is read.</li>
+    <li>Each kind of record keeps its own clock (FR-05, FR-15). The logs are the exception, measured on the demo host on 2026-11-14: kamal-proxy writes the client's address and user agent of every request, and Rails its address, into Docker logs rotated by size (10 MB), not by age, so a quiet month can keep a visit past seven days. The pub/sub copies of a reply outlive a deletion by about ten minutes at most (ADR-0015).</li>
+    <li>Marked <code>data-arrives</code>: the backups' lines from M3, when the nightly dump exists (§8); Cloudflare from the Turnstile slice (FR-18, SR-39). Until then the page leaves them out.</li>
+    <li>The stamped advice and the "Quem vê a conversa" section are not in §6.7's list; kept from the first drawing. "Contato" names the person responsible for the data.</li>
     <li>The footer is signed: the author's name in a pen hand (Cedarville Cursive, OFL, used for this name alone: a third face beside the brief's two) on a signature rule. The GitHub and LinkedIn marks are black, as each company's rules ask (read on 2026-11-12); the LinkedIn drawing stands in for the file from LinkedIn's own brand site, the only one its rules approve.</li>
-    <li>Added to the sketch's topics: "O que fica guardado" and "Contato".</li>
   </ul>
 </aside>
 </body>

@@ -33,7 +33,7 @@
         "React",
         "Postgres",
         "Claude",
-        "WhatsApp Cloud API",
+        "Telegram Bot API",
         "1 VM"
       ],
       "design": "design doc",
@@ -44,13 +44,13 @@
     "warning": {
       "label": "Aviso:",
       "text": "esto es una demostración, y los datos son ficticios. Los mensajes se guardan 7 días; “borrar mis datos” borra tus datos de Balcão."
-    },
-    "signature": {
-      "by": "Hecho por",
-      "github": "GitHub",
-      "linkedin": "LinkedIn",
-      "email": "correo"
     }
+  },
+  "signature": {
+    "by": "Hecho por",
+    "github": "GitHub",
+    "linkedin": "LinkedIn",
+    "email": "correo"
   },
   "chat": {
     "title": "Conversación · Balcão",
@@ -194,7 +194,7 @@
     "heading_one": "Conversación <token>{{token}}</token>, iniciada el {{date}} a las {{time}}, con {{count}} turno",
     "heading_other": "Conversación <token>{{token}}</token>, iniciada el {{date}} a las {{time}}, con {{count}} turnos",
     "loading": "Trace de la conversación",
-    "share": "Quien tenga este enlace ve esta conversación. Deja de funcionar 7 días después del último mensaje, o en el momento, si la persona borra sus datos.",
+    "share": "Quien tenga este enlace ve esta conversación. Deja de funcionar entre 7 y 8 días después del último mensaje, o en el momento, si la persona borra sus datos.",
     "loadFailed": "No pude cargar este trace ahora. Recarga la página en un rato.",
     "total_one": "total · {{count}} turno",
     "total_other": "total · {{count}} turnos",
@@ -204,9 +204,67 @@
     "outputTokens": "tokens de salida",
     "turnsTime": "tiempo de los turnos",
     "goneHeading": "Esta conversación ya no está aquí",
-    "goneNote": "El enlace de un trace vale hasta 7 días después del último mensaje, y deja de valer antes si la persona borra sus propios datos.",
+    "goneNote": "El enlace de un trace vale como máximo 8 días después del último mensaje, y deja de valer antes si la persona borra sus propios datos.",
     "startChat": "Empezar una conversación",
     "home": "Inicio",
     "roll": "Registro de la conversación"
+  },
+  "privacy": {
+    "title": "Privacidad · Balcão",
+    "pageName": "privacidad",
+    "link": "Privacidad",
+    "heading": "Privacidad",
+    "what": "Balcão es una demostración de portafolio. La Farmácia Vida Longa no existe: los productos, los precios, la dirección y el teléfono son inventados, y nada de lo que dice el asistente es orientación de salud. Esta página vale para el sitio y para el bot de Balcão en Telegram.",
+    "advice": {
+      "label": "Aviso:",
+      "text": "no escribas aquí datos personales o de salud reales."
+    },
+    "kept": {
+      "title": "Qué se guarda, y para qué",
+      "messages": "Los mensajes que envías y las respuestas, para que el asistente responda recordando lo que ya dijiste.",
+      "reservations": "Las reservas que hagas, para que valgan hasta el plazo de retiro.",
+      "record": "El registro técnico de cada respuesta: el modelo, las herramientas, el tiempo y el costo. Es lo que muestra la caja de cristal, y con él la demostración controla su propio gasto.",
+      "web": "En el sitio, un identificador de tu navegador, en una cookie, para reconocer tu conversación y borrar todo lo tuyo de una vez. El servidor guarda solo una huella de él (un hash), no el identificador. Otra cookie guarda el idioma que elijas.",
+      "telegram": "En Telegram, un identificador derivado de tu cuenta, con el mismo fin; el número del chat, cifrado, para enviar las respuestas; y la hora en que aceptaste. Telegram también le envía al bot tu nombre, tu nombre de usuario y el idioma de la aplicación: el idioma elige la lengua de la primera respuesta, y lo demás se descarta apenas se lee. El bot no pide tu teléfono.",
+      "ip": "En el sitio, la dirección IP de quien conversa, para contar los límites de uso que protegen la demostración del abuso. Los registros técnicos del servidor (los logs) anotan la dirección y la identificación del navegador de cada acceso. En Telegram, quien habla con el servidor es el propio Telegram: tu IP solo llega a Balcão si abres un enlace del sitio, como el del trace."
+    },
+    "agreement": {
+      "title": "En Telegram, el bot pregunta antes",
+      "text": "En tu primer mensaje, el bot explica qué pasa con lo que escribes y muestra un botón: <strong>Acepto</strong>. Hasta que aceptes, ningún modelo lee lo que escribes, y Balcão descarta cada mensaje en cuanto lo lee: de ti, solo queda un contador de los límites de uso. El comando de borrar retira tu aceptación, y la limpieza de la noche también, cuando borra tu identificador: el bot vuelve a preguntar en el mensaje siguiente."
+    },
+    "retention": {
+      "title": "Por cuánto tiempo",
+      "intro": "En el servidor de Balcão, la limpieza corre cada noche, sin que nadie la pida:",
+      "items": [
+        "cada mensaje se borra entre 7 y 8 días después de enviado, con el registro técnico de la respuesta;",
+        "cada reserva se borra entre 7 y 8 días después del plazo de retiro;",
+        "tu identificador se borra entre 7 y 8 días después de la última vez que uses Balcão, con todo lo que siga ligado a él."
+      ],
+      "logs": "Los logs no tienen plazo fijo: se renuevan a medida que se llenan y pueden guardar un acceso por más de 7 días. En ellos nunca entra el texto de los mensajes.",
+      "counters": "Los contadores de los límites de uso tampoco tienen plazo fijo, por ahora. Se guardan aparte, bajo la dirección IP y el identificador, y no vuelven a cero cuando borras tus datos, para que borrar no sea una forma de saltarse el límite.",
+      "totals": "Fuera de eso, solo quedan totales que no identifican a nadie, como el gasto del mes en el modelo."
+    },
+    "deletion": {
+      "title": "Cómo borrar antes",
+      "text": "Envía <cmd>/borrar</cmd> o “borrar mis datos” en la conversación. Los mensajes, las reservas, el registro técnico de las respuestas y tu identificador se borran de Balcão en el acto; solo quedan los contadores de los límites de uso, como dice la sección anterior. Las copias de paso, que llevan las respuestas hasta la página, desaparecen en 10 minutos como máximo.",
+      "telegram": "En Telegram, el comando también retira tu aceptación. Los mensajes que siguen en el chat son tu copia, en tu aplicación y en los servidores de Telegram: la opción de borrar el historial, en el propio Telegram, los borra."
+    },
+    "readers": {
+      "title": "Quién ve la conversación",
+      "trace": "Quien tenga el enlace del trace ve la conversación. El enlace deja de funcionar entre 7 y 8 días después del último mensaje, o en el acto, si borras tus datos.",
+      "cases": "El operador de la demostración puede leer las conversaciones para corregir errores. Una conversación del sitio en la que el asistente se equivoca puede convertirse en un caso de prueba en el repositorio público del proyecto: reescrita, con otras palabras, y sin nada que identifique a quien escribió. Una conversación de Telegram nunca se convierte en caso de prueba."
+    },
+    "processors": {
+      "title": "Quién procesa los datos",
+      "items": [
+        "Anthropic: el modelo de lenguaje, que recibe el texto de la conversación para responder.",
+        "Hetzner: el alojamiento del servidor, donde están la base de datos y los logs.",
+        "Telegram: las conversaciones con el bot pasan por los servidores de Telegram, bajo la política de privacidad de Telegram."
+      ]
+    },
+    "contact": {
+      "title": "Contacto",
+      "text": "El responsable de los datos es {{name}}. Para cualquier pedido sobre tus datos, escribe a <email>{{email}}</email>."
+    }
   }
 }
