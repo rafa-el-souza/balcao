@@ -4,7 +4,7 @@
 [![CI on main](https://img.shields.io/github/actions/workflow/status/rafa-el-souza/balcao/ci.yml?branch=main&label=CI)](https://github.com/rafa-el-souza/balcao/actions/workflows/ci.yml?query=branch%3Amain)
 [![The clinical boundary's eval cases, as last committed](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2Frafa-el-souza%2Fbalcao%2Fmain%2Fevals%2Fscorecard.md&search=%5C%7C%20boundary%20%5C%7C%20%5Cd%2B%20%5C%7C%20(%5Cd%2B%2F%5Cd%2B)&replace=%241&label=clinical%20boundary%20evals)](evals/scorecard.md)
 
-> An AI attendant for a neighbourhood pharmacy, on the web and on WhatsApp,
+> An AI attendant for a neighbourhood pharmacy, on the web and on Telegram,
 > built to be used, watched and audited.
 
 **Try it:** [balcao.rafasouza.dev.br](https://balcao.rafasouza.dev.br) (live
@@ -82,7 +82,9 @@ what each folder holds.
   a boundary checked by an eval suite at 100% and, after the MVP,
   re-checked on every reply by a second, cheaper model (the glass box
   shows it).
-- Answers on WhatsApp too; voice notes after the MVP.
+- Answers on Telegram too, since Meta refused the WhatsApp account
+  ([ADR-0016](docs/adr/0016-telegram-bot-api-as-the-messaging-channel.md));
+  voice notes after the MVP.
 - Shows the **glass box**: a live trace of your conversation with model,
   tools, latency, tokens and cost.
 - Runs unattended under a monthly budget cap; after the MVP the cap gains
@@ -94,7 +96,7 @@ what each folder holds.
 Ruby on Rails 8 API · React + TypeScript (Vite) · PostgreSQL, whose trigram
 and full-text search find the catalogue's products (no vector store) · Solid Queue
 and Solid Cable (no Redis) · Anthropic Claude via the official Ruby SDK ·
-WhatsApp Cloud API · Kamal 2 on one small VM.
+Telegram Bot API · Kamal 2 on one small VM.
 
 Versions, current stable when the implementation started (2026-11-09):
 Ruby 4.0.9 and Rails 8.1.4.1; PostgreSQL 18; Node.js 26 LTS; React 19.3,
