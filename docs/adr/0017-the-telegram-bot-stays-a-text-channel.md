@@ -9,11 +9,10 @@ end) · Extends [ADR-0016](0016-telegram-bot-api-as-the-messaging-channel.md).
 
 ADR-0016 made Telegram's Bot API the messaging channel. The Bot API is far
 more than a way to send text: version 10.4 has 193 methods and 29 kinds of
-update, and 2026 alone brought replies streamed as drafts, rich messages
-with tables and buttons, HTML widgets inside a message, topics inside a
-private chat and bots that answer for a personal account. A pharmacy's
-attendant could use many of them, and each one costs along the same four
-lines:
+update, and the twelve months before this ADR brought replies streamed as
+drafts, topics inside a private chat, rich messages with tables and
+buttons, and HTML widgets inside a message. A pharmacy's attendant could
+use many of them, and each one costs along the same four lines:
 
 - **What comes in.** Every kind of update is one more input that a
   stranger's device writes and the webhook must read: a button's callback
@@ -22,7 +21,8 @@ lines:
   request. The webhook is on the review policy's risk list (ADR-0013).
 - **What the model's words become on a visitor's screen.** Under a parse
   mode a reply can hide a link behind an innocent word, and MarkdownV2
-  refuses a whole message over one unescaped character out of eighteen.
+  wants eighteen characters escaped wherever they appear, which a model's
+  text does not do.
 - **Which apps can draw it.** The reference names no minimum app version
   for any feature. An app older than widgets shows "unsupported media";
   for drafts, topics, date entities and rich messages nothing says what an
@@ -84,6 +84,7 @@ What the rule lets in, and when (design §9):
 |---|---|---|
 | MVP, days 11 and 12 | The bot's profile in the three languages: its name, its description (shown in the empty chat, before Start) and its short description; a profile photo | FR-01's notice before the first message; the terms' "must not misrepresent" |
 | MVP | The command menu in the three languages; `/start` and `/help` answered with fixed texts | FR-04, FR-05, FR-12; the platform's global commands |
+| MVP | The ask for agreement before a first message is read: one button on a reply keyboard, whose tap sends ordinary text | The consent the terms ask before a bot uses what a visitor sends (ADR-0016) |
 | MVP | The typing status while a turn runs | NFR-03's "pensando…" |
 | MVP | One fixed line in answer to a photo, a sticker, a document, a voice note (until M4) or anything else that is not text; no file is fetched | "respond to all messages" |
 | MVP | Private chats only: the bot kept out of groups in BotFather, and the webhook ignoring any chat that is not private | §2.2; threat model SR-42 |
@@ -113,7 +114,7 @@ it first:
   neighbourhood shop is one thread.
 - **Reactions.** The bot's own says what the typing status already says.
   A visitor's, kept as a rating, fails test 1, and ratings kept to improve
-  a model need the consent ADR-0016 quotes.
+  a model fall under the terms' rule on data for models (ADR-0016).
 - **Asking for a location or a phone number, and reading photos.** Test 4:
   a photo of a prescription or of a box is health data, and it would carry
   the clinical boundary (FR-09) into images.
@@ -128,21 +129,22 @@ it first:
   that way "to third parties (including third-party APIs) without the
   user's authorization".
 - **Payments, Login with Telegram, inline and guest modes, groups and
-  channels.** Non-goals already (design §2.2): no payments, one visitor in
-  one conversation, no sign-up.
+  channels.** Out by the design already: no payments (§2.2), a
+  conversation is one visitor's (§1.3), and no sign-up (FR-18).
 
 ## Consequences
 
 - FR-19 says what the bot does with each kind of message, in scenarios.
   `config/commands.yml` gains `start` and `help`, matched before the model
-  like the other commands and on both channels, and the locale files gain
-  the bot's texts.
+  like the other commands and on both channels, and the phrases that count
+  as an agreement; the locale files gain the bot's texts.
 - What the bot shows of itself (its name, its descriptions, its menu) and
   its webhook are set by one task of the repository, from tracked files,
   so they are reviewed and repeated like any change (FR-26's idea, for the
-  bot). What stays in BotFather is what only BotFather has: the bot's
+  bot). What stays in BotFather is what only BotFather has, the bot's
   creation, its token, its privacy-policy URL and the switch that keeps it
-  out of groups.
+  out of groups, and its photo, set there once: an upload through the Bot
+  API is a new photo at every run of the task.
 - The threat model gains SR-42 (private chats and `message` updates only)
   and SR-43 (plain text out, no link previews).
 - The delivery plan gains a slice: M4 opens with the bot's finish (design

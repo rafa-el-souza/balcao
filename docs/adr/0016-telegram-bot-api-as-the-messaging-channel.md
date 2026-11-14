@@ -4,8 +4,9 @@
 survey of Telegram, Signal and the routes left on WhatsApp; the sources
 were read that day and are listed at the end) ·
 Supersedes ADR-0002's choice of the WhatsApp Cloud API (its rejection of
-unofficial clients stands) and amends ADR-0004's lane, ADR-0012's WhatsApp
-line and ADR-0013's risk list · Extended by
+unofficial clients stands) and amends ADR-0004's lane, ADR-0011's words on
+the demo's secrets, ADR-0012's WhatsApp line and ADR-0013's risk list ·
+Extended by
 [ADR-0017](0017-the-telegram-bot-stays-a-text-channel.md) (what the bot
 uses of the platform).
 
@@ -51,22 +52,27 @@ replies only (§2.2), voice notes fetched by id through an official API
      are fetched by file id (`getFile`), up to 20 MB.
    - **The developer terms.** They require a privacy policy (Telegram's
      standard one forbids passing user data to third parties, and the
-     model provider is one), user data "encrypted at rest and stored
-     separately from its encryption key", and "individual, explicit,
-     active and revocable consent" before data is collected for "large
-     datasets, machine learning models and AI products"; they forbid
-     "regulated" goods without defining the word.
+     model provider is one) and user data "encrypted at rest and stored
+     separately from its encryption key". They keep a bot's data to what
+     is "essential for the operation of your services", always prohibit
+     "any form of data collection aimed at creating large datasets,
+     machine learning models and AI products", and let a bot use what
+     users send it "provided that you clearly inform them of the data's
+     intended use and they give their individual, explicit, active and
+     revocable consent". They forbid "regulated" goods without defining
+     the word.
    - **What the platform asks of a bot.** To answer `/start` and `/help`
      ("We require all developers to support several Global Commands") and
      to "respond to all messages that are sent to your bot".
    - **What comes with it.** Telegram's own ads "may appear in large
      public channels, bots, public stories and public search", in a bar
-     above the chat; the documented switch that turns them off is for
-     channels, and a bot's owner has none.
+     above the chat with a bot. Its pages speak of popular bots and give
+     no number; the one switch they document is for channels, and none
+     for a bot's owner.
    - **In Brazil.** Installed on 57 % of smartphones, against WhatsApp's
-     99 % (Mobile Time and Opinion Box, January 2025); courts ordered two
-     suspensions, in 2022 (revoked before it took effect) and in 2023
-     (three days).
+     99 % (Mobile Time and Opinion Box, fieldwork of January 2025); courts
+     ordered two suspensions, in 2022 (revoked before it took effect) and
+     in 2023 (three days).
 2. **Signal through signal-cli.** No official bot or business API ("Use
    outside of Signal is unsupported", libsignal's README). Signal's terms
    forbid "bulk messaging, auto-messaging, and auto-dialing" and accounts
@@ -109,43 +115,57 @@ decision of its own, ADR-0017.
   - SR-07 keys updates by `update_id`;
   - SR-08 is retired: Telegram has no verification handshake, and the id is
     not reused;
-  - SR-10 hashes the Telegram user id with the pepper;
+  - SR-10 hashes the Telegram user id with the pepper, and keeps the raw
+    id, which a reply needs as its chat, on the visitor's row alone,
+    encrypted;
   - SR-22 fetches media by file id from Telegram's file host, whose URLs
     carry the bot token, as every Bot API URL does, and are never logged;
-  - the new SR-41 encrypts visitors' words at rest, as Telegram's terms
-    require.
+  - the new SR-41 encrypts at rest what visitors send and the chat id a
+    reply needs, the project's reading of the "user data" the terms want
+    encrypted.
 - `/privacy` (§6.7) is the bot's own privacy policy, set in BotFather,
   because Telegram's standard policy would forbid sending a message to the
-  model; it names Telegram among the processors, and it says that the
-  delete command erases the server's copy while the chat in the visitor's
-  app stays the visitor's to clear.
+  model; it names Telegram among the processors, and it says that the bot
+  asks for agreement first and that the delete command erases the server's
+  copy while the chat in the visitor's app stays the visitor's to clear.
 - What the platform asks of a bot becomes requirements: FR-19 answers
-  `/start`, `/help` and every message, a photo included (ADR-0017).
+  `/start`, `/help` and every message a person sends in a private chat, a
+  photo included, short of a flood (ADR-0017).
+- The bot asks before it reads (the owner, 2026-11-14). The terms' consent
+  sentence, read strictly, covers the everyday use of a message: sending
+  it to the model provider to answer. So a person the bot does not know
+  gets, on the first message, Start included, the demo notice, what
+  happens to a message and one button to agree; nothing of that person is
+  stored and no model is called until the tap, and the delete command
+  withdraws the agreement (FR-19). The web chat keeps its notice and its
+  privacy page: the step answers Telegram's terms.
 - No Telegram conversation becomes an eval case in V1: the console's
-  action (FR-16, M2) is not offered for the channel. The terms would ask
-  each visitor's explicit and revocable consent first, and a case
-  committed to a public repository cannot be taken back.
+  action (FR-16, M2) is not offered for the channel. Under the terms a
+  case would be at best one more use that needs its visitor's consent, and
+  at worst the collection they always prohibit; and a case committed to a
+  public repository cannot be taken back.
 - ADR-0012's line "WhatsApp is unaffected" reads for Telegram: a Telegram
   account needs a phone number to exist, so identities stay costly to mint,
   and Telegram adds its own limits (R2).
-- ADR-0013's risk list reads "the Telegram webhook and Bot API client"
-  where it says "the WhatsApp webhook and Graph client". Where ADR-0011 and
-  the threat model's A4b speak of the demo number's Meta values, read the
-  bot token and the webhook secret.
+- ADR-0013's risk list reads "the Telegram webhook and the Bot API
+  client" where it says "the WhatsApp webhook and the Graph API client".
+  Where ADR-0011 speaks of "the demo number's Meta values", read the bot
+  token and the webhook secret.
 - The landing's QR opens the bot, and its stack line names the Telegram Bot
   API. The freelance audience of §1.1 loses the channel Brazilian shops
   actually serve on; that cost is accepted.
 - The channel is another company's platform, and three things can take it
-  away or change its face: Telegram reading "regulated" against a demo
-  that sells nothing, a court suspending Telegram in Brazil again, and
-  Telegram's ads above the chat if the bot ever counts as large. Accepted
-  (threat model R9): the bot says it is a demo before the first message,
-  and the project stands on the web channel alone, as ADR-0004 planned,
-  the day the bot goes.
+  away or change its face: Telegram reading its terms against the demo
+  ("regulated" goods, the reach of "user data"), a court suspending
+  Telegram in Brazil again, and Telegram's own ads above the chat.
+  Accepted (threat model R9): the bot says it is a demo before the first
+  message, and the project stands on the web channel alone, as ADR-0004
+  planned, the day the bot goes.
 - What the owner does by hand shrinks to BotFather: creating the bot,
   pasting its token into the env file, setting the privacy-policy URL and
-  keeping the bot out of groups. The webhook, the bot's profile and its
-  command menu are set by one task of the repository (ADR-0017).
+  the photo, and keeping the bot out of groups. The webhook, the bot's
+  profile and its command menu are set by one task of the repository
+  (ADR-0017).
 
 ## Sources (read 2026-11-14)
 
@@ -154,7 +174,8 @@ decision of its own, ADR-0017.
 - WhatsApp Help Center, unofficial apps:
   https://faq.whatsapp.com/1217634902127718
 - Telegram Bot API (version 10.4 of 2026-11-09):
-  https://core.telegram.org/bots/api
+  https://core.telegram.org/bots/api, and the bots' introduction ("Bots
+  can't start conversations with users"): https://core.telegram.org/bots
 - Telegram Bot Features (global commands, status alerts):
   https://core.telegram.org/bots/features
 - Telegram Bot Platform Developer Terms of Service:
