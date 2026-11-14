@@ -1609,20 +1609,26 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
   - **The ledger** (`app/models/budget.rb`): every attempt of a model call is
     a usage record at the table's prices, and its cost is added to the
     calendar month's spend under the month row's lock, in one transaction,
-    so concurrent turns add up. A run that breaks after a model call is
-    charged for it: the call was paid for. The spend lives on the month's
-    row, which the seven-day purge of the usage records leaves alone. The
-    model call's span carries its cost as `balcao.cost.usd` (the SDK's spans
-    carry none, hence the prefix).
+    so concurrent turns add up. Each call is charged as its answer arrives,
+    before the run goes on, so a run that breaks later, or a worker a deploy
+    stops mid-turn, keeps the charge of every call it made (review finding
+    V3 of pull request #29: a charge left for the end of the run was rolled
+    back with its killed thread). The spend lives on the month's row, which
+    the seven-day purge of the usage records leaves alone. The model call's
+    span carries its cost as `balcao.cost.usd` (the SDK's spans carry none,
+    hence the prefix).
   - **The gate** reads the month's mode before any model call: a forced mode
     wins until released (FR-14's kill switch; a console from M2, a Rails
     runner line until then, docs/runbook.md); otherwise the mode is paused
     from the cap on and normal below it, computed from the spend and the cap
     when read, so a cap raised by a deploy resumes the month at once. A
     forced economy pauses until the full eval run allows the economy model
-    (`evals/economy_allowed.yml`, M2; ADR-0003). The charge that reaches the
-    cap writes the pause into the month's row and one log line, the place
-    M3's operator notification will hook. The mode is read once, when a turn
+    (`evals/economy_allowed.yml`, M2; ADR-0003). The read that finds the
+    automatic mode changed (a charge past the cap, a cap a deploy lowered or
+    raised, a new month) writes it into the month's row and one log line,
+    which names the forced mode that serves when one wins (review finding S3
+    of pull request #29): the place M3's operator notification will hook.
+    The mode is read once, when a turn
     starts: turns already running finish, so a month may end past its cap by
     what the turns in flight spend, at most the worker's three threads times
     one turn (seven calls of at most 1,500 output tokens).
@@ -1656,22 +1662,29 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     request's lines and `conversation_id` on every line a turn writes
     (NFR-05; `lib/logging/json_log_formatter.rb`). SR-30's masking is at the
     sources: Active Job's lines of a failed, retried, stopped or discarded
-    job and a request's error line now name the error and its causes by
-    their classes (`config/initializers/log_masking.rb`), as the app's own
-    lines do, and a tool's failure line lost the error's message. Left open:
+    job, Solid Queue's worker lines (review finding C1 of pull request #29)
+    and a request's error line now name the error and its causes by their
+    classes (`config/initializers/log_masking.rb`), as the app's own lines
+    do, and a tool's failure line lost the error's message. Left open:
     Solid Queue keeps a failed job's error message in its own table until
     the console clears it (M2), outside the purge.
   - **The edge's counters (the owner, 2026-11-14)**: review finding C4 of pull
     request #12 is taken here. A cache that cannot count lets a request
     through uncounted and logs which limit, never whose; every API request
-    answered 500 before. The monthly cap bounds what that lets through.
+    answered 500 before, and a write after a failed increment started a live
+    counter over (review finding S4 of pull request #29). The monthly cap
+    bounds what that lets through.
   - **The panel**: each model call shows its cost beside its time and, open,
     in dollars and reais; the turn's cost closes the totals, the line at
     390 px, each folded turn and each turn of the trace page, whose receipt
     totals the cost above the tokens and the turns' time. A cost is drawn
     only where the ledger gave one above zero (a failed call cost nothing),
-    never a zero in its place. The glass box's head names the mode from the
-    session and the polling, and follows a turn the stream closes.
+    never a zero in its place; the currencies' symbols are the locale files'
+    words (review finding C6 of pull request #29). The glass box's head names
+    the mode from the session and the polling, and follows the month's mode
+    a turn's root carries when it closes, after its own charge
+    (`balcao.budget.mode`), never the mode the turn ran in, which was read
+    before (review finding C3 of pull request #29).
   - **Still M3**: economy at 70 %, the daily slice, the operator's
     notification, the kill switch in a console, the status page.
 - Note 2026-11-14 (PR-15; FR-01, FR-02, FR-09, FR-10's MVP note, SR-19). The
