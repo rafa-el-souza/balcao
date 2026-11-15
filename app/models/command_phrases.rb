@@ -4,7 +4,7 @@
 # normalised, it is exactly one of the phrases, and a deletion phrase
 # followed by a question mark is a question; the file's header says both.
 # The same file lists the phrases of Telegram's agreement (FR-19), which are
-# never a command and are normalised the same way.
+# never a command and count only as written (agreement_key).
 class CommandPhrases
   PATH = Rails.root.join("config/commands.yml")
   NAMES = %w[reset delete trace start help].freeze
@@ -23,6 +23,13 @@ class CommandPhrases
   # A question mark in what follows a deletion phrase: NFKD reads the
   # full-width "？" and "⁉" as "?".
   QUESTION = /[?‽❓❔]/
+  # The agreement's phrase counts only as written (FR-19, Telegram's
+  # "explicit, active" consent): around it, spaces, an opening ¡ and
+  # quotation marks, and after it a full stop, an exclamation or an ellipsis
+  # (NFKD reads "…" as "..."); a question mark or anything else after it
+  # makes it no agreement (review finding C2 of pull request #41).
+  AGREEMENT_OPENING = /\A[\s¡"'“”‘’«»‹›„‚]+/
+  AGREEMENT_TAIL = /[\s.!"'“”‘’«»‹›]+\z/
 
   class Invalid < StandardError; end
 
@@ -42,6 +49,14 @@ class CommandPhrases
   # never a command and never raises before the turn starts.
   def self.normalize(text) = split(text).first
 
+  # The agreement's key of a message: case, accents and spaces as for a
+  # command, and only AGREEMENT_OPENING and AGREEMENT_TAIL around it.
+  def self.agreement_key(text)
+    text = text.to_s.dup.force_encoding(Encoding::UTF_8).scrub
+    text.unicode_normalize(:nfkd).gsub(/\p{Mn}/, "").downcase.gsub(/\s+/, " ").strip
+        .sub(AGREEMENT_OPENING, "").sub(AGREEMENT_TAIL, "")
+  end
+
   # The phrase a message is, normalized, and what followed it.
   def self.split(text)
     text = text.to_s.dup.force_encoding(Encoding::UTF_8).scrub
@@ -59,7 +74,7 @@ class CommandPhrases
     @agreement = check_languages(data[AGREEMENT], AGREEMENT)
     owners = index(@phrases.merge(AGREEMENT.to_sym => @agreement))
     @commands = owners.reject { |_, owner| owner == AGREEMENT.to_sym }.freeze
-    @agreements = owners.filter_map { |key, owner| key if owner == AGREEMENT.to_sym }.to_set.freeze
+    @agreements = @agreement.values.flatten.to_set { |phrase| self.class.agreement_key(phrase) }.freeze
     @languages = languages_index(@phrases)
   end
 
@@ -77,9 +92,9 @@ class CommandPhrases
     name == :delete && tail.match?(QUESTION) ? nil : name
   end
 
-  # Whether the message is one of the agreement's phrases (FR-19), which
-  # counts only while the bot holds no row of the person.
-  def agreement?(text) = @agreements.include?(self.class.normalize(text))
+  # Whether the message is one of the agreement's phrases as written (FR-19),
+  # which counts only while the bot holds no row of the person.
+  def agreement?(text) = @agreements.include?(self.class.agreement_key(text))
 
   # The phrase the ask's button sends in this language ("pt", "en", "es").
   def agreement(language) = @agreement.fetch(language).first

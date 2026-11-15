@@ -37,11 +37,23 @@ RSpec.describe "FR-04 FR-05 FR-12 FR-19 command phrases, matched before the mode
   # holds no row of that person. They are not commands: once the row exists,
   # they are a message like any other.
   describe "the agreement's phrases" do
-    [ "Concordo", "concordo.", "  CONCORDO! ", "eu concordo", "I agree", "i agree.", "Acepto", "acepto!", "Concordo 👍",
-      '"Concordo"' ].each do |text|
+    [ "Concordo", "concordo.", "  CONCORDO! ", "eu concordo", "I agree", "i agree.", "Acepto", "acepto!", "¡Acepto!", '"Concordo"',
+      "“Concordo”", "Concordo..." ].each do |text|
       it "takes #{text.inspect} as the agreement, and never as a command" do
         expect(commands.agreement?(text)).to be(true)
         expect(commands.match(text)).to be_nil
+      end
+    end
+
+    # Review finding C2 of pull request #41 (cliente, FR-19): Telegram's terms
+    # ask for explicit, active consent, and the agreement shared the
+    # commands' normalisation, so a question mark or any emoji after the
+    # phrase was dropped and "Acepto 👎" created the row. The phrase counts
+    # only as written; the ask's button sends it so.
+    [ "Concordo?", "concordo ❓", "concordo ‽", "I agree 🤔", "Acepto 👎", "concordo :(", "Concordo 👍", "¿Acepto?",
+      "Concordo?!" ].each do |text|
+      it "does not take #{text.inspect} as the agreement" do
+        expect(commands.agreement?(text)).to be(false)
       end
     end
 

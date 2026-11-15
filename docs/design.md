@@ -693,7 +693,10 @@ revocable consent" (ADR-0016).
   reading of its update: no visitor, no message, no turn, and no model is
   called. `/help` and the delete command answer as always.
 - Given the ask, When the person taps the button, or writes one of the few
-  phrases `config/commands.yml` lists as an agreement, Then the visitor's
+  phrases `config/commands.yml` lists as an agreement, as written (case,
+  accents, spaces, quotation marks and a final full stop or exclamation
+  aside; a question mark or an emoji after it is no agreement: review
+  finding C2 of pull request #41), Then the visitor's
   row is created with the time of the agreement, the reply is the fixed
   greeting below and the button goes away. The phrases count only while
   there is no row; afterwards they are a message like any other.
