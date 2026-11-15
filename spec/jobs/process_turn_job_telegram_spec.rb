@@ -194,25 +194,109 @@ RSpec.describe "FR-19 FR-05 NFR-03 ProcessTurnJob on Telegram, the reply on its 
         perform_enqueued_jobs(only: ProcessTurnJob) until enqueued_jobs.empty?
 
         expect(Visitor.exists?(visitor.id)).to be(false)
-        expect(lines).to eq([ "telegram fixed reply deleted: broke at attempt 3 of 3, ActiveRecord::ConnectionFailed, " \
+        expect(lines).to eq([ "telegram fixed reply deleted: broke at attempt 1 of 3, ActiveRecord::ConnectionFailed",
+                              "telegram fixed reply deleted: broke at attempt 2 of 3, ActiveRecord::ConnectionFailed",
+                              "telegram fixed reply deleted: broke at attempt 3 of 3, ActiveRecord::ConnectionFailed, " \
                               "the data deleted all the same" ])
       end
 
-      # A later turn's job answers the earlier turns first (design §6.3); a
-      # deletion it runs that way has no attempt of its own there.
-      it "leaves a deletion that a later turn's job runs to its own job's attempts" do
-        answers(502)
-        deletion = inbound("/apagar")
-        later = inbound("oi")
+      # A later turn's job answers the earlier turns first (design §6.3).
+      # Review finding C1 of pull request #41 (cliente): when the deletion's
+      # confirmation did not leave there, the job went on to its own turn, so
+      # a message sent after the request to delete reached the model, was
+      # billed and answered before the data went. A deletion that waits for
+      # its confirmation now holds the turns after it.
+      describe "a later turn while the deletion waits (review finding C1 of pull request #41)" do
+        it "answers nothing after the deletion, calls no model, and its job waits for its next attempt" do
+          answers(502)
+          deletion = inbound("/apagar")
+          later = inbound("oi")
+          expect_any_instance_of(AgentRunner).not_to receive(:run)
 
-        perform(later)
+          perform(later)
 
-        expect(Visitor.exists?(visitor.id)).to be(true)
-        expect(lines).to include("earlier turn #{deletion.id} failed: TurnProcessor::ConfirmationNotSent")
+          expect(later.reload.outbound_message).to be_nil
+          expect(Visitor.exists?(visitor.id)).to be(true)
+          expect(enqueued_jobs.sole).to include(job: ProcessTurnJob, args: [ later.id ])
+          expect(lines).to include("earlier turn #{deletion.id}: a deletion waits for its confirmation, and the turns after it")
 
-        perform(deletion)
+          perform(deletion)
 
-        expect(Visitor.exists?(visitor.id)).to be(false)
+          expect(Visitor.exists?(visitor.id)).to be(false)
+          expect(Turn.exists?(later.id)).to be(false)
+        end
+
+        it "holds the later turn when the deletion's own job already failed its send" do
+          answers(502, 502)
+          deletion = inbound("/apagar")
+          ProcessTurnJob.perform_later(deletion.id)
+          perform_enqueued_jobs(only: ProcessTurnJob)
+          later = inbound("oi")
+          expect_any_instance_of(AgentRunner).not_to receive(:run)
+
+          perform(later)
+
+          expect(later.reload.outbound_message).to be_nil
+          expect(Visitor.exists?(visitor.id)).to be(true)
+        end
+
+        it "holds the later turn when the deletion's send broke rather than failed, with a line naming the error" do
+          allow_any_instance_of(Telegram::Outbound).to receive(:send_fixed).and_raise(ActiveRecord::ConnectionFailed)
+          inbound("/apagar")
+          later = inbound("oi")
+          expect_any_instance_of(AgentRunner).not_to receive(:run)
+
+          perform(later)
+
+          expect(later.reload.outbound_message).to be_nil
+          expect(lines).to include("telegram fixed reply deleted: broke at attempt 1 of 3, ActiveRecord::ConnectionFailed")
+        end
+
+        it "holds a later command too, the trace link among them" do
+          answers(502)
+          inbound("/apagar")
+          trace = inbound("/trace")
+
+          perform(trace)
+
+          expect(trace.reload.outbound_message).to be_nil
+          expect(sent.map { |body| body["text"] }).to all(eq(FixedReply.telegram_deleted("pt-BR")))
+        end
+
+        it "deletes at the later job's last attempt, whether or not the confirmation left, and its turn goes with the rest" do
+          answers(502, 502, 502)
+          inbound("/apagar")
+          later = inbound("oi")
+          expect_any_instance_of(AgentRunner).not_to receive(:run)
+          ProcessTurnJob.perform_later(later.id)
+
+          3.times { perform_enqueued_jobs(only: ProcessTurnJob) }
+
+          expect(Visitor.exists?(visitor.id)).to be(false)
+          expect(Turn.exists?(later.id)).to be(false)
+          expect(lines.grep(/dead letter/)).to be_empty
+        end
+
+        # The verifier's V1 on pull request #41 (cliente): a reset after the
+        # waiting deletion moved the later turn into the conversation it
+        # opened, whose lock the deletion's retry does not hold, so the data
+        # could go while that turn's model call was in flight, and the
+        # call's charge was rolled back with the usage record of a deleted
+        # turn (FR-14, SR-02).
+        it "holds a reset after the deletion, so no later turn moves out from under the deletion's lock" do
+          answers(502, 502)
+          inbound("/apagar")
+          reset = inbound("/reiniciar")
+          later = inbound("oi")
+          expect_any_instance_of(AgentRunner).not_to receive(:run)
+
+          perform(reset)
+          perform(later)
+
+          expect(conversation.reload.closed_at).to be_nil
+          expect(later.reload.conversation_id).to eq(conversation.id)
+          expect([ reset.reload.outbound_message, later.outbound_message ]).to all(be_nil)
+        end
       end
 
       # NFR-02's accepted duplicate: sendMessage takes no idempotency key.

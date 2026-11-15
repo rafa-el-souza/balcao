@@ -134,21 +134,24 @@ class TurnProcessor
   end
 
   # FR-05 on Telegram (the owner, 2026-11-15): the confirmation leaves before
-  # the rows go. One that did not leave, or whose send broke, raises, so the
-  # job tries the turn again with its backoff, three attempts in all; at its
-  # last the data goes whether or not the confirmation left, and the log says
-  # so (review finding C8 of pull request #33: a send that broke after the
-  # deletion was lost with no line). A turn another turn's job runs has no
-  # attempt of its own here, so it waits for its own job's. A confirmation may
+  # the rows go. One that did not leave, or whose send broke (a line names
+  # the error's class), raises ConfirmationNotSent, so the job tries the turn
+  # again with its backoff, three attempts in all, and the turns after it
+  # wait for it (ProcessTurnJob#run_earlier, review finding C1 of pull
+  # request #41); at the last attempt the data goes whether or not the
+  # confirmation left, and the log says so (review finding C8 of pull request
+  # #33: a send that broke after the deletion was lost with no line). A later
+  # turn's job runs the deletion with its own attempt. A confirmation may
   # arrive twice when a run is repeated: sendMessage takes no idempotency key
   # (NFR-02's accepted duplicate).
   def confirm_deletion(chat, language)
     left = begin
       Telegram::Outbound.new.send_fixed(chat, FixedReply.telegram_deleted(language), name: :deleted, attempt: @attempt&.number || 1)
     rescue StandardError => e
-      raise unless @attempt&.last?
+      return Rails.logger.error("telegram fixed reply deleted: broke at #{@attempt}, #{e.class}, the data deleted all the same") if @attempt&.last?
 
-      return Rails.logger.error("telegram fixed reply deleted: broke at #{@attempt}, #{e.class}, the data deleted all the same")
+      Rails.logger.error("telegram fixed reply deleted: broke#{" at #{@attempt}" if @attempt}, #{e.class}")
+      false
     end
     return if left
     raise ConfirmationNotSent, "the deletion's confirmation did not leave; the job tries the turn again" unless @attempt&.last?
