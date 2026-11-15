@@ -151,7 +151,11 @@ RSpec.describe "FR-14 SR-02 FR-12 the budget in a turn: the pause before the mod
       expect(turn.reload).to have_attributes(mode: "paused", model: nil, state: "replied")
     end
 
-    it "answers a forced pause too, in the conversation's language" do
+    # The owner's word of 2026-11-15 (E-08, question 37): the cap's text
+    # names the month's limit, which a pause the operator forced did not
+    # reach, so that pause answers with a text of its own, which names no
+    # limit and no date.
+    it "answers a forced pause with its own text, which names no limit, in the conversation's language" do
       conversation.update!(language: "es")
       BudgetState.for_month!.update!(forced_mode: "paused")
       turn = inbound("¿tienen ibuprofeno?")
@@ -159,7 +163,28 @@ RSpec.describe "FR-14 SR-02 FR-12 the budget in a turn: the pause before the mod
       perform(turn)
 
       expect(fake.requests).to be_empty
-      expect(turn.outbound_message.body).to eq(FixedReply.with_notice(FixedReply.paused("es"), "es"))
+      expect(turn.reload).to have_attributes(state: "replied", mode: "paused", model: nil)
+      expect(turn.outbound_message.body).to eq(FixedReply.with_notice(FixedReply.forced_pause("es"), "es"))
+      expect(root(turn).span_attributes).to include("balcao.turn.mode" => "paused", "balcao.turn.outcome" => "paused")
+    end
+
+    it "answers with the forced pause's text a forced economy, which pauses until the eval run allows it, past the cap too" do
+      BudgetState.for_month!.update!(forced_mode: "economy", spent_usd: BigDecimal("12"))
+      turn = inbound("tem dipirona?")
+
+      perform(turn)
+
+      expect(turn.outbound_message.body).to eq(FixedReply.with_notice(FixedReply.forced_pause("pt-BR"), "pt-BR"))
+    end
+
+    it "keeps the forced and the cap's texts apart in the three languages" do
+      %w[pt-BR en es].each do |locale|
+        expect(FixedReply.forced_pause(locale)).to be_present
+        expect(FixedReply.forced_pause(locale)).not_to eq(FixedReply.paused(locale))
+      end
+      expect(FixedReply.forced_pause("pt-BR")).to eq("A demo está pausada no momento. Volte mais tarde.")
+      expect(FixedReply.forced_pause("en")).to eq("The demo is paused for now. Please come back later.")
+      expect(FixedReply.forced_pause("es")).to eq("La demo está en pausa por ahora. Vuelve más tarde.")
     end
 
     # Review finding C3 of pull request #29: the glass box's head follows the

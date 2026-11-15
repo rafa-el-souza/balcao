@@ -51,10 +51,12 @@ pt-BR:
   limits:
     now: "Você chegou ao limite da demo por agora. Tente de novo daqui a pouco."
     today: "Você chegou ao limite da demo por hoje. Volte amanhã."
-  # FR-14: the reply of a month that reached its budget cap, or that the
-  # operator paused, sent with no model call (threat model SR-02).
+  # FR-14: the reply of a month that reached its budget cap, and the reply of
+  # a pause the operator forced, which names no limit and no date (the owner,
+  # 2026-11-15), sent with no model call (threat model SR-02).
   budget:
     paused: "A demo está pausada até o próximo mês: chegou ao limite de gasto deste mês."
+    forced: "A demo está pausada no momento. Volte mais tarde."
   # FR-19's fixed texts on Telegram, sent with no model call: the ask for the
   # agreement, after FR-01's notice, naming the button's phrase of
   # config/commands.yml; the line for a message that is not text, which no

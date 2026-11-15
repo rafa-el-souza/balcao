@@ -31,6 +31,7 @@ en:
     today: "You have reached the demo's limit for today. Please come back tomorrow."
   budget:
     paused: "The demo is paused until next month: it has reached this month's spending limit."
+    forced: "The demo is paused for now. Please come back later."
   # FR-19's fixed texts on Telegram, sent with no model call: the ask for the
   # agreement, after FR-01's notice, naming the button's phrase of
   # config/commands.yml; the line for a message that is not text, which no

@@ -31,6 +31,7 @@ es:
     today: "Llegaste al límite de la demo por hoy. Vuelve mañana."
   budget:
     paused: "La demo está en pausa hasta el próximo mes: llegó al límite de gasto de este mes."
+    forced: "La demo está en pausa por ahora. Vuelve más tarde."
   # FR-19's fixed texts on Telegram, sent with no model call: the ask for the
   # agreement, after FR-01's notice, naming the button's phrase of
   # config/commands.yml; the line for a message that is not text, which no
