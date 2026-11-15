@@ -2179,6 +2179,19 @@ database's JIT compiler off, which changes no result of the search
     before the first model call 0.1 to 1.1 s, a mean of 0.55 s, the queue's
     polling and the job's start. So the smoke turns' extra second and more
     belonged to the first turn after a deploy.
+  - **Turns on the demo, after the deploy** (`308d49c`, deployed between
+    21:30 and 21:32 UTC; the same sixteen web turns between 21:33 and 21:36,
+    read and deleted the same way): the stretch before the first model call
+    fell from a median of 0.41 s to 0.18 s, a mean of 0.55 s to 0.27 s (the
+    first turn after the deploy, the worker's first job, 1.6 s). At low
+    effort the model wrote a mean of 98 output tokens a call against 121,
+    but the provider was slower that hour, 15.2 ms an output token against
+    12.7 ms at 20:33, so the turn's median went from 3.4 s to 3.5 s: two
+    sets of turns an hour apart cannot tell the effort from the service's
+    drift, which is why the evals' runs were interleaved (ADR-0021). Idle,
+    with the worker looking every 0.1 s, the job's container used 2.4 to
+    3.4 % of a CPU against 0.7 to 1.1 % before, and the database's 1.2 to
+    1.5 % against 0.5 to 0.7 %.
   - **M4-1's search after its deploy** (#44's body): twelve searches of the
     seed on the application's connection, 7.6 to 69.6 ms, a median of
     12.6 ms (the 69.6 ms the process's first), and one plan executed in
