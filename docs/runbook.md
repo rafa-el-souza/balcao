@@ -254,7 +254,12 @@ before `kamal deploy`, as `bin/deploy` does.
   29.9). The engine's own builder holds the deploy cache.
 - **Cloud resources:** the rehearsal project holds exactly the MVP host,
   the reserved IPv4 and the cloud firewall; no other primary IP; load
-  balancers, volumes, floating IPs and snapshots are empty. The provider
+  balancers, volumes, floating IPs and snapshots are empty. With the
+  provider's CLI in the rehearsal project's context: `hcloud server list`,
+  `hcloud primary-ip list`, `hcloud load-balancer list`, `hcloud volume
+  list`, `hcloud floating-ip list` and `hcloud image list -t snapshot`; to
+  count one, add `-o json | jq length`, which reads 0 for an empty list
+  (`-o noheader | wc -l` reads 1). The provider
   bills a server until it is deleted, powered off or not; the MVP host is
   never deleted before M3.
 
@@ -458,7 +463,12 @@ only when there is something to change; the others never do.
    (it reads the `Dockerfile`, not `config/deploy.yml`): checked by hand
    against the image's releases. A new image is a pull request that changes
    the digest and then a deliberate reboot from that `main`, never a side
-   effect of a deploy, and the jobs stop first:
+   effect of a deploy, and the jobs stop first. The digest is the image
+   index's, which `docker buildx imagetools inspect postgres:<tag> --format
+   '{{json .Manifest.Digest}}'` prints, and it follows the tag in the `db`
+   accessory's `image:` line (`postgres:18.6@sha256:…`). The reboot needs
+   no deploy: a deploy never reboots an accessory, and the app's containers
+   keep the version they run.
 
    ```
    RUNNING=$(kamal app version -d ensaio -q | grep -E '^[0-9a-f]{40}$')
@@ -475,7 +485,8 @@ only when there is something to change; the others never do.
    and still end without an error. (The variable is not named `VERSION`,
    which Kamal itself reads from the environment.) The fourth line is
    repeated until it says "accepting connections"; only then do the jobs
-   start, and the last line must list the `job` container, up.
+   start, and the last line must list the `job` container, up; `kamal
+   accessory details db -d ensaio` then shows the new image running.
    *Interrupts the demo:* while Postgres is down a message gets "not sent"
    on the page and Telegram sends its update again later; with the jobs
    stopped no turn is cut in the middle, and what was waiting runs when
