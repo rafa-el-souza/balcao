@@ -1,6 +1,6 @@
 # Balcão — design document
 
-**Status:** v1.12, 2026-11-15 (the plan after the MVP: §9.2 lists its slices in order, behind the data-contract gate where it holds, and ADR-0020 says what V1 leaves out; §2.2, J3, FR-10, FR-14, NFR-03, NFR-08, §6.1, §6.6, §6.9, §8 and OD-2 follow it, see §10); v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
+**Status:** v1.13, 2026-11-15 (M4-2: NFR-01 at 7 s and 12 s, measured from a Telegram update's receipt to its reply's send; §6.4's normal route at low effort, ADR-0021; M3's list charges an abandoned call, see §10); v1.12, 2026-11-15 (the plan after the MVP: §9.2 lists its slices in order, behind the data-contract gate where it holds, and ADR-0020 says what V1 leaves out; §2.2, J3, FR-10, FR-14, NFR-03, NFR-08, §6.1, §6.6, §6.9, §8 and OD-2 follow it, see §10); v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
 coding session, reading this file top to bottom.
 
 Balcão ("the counter", where a pharmacist serves customers) is an AI attendant
@@ -878,9 +878,14 @@ not as a multi-tenant product (non-goal).
 
 ## 5. Non-functional requirements
 
-**NFR-01 Latency.** Text turns: p50 under 4 s, p95 under 10 s from inbound
-receipt to outbound send, measured on the trace. Voice turns: p95 under
-20 s.
+**NFR-01 Latency.** Text turns: p50 under 7 s, p95 under 12 s from inbound
+receipt to outbound send: on Telegram from the update's arrival at the
+webhook to the Bot API's acceptance of the reply's last part, on the web
+from the request that brings the message to the reply on the page's
+stream. The turn records the figure (`latency_ms`), and its trace starts at
+the receipt. Voice turns: p95 under 20 s. (The owner, 2026-11-15, from
+M4-2's measure; 4 s and 10 s until then, set before anything was measured;
+§10.)
 
 **NFR-02 Idempotency.** Every side effect is keyed so that retries and
 redeliveries never duplicate it: inbound message by channel message id
@@ -1104,8 +1109,9 @@ that the turn ends with a polite fallback.
 
 ### 6.4 Model usage notes (verify against the SDK docs at implementation)
 
-- Default model `claude-opus-5-5`, effort `medium` set explicitly; economy
-  model `claude-haiku-5-5` (ADR-0003). Thinking parameter omitted (adaptive).
+- Default model `claude-opus-5-5`, effort `low` set explicitly (ADR-0021;
+  `medium` until 2026-11-15); economy model `claude-haiku-5-5` at `medium`
+  (ADR-0003). Thinking parameter omitted (adaptive).
 - Server-side refusal fallback enabled on the Opus route
   (`fallbacks: "default"` with its beta header); a `refusal` stop reason that
   still comes back is answered with the FR-09 decline text and traced.
@@ -1959,7 +1965,10 @@ round.
 - The fourth chip's link to the injection score, with FR-13 (FR-21's
   note).
 - SR-20's exception closed: no run passes its 60 s, a retry of the
-  provider's call included (#9, C2's sister).
+  provider's call included (#9, C2's sister). An attempt the cut abandons
+  is charged at its input and its output cap, since the provider bills it
+  whole, the output it goes on writing after the client left included
+  (question 20, §10's note of M4-2; the owner, 2026-11-15).
 - One short SR-30 sweep: Action Cable's own error lines and its "Started
   GET /cable" line, which holds the visitor's address (#42, X1; the
   round's triage); `cause: nil` on `Telegram::Client`'s three raises, as
@@ -2091,6 +2100,121 @@ C2 and R1). The store sheet names a key that is not text. A third
 exception, the same day: the application's connections run with the
 database's JIT compiler off, which changes no result of the search
 (M4-1; the note below).
+
+- Note 2026-11-15 (M4-2, a turn's latency measured by what moves it;
+  NFR-01, FR-12, FR-19, ADR-0003). The figures are the session's, read from
+  the spans, the turns and the evals' own records: durations, token counts
+  and tool names, never a message's text.
+  - **NFR-01's measure now runs from the receipt to the send.** A turn's
+    `latency_ms` ran from the stored message to the stored reply, and the
+    trace's root started at the stored message. On Telegram the update's
+    job stores the message after the queue's wait, and the reply leaves
+    after it is stored, by its status (`Telegram::Outbound`). Now the
+    receipt is the update's arrival at the webhook (`Message#received_at`),
+    where the turn's root span starts too, and the send is the moment the
+    Bot API takes the reply's last part, when `Telegram::Outbound` writes
+    the figure (`Turn#reply_sent!`); a reply that never left has none. On
+    the web the request that brings the message stores it, and the reply is
+    sent as it is stored, to the page's stream, so the web's figure is what
+    it was. The trace's root still ends at the stored reply; on Telegram the
+    send follows it, a median of 0.3 s in the first real conversation.
+  - **The first real conversation, so measured** (its 22 text turns, on
+    2026-11-15 between 17:17 and 17:40 UTC): a median of 7.5 s and a p95 of
+    16.6 s from receipt to send, 1 turn under 4 s and 15 under 10 s (6.4 s
+    and 15.9 s as they were stored). In the median turn the model took
+    6.2 s, the stretch before its first call 0.6 s (the queue's wait and the
+    jobs' start) and the rest 0.4 s (storing, the trace, the send); the
+    search averaged 1.0 s a turn. With each search at its speed after M4-1
+    (13 ms): 7.5 s and 12.7 s, 17 under 10 s.
+  - **The queue's polling.** Solid Queue's worker looks for jobs every
+    `polling_interval` while a thread is free, and again whenever one frees
+    up. Its generator wrote 1 s for the workers, where the gem's own default
+    for a worker is 0.1 s: a Telegram message was stored a median of 0.51 s
+    after its update arrived (a p95 of 1.0 s), most of it the wait for the
+    update's job, and a web turn waits as long for its own job. The workers
+    now look every 0.1 s (`config/queue.yml`,
+    `spec/config/queue_polling_spec.rb`).
+  - **The two seconds of the smoke turns** (M4-1's note): both were web
+    turns, each the first turn after a deploy, and the time sat between the
+    stored message and the first model call, 1.7 s at 20:00 and 2.5 s at
+    18:22 UTC, where the real conversation's turns took 0.1 to 0.3 s once
+    the update's job had stored the message.
+  - **The normal route at low effort** (ADR-0021, which holds the
+    measure). Four eval runs of every MVP case, the `boundary` suite three
+    times, alternating medium, low, low, medium on 2026-11-15 between 20:17
+    and 20:39 UTC from one machine: on the same turns each low run took
+    0.89 to 0.91 times a medium run's seconds, every 95 % interval below 1,
+    while two runs at the same effort differed by under 1 %. A turn's median
+    went from 3.70 s to 3.44 s and its p90 from 5.47 s to 4.87 s; 33 of 33
+    cases passed at both levels, the `boundary` suite 78 of 78 attempts at
+    low and 77 of 78 at medium; the attendant's dollars a run went from
+    US$ 0.446 to US$ 0.377.
+  - **Two misreadings of the judge**, at both levels, not the effort's: one
+    attempt of `boundary-pt-07-self-harm` failed at medium because the judge
+    read the system's fixed emergency line, which speaks of someone who
+    took a medicine by mistake or too much of it, as the attendant naming a
+    method, though the rubric names that line and the attendant's sentence
+    matched the two attempts that passed; and `store-unknown-pt-01` came out
+    unstable once at each level, the judge reading "not in our catalogue"
+    as a claim the rubric did not allow. Both belong to the judge's
+    calibration against labels made by hand (M5-4).
+  - **What a call's seconds are made of** (the evals' 356 calls): about 1.1
+    to 1.3 s before its first token, plus 7.6 to 8.4 ms an output token
+    (R² 0.6 to 0.7). A call wrote a mean of 180 output tokens at medium, 65
+    of them thinking, and 145 at low, 34 of them thinking; the visible text
+    is 110 to 115 tokens a call at both levels, which the prompt sets ("one
+    to four sentences"). The first real conversation's calls wrote more, a
+    median of 257 output tokens and up to 593, so the reply's length is the
+    prompt's to change, not effort's.
+  - **Turns on the demo, before the deploy**: sixteen web turns of a
+    scripted visitor on 2026-11-15 between 20:33 and 20:36 UTC, at medium
+    effort with the queue's 1 s polling, read from the spans and then
+    deleted by the visitor's own command. A median of 3.4 s and a p90 of
+    4.9 s, 11 of the 16 under 4 s; the model a median of 2.8 s; the stretch
+    before the first model call 0.1 to 1.1 s, a mean of 0.55 s, the queue's
+    polling and the job's start. So the smoke turns' extra second and more
+    belonged to the first turn after a deploy.
+  - **M4-1's search after its deploy** (#44's body): twelve searches of the
+    seed on the application's connection, 7.6 to 69.6 ms, a median of
+    12.6 ms (the 69.6 ms the process's first), and one plan executed in
+    3.4 ms with no JIT. In the demo's turns above, ten searches took 6 to
+    50 ms, a median of 25 ms, the tool's own work included.
+  - **Question 20, answered** (FR-14, SR-20). The owner read the Console's
+    figures for Claude Sonnet 5.5 on 2026-11-15. The rate-limit charts
+    show 151 thousand input tokens and 24 thousand output tokens in the
+    probe's minute, and they count output as it is generated, never from
+    `max_tokens` (the provider's rate-limit page, read the same day); the
+    Cost page shows US$ 0.54 for the model that day: the control's
+    US$ 0.03, the three abandoned calls' input, US$ 0.28, and their output
+    to the 8,000-token cap each asked for, US$ 0.24. A call the client
+    abandons runs to its end on the provider's side and is billed whole.
+    AgentRunner's 60 s cut charges such an attempt nothing (#29, S8); M3-4
+    charges it at its input and its output cap (the owner, 2026-11-15;
+    §9.2's M3 list). Until then the ledger undercounts a turn the cut ends
+    by one attempt's input and at most 1,500 output tokens, about US$ 0.04
+    on Opus 5.5, behind the Console's own spend limit.
+  - **Levers left, none taken here, by size.** Fewer model calls a turn:
+    each costs about 1.1 s before its first token, and the first real
+    conversation's turns with two or three calls took a median of 9.6 s
+    against 4.6 s with one; `get_store_info`'s round trip would go with the
+    store sheet in the cached prompt, but FR-03 and ADR-0009 keep it behind
+    the tool on purpose, so that the glass box shows a call and the prompt
+    stays small. Fast mode (the provider's page, read on 2026-11-15): the
+    same model at up to 2.5 times the output tokens a second, not a faster
+    first token, at twice the price a token (US$ 8 and 40 a million on Opus
+    5.5), on a rate limit of its own, which the account's tier has, and a
+    fallback to standard speed starts the cache over; the price table and
+    the ledger would have to charge it (FR-14). Shorter replies: a prompt
+    change, for the evals to judge.
+  - **The owner's word** (2026-11-15, one box after the measure): the
+    normal route at low effort (ADR-0021); NFR-01 at a median under 7 s and
+    a p95 under 12 s, so the chat's note that an answer is taking longer
+    joins at 12 s (`SLOW_MS`, NFR-03), and a median under 4 s stays here as
+    what fast mode or shorter replies could reach; an abandoned attempt
+    charged at its cap, in M3-4. With the search, the polling and low
+    effort, the first real conversation's figures would come to about
+    6.4 s and 11 s, projected from the parts above; the next real
+    conversation measures them (M4-6).
 
 - Note 2026-11-15 (M4-1, the catalogue search without the database's JIT
   compiler; NFR-01, FR-06). The application's connections run with `jit`
