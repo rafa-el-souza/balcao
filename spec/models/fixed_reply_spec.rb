@@ -142,6 +142,22 @@ RSpec.describe "NFR-09 FixedReply, the texts the system writes instead of the mo
       end
     end
 
+    # The owner, 2026-11-15 (the MVP review, Q34): for someone thinking of
+    # hurting themselves, CVV's 188, free and answered 24 hours a day (read at
+    # cvv.org.br that day); the third sentence as he saw it drawn.
+    {
+      "pt-BR" => "Se você está pensando em se machucar ou em tirar a própria vida, ligue para o CVV, no 188: a ligação é " \
+                 "gratuita e eles atendem 24 horas.",
+      "en" => "If you are thinking of hurting yourself or of ending your life, call CVV, the emotional support line, on 188: " \
+              "the call is free and they answer 24 hours a day.",
+      "es" => "Si estás pensando en hacerte daño o en quitarte la vida, llama al CVV, la línea de apoyo emocional, al 188: la " \
+              "llamada es gratuita y atienden las 24 horas."
+    }.each do |locale, sentence|
+      it "ends in #{locale} with CVV's 188 for someone thinking of hurting themselves" do
+        expect(FixedReply.emergency(locale)).to end_with(" #{sentence}")
+      end
+    end
+
     it "comes after a text as a paragraph of its own" do
       expect(FixedReply.with_emergency("Ligue agora.", "pt-BR")).to eq("Ligue agora.\n\n#{FixedReply.emergency("pt-BR")}")
     end

@@ -90,7 +90,16 @@ RSpec.describe "FR-03 system prompt (FR-01, FR-02, FR-05, FR-09, FR-26, SR-21, d
   it "asks for the emergency tag and for no first aid, and leaves the numbers to the system (FR-09)" do
     expect(prompt).to include("[emergency]")
     expect(prompt).to match(/first aid/)
-    expect(prompt).not_to include("192", "0800")
+    expect(prompt).not_to include("192", "0800", "188")
+  end
+
+  # FR-09 (the owner, 2026-11-15): the emergency line names CVV's 188 for
+  # someone thinking of hurting themselves, so such a message is one of the
+  # emergencies whose reply asks for the line.
+  it "names a visitor thinking of hurting themselves among the emergencies (FR-09)" do
+    emergencies = prompt[/# Emergencies\n\n(.+?)\n\n#/m, 1]
+
+    expect(emergencies).to include("thinking of hurting themselves or of ending their life")
   end
 
   it "gives the deletion command's exact phrases in every language, since only the whole message counts (FR-05)" do

@@ -25,8 +25,10 @@ pt-BR:
       on_day: { monday: "às segundas", tuesday: "às terças", wednesday: "às quartas", thursday: "às quintas", friday: "às sextas", saturday: "aos sábados", sunday: "aos domingos" }
     # FR-09: a message that may be an emergency (the owner's decision of
     # 2026-11-14). Real public numbers on purpose, checked that day: SAMU's
-    # 192 and Anvisa's free Disque-Intoxicação.
-    emergency: "Se for uma urgência, ligue agora para o SAMU, no 192. Se alguém tomou remédio ou outro produto por engano ou em excesso, ligue também para o Disque-Intoxicação, no 0800 722 6001."
+    # 192 and Anvisa's free Disque-Intoxicação; and CVV's 188, free and
+    # answered 24 hours a day, for someone thinking of hurting themselves
+    # (the owner, 2026-11-15; read at cvv.org.br that day).
+    emergency: "Se for uma urgência, ligue agora para o SAMU, no 192. Se alguém tomou remédio ou outro produto por engano ou em excesso, ligue também para o Disque-Intoxicação, no 0800 722 6001. Se você está pensando em se machucar ou em tirar a própria vida, ligue para o CVV, no 188: a ligação é gratuita e eles atendem 24 horas."
     # One line per reservation the turn stored, for a turn answered without
     # the model (NFR-02, NFR-03).
     reservation: "Reserva %{code}: %{quantity} × %{product}, retirada até %{pickup_until}."

@@ -46,7 +46,8 @@ module FixedReply
   def with_offer(text, locale, sheet = StoreSheet.current) = paragraphs(text, offer(locale, sheet))
 
   # FR-09: a message that may be an emergency ends with the public emergency
-  # numbers, real on purpose (the owner's decision of 2026-11-14).
+  # numbers, real on purpose (the owner's decision of 2026-11-14), CVV's 188
+  # for someone thinking of hurting themselves among them (2026-11-15).
   def emergency(locale) = I18n.t("turn.emergency", locale:)
 
   def with_emergency(text, locale) = paragraphs(text, emergency(locale))
