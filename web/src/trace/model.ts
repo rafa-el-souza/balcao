@@ -328,14 +328,17 @@ export function formatTokens(tokens: number, locale: string): string {
   return `${thousands}k`;
 }
 
+// A no-break space joins a figure to its unit, so a narrow row never parts
+// them (docs/prototype/landing.html's note; the owner's round at the MVP
+// close, row 35-nbsp).
 export function formatDuration(ms: number, locale: string): string {
   if (ms < 1000)
-    return `${new Intl.NumberFormat(locale).format(Math.round(ms))} ms`;
+    return `${new Intl.NumberFormat(locale).format(Math.round(ms))}\u00a0ms`;
   const seconds = new Intl.NumberFormat(locale, {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   }).format(ms / 1000);
-  return `${seconds} s`;
+  return `${seconds}\u00a0s`;
 }
 
 // A sum of money's figure as the drawings write it, in the page's locale:

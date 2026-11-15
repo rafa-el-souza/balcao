@@ -202,16 +202,20 @@ describe("FR-12 the trace page, the glass box at full length", () => {
     const line = within(turn(1))
       .getByText("custo do turno")
       .closest("p") as HTMLElement;
-    expect(line.textContent).toBe("custo do turno US$ 0,009 · R$ 0,05");
+    expect(line.textContent).toBe(
+      "custo do turno US$\u00a00,009 · R$\u00a00,05",
+    );
     expect(within(turn(2)).queryByText("custo do turno")).toBeNull();
     const total = within(roll())
       .getByText("total · 2 turnos")
       .closest("div") as HTMLElement;
-    expect(total.textContent).toBe("total · 2 turnosUS$ 0,009 · R$ 0,05");
+    expect(total.textContent).toBe(
+      "total · 2 turnosUS$\u00a00,009 · R$\u00a00,05",
+    );
     const time = within(roll())
       .getByText("tempo dos turnos")
       .closest("div") as HTMLElement;
-    expect(time.textContent).toBe("tempo dos turnos3,0 s");
+    expect(time.textContent).toBe("tempo dos turnos3,0\u00a0s");
   });
 
   it("writes the dollars alone when the trace's answer has no rate", async () => {
@@ -223,7 +227,7 @@ describe("FR-12 the trace page, the glass box at full length", () => {
 
     expect(
       within(roll()).getByText("custo do turno").closest("p")?.textContent,
-    ).toBe("custo do turno US$ 0,009");
+    ).toBe("custo do turno US$\u00a00,009");
     expect(roll().textContent).not.toMatch(/R\$/);
   });
 

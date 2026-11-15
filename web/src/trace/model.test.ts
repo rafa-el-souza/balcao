@@ -464,10 +464,13 @@ describe("FR-12 the instrument's figures", () => {
   });
 
   it("writes a duration in milliseconds under a second and in seconds past it", () => {
-    expect(formatDuration(38, "pt-BR")).toBe("38 ms");
-    expect(formatDuration(1100, "pt-BR")).toBe("1,1 s");
-    expect(formatDuration(10_700, "es")).toBe("10,7 s");
-    expect(formatDuration(3000, "en")).toBe("3.0 s");
+    // A no-break space joins the figure to its unit, so a narrow row never
+    // parts them (docs/prototype/landing.html's note; the owner's round at
+    // the MVP close, row 35-nbsp).
+    expect(formatDuration(38, "pt-BR")).toBe("38\u00a0ms");
+    expect(formatDuration(1100, "pt-BR")).toBe("1,1\u00a0s");
+    expect(formatDuration(10_700, "es")).toBe("10,7\u00a0s");
+    expect(formatDuration(3000, "en")).toBe("3.0\u00a0s");
   });
 
   it("writes dollars to three decimals and reais to two, more where a small figure would round to zero", () => {

@@ -262,7 +262,9 @@ describe("FR-12 FR-14 the costs in the glass box", () => {
     );
     expect(
       screen.getByRole("button", {
-        name: summaryName("turno 1 · 5 eventos · US\\$ 0,009 · 3,0 s"),
+        name: summaryName(
+          "turno 1 · 5 eventos · US\\$\u00a00,009 · 3,0\u00a0s",
+        ),
       }),
     ).toBeInTheDocument();
   });
@@ -302,7 +304,9 @@ describe("FR-12 FR-14 the costs in the glass box", () => {
     await ready();
 
     const total = await within(glass()).findByText("custo do turno");
-    expect(total.closest("div")?.textContent).toBe("custo do turnoUS$ 0,009");
+    expect(total.closest("div")?.textContent).toBe(
+      "custo do turnoUS$\u00a00,009",
+    );
     expect(glass().textContent).not.toMatch(/R\$/);
   });
 
@@ -543,13 +547,13 @@ describe("FR-12 the glass box and the clocks", () => {
 
     expect(
       await screen.findByRole("button", {
-        name: summaryName("turno 1 · .* · 2,\\d s …"),
+        name: summaryName("turno 1 · .* · 2,\\d\u00a0s …"),
       }),
     ).toBeInTheDocument();
     await act(() => vi.advanceTimersByTimeAsync(1000));
     expect(
       screen.getByRole("button", {
-        name: summaryName("turno 1 · .* · 3,\\d s …"),
+        name: summaryName("turno 1 · .* · 3,\\d\u00a0s …"),
       }),
     ).toBeInTheDocument();
   });
@@ -749,7 +753,7 @@ describe("FR-12 the glass box at 390 px", () => {
     await ready();
 
     const line = await screen.findByRole("button", {
-      name: summaryName("turno 2 · 1 evento · 12 ms"),
+      name: summaryName("turno 2 · 1 evento · 12\u00a0ms"),
     });
     expect(line).toHaveAttribute("aria-expanded", "false");
     expect(line).toHaveAttribute("aria-controls", "glass");
