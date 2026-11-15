@@ -145,10 +145,13 @@ class TurnProcessor
   # #33: a send that broke after the deletion was lost with no line). A later
   # turn's job runs the deletion with its own attempt. A confirmation may
   # arrive twice when a run is repeated: sendMessage takes no idempotency key
-  # (NFR-02's accepted duplicate).
+  # (NFR-02's accepted duplicate). It takes the reply keyboard away, as any
+  # fixed line to a person who agreed: FR-21's openers would outlive the
+  # data (FR-19; review finding C3 of pull request #47).
   def confirm_deletion(chat, language)
     left = begin
-      Telegram::Outbound.new.send_fixed(chat, FixedReply.telegram_deleted(language), name: :deleted, attempt: @attempt)
+      Telegram::Outbound.new.send_fixed(chat, FixedReply.telegram_deleted(language), keyboard: Telegram::Outbound::REMOVE_KEYBOARD,
+                                                                                   name: :deleted, attempt: @attempt)
     rescue StandardError => e
       return Rails.logger.error("telegram fixed reply deleted: broke at #{@attempt}, #{e.class}, the data deleted all the same") if @attempt&.last?
 

@@ -409,6 +409,19 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
       expect(Message.outbound.sole).to have_attributes(status: "sent", parts_sent: 1)
     end
 
+    # Review finding C3 of pull request #47: the openers outlived the
+    # person's data when the deletion's confirmation came with no keyboard.
+    it "takes the openers away with the deletion's confirmation" do
+      agreed!
+
+      deliver(variant("text") { |message| message["text"] = "/apagar" })
+      perform_enqueued_jobs(only: ProcessTurnJob)
+
+      expect(Visitor.count).to eq 0
+      expect(sent.find { |body| body["text"] == FixedReply.telegram_deleted("pt-BR") })
+        .to include("reply_markup" => { "remove_keyboard" => true })
+    end
+
     # FR-21 on Telegram: a tap on an opener sends its text as an ordinary
     # message, a turn like any other, and the reply takes the openers away.
     it "takes a tapped opener's text as a turn, and its reply takes the openers away" do
