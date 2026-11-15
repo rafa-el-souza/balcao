@@ -114,8 +114,8 @@ RSpec.describe "NFR-09 FixedReply, the texts the system writes instead of the mo
 
   # FR-09's decline, the reply to a refusal (threat model SR-19) and, from
   # M2, to a reply the guardrail replaces (FR-20): one or two sentences that
-  # decline and name the store's pharmacist; the turn adds the offer after it
-  # (TurnProcessor).
+  # decline and name the store's pharmacist; after a refusal the turn adds
+  # the emergency line (TurnProcessor; FR-09, the owner, 2026-11-15).
   describe "the decline text (FR-09, SR-19)" do
     LOCALES.each_key do |locale|
       it "declines in #{locale} in one or two sentences and names the store's pharmacist" do

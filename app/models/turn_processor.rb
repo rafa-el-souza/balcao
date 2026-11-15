@@ -18,8 +18,10 @@
 #   the line of a reservation whose code or pickup time it left out and, when
 #   the cap of open reservations refused one, by the lines of those the
 #   visitor holds (FR-07). Before those lines come the fixed lines the model's
-#   tags ask for, the emergency line or the offer of the pharmacist, and the
-#   offer after a decline (FR-09, FR-10's MVP note);
+#   tags ask for, the emergency line or the offer of the pharmacist (FR-09,
+#   FR-10's MVP note), and the emergency line after a refusal's decline: a
+#   refused message is the one the system cannot read, so it may be a call
+#   for help (FR-09, the owner, 2026-11-15);
 # - a turn the job gave up on after its attempts gets the fallback too
 #   (give_up, NFR-03).
 #
@@ -244,7 +246,7 @@ class TurnProcessor
     language = @conversation.language
     case result.outcome
     when :replied then [ with_facts(result, language), "replied" ]
-    when :refused then [ FixedReply.with_reservations(with_lines(FixedReply.declined(language), language, offer: true),
+    when :refused then [ FixedReply.with_reservations(FixedReply.with_emergency(FixedReply.declined(language), language),
                                                       reservations, language), "replied" ]
     else [ FixedReply.with_reservations(FixedReply.fallback(language), reservations, language), "failed" ]
     end

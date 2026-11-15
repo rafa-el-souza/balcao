@@ -27,7 +27,8 @@ module FixedReply
 
   # FR-09's decline, one or two sentences naming the store's pharmacist: the
   # reply to a refusal (SR-19) and, from M2, to a reply the guardrail replaces
-  # (FR-20). The turn puts the offer after it (TurnProcessor).
+  # (FR-20). After a refusal the turn puts the emergency line after it, not
+  # the offer (TurnProcessor; FR-09, the owner, 2026-11-15).
   def declined(locale) = I18n.t("turn.declined", locale:)
 
   # FR-10's MVP note: until M2 the offer of the pharmacist is this line, with
