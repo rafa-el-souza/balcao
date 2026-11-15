@@ -26,9 +26,9 @@ line gains the pointer ("superseded by", "extended by").
 | [0016](0016-telegram-bot-api-as-the-messaging-channel.md) | Telegram's Bot API as the messaging channel | accepted; extended by ADR-0017 |
 | [0017](0017-the-telegram-bot-stays-a-text-channel.md) | The Telegram bot stays a text channel: one update type in, plain text out | accepted |
 
-Three numbers are reserved, so the files' order is not the order of the
-decisions: 0014 for the transcription provider's measurement at M4
-(ADR-0005), 0018 for the data a pharmacy would hand Balcão (the data
-contract, which the owner writes; design §10), and 0019 for the owner's
-round at a close and its amendments to the review policy, written by the
-pull request that closes the MVP (design §10, note 2026-11-15).
+Three numbers are reserved and have no file yet: 0014 for the
+transcription provider's measurement at M4 (ADR-0005), 0018 for the data a
+pharmacy would hand Balcão (the data contract, which the owner writes;
+design §10), and 0019 for the owner's round at a close and its amendments
+to the review policy, written by the pull request that closes the MVP
+(design §10, note 2026-11-15).

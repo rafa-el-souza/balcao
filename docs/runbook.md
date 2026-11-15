@@ -421,20 +421,21 @@ only when there is something to change; the others never do.
    effect of a deploy, and the jobs stop first:
 
    ```
-   VERSION=$(kamal app version -d ensaio -q | grep -E '^[0-9a-f]{40}$')
+   RUNNING=$(kamal app version -d ensaio -q | grep -E '^[0-9a-f]{40}$')
    kamal app stop -d ensaio --roles=job
    kamal accessory reboot db -d ensaio
    kamal accessory exec db -d ensaio --reuse "pg_isready -U balcao -d balcao_production"
-   kamal app start -d ensaio --roles=job --version="$VERSION"
+   kamal app start -d ensaio --roles=job --version="$RUNNING"
    kamal app details -d ensaio --roles=job
    ```
 
    The first line reads the version that runs: `kamal app start` names the
    container by a version and, given none, takes the checkout's commit, so
    on a checkout that moved since the last deploy it would start nothing
-   and still end without an error. The fourth line is repeated until it
-   says "accepting connections"; only then do the jobs start, and the last
-   line must list the `job` container, up.
+   and still end without an error. (The variable is not named `VERSION`,
+   which Kamal itself reads from the environment.) The fourth line is
+   repeated until it says "accepting connections"; only then do the jobs
+   start, and the last line must list the `job` container, up.
    *Interrupts the demo:* while Postgres is down a message gets "not sent"
    on the page and Telegram sends its update again later; with the jobs
    stopped no turn is cut in the middle, and what was waiting runs when
