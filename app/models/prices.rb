@@ -47,9 +47,15 @@ module Prices
     Price.new(**KINDS.to_h { |kind| [ kind, table.models.values.map(&kind).max ] })
   end
 
+  # A table that prices no model is refused: a blank, empty or outdented
+  # `models:` loaded as no rows, so production booted and the first paid
+  # call was charged nothing (review finding C1 of pull request #40).
   def load(path)
     data = YAML.safe_load_file(path)
-    models = data.fetch("models").to_h { |model, row| [ model, price_of(model, row) ] }
+    rows = data.fetch("models")
+    raise Invalid, "#{path}: models must price at least one model" unless rows.is_a?(Hash) && rows.any?
+
+    models = rows.to_h { |model, row| [ model, price_of(model, row) ] }
     brl = data.fetch("brl")
     Table.new(verified_on: Date.iso8601(data.fetch("verified_on")), models: models.freeze,
               rate: Rate.new(brl_per_usd: decimal("brl.per_usd", brl.fetch("per_usd")),

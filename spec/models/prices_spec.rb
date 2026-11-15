@@ -79,6 +79,27 @@ RSpec.describe "FR-14 FR-12 the price table, dated, and the rate of the real" do
     expect(status).not_to be_success
     expect(out).not_to include("booted")
     expect(err).to include("Prices::Invalid")
+
+    # Review finding C1 of pull request #40: a table that lists no model
+    # loaded, so production booted and the first paid call was charged nothing.
+    out, err, status = boot.call({ "verified_on" => "2026-11-14", "models" => {},
+                                   "brl" => { "per_usd" => "5.6518", "verified_on" => "2026-11-13" } })
+    expect(status).not_to be_success
+    expect(out).not_to include("booted")
+    expect(err).to include("Prices::Invalid")
+  end
+
+  it "refuses a table that lists no model, as YAML reads a blank, empty or outdented models key" do
+    Dir.mktmpdir do |dir|
+      path = File.join(dir, "prices.yml")
+      brl = %(brl: { per_usd: "5.6518", verified_on: "2026-11-13" }\n)
+      [ "models:\n", "models: {}\n", "models: []\n",
+        "models:\nclaude-opus-5-5: { input: \"4.00\", output: \"20.00\", cache_write: \"5.00\", cache_read: \"0.20\" }\n" ].each do |models|
+        File.write(path, %(verified_on: "2026-11-14"\n) + models + brl)
+
+        expect { Prices.load(path) }.to raise_error(Prices::Invalid, /models must price at least one model/), models
+      end
+    end
   end
 
   it "refuses a table with a model missing a price or a price that is not a decimal" do
