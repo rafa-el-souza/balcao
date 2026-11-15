@@ -1939,6 +1939,11 @@ round.
   bounded from the usage records, and it fails after three (#11's review;
   #18, R4); the reply and the turn's state are written in one transaction
   (#11, V2).
+- A Telegram reply that never left, refused by Telegram or failed after its
+  attempts, is a turn left without a reply: its trace says so, where the
+  trace page now reads "mensagem enviada" for every stored reply (FR-12,
+  FR-19; since PR-19; #45's verifier, V4, sent to M4-4 by the owner on
+  2026-11-15).
 - `Telegram::Chat` hides its chat id from `to_s`, `to_h` and
   `pretty_print` too (#33, C5); the client rescues network errors by name,
   so a local bug or a certificate failure is not taken for the network
