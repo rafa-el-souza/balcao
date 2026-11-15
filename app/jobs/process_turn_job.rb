@@ -53,7 +53,7 @@ class ProcessTurnJob < ApplicationJob
 
   def perform(turn_id)
     visitor_id = visitor_of(turn_id)
-    attempt = TurnProcessor::Attempt.new(executions, ATTEMPTS)
+    attempt = TurnProcessor::Attempt.new(executions, ATTEMPTS, turn_id)
     under_lock(turn_id) do |turn|
       waiting_before(turn).each do |earlier|
         run_earlier(earlier.id, turn.conversation_id, attempt)

@@ -96,16 +96,16 @@ module Telegram
 
     # Sends a reply that is not stored, trying each part once, after the
     # pending replies of the visitor given; answers whether it left. The
-    # attempt is the caller's count, for the line of a send that failed (the
-    # deletion's confirmation is tried again by the turn's job, FR-05).
-    def send_fixed(chat, text, keyboard: nil, name: :reply, visitor: nil, attempt: 1)
+    # attempt, when the caller tries it again (the deletion's confirmation,
+    # by the turn's job, FR-05), is named in the line of a send that failed.
+    def send_fixed(chat, text, keyboard: nil, name: :reply, visitor: nil, attempt: nil)
       AdvisoryLock.hold(lock(chat)) do
         stored = visitor && Chat.of(visitor)
         drain(visitor, stored) if stored
         parts = self.class.parts(text)
         parts.each_with_index do |part, index|
           error = send_part(chat, part, keyboard) or next
-          return failed("telegram fixed reply #{name}", error, attempt, part: [ index + 1, parts.size ])
+          return failed("telegram fixed reply #{name}", error, 1, part: [ index + 1, parts.size ], at: attempt)
         end
         true
       end
@@ -170,15 +170,15 @@ module Telegram
       error.rate_limited? && error.retry_after.to_i.positive? ? error.retry_after.to_i : (attempts**4) + 2
     end
 
-    # One line: the reply, its attempts, the error's class and Telegram's code
-    # or the failure's class, the wait a 429 named and, for a reply cut in
-    # parts, the part that failed (review finding H11 of pull request #33).
-    # Never the chat or the text (SR-30).
-    def failed(what, error, attempts, part:)
+    # One line: the reply, its attempts (or the caller's attempt, at), the
+    # error's class and Telegram's code or the failure's class, the wait a 429
+    # named and, for a reply cut in parts, the part that failed (review
+    # finding H11 of pull request #33). Never the chat or the text (SR-30).
+    def failed(what, error, attempts, part:, at: nil)
       reason = [ error.code || error.failure, ("retry after #{error.retry_after} s" if error.rate_limited? && error.retry_after) ]
       where = ", part #{part.first} of #{part.last}" if part.last > 1
-      Rails.logger.error("#{what}: failed after #{attempts} #{"attempt".pluralize(attempts)}, " \
-                         "#{error.class} (#{reason.compact.join(", ")})#{where}")
+      tried = at ? "at #{at}" : "after #{attempts} #{"attempt".pluralize(attempts)}"
+      Rails.logger.error("#{what}: failed #{tried}, #{error.class} (#{reason.compact.join(", ")})#{where}")
       false
     end
   end

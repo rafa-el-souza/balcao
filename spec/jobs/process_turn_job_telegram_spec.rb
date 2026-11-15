@@ -175,29 +175,30 @@ RSpec.describe "FR-19 FR-05 NFR-03 ProcessTurnJob on Telegram, the reply on its 
 
       it "deletes at the third attempt though its send failed too, and the log says so" do
         rows_at_send = answers(502, 502, 502)
-        ProcessTurnJob.perform_later(inbound("/apagar").id)
+        deletion = inbound("/apagar")
+        ProcessTurnJob.perform_later(deletion.id)
 
         perform_enqueued_jobs(only: ProcessTurnJob) until enqueued_jobs.empty?
 
         expect(rows_at_send).to eq([ true, true, true ])
         expect(Visitor.exists?(visitor.id)).to be(false)
-        expect(lines).to eq([ "telegram fixed reply deleted: failed after 1 attempt, Telegram::Client::Error (HTTP 502)",
-                              "telegram fixed reply deleted: failed after 2 attempts, Telegram::Client::Error (HTTP 502)",
-                              "telegram fixed reply deleted: failed after 3 attempts, Telegram::Client::Error (HTTP 502)",
-                              "telegram fixed reply deleted: not sent, the data deleted all the same" ])
+        expect(lines).to eq([ *(1..3).map do |n|
+          "telegram fixed reply deleted: failed at attempt #{n} of 3 of turn #{deletion.id}'s job, Telegram::Client::Error (HTTP 502)"
+        end, "telegram fixed reply deleted: not sent, the data deleted all the same" ])
       end
 
       it "deletes at the third attempt when its send broke, with a line that names the error" do
         allow_any_instance_of(Telegram::Outbound).to receive(:send_fixed).and_raise(ActiveRecord::ConnectionFailed)
-        ProcessTurnJob.perform_later(inbound("/apagar").id)
+        deletion = inbound("/apagar")
+        ProcessTurnJob.perform_later(deletion.id)
 
         perform_enqueued_jobs(only: ProcessTurnJob) until enqueued_jobs.empty?
 
         expect(Visitor.exists?(visitor.id)).to be(false)
-        expect(lines).to eq([ "telegram fixed reply deleted: broke at attempt 1 of 3, ActiveRecord::ConnectionFailed",
-                              "telegram fixed reply deleted: broke at attempt 2 of 3, ActiveRecord::ConnectionFailed",
-                              "telegram fixed reply deleted: broke at attempt 3 of 3, ActiveRecord::ConnectionFailed, " \
-                              "the data deleted all the same" ])
+        expect(lines).to eq([ "telegram fixed reply deleted: broke at attempt 1 of 3 of turn #{deletion.id}'s job, ActiveRecord::ConnectionFailed",
+                              "telegram fixed reply deleted: broke at attempt 2 of 3 of turn #{deletion.id}'s job, ActiveRecord::ConnectionFailed",
+                              "telegram fixed reply deleted: broke at attempt 3 of 3 of turn #{deletion.id}'s job, " \
+                              "ActiveRecord::ConnectionFailed, the data deleted all the same" ])
       end
 
       # A later turn's job answers the earlier turns first (design §6.3).
@@ -249,7 +250,28 @@ RSpec.describe "FR-19 FR-05 NFR-03 ProcessTurnJob on Telegram, the reply on its 
           perform(later)
 
           expect(later.reload.outbound_message).to be_nil
-          expect(lines).to include("telegram fixed reply deleted: broke at attempt 1 of 3, ActiveRecord::ConnectionFailed")
+          expect(lines).to include("telegram fixed reply deleted: broke at attempt 1 of 3 of turn #{later.id}'s job, " \
+                                   "ActiveRecord::ConnectionFailed")
+        end
+
+        # The hunter's H3 on pull request #41 (its second part, dono): inside
+        # a later turn's job the line counted that job's first attempt as the
+        # confirmation's first, after the deletion's own job had failed it
+        # twice. Each line now says whose job made the attempt.
+        it "names in each failed send's line the job that made the attempt, the later turn's included" do
+          answers(502, 502, 502)
+          deletion = inbound("/apagar")
+          ProcessTurnJob.perform_later(deletion.id)
+          2.times { perform_enqueued_jobs(only: ProcessTurnJob) }
+          later = inbound("oi")
+
+          perform(later)
+
+          expect(lines.grep(/deleted: failed/)).to eq([
+            "telegram fixed reply deleted: failed at attempt 1 of 3 of turn #{deletion.id}'s job, Telegram::Client::Error (HTTP 502)",
+            "telegram fixed reply deleted: failed at attempt 2 of 3 of turn #{deletion.id}'s job, Telegram::Client::Error (HTTP 502)",
+            "telegram fixed reply deleted: failed at attempt 1 of 3 of turn #{later.id}'s job, Telegram::Client::Error (HTTP 502)"
+          ])
         end
 
         it "holds a later command too, the trace link among them" do

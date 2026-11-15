@@ -53,11 +53,13 @@ class TurnProcessor
   # job gave up on.
   OUTCOMES = [ *AgentRunner::OUTCOMES.map(&:to_s), "reservations", "paused", "dead_letter" ].freeze
 
-  # The attempt of the job that runs the turn as its own (ProcessTurnJob),
-  # which the deletion's confirmation counts (FR-05).
-  Attempt = Data.define(:number, :of) do
+  # The attempt of the job that runs the turn (ProcessTurnJob), and the turn
+  # that job is for, which the deletion's confirmation counts and names in
+  # its lines (FR-05): a later turn's job runs an earlier deletion with its
+  # own attempt (the hunter's H3 on pull request #41).
+  Attempt = Data.define(:number, :of, :turn_id) do
     def last? = number >= of
-    def to_s = "attempt #{number} of #{of}"
+    def to_s = "attempt #{number} of #{of} of turn #{turn_id}'s job"
   end
 
   # The deletion's confirmation did not leave and the job has another
@@ -146,7 +148,7 @@ class TurnProcessor
   # (NFR-02's accepted duplicate).
   def confirm_deletion(chat, language)
     left = begin
-      Telegram::Outbound.new.send_fixed(chat, FixedReply.telegram_deleted(language), name: :deleted, attempt: @attempt&.number || 1)
+      Telegram::Outbound.new.send_fixed(chat, FixedReply.telegram_deleted(language), name: :deleted, attempt: @attempt)
     rescue StandardError => e
       return Rails.logger.error("telegram fixed reply deleted: broke at #{@attempt}, #{e.class}, the data deleted all the same") if @attempt&.last?
 

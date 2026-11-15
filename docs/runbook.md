@@ -377,12 +377,13 @@ the env file loaded in the same call.
   reply <name>: failed after 1 attempt` line.
 - **The deletion's confirmation** leaves before the visitor's rows go, and
   the turn's job tries it again with its backoff, three attempts in all,
-  each failed one with a `telegram fixed reply deleted: failed after N
-  attempts` line, or `broke at attempt N of 3, <class>` when the send broke
-  rather than failed (FR-05). The third deletes whether or not it left: then
-  the log has `telegram fixed reply deleted: not sent, the data deleted all
-  the same`, or `broke at attempt 3 of 3, <class>, the data deleted all the
-  same`. Meanwhile the visitor's later messages wait behind the deletion
+  each failed one with a `telegram fixed reply deleted: failed at attempt N
+  of 3 of turn <id>'s job` line, or `broke at attempt N of 3 of turn <id>'s
+  job, <class>` when the send broke rather than failed (FR-05); a later
+  turn's job that runs the deletion first names its own turn. The third
+  deletes whether or not it left: then the log has `telegram fixed reply
+  deleted: not sent, the data deleted all the same`, or `broke at attempt 3
+  of 3 of turn <id>'s job, <class>, the data deleted all the same`. Meanwhile the visitor's later messages wait behind the deletion
   (`earlier turn <id>: a deletion waits for its confirmation, and the turns
   after it`), and none reaches the model. A confirmation can arrive twice
   when a run is repeated.
