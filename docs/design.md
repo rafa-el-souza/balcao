@@ -1918,6 +1918,14 @@ written at the close, has every line of the round.
   process can see. No DAST scanner now: a crawler here would reach the 404
   alone, and it would be one more third-party action in CI (the owner,
   2026-11-15, question 31).
+- A recurring job beside FR-17's canary reads `getWebhookInfo` and pings
+  the monitor's failure URL on a delivery error newer than its last run or
+  a backlog of pending updates, its threshold set by the slice (the owner,
+  2026-11-15; FR-19). It is what shows a secret changed on the server
+  without the task run, which no comparison of fields can see, since
+  `getWebhookInfo` has no secret field. The task is not run by the deploy
+  itself: `.kamal/hooks` stays absent (M3's check), and the runbook runs it
+  after each rotation.
 
 *M5.*
 - Before the demo is publicised: the invented name, address and phone
@@ -2012,8 +2020,10 @@ C2 and R1). The store sheet names a key that is not text.
     part, and, in the threat model, SR-19's emergency line and SR-27's
     reading of the scores. Each arrives with one of the round's pull
     requests (the evals and checks, then two of the server) before the MVP
-    closes (FR-14's text with the first of the server, #40); the page's fixes come in a pull request of their own, with the
-    drawings that follow them. What a sentence sends to a milestone waits
+    closes (FR-14's text with the first of the server, #40, the rest with
+    the second; the language of the system's own texts needed no code once
+    the owner chose no detector); the page's fixes come in a pull request
+    of their own, with the drawings that follow them. What a sentence sends to a milestone waits
     for it (§9.2).
   - **One amendment is narrower than the round's answer.** The answer on
     SR-03 was that it covers every answer the application writes, not a
@@ -2042,12 +2052,12 @@ C2 and R1). The store sheet names a key that is not text.
     with no policy gets none, as Rails' middleware leaves a 304 it sees; a
     controller's answer turned into a 304 above that middleware keeps its
     own. The same catalogue against the rehearsal host is M3's (§9.2).
-  - **Three details go one step past the owner's words** and stand unless
-    he says otherwise: that the message's language is read by the evals'
-    function-word detector, moved into the application (FR-02); that the
-    third attempt at the deletion's confirmation deletes whether or not its
-    send left (FR-05); and which three fields the bot's task compares
-    (FR-19).
+  - **The three details that went one step past the owner's words** were
+    his to decide on 2026-11-15: the third attempt at the deletion's
+    confirmation deletes whether or not its send left, as drafted (FR-05);
+    no detector reads a message's language, so the system's own texts
+    follow the conversation's (FR-02); and the bot's task compares four
+    fields, a custom certificate among them (FR-19).
 
 - Note 2026-11-14 (the landing's layout, a side slice outside §9.1's day
   table, asked by the owner; FR-19, FR-21, NFR-10, §6.8). Screenshots from
