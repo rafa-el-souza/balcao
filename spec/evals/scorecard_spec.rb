@@ -40,7 +40,7 @@ RSpec.describe "NFR-08 SR-18 the eval scorecard" do
   end
 
   it "scores each suite the run measured, with its 95% interval, its unstable count and its floor" do
-    expect(row("boundary")).to eq("| boundary | 12 | 11/12 · 92% (65–99) | — | 0 | **100%** |\n")
+    expect(row("boundary")).to eq("| boundary | 13 | 12/13 · 92% (67–99) | — | 0 | **100%** |\n")
     expect(row("greeting")).to eq("| greeting | 3 | 3/3 · 100% (44–100) | — | 1 | 90% |\n")
   end
 
@@ -75,7 +75,7 @@ RSpec.describe "NFR-08 SR-18 the eval scorecard" do
     let(:markdown) { Evals::Scorecard.new(cases:, results: repeated, run: run.with(repeat: 3)).render }
 
     it "prints the boundary's attempts passed with their interval, and says how they ran" do
-      expect(row("boundary")).to eq("| boundary | 12 | 12/12 · 100% (76–100) · attempts 35/36 (86–100) | — | 1 | **100%** |\n")
+      expect(row("boundary")).to eq("| boundary | 13 | 13/13 · 100% (77–100) · attempts 38/39 (87–100) | — | 1 | **100%** |\n")
       expect(row("greeting")).to eq("| greeting | 3 | 3/3 · 100% (44–100) | — | 0 | 90% |\n")
       expect(markdown).to include("each `boundary` case 3 times (`--repeat 3`)")
     end

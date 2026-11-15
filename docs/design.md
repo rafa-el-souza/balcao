@@ -182,15 +182,16 @@ pt-BR (default), en and es; fixed UI strings follow the same choice.
   everywhere at once (the owner, 2026-11-15).
 - Given a turn that ends in one of the system's own texts with no reply
   of the model's to read the language from (the decline after a refusal,
-  the fallback, a turn given up), When the message's own words show its
-  language, Then the text is in that language and not in the one the
-  conversation had stored; a message too short to tell keeps the
-  conversation's. The server reads the message's language with the
-  function-word detector the evals use, moved into the application: no
-  model call, no new dependency. A command phrase that several languages
-  list keeps following the conversation's (`config/commands.yml`). (The
-  owner, 2026-11-15; FR-02's gap of PR-14's review, which §10 had left for
-  the MVP close.)
+  the fallback, a turn given up), Then the text is in the conversation's
+  language: the page's language on the web or the language of the
+  person's Telegram app when the conversation began, and after that the
+  language of the model's last reply. No detector reads the message: a
+  visitor who switches language in the very message that ends in such a
+  text gets that one text in the conversation's language, and the next
+  reply of the model follows the switch. A command phrase that several
+  languages list keeps following the conversation's
+  (`config/commands.yml`). (The owner, 2026-11-15; FR-02's gap of
+  PR-14's review.)
 
 **FR-03 Store information.** The system prompt carries only the store's
 identity, opening hours and the behaviour policy. Everything else about
@@ -629,8 +630,12 @@ platform; until 2026-11-14 this requirement was the WhatsApp Cloud API).
   must register the new one (§10, PR-18). It ends by printing
   `getWebhookInfo`, which the runbook's smoke reads. It exits non-zero when
   what Telegram reports differs from what the task set (the URL, the kinds
-  of update, the connection limit), so a deploy's smoke fails on a webhook
-  that did not take (the owner, 2026-11-15). It runs inside the application's container, where
+  of update, the connection limit, and no custom certificate), a field
+  missing from the answer counting as a difference, so a deploy's smoke
+  fails on a webhook that did not take (the owner, 2026-11-15). Telegram
+  never shows the secret back, so a secret that differs shows only as
+  delivery errors: the runbook's smoke reads them after a deploy, and from
+  M3 a recurring job does (§9.2). It runs inside the application's container, where
   the token already is, so no workstation runs repository code for it
   (SR-38). The application registers nothing at boot.
 - The bot's name says it is a demo. Its description, which Telegram shows
@@ -688,7 +693,10 @@ revocable consent" (ADR-0016).
   reading of its update: no visitor, no message, no turn, and no model is
   called. `/help` and the delete command answer as always.
 - Given the ask, When the person taps the button, or writes one of the few
-  phrases `config/commands.yml` lists as an agreement, Then the visitor's
+  phrases `config/commands.yml` lists as an agreement, as written (case,
+  accents, spaces, quotation marks and a final full stop or exclamation
+  aside; a question mark or an emoji after it is no agreement: review
+  finding C2 of pull request #41), Then the visitor's
   row is created with the time of the agreement, the reply is the fixed
   greeting below and the button goes away. The phrases count only while
   there is no row; afterwards they are a message like any other.
@@ -1913,6 +1921,14 @@ written at the close, has every line of the round.
   process can see. No DAST scanner now: a crawler here would reach the 404
   alone, and it would be one more third-party action in CI (the owner,
   2026-11-15, question 31).
+- A recurring job beside FR-17's canary reads `getWebhookInfo` and pings
+  the monitor's failure URL on a delivery error newer than its last run or
+  a backlog of pending updates, its threshold set by the slice (the owner,
+  2026-11-15; FR-19). It is what shows a secret changed on the server
+  without the task run, which no comparison of fields can see, since
+  `getWebhookInfo` has no secret field. The task is not run by the deploy
+  itself: `.kamal/hooks` stays absent (M3's check), and the runbook runs it
+  after each rotation.
 
 *M5.*
 - Before the demo is publicised: the invented name, address and phone
@@ -1986,7 +2002,7 @@ C2 and R1). The store sheet names a key that is not text.
   request that closes the MVP.
   - **What the round changed in this document:** FR-02 (money and hours as
     the store writes them; "tú" in Spanish; the system's own texts in the
-    message's language), FR-05 (what counts as the deletion command; the
+    conversation's language), FR-05 (what counts as the deletion command; the
     confirmation before the deletion on Telegram), FR-09 (CVV's 188 in the
     emergency line; a refused message ends with that line; three runs of
     the boundary at a close), FR-12 (the refused seventh call, the rate's
@@ -2007,8 +2023,10 @@ C2 and R1). The store sheet names a key that is not text.
     part, and, in the threat model, SR-19's emergency line and SR-27's
     reading of the scores. Each arrives with one of the round's pull
     requests (the evals and checks, then two of the server) before the MVP
-    closes (FR-14's text with the first of the server, #40); the page's fixes come in a pull request of their own, with the
-    drawings that follow them. What a sentence sends to a milestone waits
+    closes (FR-14's text with the first of the server, #40, the rest with
+    the second; the language of the system's own texts needed no code once
+    the owner chose no detector); the page's fixes come in a pull request
+    of their own, with the drawings that follow them. What a sentence sends to a milestone waits
     for it (§9.2).
   - **One amendment is narrower than the round's answer.** The answer on
     SR-03 was that it covers every answer the application writes, not a
@@ -2037,12 +2055,12 @@ C2 and R1). The store sheet names a key that is not text.
     with no policy gets none, as Rails' middleware leaves a 304 it sees; a
     controller's answer turned into a 304 above that middleware keeps its
     own. The same catalogue against the rehearsal host is M3's (§9.2).
-  - **Three details go one step past the owner's words** and stand unless
-    he says otherwise: that the message's language is read by the evals'
-    function-word detector, moved into the application (FR-02); that the
-    third attempt at the deletion's confirmation deletes whether or not its
-    send left (FR-05); and which three fields the bot's task compares
-    (FR-19).
+  - **The three details that went one step past the owner's words** were
+    his to decide on 2026-11-15: the third attempt at the deletion's
+    confirmation deletes whether or not its send left, as drafted (FR-05);
+    no detector reads a message's language, so the system's own texts
+    follow the conversation's (FR-02); and the bot's task compares four
+    fields, a custom certificate among them (FR-19).
 
 - Note 2026-11-14 (the landing's layout, a side slice outside §9.1's day
   table, asked by the owner; FR-19, FR-21, NFR-10, §6.8). Screenshots from

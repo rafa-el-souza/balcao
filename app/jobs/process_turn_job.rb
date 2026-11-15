@@ -27,6 +27,12 @@
 # and sending, when the job runs again. No send waits: a reply Telegram asks
 # to wait for is tried again by TelegramReplyJob at its time.
 #
+# FR-05 on Telegram: the delete command's confirmation leaves before the
+# deletion, and one that did not leave raises, so this job's attempts carry
+# it; at the last the data goes whether or not it left (TurnProcessor, the
+# owner, 2026-11-15). Until then the deletion holds the turns after it
+# (run_earlier).
+#
 # NFR-03: a turn the model cannot answer ends with the fallback text inside
 # its run, so the job has nothing to try again (the three attempts of a model
 # call are the SDK's, AgentRunner::MAX_RETRIES). A turn that breaks outside
@@ -47,14 +53,15 @@ class ProcessTurnJob < ApplicationJob
 
   def perform(turn_id)
     visitor_id = visitor_of(turn_id)
+    attempt = TurnProcessor::Attempt.new(executions, ATTEMPTS, turn_id)
     under_lock(turn_id) do |turn|
       waiting_before(turn).each do |earlier|
-        run_earlier(earlier.id, turn.conversation_id)
+        run_earlier(earlier.id, turn.conversation_id, attempt)
         deliver(visitor_id)
       end
       # An earlier turn may have been a deletion that took this one (FR-05),
       # or a reset that moved it.
-      settled(turn) { |own| TurnProcessor.new(own).call }
+      settled(turn) { |own| TurnProcessor.new(own, attempt:).call }
     end
     deliver(visitor_id)
   end
@@ -122,11 +129,23 @@ class ProcessTurnJob < ApplicationJob
   # its own job's next attempt, or to the next turn's job when its own is gone;
   # this job goes on to its own turn. One that a reset among them moved
   # belongs to another lock now.
-  def run_earlier(turn_id, conversation_id)
+  #
+  # A deletion whose confirmation did not leave is the exception: it holds
+  # the turns after it, so this job raises and its own turn waits for the
+  # job's next attempt, and no message sent after a request to delete reaches
+  # the model, nor a reset that would move the later turns out from under the
+  # deletion's lock (FR-05, FR-19; review finding C1 and the verifier's V1 of
+  # pull request #41). The deletion runs with this job's attempt, so at this
+  # job's last it goes whether or not its confirmation left, and takes this
+  # job's turn with the rest.
+  def run_earlier(turn_id, conversation_id, attempt)
     turn = Turn.find_by(id: turn_id)
     return if turn.nil? || turn.conversation_id != conversation_id
 
-    TurnProcessor.new(turn).call
+    TurnProcessor.new(turn, attempt:).call
+  rescue TurnProcessor::ConfirmationNotSent
+    Rails.logger.error("earlier turn #{turn_id}: a deletion waits for its confirmation, and the turns after it")
+    raise
   rescue StandardError => e
     Rails.logger.error("earlier turn #{turn_id} failed: #{e.class}")
   end

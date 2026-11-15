@@ -37,10 +37,23 @@ RSpec.describe "FR-04 FR-05 FR-12 FR-19 command phrases, matched before the mode
   # holds no row of that person. They are not commands: once the row exists,
   # they are a message like any other.
   describe "the agreement's phrases" do
-    [ "Concordo", "concordo.", "  CONCORDO! ", "eu concordo", "I agree", "i agree.", "Acepto", "acepto!" ].each do |text|
+    [ "Concordo", "concordo.", "  CONCORDO! ", "eu concordo", "I agree", "i agree.", "Acepto", "acepto!", "¡Acepto!", '"Concordo"',
+      "“Concordo”", "Concordo..." ].each do |text|
       it "takes #{text.inspect} as the agreement, and never as a command" do
         expect(commands.agreement?(text)).to be(true)
         expect(commands.match(text)).to be_nil
+      end
+    end
+
+    # Review finding C2 of pull request #41 (cliente, FR-19): Telegram's terms
+    # ask for explicit, active consent, and the agreement shared the
+    # commands' normalisation, so a question mark or any emoji after the
+    # phrase was dropped and "Acepto 👎" created the row. The phrase counts
+    # only as written; the ask's button sends it so.
+    [ "Concordo?", "concordo ❓", "concordo ‽", "I agree 🤔", "Acepto 👎", "concordo :(", "Concordo 👍", "¿Acepto?",
+      "Concordo?!" ].each do |text|
+      it "does not take #{text.inspect} as the agreement" do
+        expect(commands.agreement?(text)).to be(false)
       end
     end
 
@@ -79,7 +92,45 @@ RSpec.describe "FR-04 FR-05 FR-12 FR-19 command phrases, matched before the mode
     end
   end
 
+  # FR-05 (the owner, 2026-11-15; review finding N8 of pull request #8 and
+  # the MVP review's verifier): quotation marks around the phrase and the
+  # punctuation or emoji after it do not count, for every command.
   {
+    "an emoji after it, the requirement's own example" => [ "apagar meus dados 🙏", :delete ],
+    "an emoji with a skin tone" => [ "apagar meus dados 👍🏽", :delete ],
+    "an emoji with its variation selector" => [ "/apagar ❤️", :delete ],
+    "a face made of punctuation" => [ "delete my data :)", :delete ],
+    "several marks" => [ "apagar meus dados!!!", :delete ],
+    "straight quotation marks" => [ '"apagar meus dados"', :delete ],
+    "curly quotation marks" => [ "“apagar meus dados”", :delete ],
+    "single quotation marks" => [ "'delete my data'", :delete ],
+    "guillemets" => [ "«borrar mis datos»", :delete ],
+    "an opening mark and quotation marks" => [ "¿“borrar mis datos”", :delete ],
+    "an opening question mark alone" => [ "¿borrar mis datos", :delete ],
+    "an emoji after another command" => [ "/reiniciar 🙏", :reset ],
+    "an emoji after the trace's question" => [ "como você funciona? 🤔", :trace ]
+  }.each do |label, (text, command)|
+    it "matches #{text.inspect} to #{command} (#{label})" do
+      expect(commands.match(text)).to eq command
+    end
+  end
+
+  # FR-05 (the owner, 2026-11-15): a deletion phrase that ends in a question
+  # mark is a question, which goes to the attendant, who says how to delete;
+  # the rule is the deletion's alone ("como você funciona?" stays the trace).
+  [
+    "apagar meus dados?", "/apagar?", "delete my data?", "¿borrar mis datos?", "apagar meus dados? 🙏",
+    "apagar meus dados 🙏?", "apagar meus dados?!", "apagar meus dados ？", "apagar meus dados❓", '"apagar meus dados?"'
+  ].each do |text|
+    it "takes #{text.inspect} as a question for the attendant, not the deletion" do
+      expect(commands.match(text)).to be_nil
+    end
+  end
+
+  {
+    "an emoji before the phrase" => "🙏 apagar meus dados",
+    "an emoji inside the phrase" => "apagar 🙏 meus dados",
+    "words after an emoji" => "apagar meus dados 🙏 por favor",
     "the phrase inside a longer message" => "não quero apagar meus dados",
     "the phrase asked about" => "como faço para apagar meus dados?",
     "a reset mentioned in passing" => "reset de senha",

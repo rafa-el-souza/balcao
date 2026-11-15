@@ -12,7 +12,7 @@ es:
       days: "de %{first} a %{last}"
       day: { monday: "lunes", tuesday: "martes", wednesday: "miércoles", thursday: "jueves", friday: "viernes", saturday: "sábado", sunday: "domingo" }
       on_day: { monday: "los lunes", tuesday: "los martes", wednesday: "los miércoles", thursday: "los jueves", friday: "los viernes", saturday: "los sábados", sunday: "los domingos" }
-    emergency: "Si es una urgencia, llama ahora al SAMU, el servicio de ambulancias, al 192. Si alguien tomó un medicamento u otro producto por error o de más, llama también al Disque-Intoxicação, la línea de intoxicaciones, al 0800 722 6001."
+    emergency: "Si es una urgencia, llama ahora al SAMU, el servicio de ambulancias, al 192. Si alguien tomó un medicamento u otro producto por error o de más, llama también al Disque-Intoxicação, la línea de intoxicaciones, al 0800 722 6001. Si estás pensando en hacerte daño o en quitarte la vida, llama al CVV, la línea de apoyo emocional, al 188: la llamada es gratuita y atienden las 24 horas."
     reservation: "Reserva %{code}: %{quantity} × %{product}, retiro hasta el %{pickup_until}."
     pickup_format: "%d/%m a las %H:%M"
   commands:

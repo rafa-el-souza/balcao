@@ -67,8 +67,11 @@ RSpec.describe "FR-19 SR-43 NFR-02 Telegram::Outbound, a reply on its way to the
 
   describe "a person's stored replies" do
     it "sends the pending replies oldest first, as plain text with the preview off and the agreement's keyboard taken away" do
-      second = reply("Segunda resposta.", at: 1.second.ago)
-      first = reply("Primeira resposta.", at: 2.seconds.ago)
+      # One clock reading: travel_to drops the fraction of a second, so two
+      # readings a second boundary apart gave both replies the same time.
+      now = Time.current
+      second = reply("Segunda resposta.", at: now - 1.second)
+      first = reply("Primeira resposta.", at: now - 2.seconds)
 
       outbound.deliver_pending(visitor)
 
@@ -206,6 +209,20 @@ RSpec.describe "FR-19 SR-43 NFR-02 Telegram::Outbound, a reply on its way to the
       expect(Rails.logger).to have_received(:error).with(/\Atelegram reply #{message.id}: failed after 3 attempts, Telegram::Client::Error \(Net::OpenTimeout\)\z/)
     end
 
+    # FR-19 (the owner, 2026-11-15; the MVP review, rows 33-H3 and Q29).
+    it "tries a 5xx in Telegram's own answer again after the job's backoff, as any failure of the way there" do
+      stub_request(:post, bot_api_url("sendMessage")).to_return(bot_api_error(502, "Bad Gateway")).then
+                                                      .to_return(bot_api_answer({ "message_id" => 1 }))
+      started = Time.current
+
+      outbound.deliver_pending(visitor)
+
+      expect(message.reload).to have_attributes(status: "pending", send_attempts: 1)
+      expect(message.next_attempt_at).to be_within(1.second).of(started + 3)
+      retry_when_due
+      expect(message.reload.status).to eq "sent"
+    end
+
     it "marks it failed at once on any other answer that is not ok, and never logs the chat or the text" do
       stub_request(:post, bot_api_url("sendMessage")).to_return(bot_api_error(403, "Forbidden: bot was blocked by the user"))
       lines = []
@@ -239,6 +256,27 @@ RSpec.describe "FR-19 SR-43 NFR-02 Telegram::Outbound, a reply on its way to the
         "telegram reply #{long.id}: failed after 1 attempt, Telegram::Client::Error (400), part 2 of 3",
         "telegram reply #{third.id}: failed after 3 attempts, Telegram::Client::Error (429, retry after 30 s)"
       ])
+    end
+
+    # FR-19 (the owner, 2026-11-15; the MVP review, row 33-R3): the three
+    # attempts counted for the reply, so a long reply whose parts each met a
+    # 429 failed at its third with its first parts delivered.
+    it "counts the three attempts for each part: a part that leaves starts the count again for the next" do
+      long = reply(Array.new(3) { |i| "#{i} #{"z" * 3_000}" }.join("\n\n"), at: 1.minute.from_now)
+      message.update_columns(status: "sent")
+      wait = bot_api_error(429, "Too Many Requests: retry after 1", retry_after: 1)
+      stub_request(:post, bot_api_url("sendMessage"))
+        .to_return(wait, bot_api_answer({ "message_id" => 1 }), wait, bot_api_answer({ "message_id" => 2 }),
+                   wait, bot_api_answer({ "message_id" => 3 }))
+
+      outbound.deliver_pending(visitor)
+      4.times do
+        at = long.reload.next_attempt_at or break
+        travel_to(at + 1.second) { perform_enqueued_jobs(only: TelegramReplyJob) }
+      end
+
+      expect(long.reload).to have_attributes(status: "sent", parts_sent: 3)
+      expect(a_request(:post, bot_api_url("sendMessage"))).to have_been_made.times(6)
     end
 
     it "goes on to the person's next reply after one that failed" do

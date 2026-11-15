@@ -25,7 +25,9 @@ module Telegram
     # A call that did not answer ok. Telegram's answer has a code: 429 is a
     # wait (rate_limited?, with the seconds it names), any other a refusal
     # (refused?). A failure of the way there (a timeout, a broken connection,
-    # an answer that is not Telegram's) has none, and names its class.
+    # an answer that is not Telegram's, and an answer of 5xx whatever its
+    # body, FR-19, the owner, 2026-11-15) has none, and names its class or the
+    # status.
     class Error < StandardError
       attr_reader :method_name, :code, :retry_after, :failure
 
@@ -113,9 +115,13 @@ module Telegram
       raise Error.new("#{method}: #{e.class}", method_name: method, failure: e.class.name), cause: nil
     end
 
-    # Telegram answers JSON with "ok", whatever the HTTP status; anything else
-    # is a failure of the way there.
+    # Telegram answers JSON with "ok", whatever the HTTP status; an answer of
+    # 5xx, its JSON or a proxy's page, and anything else are failures of the
+    # way there, tried again like a timeout (FR-19; review finding H3 of pull
+    # request #33: a 5xx in Telegram's JSON was a refusal, failed at once).
     def answer(method, response)
+      raise Error.new("#{method}: HTTP #{response.code}", method_name: method, failure: "HTTP #{response.code}") if response.code.to_i >= 500
+
       body = JSON.parse(response.body.to_s)
       return body if body.is_a?(Hash) && body.key?("ok")
 

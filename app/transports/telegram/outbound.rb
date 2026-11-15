@@ -12,9 +12,9 @@ module Telegram
   #   takes no idempotency key.
   # - A reply that is not stored (the ask, /help and the deletion before the
   #   agreement, the fixed lines, the deletion's confirmation) is sent where
-  #   it is made, to the chat of the update or of the row read before the
-  #   deletion: the chat id is kept on the visitor's row alone (SR-10, SR-41),
-  #   so it never goes into a job's arguments.
+  #   it is made, to the chat of the update or of the row, before the
+  #   deletion takes it: the chat id is kept on the visitor's row alone
+  #   (SR-10, SR-41), so it never goes into a job's arguments.
   #
   # Both are sent under a lock keyed by the person's hashed identity, so one
   # person's replies leave one at a time and in order: a reply that is not
@@ -26,11 +26,13 @@ module Telegram
   # - A stored reply Telegram asked to wait for (a 429) or that failed on the
   #   way is tried again by TelegramReplyJob, scheduled for the time the 429
   #   names or after the job's backoff (Active Job's polynomially_longer
-  #   without its jitter: 3 s, then 18 s), three attempts in all; until then
-  #   it and the person's later replies stay pending, in order, and a drain
-  #   meanwhile leaves them be.
+  #   without its jitter: 3 s, then 18 s), three attempts in all, counted for
+  #   each part of a reply cut in parts; until then it and the person's later
+  #   replies stay pending, in order, and a drain meanwhile leaves them be.
   # - A reply that is not stored is tried once: nothing keeps its chat to try
-  #   it again.
+  #   it again. The deletion's confirmation is the exception: it leaves
+  #   before the deletion, from the row that keeps the chat, and the turn's
+  #   job tries it again (TurnProcessor, FR-05).
   # Any other answer that is not ok fails a reply at once. A failed reply is
   # marked failed with one line that names the error by its class (NFR-03,
   # SR-30); the chat and the text never reach a line.
@@ -93,15 +95,17 @@ module Telegram
     end
 
     # Sends a reply that is not stored, trying each part once, after the
-    # pending replies of the visitor given; answers whether it left.
-    def send_fixed(chat, text, keyboard: nil, name: :reply, visitor: nil)
+    # pending replies of the visitor given; answers whether it left. The
+    # attempt, when the caller tries it again (the deletion's confirmation,
+    # by the turn's job, FR-05), is named in the line of a send that failed.
+    def send_fixed(chat, text, keyboard: nil, name: :reply, visitor: nil, attempt: nil)
       AdvisoryLock.hold(lock(chat)) do
         stored = visitor && Chat.of(visitor)
         drain(visitor, stored) if stored
         parts = self.class.parts(text)
         parts.each_with_index do |part, index|
           error = send_part(chat, part, keyboard) or next
-          return failed("telegram fixed reply #{name}", error, 1, part: [ index + 1, parts.size ])
+          return failed("telegram fixed reply #{name}", error, 1, part: [ index + 1, parts.size ], at: attempt)
         end
         true
       end
@@ -124,12 +128,14 @@ module Telegram
 
     # The parts not sent yet, each tried once. Answers true when the person's
     # next reply may go (this one sent, or failed for good), false when this
-    # one waits for its time.
+    # one waits for its time. The three attempts count for each part: a part
+    # that leaves starts the count again for the next (FR-19, the owner,
+    # 2026-11-15).
     def deliver(message, chat, visitor)
       parts = self.class.parts(message.body)
       parts.drop(message.parts_sent).each do |part|
         error = send_part(chat, part, REMOVE_KEYBOARD)
-        next message.update_columns(parts_sent: message.parts_sent + 1, updated_at: Time.current) unless error
+        next message.update_columns(parts_sent: message.parts_sent + 1, send_attempts: 0, updated_at: Time.current) unless error
 
         return again_or_failed(message, error, visitor, [ message.parts_sent + 1, parts.size ])
       end
@@ -164,15 +170,15 @@ module Telegram
       error.rate_limited? && error.retry_after.to_i.positive? ? error.retry_after.to_i : (attempts**4) + 2
     end
 
-    # One line: the reply, its attempts, the error's class and Telegram's code
-    # or the failure's class, the wait a 429 named and, for a reply cut in
-    # parts, the part that failed (review finding H11 of pull request #33).
-    # Never the chat or the text (SR-30).
-    def failed(what, error, attempts, part:)
+    # One line: the reply, its attempts (or the caller's attempt, at), the
+    # error's class and Telegram's code or the failure's class, the wait a 429
+    # named and, for a reply cut in parts, the part that failed (review
+    # finding H11 of pull request #33). Never the chat or the text (SR-30).
+    def failed(what, error, attempts, part:, at: nil)
       reason = [ error.code || error.failure, ("retry after #{error.retry_after} s" if error.rate_limited? && error.retry_after) ]
       where = ", part #{part.first} of #{part.last}" if part.last > 1
-      Rails.logger.error("#{what}: failed after #{attempts} #{"attempt".pluralize(attempts)}, " \
-                         "#{error.class} (#{reason.compact.join(", ")})#{where}")
+      tried = at ? "at #{at}" : "after #{attempts} #{"attempt".pluralize(attempts)}"
+      Rails.logger.error("#{what}: failed #{tried}, #{error.class} (#{reason.compact.join(", ")})#{where}")
       false
     end
   end

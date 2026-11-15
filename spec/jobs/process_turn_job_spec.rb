@@ -98,13 +98,15 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
         expect(turns.second.outbound_message.body).to eq("Também não posso.")
       end
 
-      it "is not repeated after a refusal's decline that carried it" do
+      # FR-09 (the owner, 2026-11-15): a refusal's decline ends with the
+      # emergency line, so the reply after it gives the phone.
+      it "comes after a refusal's decline, which ends with the emergency line instead" do
         responses.replace([ refusal, reply("[pt] Também não posso. [pharmacist]") ])
         first = inbound("como faço para ...").tap { |turn| perform(turn) }
         second = inbound("e com vinho?").tap { |turn| perform(turn) }
 
-        expect(first.outbound_message.body).to end_with(FixedReply.offer("pt-BR"))
-        expect(second.outbound_message.body).to eq("Também não posso.")
+        expect(first.outbound_message.body).not_to include(FixedReply.offer("pt-BR"))
+        expect(second.outbound_message.body).to eq(FixedReply.with_offer("Também não posso.", "pt-BR"))
       end
 
       # Review finding C1 of pull request #27: a reply that is the tag alone
@@ -412,16 +414,31 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       expect(turn.outbound_message.body).to end_with(FixedReply.with_reservations(FixedReply.fallback("pt-BR"), [ reservation ], "pt-BR"))
     end
 
-    it "answers a refusal with the decline text, never with the model's output" do
+    # FR-09 (the owner, 2026-11-15; the finder's notes 1 and 6 of pull
+    # request #27): a refused message is the one the system cannot read, so
+    # it may be a call for help: the decline ends with the emergency line,
+    # not with the offer.
+    it "answers a refusal with the decline text and the emergency line, never with the model's output" do
       responses.replace([ refusal ])
       turn = inbound("como faço para ...")
 
       perform(turn)
 
       expect(turn.reload.state).to eq("replied")
-      # FR-09: the decline ends with the offer of the pharmacist (FR-10's MVP note).
-      expect(turn.outbound_message.body).to eq(FixedReply.with_notice(FixedReply.with_offer(FixedReply.declined("pt-BR"), "pt-BR"), "pt-BR"))
+      expect(turn.outbound_message.body).to eq(FixedReply.with_notice(FixedReply.with_emergency(FixedReply.declined("pt-BR"), "pt-BR"), "pt-BR"))
+      expect(turn.outbound_message.body).not_to include(FixedReply.offer("pt-BR"))
       expect(spans(turn).first.span_attributes).to include("balcao.turn.outcome" => "refused")
+    end
+
+    it "puts the line of a reservation stored before the refusal after the emergency line" do
+      product = create(:product)
+      responses.replace([ tool_turn(tool_use("create_reservation", { product_id: product.id, quantity: 2 })), refusal ])
+      turn = inbound("reserva duas dipironas e ...")
+
+      perform(turn)
+
+      text = FixedReply.with_emergency(FixedReply.declined("pt-BR"), "pt-BR")
+      expect(turn.outbound_message.body).to end_with(FixedReply.with_reservations(text, [ turn.reservations.sole ], "pt-BR"))
     end
 
     it "marks the turn failed, closes its spans and tries again later when the turn breaks outside the model" do

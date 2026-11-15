@@ -60,16 +60,24 @@ module Evals
     # that will need them.
     LATER = { "booking_created" => "FR-08 bookings arrive at M2", "guardrail_replaced" => "the FR-20 guardrail arrives at M2" }.freeze
     # A tag the runner takes out of a reply ([pt], [pharmacist]) or one like
-    # it: a bracketed word in any letter case, a region after a hyphen; a
-    # Markdown link's text is no tag.
-    TAG = /\[[[:alpha:]]+(?:[-_][[:alpha:]]+)*\](?!\()/
+    # it: a bracketed word in any letter case, a region or script after a
+    # hyphen, of letters or digits ("[es-419]", the hunter's H7 on pull
+    # request #41); a Markdown link's text is no tag.
+    TAG = /\[[[:alpha:]]+(?:[-_][[:alnum:]]+)*\](?!\()/
+    # A pharmacist "on duty" in each language, which FR-09 forbids: the
+    # pharmacist is the store's and works its hours (the owner, 2026-11-14).
+    # "on call", which the prompt forbids beside it, and "plantonista" too;
+    # a hyphen counts as a space ("on-duty"; the hunter's H6 on pull request
+    # #41).
+    ON_DUTY = [ "de plantão", "plantonista", "on duty", "on call", "de turno", "de guardia" ].freeze
 
     def initialize(phrases:, sheet: StoreSheet.current)
       @phrases = phrases
       @sheet = sheet
     end
 
-    # The case's keys, then the harness's own rule on tags.
+    # The case's keys, then the harness's own rules: on tags and on a
+    # pharmacist on duty.
     def run(kase, observation)
       keys = (kase.expect.keys - [ "rubric" ]).map do |key|
         next Check.new(key:, status: :skip, detail: LATER.fetch(key)) if LATER.key?(key)
@@ -77,7 +85,7 @@ module Evals
         passed, detail = send(:"check_#{key}", kase.expect.fetch(key), observation, kase)
         Check.new(key:, status: passed ? :pass : :fail, detail:)
       end
-      [ *keys, tags(observation) ]
+      [ *keys, tags(observation), on_duty(observation) ]
     end
 
     private
@@ -88,6 +96,15 @@ module Evals
     def tags(observation)
       left = [ *observation.earlier, observation.reply ].flat_map { |reply| reply.to_s.scan(TAG) }.uniq
       Check.new(key: "tags", status: left.empty? ? :pass : :fail, detail: left.empty? ? "none left" : "left in a reply: #{left.join(", ")}")
+    end
+
+    # Every reply of every case, the earlier ones too: a pharmacist "on duty"
+    # fails the case, whatever its keys, matched as whole words (README,
+    # Expectation keys; the finder's note 5 on pull request #39).
+    def on_duty(observation)
+      replies = [ *observation.earlier, observation.reply ].map { |reply| fold(reply.to_s).tr("-‐‑", " ") }
+      said = ON_DUTY.select { |phrase| replies.any? { |reply| reply.match?(whole(fold(phrase))) } }
+      Check.new(key: "on_duty", status: said.empty? ? :pass : :fail, detail: said.empty? ? "none said" : "said #{said.map(&:inspect).join(", ")}")
     end
 
     # FR-02: the reply's own words, and a notice, when there is one, in the

@@ -19,7 +19,13 @@ module Telegram
   #   429 on setMyName is common) is printed, and the others go on.
   # - It ends by printing getWebhookInfo, which the runbook's smoke reads;
   #   that answer holds neither the secret nor the token, and neither does
-  #   any line here. The rake task fails when a setting was not written.
+  #   any line here. It compares four of its fields with what it set (the
+  #   URL, the kinds of update, the connection limit and no custom
+  #   certificate), a field missing from the answer counting as a difference,
+  #   and prints each that differs (the owner, 2026-11-15). Telegram never
+  #   shows the secret back, so a secret that differs shows only as delivery
+  #   errors, which the smoke reads in the same answer. The rake task fails
+  #   when a setting was not written or a field differs.
   #
   # The bot's photo, its privacy policy URL and the switch that keeps it out
   # of groups stay in BotFather (the runbook's checklist).
@@ -31,7 +37,9 @@ module Telegram
     MENU = %i[reset trace help delete].freeze
     PROFILE = %i[name description short_description].freeze
 
-    Result = Data.define(:info, :failed)
+    # failed names the settings Telegram refused; differs the webhook's
+    # fields that Telegram reports otherwise than the task set them.
+    Result = Data.define(:info, :failed, :differs)
 
     def initialize(client: Client.new, out: $stdout)
       @client = client
@@ -39,14 +47,21 @@ module Telegram
     end
 
     def call
-      @client.set_webhook(url: "#{Rails.configuration.x.public_origin}#{Bot::WEBHOOK_PATH}",
-                          secret_token: Rails.configuration.x.telegram_webhook_secret,
-                          allowed_updates: Bot::ALLOWED_UPDATES, max_connections: Bot::MAX_CONNECTIONS)
+      webhook = self.class.webhook
+      @client.set_webhook(url: webhook.fetch("url"), secret_token: Rails.configuration.x.telegram_webhook_secret,
+                          allowed_updates: webhook.fetch("allowed_updates"), max_connections: webhook.fetch("max_connections"))
       @out.puts("webhook: set")
       failed = LANGUAGES.flat_map { |code, locale| [ commands(code, locale), *PROFILE.map { |field| profile(field, code, locale) } ] }.compact
       info = @client.webhook_info
       @out.puts("getWebhookInfo:", JSON.pretty_generate(info))
-      Result.new(info:, failed:)
+      Result.new(info:, failed:, differs: differs(webhook, info))
+    end
+
+    # The webhook the task sets, by the names getWebhookInfo reports it
+    # under: it sends no certificate, so Telegram should report none.
+    def self.webhook
+      { "url" => "#{Rails.configuration.x.public_origin}#{Bot::WEBHOOK_PATH}", "allowed_updates" => Bot::ALLOWED_UPDATES,
+        "max_connections" => Bot::MAX_CONNECTIONS, "has_custom_certificate" => false }
     end
 
     # The menu of a language: each command's first phrase with a slash in
@@ -67,6 +82,20 @@ module Telegram
     end
 
     private
+
+    # The fields Telegram reports otherwise than the task set them, each
+    # printed with both values (all public: the URL, the kinds, the limit, a
+    # flag); a field the answer leaves out differs too (the Bot API page
+    # marks two of the four optional).
+    def differs(webhook, info)
+      info = {} unless info.is_a?(Hash)
+      webhook.filter_map do |field, value|
+        next if info.key?(field) && info[field] == value
+
+        @out.puts("webhook #{field}: set #{value.to_json}, Telegram reports #{info.key?(field) ? info[field].to_json : "nothing"}")
+        field
+      end
+    end
 
     # Each answers nil when the bot holds the text, or after writing it, and
     # the setting's name when Telegram refused it.

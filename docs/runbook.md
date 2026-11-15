@@ -336,11 +336,24 @@ the env file loaded in the same call.
   with Telegram's answer) and ends with `getWebhookInfo`. It exits 1 when a
   setting was not written: Telegram limits `setMyName` and its neighbours,
   and a 429 names the wait (sometimes hours); the others were written, and a
-  run after that wait writes the rest.
+  run after that wait writes the rest. It exits 1 too when `getWebhookInfo`
+  reports the webhook otherwise than the task set it, in any of `url`,
+  `allowed_updates`, `max_connections` and `has_custom_certificate`
+  (`false`), or leaves one of them out: a line `webhook <field>: set …,
+  Telegram reports …` names each (FR-19). That is no wait, and a run again
+  sets the same values: a `url` on another name means the destination's
+  `APP_HOST` (`config/deploy.ensaio.yml`) is not the demo's name, or the
+  task ran in another destination's container; any other field means
+  Telegram took or reports something other than what the task sent, so
+  compare its two values with the Bot API's page on `setWebhook` and
+  `getWebhookInfo` (a field left out counts too, two of the four being
+  optional there) before running the task again. The secret is not among
+  them: Telegram never shows it back, so the smoke below reads the
+  delivery errors.
 - **The smoke** reads `getWebhookInfo`, at the end of the task or alone:
   `kamal app exec -d ensaio --roles=web --reuse "bin/rails runner 'puts JSON.pretty_generate(Telegram::Client.new.webhook_info)'"`.
-  Expect `url` at `/webhooks/telegram` on the demo's name,
-  `max_connections` 1, `allowed_updates` `["message"]`, a
+  The task has compared `url`, `max_connections`, `allowed_updates` and
+  `has_custom_certificate`; read the rest yourself: a
   `pending_update_count` near 0, and no `last_error_date` after the deploy:
   a `last_error_message` of 401 means the secret Telegram sends differs from
   the app's (run the task), a timeout that the app did not answer. Then, on
@@ -361,13 +374,29 @@ the env file loaded in the same call.
   log has one `telegram reply <id>: failed after N attempts` line naming the
   error by its class and Telegram's code (a 403 is a visitor who blocked the
   bot), the wait a 429 named and, for a reply cut in parts, the part that
-  failed. A reply Telegram asked to wait for, or that failed on the way,
-  stays `pending` with its time (`next_attempt_at`) until `TelegramReplyJob`
-  tries it again, three attempts in all.
+  failed. A reply Telegram asked to wait for, or that failed on the way (a
+  timeout, a broken connection, an answer of 5xx, whose line names it
+  `HTTP 5xx`), stays `pending` with its time (`next_attempt_at`) until
+  `TelegramReplyJob` tries it again, three attempts in all.
 - **A reply that is never stored** (the ask, `/help` and the deletion
-  before the agreement, the fixed lines, the deletion's confirmation) is
-  tried once, since nothing keeps its chat to try again; one that could not
-  be sent has a `telegram fixed reply <name>: failed after 1 attempt` line.
+  before the agreement, the fixed lines) is tried once, since nothing keeps
+  its chat to try again; one that could not be sent has a `telegram fixed
+  reply <name>: failed after 1 attempt` line.
+- **The deletion's confirmation** leaves before the visitor's rows go, and
+  the turn's job tries it again with its backoff, three attempts in all,
+  each failed one with a `telegram fixed reply deleted: failed at attempt N
+  of 3 of turn <id>'s job` line, or `broke at attempt N of 3 of turn <id>'s
+  job, <class>` when the send broke rather than failed (FR-05); a later
+  turn's job that runs the deletion first names its own turn. The third
+  deletes whether or not it left: then the log has `telegram fixed reply
+  deleted: not sent, the data deleted all the same`, or `broke at attempt 3
+  of 3 of turn <id>'s job, <class>, the data deleted all the same`. While
+  the confirmation has not left, the visitor's later messages wait behind
+  the deletion (`earlier turn <id>: a deletion waits for its confirmation,
+  and the turns after it`), and none reaches the model; a deletion that
+  breaks after its confirmation left (a database error in the erase) does
+  not hold them, a line for the owner in pull request #41's review (R1). A
+  confirmation can arrive twice when a run is repeated.
 - **Replies left pending** (after a stop, an outage, or the replies PR-18
   stored before day 12) leave before the person's next reply, or at once
   with:

@@ -7,9 +7,14 @@
 # /start the parameter of a deep link, which is ignored until FR-23 reads it.
 #
 # A message is a command when it is exactly one of these phrases, ignoring
-# case, accents, spaces around and between words, an opening ¿ or ¡ and the
-# final punctuation; never when a phrase is only part of it, so "não quero
-# apagar meus dados" is a message for the attendant, not a deletion. A command
+# case, accents, spaces around and between words, an opening ¿ or ¡,
+# quotation marks around the phrase and the punctuation or emoji after it, so
+# "apagar meus dados 🙏" deletes; never when a phrase is only part of it, so
+# "não quero apagar meus dados" is a message for the attendant, not a
+# deletion. A deletion phrase followed by a question mark ("apagar meus
+# dados?") is a question, which goes to the attendant, who says how to
+# delete; that rule is the deletion's alone, so "como você funciona?" is the
+# trace with or without its mark (FR-05, the owner, 2026-11-15). A command
 # is matched in any language, whatever the conversation's; a phrase belongs to
 # one command only. A reply follows the language of a phrase only one
 # language lists; a phrase several list, such as "reset", which FR-04 names
@@ -39,7 +44,10 @@ help:
 # before it reads anything of a person on Telegram, while it holds no row of
 # that person; afterwards they are a message like any other (FR-19, the
 # owner's decision of 2026-11-14). The first of each language is the ask's
-# button, as the privacy page names it.
+# button, as the privacy page names it. A phrase counts only as written:
+# case, accents, spaces, quotation marks and a final full stop or
+# exclamation aside, so a question mark or an emoji after it ("Concordo?",
+# "Acepto 👎") is no agreement (review finding C2 of pull request #41).
 agree:
   pt: [Concordo, eu concordo]
   en: [I agree]

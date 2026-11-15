@@ -18,8 +18,10 @@
 #   the line of a reservation whose code or pickup time it left out and, when
 #   the cap of open reservations refused one, by the lines of those the
 #   visitor holds (FR-07). Before those lines come the fixed lines the model's
-#   tags ask for, the emergency line or the offer of the pharmacist, and the
-#   offer after a decline (FR-09, FR-10's MVP note);
+#   tags ask for, the emergency line or the offer of the pharmacist (FR-09,
+#   FR-10's MVP note), and the emergency line after a refusal's decline: a
+#   refused message is the one the system cannot read, so it may be a call
+#   for help (FR-09, the owner, 2026-11-15);
 # - a turn the job gave up on after its attempts gets the fallback too
 #   (give_up, NFR-03).
 #
@@ -51,12 +53,26 @@ class TurnProcessor
   # job gave up on.
   OUTCOMES = [ *AgentRunner::OUTCOMES.map(&:to_s), "reservations", "paused", "dead_letter" ].freeze
 
-  def initialize(turn, commands: CommandPhrases.current, typing: nil)
+  # The attempt of the job that runs the turn (ProcessTurnJob), and the turn
+  # that job is for, which the deletion's confirmation counts and names in
+  # its lines (FR-05): a later turn's job runs an earlier deletion with its
+  # own attempt (the hunter's H3 on pull request #41).
+  Attempt = Data.define(:number, :of, :turn_id) do
+    def last? = number >= of
+    def to_s = "attempt #{number} of #{of} of turn #{turn_id}'s job"
+  end
+
+  # The deletion's confirmation did not leave and the job has another
+  # attempt, so the data waits for it (FR-05).
+  class ConfirmationNotSent < StandardError; end
+
+  def initialize(turn, commands: CommandPhrases.current, typing: nil, attempt: nil)
     @turn = turn
     @conversation = turn.conversation
     @inbound = turn.inbound_message
     @commands = commands
     @typing = typing
+    @attempt = attempt
   end
 
   def call
@@ -105,18 +121,44 @@ class TurnProcessor
   # Nothing is traced: the trace would be deleted with the rest. A trace page
   # open on any of the visitor's conversations is told too, so it drops what
   # it showed (review finding G2 of pull request #17). On Telegram the
-  # confirmation goes to the chat, read before the deletion takes the row
-  # that holds it, and says that the chat in the visitor's app is their own
-  # copy (FR-19).
+  # confirmation goes to the chat first, since the row the deletion takes
+  # holds it, and says that the chat in the visitor's app is their own copy
+  # (FR-19).
   def delete
     language = command_language
     visitor = @conversation.visitor
     tokens = visitor.conversations.pluck(:trace_token)
     chat = Telegram::Chat.of(visitor)
+    confirm_deletion(chat, language) if chat
     visitor.erase!
     broadcast(type: "deleted", text: FixedReply.command(:delete, language))
     tokens.each { |token| broadcast({ type: "deleted" }, "trace:#{token}") }
-    Telegram::Outbound.new.send_fixed(chat, FixedReply.telegram_deleted(language), name: :deleted) if chat
+  end
+
+  # FR-05 on Telegram (the owner, 2026-11-15): the confirmation leaves before
+  # the rows go. One that did not leave, or whose send broke (a line names
+  # the error's class), raises ConfirmationNotSent, so the job tries the turn
+  # again with its backoff, three attempts in all, and the turns after it
+  # wait for it (ProcessTurnJob#run_earlier, review finding C1 of pull
+  # request #41); at the last attempt the data goes whether or not the
+  # confirmation left, and the log says so (review finding C8 of pull request
+  # #33: a send that broke after the deletion was lost with no line). A later
+  # turn's job runs the deletion with its own attempt. A confirmation may
+  # arrive twice when a run is repeated: sendMessage takes no idempotency key
+  # (NFR-02's accepted duplicate).
+  def confirm_deletion(chat, language)
+    left = begin
+      Telegram::Outbound.new.send_fixed(chat, FixedReply.telegram_deleted(language), name: :deleted, attempt: @attempt)
+    rescue StandardError => e
+      return Rails.logger.error("telegram fixed reply deleted: broke at #{@attempt}, #{e.class}, the data deleted all the same") if @attempt&.last?
+
+      Rails.logger.error("telegram fixed reply deleted: broke#{" at #{@attempt}" if @attempt}, #{e.class}")
+      false
+    end
+    return if left
+    raise ConfirmationNotSent, "the deletion's confirmation did not leave; the job tries the turn again" unless @attempt&.last?
+
+    Rails.logger.error("telegram fixed reply deleted: not sent, the data deleted all the same")
   end
 
   # FR-04: the conversation closes and the reply opens the next one, so its
@@ -244,7 +286,7 @@ class TurnProcessor
     language = @conversation.language
     case result.outcome
     when :replied then [ with_facts(result, language), "replied" ]
-    when :refused then [ FixedReply.with_reservations(with_lines(FixedReply.declined(language), language, offer: true),
+    when :refused then [ FixedReply.with_reservations(FixedReply.with_emergency(FixedReply.declined(language), language),
                                                       reservations, language), "replied" ]
     else [ FixedReply.with_reservations(FixedReply.fallback(language), reservations, language), "failed" ]
     end

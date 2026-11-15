@@ -114,8 +114,8 @@ RSpec.describe "NFR-09 FixedReply, the texts the system writes instead of the mo
 
   # FR-09's decline, the reply to a refusal (threat model SR-19) and, from
   # M2, to a reply the guardrail replaces (FR-20): one or two sentences that
-  # decline and name the store's pharmacist; the turn adds the offer after it
-  # (TurnProcessor).
+  # decline and name the store's pharmacist; after a refusal the turn adds
+  # the emergency line (TurnProcessor; FR-09, the owner, 2026-11-15).
   describe "the decline text (FR-09, SR-19)" do
     LOCALES.each_key do |locale|
       it "declines in #{locale} in one or two sentences and names the store's pharmacist" do
@@ -139,6 +139,22 @@ RSpec.describe "NFR-09 FixedReply, the texts the system writes instead of the mo
 
         expect(line).to include("SAMU", "192", "Disque-Intoxicação", "0800 722 6001")
         expect(line).not_to include("\n")
+      end
+    end
+
+    # The owner, 2026-11-15 (the MVP review, Q34): for someone thinking of
+    # hurting themselves, CVV's 188, free and answered 24 hours a day (read at
+    # cvv.org.br that day); the third sentence as he saw it drawn.
+    {
+      "pt-BR" => "Se você está pensando em se machucar ou em tirar a própria vida, ligue para o CVV, no 188: a ligação é " \
+                 "gratuita e eles atendem 24 horas.",
+      "en" => "If you are thinking of hurting yourself or of ending your life, call CVV, the emotional support line, on 188: " \
+              "the call is free and they answer 24 hours a day.",
+      "es" => "Si estás pensando en hacerte daño o en quitarte la vida, llama al CVV, la línea de apoyo emocional, al 188: la " \
+              "llamada es gratuita y atienden las 24 horas."
+    }.each do |locale, sentence|
+      it "ends in #{locale} with CVV's 188 for someone thinking of hurting themselves" do
+        expect(FixedReply.emergency(locale)).to end_with(" #{sentence}")
       end
     end
 

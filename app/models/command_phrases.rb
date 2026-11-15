@@ -1,9 +1,10 @@
 # The visitor's commands, config/commands.yml (FR-04, FR-05, FR-12, FR-19):
 # matched before the model is called, so no model output and no prompt
 # injection can trigger one (FR-05). A message is a command only when,
-# normalised, it is exactly one of the phrases; the file's header says what
-# normalising ignores. The same file lists the phrases of Telegram's
-# agreement (FR-19), which are never a command.
+# normalised, it is exactly one of the phrases, and a deletion phrase
+# followed by a question mark is a question; the file's header says both.
+# The same file lists the phrases of Telegram's agreement (FR-19), which are
+# never a command and count only as written (agreement_key).
 class CommandPhrases
   PATH = Rails.root.join("config/commands.yml")
   NAMES = %w[reset delete trace start help].freeze
@@ -13,6 +14,22 @@ class CommandPhrases
   # carry a deep link's parameter (FR-19): up to 64 of A-Z, a-z, 0-9, _ and -.
   BOT_MENTION = %r{\A(/[a-z0-9_]+)@#{Telegram::Bot::USERNAME.downcase}(?=\s|\z)}
   DEEP_LINK = %r{\A/start [a-z0-9_-]{1,64}\z}
+  # Before a phrase: spaces, an opening ¿ or ¡, and quotation marks.
+  OPENING = /\A[\s¿¡"'“”‘’«»‹›„‚]+/
+  # After it: spaces, punctuation, symbols and the pieces emoji are made of
+  # (joiners, keycaps; NFKD has already taken the variation selectors), but
+  # not U+FFFD, which stands for bytes that were not UTF-8.
+  TAIL = /[[\s\p{P}\p{S}\p{Extended_Pictographic}\p{Cf}\p{Me}]&&[^\uFFFD]]+\z/
+  # A question mark in what follows a deletion phrase: NFKD reads the
+  # full-width "？" and "⁉" as "?".
+  QUESTION = /[?‽❓❔]/
+  # The agreement's phrase counts only as written (FR-19, Telegram's
+  # "explicit, active" consent): around it, spaces, an opening ¡ and
+  # quotation marks, and after it a full stop, an exclamation or an ellipsis
+  # (NFKD reads "…" as "..."); a question mark or anything else after it
+  # makes it no agreement (review finding C2 of pull request #41).
+  AGREEMENT_OPENING = /\A[\s¡"'“”‘’«»‹›„‚]+/
+  AGREEMENT_TAIL = /[\s.!"'“”‘’«»‹›]+\z/
 
   class Invalid < StandardError; end
 
@@ -24,16 +41,29 @@ class CommandPhrases
     raise Invalid, "#{path}: #{e.message}"
   end
 
-  # Case, accents, surrounding and repeated spaces, an opening ¿ or ¡ and the
-  # final punctuation do not count, nor the bot's username after a command and
-  # a deep link's parameter after /start; nothing else is removed. Bytes that
-  # are not UTF-8 become U+FFFD, so such a message is never a command and
-  # never raises before the turn starts.
-  def self.normalize(text)
+  # Case, accents, surrounding and repeated spaces, an opening ¿ or ¡,
+  # quotation marks around the phrase and the punctuation or emoji after it
+  # do not count (FR-05, the owner, 2026-11-15), nor the bot's username after
+  # a command and a deep link's parameter after /start; nothing else is
+  # removed. Bytes that are not UTF-8 become U+FFFD, so such a message is
+  # never a command and never raises before the turn starts.
+  def self.normalize(text) = split(text).first
+
+  # The agreement's key of a message: case, accents and spaces as for a
+  # command, and only AGREEMENT_OPENING and AGREEMENT_TAIL around it.
+  def self.agreement_key(text)
     text = text.to_s.dup.force_encoding(Encoding::UTF_8).scrub
-    text = text.unicode_normalize(:nfkd).gsub(/\p{Mn}/, "").downcase.gsub(/\s+/, " ").strip
-    text = text.delete_prefix("¿").delete_prefix("¡").lstrip.sub(/[\s.!?…]+\z/, "").sub(BOT_MENTION, '\1')
-    text.match?(DEEP_LINK) ? "/start" : text
+    text.unicode_normalize(:nfkd).gsub(/\p{Mn}/, "").downcase.gsub(/\s+/, " ").strip
+        .sub(AGREEMENT_OPENING, "").sub(AGREEMENT_TAIL, "")
+  end
+
+  # The phrase a message is, normalized, and what followed it.
+  def self.split(text)
+    text = text.to_s.dup.force_encoding(Encoding::UTF_8).scrub
+    text = text.unicode_normalize(:nfkd).gsub(/\p{Mn}/, "").downcase.gsub(/\s+/, " ").strip.sub(OPENING, "")
+    tail = text[TAIL].to_s
+    text = text.delete_suffix(tail).sub(BOT_MENTION, '\1')
+    [ text.match?(DEEP_LINK) ? "/start" : text, tail ]
   end
 
   def initialize(data)
@@ -44,7 +74,7 @@ class CommandPhrases
     @agreement = check_languages(data[AGREEMENT], AGREEMENT)
     owners = index(@phrases.merge(AGREEMENT.to_sym => @agreement))
     @commands = owners.reject { |_, owner| owner == AGREEMENT.to_sym }.freeze
-    @agreements = owners.filter_map { |key, owner| key if owner == AGREEMENT.to_sym }.to_set.freeze
+    @agreements = @agreement.values.flatten.to_set { |phrase| self.class.agreement_key(phrase) }.freeze
     @languages = languages_index(@phrases)
   end
 
@@ -53,12 +83,18 @@ class CommandPhrases
   def phrases(name) = @phrases.fetch(name)
 
   # :reset, :delete, :trace, :start, :help, or nil when the message is not a
-  # command.
-  def match(text) = @commands[self.class.normalize(text)]
+  # command. A deletion phrase followed by a question mark is a question, for
+  # the attendant, who says how to delete (FR-05, the owner, 2026-11-15); the
+  # rule is the deletion's alone, so "como você funciona?" is the trace.
+  def match(text)
+    phrase, tail = self.class.split(text)
+    name = @commands[phrase]
+    name == :delete && tail.match?(QUESTION) ? nil : name
+  end
 
-  # Whether the message is one of the agreement's phrases (FR-19), which
-  # counts only while the bot holds no row of the person.
-  def agreement?(text) = @agreements.include?(self.class.normalize(text))
+  # Whether the message is one of the agreement's phrases as written (FR-19),
+  # which counts only while the bot holds no row of the person.
+  def agreement?(text) = @agreements.include?(self.class.agreement_key(text))
 
   # The phrase the ask's button sends in this language ("pt", "en", "es").
   def agreement(language) = @agreement.fetch(language).first

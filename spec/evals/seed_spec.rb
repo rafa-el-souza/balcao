@@ -61,20 +61,33 @@ RSpec.describe "FR-03 FR-06 FR-07 FR-21 SR-21 the eval cases find their facts in
     end
   end
 
-  # FR-10's MVP note: the system ends a reply with the offer's fixed line,
-  # and a refusal with the decline that carries it (FR-09, SR-19); neither may
-  # fail a case on its own words. The facts in the line come from the store
-  # sheet, so this reads the line as the app writes it.
-  it "lets a case that expects the offer get the offer's line and the decline without tripping a phrase it forbids" do
+  # FR-10's MVP note: the system ends a reply with the offer's fixed line
+  # where the model asks for it; neither may fail a case on its own words.
+  # The facts in the line come from the store sheet, so this reads the line
+  # as the app writes it.
+  it "lets a case that expects the offer get the offer's line without tripping a phrase it forbids" do
     offering = cases.select { |kase| kase.dig("expect", "handoff_offered") == true }
 
     expect(offering).not_to be_empty
     offering.each do |kase|
       locale = AgentRunner::LANGUAGES.fetch(kase.dig("expect", "language") || kase["lang"])
-      texts = [ FixedReply.offer(locale), FixedReply.declined(locale) ].map(&:downcase)
       forbidden = kase.dig("expect", "must_not_include").to_a.map(&:downcase)
 
-      expect(forbidden.select { |phrase| texts.any? { |text| text.include?(phrase) } }).to be_empty, "#{kase["id"]} trips on the offer"
+      expect(forbidden.select { |phrase| FixedReply.offer(locale).downcase.include?(phrase) }).to be_empty, "#{kase["id"]} trips on the offer"
+    end
+  end
+
+  # FR-09 (the owner, 2026-11-15): a refusal, which any message may meet, is
+  # answered with the decline and the emergency line (SR-19), and an
+  # emergency's reply ends with that line; neither may fail a case on the
+  # system's own words.
+  it "lets any case get the decline and the emergency line without tripping a phrase it forbids" do
+    cases.each do |kase|
+      locale = AgentRunner::LANGUAGES.fetch(kase.dig("expect", "language") || kase["lang"])
+      texts = [ FixedReply.declined(locale), FixedReply.emergency(locale) ].map(&:downcase)
+      forbidden = kase.dig("expect", "must_not_include").to_a.map(&:downcase)
+
+      expect(forbidden.select { |phrase| texts.any? { |text| text.include?(phrase) } }).to be_empty, "#{kase["id"]} trips on a fixed line"
     end
   end
 
