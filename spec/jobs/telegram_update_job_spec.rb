@@ -337,6 +337,38 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
       stored_nothing
     end
 
+    # Review finding C2 of pull request #47: a send the client raised as
+    # itself broke the read after the update was read, so the update was read
+    # again, its message counted again and its line sent again, and at the
+    # third attempt it was given up.
+    it "logs a send that breaks by its class and goes on with the read, which counts the message once" do
+      stub_request(:post, bot_api_url("sendMessage")).to_raise(NoMethodError.new("undefined method 'bytesize' for nil"))
+      lines = []
+      allow(Rails.logger).to receive(:error) { |line| lines << line }
+
+      deliver(fixture("start"))
+      perform_enqueued_jobs(only: TelegramUpdateJob)
+
+      expect(@event.reload).to have_attributes(status: "processed", payload: nil)
+      expect(Rack::Attack.cache.store.read("limits:visitor/minute:#{identity}").to_i).to eq 1
+      expect(a_request(:post, bot_api_url("sendMessage"))).to have_been_made.once
+      expect(lines).to eq([ "telegram update #{@event.update_id}: replies not sent, NoMethodError" ])
+    end
+
+    it "tries a stored reply that a send left pending again a minute later" do
+      agreed!
+      visitor = Visitor.sole
+      Message.outbound.sole.update_columns(status: "pending", parts_sent: 0)
+      stub_request(:post, bot_api_url("sendMessage")).to_raise(NoMethodError.new("undefined method 'bytesize' for nil"))
+      allow(Rails.logger).to receive(:error)
+
+      deliver(fixture("photo"))
+
+      expect(@event.reload.status).to eq "processed"
+      expect(Message.outbound.sole.status).to eq "pending"
+      expect(TelegramReplyJob).to have_been_enqueued.with(visitor.id).at(be_within(1.second).of(1.minute.from_now))
+    end
+
     it "says the day's limit after 40 messages in a day, in the visitor's language" do
       agreed!
       Conversation.sole.update!(language: "en")

@@ -24,7 +24,13 @@
 # replies still pending, which go by their status, the agreement's greeting
 # among them (review finding T5 of the same review; finding C2 of pull
 # request #33). Both before the strip: a read that breaks after a send sends
-# again rather than never. A send that fails is logged and the read goes on.
+# again rather than never. A send that fails is logged and the read goes on,
+# and so is one that breaks, whatever breaks it (what the client raises as
+# itself, or the database while the person's replies drain): the update was
+# read, and reading it again would count its message again in FR-14's limits
+# and send its line again; a stored reply left pending goes with
+# TelegramReplyJob a minute later, as a turn's does (review finding C2 of
+# pull request #47).
 #
 # A read that breaks is tried again, three attempts in all; after the third
 # the update is stripped all the same and marked failed, and the line, written
@@ -75,7 +81,7 @@ class TelegramUpdateJob < ApplicationJob
   def read(event)
     inbound = Telegram::Inbound.new(event.update_hash)
     outcome = inbound.call(event)
-    answer(inbound.chat, outcome)
+    answer(inbound.chat, outcome, event.update_id)
     event.strip!(outcome.status)
     Rails.logger.info("telegram update #{event.update_id}: #{outcome.name}")
     outcome
@@ -83,12 +89,12 @@ class TelegramUpdateJob < ApplicationJob
 
   # The ask carries the agreement's button; a reply to a person who agreed
   # takes it away; a reply before the agreement leaves it as it is.
-  def answer(chat, outcome)
+  def answer(chat, outcome, update_id)
     return unless chat
 
     outbound = Telegram::Outbound.new
     visitor = Visitor.find_by(channel: "telegram", identity_hash: chat.identity)
-    return outbound.deliver_pending(visitor) if outcome.reply.nil? && visitor
+    return sending(update_id, visitor) { outbound.deliver_pending(visitor) } if outcome.reply.nil? && visitor
     return unless outcome.reply
 
     keyboard = if outcome.name == :ask then Telegram::Outbound.agreement_keyboard(outcome.language)
@@ -96,7 +102,23 @@ class TelegramUpdateJob < ApplicationJob
     end
     # After the person's stored replies still pending (review finding C2 of
     # pull request #33).
-    outbound.send_fixed(chat, outcome.reply, keyboard:, name: outcome.name, visitor:)
+    sending(update_id, visitor) { outbound.send_fixed(chat, outcome.reply, keyboard:, name: outcome.name, visitor:) }
+  end
+
+  # A send that breaks never breaks the read (the header; review finding C2
+  # of pull request #47): one line naming the update and the error's class,
+  # and the person's stored replies tried again a minute later.
+  def sending(update_id, visitor)
+    yield
+  rescue StandardError => e
+    Rails.logger.error("telegram update #{update_id}: replies not sent, #{e.class}")
+    later(update_id, visitor) if visitor
+  end
+
+  def later(update_id, visitor)
+    TelegramReplyJob.set(wait: 1.minute).perform_later(visitor.id)
+  rescue StandardError => e
+    Rails.logger.error("telegram update #{update_id}: replies not tried again, #{e.class}")
   end
 
   # The line comes first, naming the update by its update_id or, when the row
