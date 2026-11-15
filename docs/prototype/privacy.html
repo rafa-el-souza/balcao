@@ -45,8 +45,7 @@
     <ul>
       <li>cada mensagem é apagada entre 7 e 8&nbsp;dias depois de enviada, com o registro técnico da resposta;</li>
       <li>cada reserva é apagada entre 7 e 8&nbsp;dias depois do prazo de retirada;</li>
-      <li>o seu identificador é apagado entre 7 e 8&nbsp;dias depois da última vez que você usar o Balcão, com tudo o que ainda estiver ligado a ele;</li>
-      <li id="retention-backups" data-arrives="M3">as cópias de segurança do servidor guardam o que foi apagado por até mais 7&nbsp;dias.</li>
+      <li>o seu identificador é apagado entre 7 e 8&nbsp;dias depois da última vez que você usar o Balcão, com tudo o que ainda estiver ligado a ele.</li>
     </ul>
     <p id="retention-logs">Os logs não têm prazo fixo: eles se renovam à medida que enchem e podem guardar um acesso por mais de 7&nbsp;dias. Neles nunca entra o texto das mensagens.</p>
     <p id="retention-counters">Os contadores dos limites de uso são apagados pela limpeza da noite entre 7 e 8 dias depois de criados. Eles ficam à parte, guardados pelo endereço IP e pelo identificador, e não zeram quando você apaga seus dados, para que apagar não seja um jeito de furar o limite.</p>
@@ -87,7 +86,7 @@
     <li>Telegram's developer terms ask a policy to detail "what data they store, how they collect it, and for what purpose": each kept item says what it is for.</li>
     <li>The bot's ask (FR-19, the owner's decision of 2026-11-14) has its own section: before the tap nothing of the person is kept but the limits' counter under the hashed identity (SR-10). The delete command withdraws the agreement and leaves the chat in the visitor's app, which is the visitor's own copy (FR-05, SR-32). A web conversation may become a rewritten, unidentified test case; a Telegram one never does (ADR-0016). The bot asks for no phone number, and the name and username Telegram sends are dropped once the update is read.</li>
     <li>Each kind of record keeps its own clock (FR-05, FR-15). The logs are the exception, measured on the demo host on 2026-11-14: kamal-proxy writes the client's address and user agent of every request, and Rails its address, into Docker logs rotated by size (10 MB), not by age, so a quiet month can keep a visit past seven days. The pub/sub copies of a reply outlive a deletion by about ten minutes at most (ADR-0015).</li>
-    <li>Marked <code>data-arrives</code>: the backups' lines from M3, when the nightly dump exists (§8); Cloudflare from the Turnstile slice (FR-18, SR-39). Until then the page leaves them out.</li>
+    <li>Marked <code>data-arrives</code>: Cloudflare from the Turnstile slice (FR-18, SR-39). Until then the page leaves it out. The backups' line of the first drawing is gone: V1 keeps no backup (ADR-0020).</li>
     <li>The stamped advice and the "Quem vê a conversa" section are not in §6.7's list; kept from the first drawing. "Contato" names the person responsible for the data.</li>
     <li>The footer is signed: the author's name in a pen hand (Cedarville Cursive, OFL, used for this name alone: a third face beside the brief's two) on a signature rule. The GitHub and LinkedIn marks are black, as each company's rules ask (read on 2026-11-12); the LinkedIn drawing stands in for the file from LinkedIn's own brand site, the only one its rules approve.</li>
   </ul>

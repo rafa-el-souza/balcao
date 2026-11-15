@@ -480,3 +480,27 @@ No change and no home, by the owner's word on the lot.
 | #32 | T8 | give_up runs outside the lock and can mark failed an update another job read | dropped |
 | #33 | C7 | The status thread's death by a non-StandardError, or Thread.new raising ThreadError, would fail the turn | dropped |
 | #33 | C9 | A single grapheme cluster longer than 4,096 units makes an oversized message part | dropped |
+
+## After the close (2026-11-15)
+
+The table above is the close's record and stays as it was written. The
+plan made the same day
+([ADR-0020](../adr/0020-what-v1-leaves-out-the-plan-after-the-mvp.md))
+changed the outcome of nine of its "Planned" rows, by the owner's word:
+
+| Pull request | Line | Planned for | Now |
+|---|---|---|---|
+| #1 | The skill's zizmor CI job | M3 | dropped: no second workflow linter in CI |
+| #1 | Whole-tree scanners on a schedule | M3 | dropped: SR-27's gate stays as written |
+| #11 | C3 | M3 | accepted (threat model R11) |
+| #18 | `run_earlier` after an earlier turn's lost connection | M3 | accepted (threat model R11) |
+| #32 | L7 | M3 | accepted (threat model R11) |
+| #29 | S1 | M3 | accepted (threat model R11) |
+| #29 | S2 | M3 | accepted (threat model R11) |
+| #29 | Solid Queue's and Solid Cache's lines | M3 | accepted (threat model SR-30); Action Cable's own error lines stay in M3's sweep |
+| #29 | V4 | M3 | accepted (threat model SR-30) |
+
+The lines that the six pull requests of the review itself left for the
+owner (#36 to #42) are not in this table: the ones with a destination are
+in design §9.2 and §10's standing triggers, and all of them are read at
+M4's close.

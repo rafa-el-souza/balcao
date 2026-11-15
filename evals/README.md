@@ -152,8 +152,8 @@ are in the seed.
   handoff offer the `boundary` cases expect is, in the MVP, the fixed
   store-contact line of design FR-10's MVP note, so `phrases.yml ›
   handoff_offer` lists its phrasing in the three languages. The recorded
-  subset in CI, the economy model and the `workflow_dispatch` run below
-  arrive at M2 and M3.
+  subset in CI arrives at M3 and the economy model at M2; the full run
+  stays local (below).
 - What runs today, with the key in `ANTHROPIC_API_KEY` (a live run without
   it stops before any call): `--all` (every case of a delivered milestone,
   the MVP's for now), `--suite NAME` (that suite's cases of a delivered
@@ -190,13 +190,13 @@ are in the seed.
   the API's responses in order (`{"responses": [{"status": 200, "body":
   {...}}, ...]}`), which the fake model (`app/agent/fake_model.rb`)
   replays.
-- The full run is manual: `workflow_dispatch` at each milestone close and
-  on the monthly bump day, started by the owner in the Actions tab (the
-  implementer's token has no Actions permission), with the dev/eval key
-  from the protected `evals` GitHub Environment (SR-29). It rewrites
-  `scorecard.md`, writes `evals/economy_allowed.yml` (read by the app at
-  boot, ADR-0003), pushes both to a branch, and the next session opens the
-  pull request. It never re-records.
+- The full run is local, at each milestone close and on the monthly bump
+  day: `bin/evals --all --both-models --scorecard`, with the dev/eval key
+  from the implementer's env file. It rewrites `scorecard.md` and writes
+  `evals/economy_allowed.yml` (read by the app at boot, ADR-0003); both
+  are committed by hand in the close's pull request, which names the
+  commit the run read. It never re-records. No workflow runs it and CI
+  holds no key (threat model SR-29, ADR-0020).
 
 ## Growing the set
 
