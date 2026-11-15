@@ -39,10 +39,36 @@ module FailAboveLow
 end
 Bundler::Audit::Report.prepend(FailAboveLow)
 
+require "bundler/audit/cli/formats/text"
+require "delegate"
+
+# The report prints the rating the run decides by: bundler-audit's own reads
+# v3 alone, so an advisory low in v3 and medium in v4 showed "Low" in a run
+# that failed, and one scored only in v4 showed "Unknown" (the finder's note
+# 4 on pull request #39).
+module PrintRatingUsed
+  Rated = Class.new(SimpleDelegator) do
+    def initialize(advisory, rating)
+      super(advisory)
+      @rating = rating
+    end
+
+    def criticality = @rating
+  end
+
+  def print_advisory(gem, advisory)
+    rating = FailAboveLow.criticality(advisory)
+    return super if rating == advisory.criticality
+
+    super(gem, Rated.new(advisory, rating))
+    say "Rated by the higher of its CVSS v3 and v4 scores (threat model SR-27).", :yellow
+  end
+end
+Bundler::Audit::CLI::Formats::Text.prepend(PrintRatingUsed)
+
 # When only low advisories are found, the stock text report lists them and
 # then says "No vulnerabilities found"; say what happened instead (finding
 # V2 of the verifier, pull request #1).
-require "bundler/audit/cli/formats/text"
 module ReportLowAdvisories
   def print_report(report, output = $stdout)
     return super if report.vulnerable? || report.results.empty?

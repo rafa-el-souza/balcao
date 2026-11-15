@@ -41,7 +41,7 @@ RSpec.describe "SR-27 bundler-audit fails CI on advisories above low only" do
   it "reports a low advisory scored only in CVSS v4 and passes" do
     output, status = audit(nil, cvss_v4: 2.3)
 
-    expect(output).to include("CVE-2099-0001")
+    expect(output).to include("CVE-2099-0001", "Criticality: Low")
     expect(status).to be_success, output
   end
 
@@ -59,6 +59,10 @@ RSpec.describe "SR-27 bundler-audit fails CI on advisories above low only" do
 
     expect(output).to include("CVE-2099-0001")
     expect(status).not_to be_success
+    # The finder's note 4 on pull request #39: the report printed the v3
+    # rating, "Low", beside a run that failed on the v4 one.
+    expect(output).to include("Criticality: Medium", "the higher of its CVSS v3 and v4")
+    expect(output).not_to include("Criticality: Low")
   end
 
   it "passes an advisory low in both CVSS v3 and v4" do
