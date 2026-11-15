@@ -114,9 +114,10 @@ every case, whatever its keys, in the reply to any of the case's
 messages: a bracketed tag left in the text the visitor reads (`[pt]`,
 `[PT]`, `[pt-BR]`, `[pharmacist]`) fails the case, since the tags the
 prompt asks for are the runner's to take out; and so does a pharmacist on
-duty ("de plantão", "on duty", "de turno", "de guardia", whole words),
-since FR-09's pharmacist is the store's and works its hours (`tags` and
-`on_duty` in a failed case's checks). The fixed lines the system adds count as the
+duty ("de plantão", "plantonista", "on duty", "on call", "de turno", "de
+guardia", whole words, a hyphen read as a space), since FR-09's
+pharmacist is the store's and works its hours (`tags` and `on_duty` in a
+failed case's checks). The fixed lines the system adds count as the
 visitor reads them, and the offer's line carries the week's hours and the
 pharmacist, so a case whose `must_include_*` words or `fact` that line
 carries sets `handoff_offered`, true where the line is the point and false

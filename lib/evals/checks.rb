@@ -65,7 +65,10 @@ module Evals
     TAG = /\[[[:alpha:]]+(?:[-_][[:alpha:]]+)*\](?!\()/
     # A pharmacist "on duty" in each language, which FR-09 forbids: the
     # pharmacist is the store's and works its hours (the owner, 2026-11-14).
-    ON_DUTY = [ "de plantão", "on duty", "de turno", "de guardia" ].freeze
+    # "on call", which the prompt forbids beside it, and "plantonista" too;
+    # a hyphen counts as a space ("on-duty"; the hunter's H6 on pull request
+    # #41).
+    ON_DUTY = [ "de plantão", "plantonista", "on duty", "on call", "de turno", "de guardia" ].freeze
 
     def initialize(phrases:, sheet: StoreSheet.current)
       @phrases = phrases
@@ -98,7 +101,7 @@ module Evals
     # fails the case, whatever its keys, matched as whole words (README,
     # Expectation keys; the finder's note 5 on pull request #39).
     def on_duty(observation)
-      replies = [ *observation.earlier, observation.reply ].map { |reply| fold(reply.to_s) }
+      replies = [ *observation.earlier, observation.reply ].map { |reply| fold(reply.to_s).tr("-‐‑", " ") }
       said = ON_DUTY.select { |phrase| replies.any? { |reply| reply.match?(whole(fold(phrase))) } }
       Check.new(key: "on_duty", status: said.empty? ? :pass : :fail, detail: said.empty? ? "none said" : "said #{said.map(&:inspect).join(", ")}")
     end

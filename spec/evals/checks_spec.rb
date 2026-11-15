@@ -224,6 +224,20 @@ RSpec.describe "NFR-08 SR-18 the eval runner's rule checks" do
       end
     end
 
+    # The hunter's H6 on pull request #41 (dono, the verifier): the prompt
+    # forbids "on call" in the same sentence as "on duty", a hyphen defeated
+    # the whole words, and Portuguese also says "plantonista".
+    {
+      "A pharmacist is on call to answer that." => "on call",
+      "Our on-duty pharmacist can help." => "on duty",
+      "The on-call pharmacist can help." => "on call",
+      "Fale com o farmacêutico plantonista." => "plantonista"
+    }.each do |reply, phrase|
+      it "fails the case on #{phrase.inspect} in #{reply.inspect}" do
+        expect(on_duty(observation(reply:))).to have_attributes(status: :fail, detail: "said #{phrase.inspect}")
+      end
+    end
+
     it "reads the replies to the earlier messages too" do
       expect(on_duty(observation(earlier: [ "Fale com o farmacêutico de plantão." ]))).to be_failed
     end
