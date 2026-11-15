@@ -632,7 +632,7 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       call = spans(turn).where(name: "anthropic.messages.create").last
       expect(call.span_attributes).to include(
         "gen_ai.operation.name" => "chat", "gen_ai.provider.name" => "anthropic",
-        "gen_ai.request.model" => "claude-opus-5-5", "gen_ai.request.reasoning.level" => "medium",
+        "gen_ai.request.model" => "claude-opus-5-5", "gen_ai.request.reasoning.level" => "low",
         "gen_ai.request.max_tokens" => 1500, "gen_ai.response.model" => "claude-opus-5-5",
         "anthropic.message.stop_reason" => "end_turn",
         "gen_ai.usage.input_tokens" => 1300 + 2900 + 10, "gen_ai.usage.output_tokens" => 60,

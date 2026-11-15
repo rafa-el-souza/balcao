@@ -343,7 +343,8 @@ describe("NFR-03 the turn that waits", () => {
     expect(icon.getAttribute("href")).toBe(LIT_ICON);
   });
 
-  it("adds, ten seconds after the server received the message, that the answer is taking longer", async () => {
+  // NFR-01's p95, twelve seconds since M4-2 (the owner, 2026-11-15).
+  it("adds, twelve seconds after the server received the message, that the answer is taking longer", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     renderPage(<Chat />);
     await ready();
@@ -352,7 +353,7 @@ describe("NFR-03 the turn that waits", () => {
     server.answers.current.push(
       ...Array.from({ length: 5 }, () => conversation(1, [visitor], true)),
     );
-    await elapse(9000);
+    await elapse(11_000);
     expect(within(thread()).getByText(pt.thinking)).toBeInTheDocument();
     expect(within(thread()).queryByText(pt.slow)).toBeNull();
 
@@ -360,7 +361,7 @@ describe("NFR-03 the turn that waits", () => {
     expect(within(thread()).getByText(pt.slow)).toBeInTheDocument();
   });
 
-  it("says at once that the answer is taking longer when the page opens on a turn that waited over ten seconds", async () => {
+  it("says at once that the answer is taking longer when the page opens on a turn that waited over twelve seconds", async () => {
     server.answers.current.push(
       conversation(
         1,
@@ -397,7 +398,7 @@ describe("NFR-03 the turn that waits", () => {
             author: "visitor",
             body: "tem dipirona?",
             turn_id: 2,
-            created_at: new Date(Date.now() - 12_000).toISOString(),
+            created_at: new Date(Date.now() - 15_000).toISOString(),
           }),
           message({
             author: "visitor",
@@ -506,7 +507,7 @@ describe("NFR-03 the turn that waits", () => {
       server.answers.current.push(
         ...Array.from({ length: 5 }, () => conversation(1, [visitor], true)),
       );
-      await elapse(9000);
+      await elapse(11_000);
       const before = inThread().length;
 
       await elapse(1500);
@@ -612,7 +613,7 @@ describe("NFR-03 the turn that waits", () => {
       await elapse(1000);
       const opened = scrolled.length;
 
-      await elapse(10_000);
+      await elapse(12_000);
       expect(within(thread()).getByText(pt.slow)).toBeInTheDocument();
       const since = scrolled
         .slice(opened)

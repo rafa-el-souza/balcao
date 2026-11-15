@@ -15,8 +15,9 @@ RSpec.describe "NFR-03 a deploy lets the turn its worker is running finish" do
     config.dig("servers", "job", "stop_timeout") || config["stop_timeout"] || config["drain_timeout"] || 30
   end
 
-  it "waits for a running turn twice NFR-01's p95 of ten seconds, and stops before Kamal kills the container" do
-    expect(SolidQueue.shutdown_timeout).to be >= 20.seconds
+  # NFR-01's p95 is 12 s since M4-2 (the owner, 2026-11-15).
+  it "waits for a running turn twice NFR-01's p95 of twelve seconds, and stops before Kamal kills the container" do
+    expect(SolidQueue.shutdown_timeout).to be >= 24.seconds
     expect(SolidQueue.shutdown_timeout).to be < kamal_stop_timeout.seconds
   end
 end

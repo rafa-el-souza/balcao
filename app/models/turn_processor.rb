@@ -102,7 +102,7 @@ class TurnProcessor
 
     TraceRecorder.close_interrupted(@turn)
     @recorder = TraceRecorder.new(@turn)
-    @root = @recorder.start_span("balcao.turn", started_at: @inbound.created_at, attributes: {
+    @root = @recorder.start_span("balcao.turn", started_at: @inbound.received_at, attributes: {
       "balcao.channel" => @inbound.channel, "balcao.message.source" => @inbound.source
     })
     language = @conversation.language
@@ -221,9 +221,10 @@ class TurnProcessor
   # finding C4 of pull request #11).
   def command(name)
     @inbound.update_columns(source: "command")
-    span = @recorder.start_span("balcao.command", attributes: { "balcao.command.name" => name.to_s })
+    span = @recorder.start_span("balcao.command", started_at: @inbound.received_at,
+                                                  attributes: { "balcao.command.name" => name.to_s })
     yield
-    @turn.update!(state: "replied", latency_ms:)
+    @turn.update!(state: "replied", **latency)
   rescue StandardError => e
     broken(e)
     raise
@@ -242,7 +243,7 @@ class TurnProcessor
 
   def answer
     @turn.update!(state: "running")
-    @root = @recorder.start_span("balcao.turn", started_at: @inbound.created_at, attributes: {
+    @root = @recorder.start_span("balcao.turn", started_at: @inbound.received_at, attributes: {
       "balcao.channel" => @inbound.channel, "balcao.message.source" => @inbound.source
     })
     stored = reservations
@@ -351,7 +352,7 @@ class TurnProcessor
     outbound = @recorder.start_span("balcao.outbound", parent: @root, attributes: { "balcao.message.author" => "bot" })
     message = store_reply(text, language: @conversation.language)
     outbound.finish(attributes: { "balcao.message.characters" => message.body.length })
-    @turn.update!(state:, latency_ms:)
+    @turn.update!(state:, **latency)
     @root.finish(attributes: { "balcao.turn.mode" => @root.attributes["balcao.turn.mode"],
                                "balcao.turn.outcome" => outcome.to_s, "error.type" => error&.class&.name,
                                "balcao.budget.mode" => month_mode })
@@ -402,8 +403,11 @@ class TurnProcessor
     Rails.logger.error("turn #{@turn.id}: #{payload[:type]} not broadcast: #{e.class}")
   end
 
-  # From the message's receipt to the reply (NFR-01).
-  def latency_ms = ((Time.current - @inbound.created_at) * 1000).round
+  # NFR-01's figure, from the message's receipt to the reply's send: a web
+  # reply is sent here, as it is stored, to the page's stream; a Telegram
+  # reply leaves after the turn, by its status, and Telegram::Outbound writes
+  # the figure when the Bot API takes it (Turn#reply_sent!).
+  def latency = @inbound.channel == "telegram" ? {} : { latency_ms: @turn.latency_until(Time.current) }
 
   # The channel's sign that a reply is on its way while the model works
   # (design §6.3): Telegram's typing status, nothing on the web.

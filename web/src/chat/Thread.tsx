@@ -93,9 +93,9 @@ const reducedMotion = () =>
   typeof window.matchMedia === "function" &&
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-// NFR-03: past ten seconds of waiting (NFR-01's p95), the attendant says the
-// answer is taking longer.
-export const SLOW_MS = 10_000;
+// NFR-03: past twelve seconds of waiting (NFR-01's p95 since M4-2, the
+// owner, 2026-11-15), the attendant says the answer is taking longer.
+export const SLOW_MS = 12_000;
 
 // How often the page reads the server's clock while the note is due. A
 // timer set for the deadline itself could fire before it by that clock, which

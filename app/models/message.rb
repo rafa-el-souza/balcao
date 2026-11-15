@@ -72,6 +72,12 @@ class Message < ApplicationRecord
     raise ActiveRecord::RecordNotUnique, "the message id is held by another visitor's message"
   end
 
+  # When the message reached the application, where NFR-01's latency starts:
+  # for one that came in a Telegram update, the update's arrival at the
+  # webhook, before the queue's wait and the job that stored the message;
+  # for any other, as on the web, the request that stored it.
+  def received_at = webhook_event&.received_at || created_at
+
   # The message as the conversation's stream and the polling endpoint carry
   # it (FR-18): the turn of an inbound message is the caller's to give, and a
   # web message carries the id its client generated, so the page can match

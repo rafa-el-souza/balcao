@@ -6,7 +6,10 @@ default: &default
     - queues: "*"
       threads: 3
       processes: <%= ENV.fetch("JOB_CONCURRENCY", 1) %>
-      polling_interval: 1
+      # A job waits for the worker's next look at the queue, so a turn waits
+      # for it once (NFR-01): a tenth of a second, Solid Queue's own default
+      # for a worker, where its generator wrote one second.
+      polling_interval: 0.1
 
 development:
   <<: *default

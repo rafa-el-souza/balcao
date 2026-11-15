@@ -1,7 +1,9 @@
 # Which model serves each budget mode, and how (ADR-0003, design §6.4): the
 # only place that names a model. The paused mode calls none; its fixed reply
 # never reaches AgentRunner. Thinking is left out of every request, so these
-# models think adaptively; the effort is set explicitly.
+# models think adaptively; the effort is set explicitly. The normal mode runs
+# at low effort (ADR-0021): measured on the evals, its turns took about a
+# tenth less time than at medium, with the same results.
 module ModelPolicy
   Route = Data.define(:mode, :model, :effort, :fallbacks)
 
@@ -11,7 +13,7 @@ module ModelPolicy
   FALLBACK_BETA = "server-side-fallback-2026-07-01".freeze
 
   ROUTES = {
-    "normal" => Route.new(mode: "normal", model: "claude-opus-5-5", effort: "medium", fallbacks: "default"),
+    "normal" => Route.new(mode: "normal", model: "claude-opus-5-5", effort: "low", fallbacks: "default"),
     "economy" => Route.new(mode: "economy", model: "claude-haiku-5-5", effort: "medium", fallbacks: nil)
   }.freeze
 

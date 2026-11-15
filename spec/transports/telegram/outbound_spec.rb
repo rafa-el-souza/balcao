@@ -90,6 +90,31 @@ RSpec.describe "FR-19 SR-43 NFR-02 Telegram::Outbound, a reply on its way to the
       expect(sent.sole["text"]).to eq("**Dipirona** <b>R$ 7,90</b> [veja](https://evil.example)")
     end
 
+    # NFR-01 (M4-2): the turn's latency runs to the send, so it is written
+    # here, and a measure never holds the person's next replies back.
+    it "writes the reply's turn its latency when the reply leaves, from the message's receipt (NFR-01)" do
+      message = reply("Temos, sim.", at: 4.seconds.ago)
+
+      outbound.deliver_pending(visitor)
+
+      expect(message.turn.reload.latency_ms).to be_within(1_000).of(4_000)
+    end
+
+    it "sends the person's next reply when a turn's latency cannot be written, with a line naming the reply (NFR-01)" do
+      now = Time.current
+      first = reply("Primeira resposta.", at: now - 2.seconds)
+      second = reply("Segunda resposta.", at: now - 1.second)
+      allow_any_instance_of(Turn).to receive(:reply_sent!).and_raise(ActiveRecord::StatementInvalid)
+      errors = []
+      allow(Rails.logger).to receive(:error) { |line| errors << line }
+
+      outbound.deliver_pending(visitor)
+
+      expect([ first.reload.status, second.reload.status ]).to eq(%w[sent sent])
+      expect(errors).to eq([ "telegram reply #{first.id}: its turn's latency not written, ActiveRecord::StatementInvalid",
+                             "telegram reply #{second.id}: its turn's latency not written, ActiveRecord::StatementInvalid" ])
+    end
+
     it "never sends again a reply marked sent (NFR-02)" do
       message = reply("Temos, sim.")
       outbound.deliver_pending(visitor)

@@ -147,7 +147,8 @@ module Telegram
     # the greeting as its first reply, at once; a second agreement that raced
     # this one finds the message and its reply already stored (NFR-02). The
     # greeting is sent by its status (Telegram::Outbound), so the outcome
-    # names nothing to send.
+    # names nothing to send, and the turn's latency is written when it leaves
+    # (NFR-01, Turn#reply_sent!).
     def agree(event, language)
       greeting = FixedReply.greeting(language)
       ApplicationRecord.transaction do
@@ -159,9 +160,10 @@ module Telegram
         turn = Turn.for_inbound!(inbound)
         unless Message.exists?(turn_id: turn.id)
           recorder = TraceRecorder.new(turn)
-          span = recorder.start_span("balcao.command", attributes: { "balcao.command.name" => "agree" })
+          span = recorder.start_span("balcao.command", started_at: inbound.received_at,
+                                                       attributes: { "balcao.command.name" => "agree" })
           Message.record_outbound!(turn:, body: greeting)
-          turn.update!(state: "replied", latency_ms: ((Time.current - inbound.created_at) * 1000).round)
+          turn.update!(state: "replied")
           span.finish
         end
       end
