@@ -293,6 +293,11 @@ export function useConversation() {
       }
       const at = new Date(serverNow()).toISOString();
       if (outcome.kind === "ok") {
+        // A page whose first session failed, or met the edge's limit, has not
+        // asked for its conversation: the message's session lets it, and the
+        // conversation's answer sets the conversation the page follows (the
+        // owner's round at the MVP close, row IR-U1).
+        setOpened(true);
         const { message } = outcome.value;
         dispatch({
           type: "accepted",
@@ -381,12 +386,16 @@ export function useConversation() {
     const say = takeSay();
     void (async () => {
       const opened = await session(language());
+      // A load that ends here has said so: the conversation's answers that a
+      // message opens later are polls (row IR-U1).
       if (opened.kind === "limit") {
+        loaded.current = true;
         dispatch({ type: "limited", clientId: null, text: opened.text });
         dispatch({ type: "loaded" });
         return;
       }
       if (opened.kind !== "ok") {
+        loaded.current = true;
         dispatch({ type: "loadFailed" });
         return;
       }

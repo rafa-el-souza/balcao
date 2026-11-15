@@ -383,8 +383,15 @@ function mergeConversation(state: State, answer: Snapshot): State {
   const server = withMessages(changed ? [] : state.server, answer.messages);
   const held = new Set(server.map((message) => message.client_id));
   // What the page drew before it knew the history follows the history
-  // (review finding R3).
-  const last = server.at(-1);
+  // (review finding R3), and stays before the page's own messages the
+  // history holds: drawn while the thread was empty, it came before any of
+  // them, as a limit met by the load does before a message the visitor then
+  // sent (the owner's round at the MVP close, row IR-U1).
+  const sent = new Set(state.own.map((entry) => entry.clientId));
+  const mine = server.findIndex(
+    (message) => message.client_id !== null && sent.has(message.client_id),
+  );
+  const last = mine === -1 ? server.at(-1) : server[mine - 1];
   const start = last ? keyOf(last) : null;
   const own = state.own
     .filter((entry) => {

@@ -1054,6 +1054,42 @@ describe("FR-18 the chat that could not open, and then could", () => {
   });
 });
 
+// The owner's round at the MVP close, row IR-U1: when the first session
+// request failed or the edge refused it, a message written afterwards got its
+// 202, but the page never asked for the conversation nor followed its
+// stream, so "pensando…" stayed for ever.
+describe("FR-18 NFR-03 a message written after the chat could not open", () => {
+  const limit = "Você chegou ao limite da demo por agora.";
+  it.each([
+    ["the session request failed", "network" as const, pt.loadFailed],
+    [
+      "the edge refused the session",
+      { status: 429, body: { error: "limit", text: limit } },
+      limit,
+    ],
+  ])("brings the reply when %s", async (_case, answer, said) => {
+    server.answers.session.push(answer);
+    server.answers.current.push(() => {
+      const copy = server.copy();
+      return conversation(1, [copy, replyTo(copy, "Temos duas.")]);
+    });
+    renderPage(<Chat />);
+    await within(thread()).findByText(said);
+
+    type("tem dipirona?");
+    fireEvent.keyDown(field(), { key: "Enter" });
+
+    expect(await within(thread()).findByText("Temos duas.")).toBeVisible();
+    expect(within(thread()).queryByText(pt.thinking)).toBeNull();
+    expect(screen.queryByText(pt.loadFailed)).toBeNull();
+    // What the page said before the visitor wrote stays before the message.
+    const items = within(thread())
+      .getAllByRole("listitem")
+      .map((item) => item.textContent.trim());
+    expect(items.slice(-2)).toEqual(["tem dipirona?", "Temos duas."]);
+  });
+});
+
 // Review finding C2 of pull request #14: a request that never answered left
 // the message drawn as sent, or the page loading, with nothing said.
 describe("FR-18 a request that never answers", () => {
