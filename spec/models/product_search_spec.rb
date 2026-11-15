@@ -100,6 +100,19 @@ RSpec.describe "FR-06 ADR-0009 the catalogue search" do
   # query that added any word the catalogue lacks found it ("losartana
   # infantil", "metformina genérico"), and one naming another salt found this
   # one; the owner's exception covered the dose queries alone.
+  # Review finding R1 of pull request #40 (the fix review): the dose rule
+  # asked the query's words to be alike the product's, so a salt named as the
+  # medicine, with a dose, found another medicine that carries the salt as
+  # an adjective: "potássio 600 mg" listed the Losartana potássica. The query
+  # must name the medicine too, its active ingredient with its salt set aside.
+  it "lists nothing for a salt named as the medicine with a dose, the medicine itself not carried" do
+    create(:product, sku: "atorvastatina-calcica-20mg", name: "Atorvastatina cálcica 20 mg, 30 comprimidos", active_ingredient: "atorvastatina cálcica")
+
+    expect(names("potássio 600 mg")).to be_empty
+    expect(names("cálcio 500 mg")).to be_empty
+    expect(names("atorvastatina 80 mg")).to eq([ "Atorvastatina cálcica 20 mg, 30 comprimidos" ])
+  end
+
   it "keeps every other query as it was: a word the catalogue lacks, or another salt, still finds nothing" do
     create(:product, sku: "diclofenaco-sodico-50mg", name: "Diclofenaco sódico 50 mg, 20 comprimidos", active_ingredient: "diclofenaco sódico")
 
