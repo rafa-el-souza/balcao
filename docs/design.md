@@ -2086,6 +2086,13 @@ trigger does the item and removes the line.
 - The next failure of `GlassBox.test.tsx`'s example "stops 'pensando…' and
   lights the tab's cross again": its timing is fixed, not run again (#38's
   review; it failed once in a parallel run).
+- The next failure of `spec/jobs/nightly_reset_job_spec.rb`, or the next
+  slice that touches it: the limits' counters group builds its Solid Cache
+  store with `expiry_method: :job`. The default expiry thread outlives the
+  example, and once (M4-3's session, seed 9419) it queried the cache table
+  after the example's transaction had dropped it, deadlocked the shared
+  connection and left 1,079 later examples on an aborted transaction; the
+  same seed passed when run again.
 
 **Waiting for the data-contract ADR.** The ADR on the data a pharmacy
 would hand Balcão is the owner's to write (number 0018, reserved in the
