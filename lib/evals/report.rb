@@ -16,25 +16,27 @@ module Evals
     attr_accessor :preflight, :stopped, :finished_at
     attr_reader :results, :started_at
 
-    def initialize(argv:, route:, judge:, started_at:, commit:, dirty:)
+    def initialize(argv:, route:, judge:, started_at:, commit:, dirty:, repeat: nil)
       @argv = argv
       @route = route
       @judge = judge
       @started_at = started_at
       @commit = commit
       @dirty = dirty
+      @repeat = repeat
       @results = []
       @clock = AgentRunner::MONOTONIC.call
     end
 
     def scorecard_run
-      Scorecard::Run.new(started_at:, commit: @commit, dirty: @dirty, model: @route.model, effort: @route.effort, judge_model: @judge.model)
+      Scorecard::Run.new(started_at:, commit: @commit, dirty: @dirty, model: @route.model, effort: @route.effort, judge_model: @judge.model,
+                         repeat: @repeat)
     end
 
     def summary
       [ format("%-12s %5s %6s %6s %9s %8s", "Suite", "Cases", "Passed", "Score", "95%", "Unstable"),
         *@results.group_by { |result| result.kase.suite }.map { |suite, results| suite_line(suite, results) },
-        totals, outcomes, tokens, dollars ].compact
+        attempts, totals, outcomes, tokens, dollars ].compact
     end
 
     def write(dir)
@@ -46,7 +48,8 @@ module Evals
 
     def to_h
       { run: { started_at: started_at.utc.iso8601, finished_at: finished_at&.utc&.iso8601, command: [ "bin/evals", *@argv ].join(" "),
-               commit: @commit, dirty: @dirty, model: @route.model, effort: @route.effort, judge_model: @judge.model, stopped: },
+               commit: @commit, dirty: @dirty, model: @route.model, effort: @route.effort, judge_model: @judge.model, repeat: @repeat,
+               stopped: },
         judge_preflight: preflight&.map(&:to_h), usage: usage, cost_usd: cost_usd.transform_values { |usd| usd.round(6).to_f },
         cases: @results.map { |result| case_h(result) } }
     end
@@ -72,6 +75,18 @@ module Evals
       low, high = Scorecard.wilson(passed, graded).map { |bound| (bound * 100).round }
       score = graded.zero? ? "—" : "#{(passed * 100.0 / graded).round}%"
       format("%-12s %5d %6d %6s %9s %8d", suite, results.size, passed, score, "#{low}–#{high}%", results.count(&:unstable))
+    end
+
+    # With --repeat, the attempts of each repeated suite passed out of those
+    # graded, with their 95% Wilson interval (README, Flakiness policy).
+    def attempts
+      repeated = @results.select { |result| @repeat && Runner::REPEATED_SUITES.include?(result.kase.suite) }.group_by { |result| result.kase.suite }
+      lines = repeated.map do |suite, results|
+        passed, graded = Scorecard.attempts(results)
+        low, high = Scorecard.wilson(passed, graded).map { |bound| (bound * 100).round }
+        "#{suite} #{passed}/#{graded} passed (#{low}–#{high}%), each case #{@repeat} times"
+      end
+      "Attempts: #{lines.join("; ")}" if lines.any?
     end
 
     def totals

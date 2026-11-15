@@ -4,8 +4,9 @@ require_relative "scorecard"
 # bin/evals' command line (evals/README.md, Running). It reads and checks
 # every case first, selects some, and either lists them or runs them live on
 # the normal model through the app's pipeline (Evals::Pipeline), the rubrics
-# judged by the economy model once it has failed its known-bad replies. It
-# prints each case as it ends and a table per suite, writes every attempt
+# judged by the economy model once it has failed its known-bad replies, each
+# boundary case N times with --repeat N (Evals::Runner). It prints each case
+# as it ends and a table per suite, writes every attempt
 # whole to evals/results/ (gitignored: replies, checks, verdicts, spans and
 # tokens), and with --all --scorecard rewrites evals/scorecard.md, unless a
 # case ended in error, since the run then measured less than the scorecard
@@ -16,7 +17,7 @@ require_relative "scorecard"
 # model's run arrives at M2; recording and replaying the fast subset at M3.
 module Evals
   class CLI
-    BANNER = "Usage: bin/evals (--all | --suite NAME... | --case ID...) [--model normal] [--scorecard] [--list]".freeze
+    BANNER = "Usage: bin/evals (--all | --suite NAME... | --case ID...) [--model normal] [--repeat N] [--scorecard] [--list]".freeze
     LATER = {
       "--both-models" => "the economy model's run arrives at M2", "--record" => "recording arrives at M3",
       "--recorded" => "replaying recordings arrives at M3", "--fast" => "the fast subset's recordings arrive at M3"
@@ -42,10 +43,11 @@ module Evals
 
       cases = CaseSet.load(@cases_path)
       selected = select(cases, options)
-      return list(selected) if options[:list]
+      repeated!(selected, options[:repeat])
+      return list(selected, options[:repeat]) if options[:list]
       raise Usage, "ANTHROPIC_API_KEY is blank: a live run needs the dev/eval key in the environment" if @env["ANTHROPIC_API_KEY"].to_s.strip.empty?
 
-      live(cases, selected, scorecard: options[:scorecard])
+      live(cases, selected, scorecard: options[:scorecard], repeat: options[:repeat])
     rescue Usage, OptionParser::ParseError => e
       @err.puts("bin/evals: #{e.message}", BANNER)
       2
@@ -64,6 +66,9 @@ module Evals
         opts.on("--suite NAME", "A suite's cases of a delivered milestone; repeatable") { |name| options[:suites] << name }
         opts.on("--case ID", "One case, whatever its milestone; repeatable") { |id| options[:ids] << id }
         opts.on("--model MODEL", "normal; the economy model's run arrives at M2") { |model| options[:model] = model }
+        opts.on("--repeat N", Integer, "Each #{Runner::REPEATED_SUITES.join(", ")} case N times (#{Runner::MIN_REPEAT} or more), every attempt graded") do |count|
+          options[:repeat] = count
+        end
         opts.on("--scorecard", "With --all: rewrite evals/scorecard.md") { options[:scorecard] = true }
         opts.on("--list", "List the selected cases and stop: no key, no model call") { options[:list] = true }
         LATER.each_key { |flag| opts.on(flag) { options[:later] = flag } }
@@ -83,8 +88,19 @@ module Evals
       raise Usage, "choose one of --all, --suite or --case" unless kinds == 1 || options[:help]
       raise Usage, "--scorecard rewrites the scorecard from --all alone" if options[:scorecard] && !options[:all]
       raise Usage, "--scorecard and --list do not go together" if options[:scorecard] && options[:list]
+      if options[:repeat] && options[:repeat] < Runner::MIN_REPEAT
+        raise Usage, "--repeat #{options[:repeat]}: it takes #{Runner::MIN_REPEAT} or more, so that one failure leaves two passes"
+      end
 
       options
+    end
+
+    # --repeat applies to the boundary suite (README, Flakiness policy), so a
+    # selection with none of its cases would repeat nothing.
+    def repeated!(selected, repeat)
+      return if repeat.nil? || selected.any? { |kase| Runner::REPEATED_SUITES.include?(kase.suite) }
+
+      raise Usage, "--repeat applies to the #{Runner::REPEATED_SUITES.join(", ")} suite, and the selection has no case of it"
     end
 
     def help
@@ -110,23 +126,27 @@ module Evals
       selected
     end
 
-    def list(selected)
-      selected.each { |kase| @out.puts(line(kase, kase.milestone, "#{kase.messages.size} message(s)#{", rubric" if kase.rubric}")) }
+    def list(selected, repeat)
+      selected.each do |kase|
+        repeated = ", #{repeat} attempts" if repeat && Runner::REPEATED_SUITES.include?(kase.suite)
+        @out.puts(line(kase, kase.milestone, "#{kase.messages.size} message(s)#{", rubric" if kase.rubric}#{repeated}"))
+      end
       @out.puts("#{selected.size} #{"case".pluralize(selected.size)}")
       0
     end
 
-    def live(cases, selected, scorecard:)
+    def live(cases, selected, scorecard:, repeat:)
       ActiveRecord::Migration.maintain_test_schema!
       route = ModelPolicy.route("normal")
       judge = Judge.new(client: AgentRunner.default_client)
-      report = Report.new(argv: @argv, route:, judge:, started_at: Time.current, commit: commit, dirty: dirty?)
-      @out.puts("bin/evals: #{selected.size} #{"case".pluralize(selected.size)} on #{route.model} (effort #{route.effort}), judged by #{judge.model}")
+      report = Report.new(argv: @argv, route:, judge:, started_at: Time.current, commit: commit, dirty: dirty?, repeat:)
+      @out.puts("bin/evals: #{selected.size} #{"case".pluralize(selected.size)} on #{route.model} (effort #{route.effort}), judged by #{judge.model}" \
+                "#{", each #{Runner::REPEATED_SUITES.join(", ")} case #{repeat} times" if repeat}")
 
       begin
         report.preflight = preflight(judge) if selected.any?(&:rubric)
         @out.puts("judge: failed the #{Judge::KNOWN_BAD.size} known-bad replies, as it must") if report.preflight
-        runner = Runner.new(pipeline: Pipeline.new, checks: Checks.new(phrases:), judge:, route:, pause: @pause)
+        runner = Runner.new(pipeline: Pipeline.new, checks: Checks.new(phrases:), judge:, route:, repeat:, pause: @pause)
         runner.call(selected) do |result|
           report.results << result
           @out.puts(outcome(result))

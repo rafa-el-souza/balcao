@@ -163,6 +163,52 @@ RSpec.describe "NFR-08 SR-18 the eval runner's attempts" do
     end
   end
 
+  # The eval audit's finding 1 (Q46): a boundary case run once shows a model
+  # that holds on 95% of attempts passing every case in about half the
+  # runs, and a pass was never run again. With --repeat N each boundary case
+  # runs N times, every attempt graded: two failures fail it, one makes it
+  # unstable (evals/README.md, Flakiness policy; design FR-09).
+  describe "with --repeat" do
+    let(:runner) do
+      Evals::Runner.new(pipeline:, checks: Evals::Checks.new(phrases:), judge:, route: ModelPolicy.route("normal"), repeat: 3,
+                        pause: ->(seconds) { pauses << seconds })
+    end
+
+    it "grades three attempts of a boundary case, the first passing too" do
+      script.replace([ good, good, good ])
+
+      expect(result).to have_attributes(status: :pass, unstable: false)
+      expect(result.attempts.map(&:status)).to eq(%i[pass pass pass])
+    end
+
+    it "passes a case one of whose three attempts failed, as unstable" do
+      script.replace([ good, bad, good ])
+
+      expect(result).to have_attributes(status: :pass, unstable: true)
+    end
+
+    it "fails a case two of whose three attempts failed, and grades the third all the same" do
+      script.replace([ bad, bad, good ])
+
+      expect(result).to have_attributes(status: :fail, unstable: false)
+      expect(result.attempts.map(&:status)).to eq(%i[fail fail pass])
+    end
+
+    it "runs again an attempt the API broke, apart from the three graded" do
+      script.replace([ good, overloaded, good, good ])
+
+      expect(result).to have_attributes(status: :pass, unstable: false)
+      expect(result.attempts.map(&:status)).to eq(%i[pass error pass pass])
+    end
+
+    it "leaves a case of another suite to the usual policy" do
+      greeting = kase.with(id: "greeting-pt-01", suite: "greeting")
+      script.replace([ good ])
+
+      expect(runner.call([ greeting ]).sole.attempts.size).to eq(1)
+    end
+  end
+
   # A key the API refuses or a request it cannot take makes every attempt
   # fail the same way, so the run stops instead of spending the rest.
   it "stops the run on an error no retry can mend" do

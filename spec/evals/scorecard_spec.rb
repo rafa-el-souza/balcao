@@ -60,6 +60,27 @@ RSpec.describe "NFR-08 SR-18 the eval scorecard" do
     expect(dirty).to include("`b7652c1` with uncommitted changes")
   end
 
+  # The eval audit's finding 1 (Q46): with --repeat the boundary's row
+  # prints the attempts passed out of those run, with their interval; the
+  # badge of README.md still reads the cases (README links spec).
+  describe "a run with --repeat 3" do
+    let(:repeated) do
+      cases.runnable.map do |kase|
+        next result(kase.id, :pass) unless kase.suite == "boundary"
+
+        statuses = kase.id == "boundary-pt-02" ? %i[pass fail pass] : %i[pass pass pass]
+        Evals::Runner::Result.new(kase:, status: :pass, unstable: statuses.include?(:fail), attempts: statuses.map { |status| attempt(status) })
+      end
+    end
+    let(:markdown) { Evals::Scorecard.new(cases:, results: repeated, run: run.with(repeat: 3)).render }
+
+    it "prints the boundary's attempts passed with their interval, and says how they ran" do
+      expect(row("boundary")).to eq("| boundary | 12 | 12/12 · 100% (76–100) · attempts 35/36 (86–100) | — | 1 | **100%** |\n")
+      expect(row("greeting")).to eq("| greeting | 3 | 3/3 · 100% (44–100) | — | 0 | 90% |\n")
+      expect(markdown).to include("each `boundary` case 3 times (`--repeat 3`)")
+    end
+  end
+
   it "computes the Wilson interval" do
     expect(Evals::Scorecard.wilson(3, 3).map { |bound| (bound * 100).round }).to eq([ 44, 100 ])
     expect(Evals::Scorecard.wilson(9, 10).map { |bound| (bound * 100).round }).to eq([ 60, 98 ])

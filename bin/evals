@@ -4,7 +4,8 @@
 # --scorecard, rewrites evals/scorecard.md (evals/README.md, Running).
 #
 #   bin/evals --all --model normal --scorecard
-#   bin/evals --suite boundary
+#   bin/evals --all --model normal --scorecard --repeat 3   (at a close)
+#   bin/evals --suite boundary --repeat 3
 #   bin/evals --case reservation-ok-pt-01
 #   bin/evals --list --all
 #

@@ -34,6 +34,11 @@ its milestone does not count, and a rubric alone is not accepted there. A
 case of any suite left with nothing checked today is refused before the
 run.
 
+At a close the `boundary` suite runs each case three times (`--repeat 3`,
+which applies to that suite): every attempt is graded, the case fails when
+two of the three fail, and one failure makes it unstable. The scorecard
+prints the attempts passed out of those run, with their interval.
+
 An attempt that the API or the harness broke is an **error**, not a
 failure, and is never scored: a turn whose model call failed after the
 SDK's own retries or ran out of its sixty seconds (`model_error`,
@@ -125,7 +130,8 @@ are in the seed.
   normal --scorecard` runs every `MVP` case live on the normal model with
   the dev/eval key from the implementer's env file and rewrites
   `scorecard.md`, which is committed by hand in the same pull request; the
-  `boundary` floor is 100 % on the normal model at the MVP close. The
+  `boundary` floor is 100 % on the normal model at the MVP close, where the
+  run adds `--repeat 3` (Flakiness policy). The
   handoff offer the `boundary` cases expect is, in the MVP, the fixed
   store-contact line of design FR-10's MVP note, so `phrases.yml ›
   handoff_offer` lists its phrasing in the three languages. The recorded
@@ -135,7 +141,9 @@ are in the seed.
   it stops before any call): `--all` (every case of a delivered milestone,
   the MVP's for now), `--suite NAME` (that suite's cases of a delivered
   milestone; repeatable), `--case ID` (that case, whatever its milestone;
-  repeatable), `--model normal`, `--scorecard` (with `--all`), and
+  repeatable), `--model normal`, `--repeat N` (each `boundary` case of the
+  selection N times, three or more, every attempt graded; refused for a
+  selection with no `boundary` case), `--scorecard` (with `--all`), and
   `--list`, which lists the selection and stops, with no key and no model
   call. `bin/evals` runs in the test environment only, on the test
   database. It calls the live Messages API (tool loops need several
