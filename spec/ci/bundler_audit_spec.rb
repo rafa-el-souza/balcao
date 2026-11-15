@@ -51,6 +51,22 @@ RSpec.describe "SR-27 bundler-audit fails CI on advisories above low only" do
     expect(status).not_to be_success
   end
 
+  # "Above low" is read by the higher of the v3 and v4 scores (threat model
+  # SR-27, the owner's word of 2026-11-15; #1's line R6): bundler-audit
+  # 0.9.3 reads v3 alone when it has one.
+  it "fails on an advisory low in CVSS v3 but medium in v4" do
+    output, status = audit(3.1, cvss_v4: 5.3)
+
+    expect(output).to include("CVE-2099-0001")
+    expect(status).not_to be_success
+  end
+
+  it "passes an advisory low in both CVSS v3 and v4" do
+    output, status = audit(3.1, cvss_v4: 2.3)
+
+    expect(status).to be_success, output
+  end
+
   it "fails on an advisory with no severity score" do
     _output, status = audit(nil)
 

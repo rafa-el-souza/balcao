@@ -9,6 +9,7 @@ require "bundler/audit/cli"
 # all. Review finding F3, pull request #1.
 module FailAboveLow
   PASSING = %i[none low].freeze
+  LEVELS = %i[none low medium high critical].freeze
 
   def vulnerable?
     results.any? do |result|
@@ -16,10 +17,18 @@ module FailAboveLow
     end
   end
 
-  # bundler-audit 0.9.3 reads only CVSS v2 and v3; an advisory scored only in
-  # v4 is rated here with the same bands (review finding R4, pull request #1).
+  # bundler-audit 0.9.3 rates by CVSS v3, else v2, and never reads v4; the v4
+  # score is rated here with the v3 bands (review finding R4, pull request
+  # #1). "Above low" is the higher of the two ratings, so an advisory low in
+  # v3 and medium in v4 fails, and one with no score at all is rated nil,
+  # which fails too (threat model SR-27, the owner's word of 2026-11-15).
   def self.criticality(advisory)
-    advisory.criticality || case YAML.safe_load_file(advisory.path, permitted_classes: [ Date ])["cvss_v4"]
+    ratings = [ advisory.criticality, v4(advisory) ].compact
+    ratings.max_by { |rating| LEVELS.index(rating) }
+  end
+
+  def self.v4(advisory)
+    case YAML.safe_load_file(advisory.path, permitted_classes: [ Date ])["cvss_v4"]
     when 0.0 then :none
     when 0.1..3.9 then :low
     when 4.0..6.9 then :medium
