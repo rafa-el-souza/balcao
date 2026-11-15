@@ -2,8 +2,8 @@ require "rails_helper"
 
 # Every message a page sends on its socket is a command (subscribe,
 # unsubscribe, message); a page sends one or two. Past 20 in a minute the
-# connection is closed for good, before the command reaches Action Cable's
-# message buffer or its worker pool, whose queue has no bound (ADR-0015).
+# connection is closed, before the command reaches Action Cable's message
+# buffer or its worker pool, whose queue has no bound (ADR-0015).
 RSpec.describe ApplicationCable::Connection, "SR-40 twenty commands a minute per connection" do
   # A connection as Action Cable builds one for a handshake it accepts, short
   # of taking the socket over (the test case's connection has no socket).
@@ -27,11 +27,17 @@ RSpec.describe ApplicationCable::Connection, "SR-40 twenty commands a minute per
     expect(connection).not_to have_received(:close)
   end
 
-  it "closes the connection for good at the 21st, which goes nowhere" do
+  # Review finding C5 of pull request #23 (the owner's word of 2026-11-15):
+  # the browser's client sends a subscribe again every half second until it
+  # is confirmed, so a confirmation ten seconds late takes an honest page to
+  # the 21st; told not to reconnect, that page stopped for good. A client
+  # that reconnects meets the gate's count per source again, the limit that
+  # holds a flood.
+  it "closes the connection at the 21st, which goes nowhere, and lets the page's client reconnect" do
     21.times { connection.on_message(command) }
 
     expect(buffer).to have_received(:append).exactly(20).times
-    expect(connection).to have_received(:close).with(reason: "limit", reconnect: false).once
+    expect(connection).to have_received(:close).with(reason: "limit", reconnect: true).once
   end
 
   # Review finding V1 of pull request #23 (spec/requests/cable_handshake_spec.rb
