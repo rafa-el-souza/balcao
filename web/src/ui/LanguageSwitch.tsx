@@ -1,6 +1,12 @@
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
-import { LOCALES, type Locale, persistLocale } from "../locale";
+import {
+  LOCALES,
+  type Locale,
+  persistLocale,
+  readLocaleCookie,
+} from "../locale";
 import { cx } from "./cx";
 import styles from "./LanguageSwitch.module.css";
 import parts from "./parts.module.css";
@@ -28,6 +34,27 @@ export function LanguageSwitch({
     void i18n.changeLanguage(locale);
     onSwitch?.(locale);
   };
+
+  // A page the browser restores from its back-forward cache keeps the
+  // language it had, though the visitor may have chosen another on a later
+  // page: the cookie holds the choice, and the page takes it as a press
+  // would. Every page has a switch, so every page listens; a second switch
+  // on the page finds the language already taken (the owner's round at the
+  // MVP close, row 14-FN-bfcache).
+  useEffect(() => {
+    const restored = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      const chosen = readLocaleCookie(document.cookie);
+      if (chosen === null || chosen === i18n.language) return;
+      document.documentElement.lang = chosen;
+      void i18n.changeLanguage(chosen);
+      onSwitch?.(chosen);
+    };
+    window.addEventListener("pageshow", restored);
+    return () => {
+      window.removeEventListener("pageshow", restored);
+    };
+  }, [i18n, onSwitch]);
 
   return (
     <nav
