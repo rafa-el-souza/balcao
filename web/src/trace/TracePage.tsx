@@ -72,7 +72,10 @@ function TurnSection({ turn, trace }: { turn: Turn; trace: Trace }) {
         {said && <span className={styles.said}>{said.body}</span>}{" "}
         <span className={styles.turnTime}>{line.time(turn)}</span>
       </h2>
-      <ol className={rowStyles.events}>
+      {/* The rows the stream brings are announced, as the chat's are (the
+          owner's round at the MVP close, row IR-W11); the turn's time,
+          which counts while it runs, stays in the heading, outside. */}
+      <ol className={rowStyles.events} aria-live="polite">
         <TurnRows turn={turn} open={false} />
       </ol>
       {reply && (

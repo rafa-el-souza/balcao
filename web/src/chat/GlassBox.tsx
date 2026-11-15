@@ -136,10 +136,18 @@ function Earlier({ turns }: { turns: Turn[] }) {
   );
 }
 
+// The rows are announced as they come, as the thread's messages are (the
+// owner's round at the MVP close, row IR-W11; interface checklist item 14).
+// Nothing in the list counts: a running turn's time is in the totals and the
+// line, outside it.
 export function GlassRows({ glass }: { glass: Glass }) {
   const { t } = useTranslation();
   return (
-    <ol className={rowStyles.events} aria-label={t("instrument.events_label")}>
+    <ol
+      className={rowStyles.events}
+      aria-label={t("instrument.events_label")}
+      aria-live="polite"
+    >
       {glass.leading.map((row) => (
         <EventRow key={row.key} row={row} open />
       ))}

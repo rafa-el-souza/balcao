@@ -336,6 +336,34 @@ describe("FR-12 the trace page follows the conversation live", () => {
     });
   });
 
+  // The owner's round at the MVP close, row IR-W11 (the interface review's
+  // W11): the rows the stream brings are announced, as the chat's messages
+  // are; the time a running turn counts, ten times a second, is not.
+  it("announces the rows its stream brings, and not the time that counts", async () => {
+    server.defaults.trace = trace(answeredTurn("t1"));
+    const cable = fakeCable();
+    renderPage(<TracePage />, "pt-BR", cable.cable);
+    await screen.findByRole("region", { name: pt.roll });
+    await waitFor(() => {
+      expect(cable.active()).toHaveLength(1);
+    });
+
+    const [root, call] = runningTurn("t3", 9);
+    cable.send({ type: "span", span: root });
+    cable.send({ type: "span", span: call });
+
+    const heading = await within(roll()).findByRole("heading", {
+      level: 2,
+      name: /^turno 2/,
+    });
+    const rows = within(turn(2)).getByRole("list");
+    expect(rows.closest("[aria-live]")).toHaveAttribute("aria-live", "polite");
+    expect(within(turn(1)).getByRole("list").closest("[aria-live]")).not.toBe(
+      null,
+    );
+    expect(heading.closest("[aria-live]")).toBeNull();
+  });
+
   // Design §10, note of 2026-11-13: the tab's cross dims while a turn of the
   // conversation runs, as it does on the chat, a WhatsApp turn included.
   it("dims the tab's cross while a turn runs, and lights it once the turn ends", async () => {

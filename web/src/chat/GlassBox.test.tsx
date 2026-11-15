@@ -513,6 +513,26 @@ describe("FR-12 a long conversation in the glass box", () => {
 });
 
 // Review findings C3 and C4 of pull request #17 (the verifier's examples).
+// The owner's round at the MVP close, row IR-W11 (the interface review's
+// W11): the rows the stream brings are announced, as the thread's messages
+// are; the time a running turn counts, ten times a second, is not.
+describe("FR-12 NFR-10 the glass box for assistive technology", () => {
+  it("announces the rows as they come, and not the time that counts", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date("2026-11-12T15:05:12Z")); // the turn started at 15:05:10Z
+    server.answers.current.push(conversation(1, [], true, runningTurn("t1")));
+    renderPage(<Chat />);
+    await ready();
+
+    expect(events().closest("[aria-live]")).toHaveAttribute(
+      "aria-live",
+      "polite",
+    );
+    const counting = await within(glass()).findByText(/^\d+,\d s …$/);
+    expect(counting.closest("[aria-live]")).toBeNull();
+  });
+});
+
 describe("FR-12 the glass box and the clocks", () => {
   it("counts the running turn's time up in the totals and the summary line", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
