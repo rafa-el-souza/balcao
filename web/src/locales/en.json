@@ -3,6 +3,7 @@
     "name": "Balcão",
     "pharmacy": "Farmácia Vida Longa"
   },
+  "separator": " · ",
   "language": {
     "label": "Language",
     "pt-BR": "Português",
@@ -67,6 +68,7 @@
     "offline": "No connection to the server right now. Still trying.",
     "failed": "not sent",
     "retry": "send again",
+    "refused": "reload the page and write it again",
     "thinking": "thinking…",
     "slow": "taking longer than usual",
     "composer": {
@@ -88,6 +90,7 @@
       "delete": "delete data",
       "deleteCommand": "/delete",
       "open": "open the glass box",
+      "hide": "close the glass box",
       "close": "close",
       "openTrace": "open the trace as a page"
     }
@@ -119,8 +122,13 @@
       "paused": "paused"
     },
     "money": {
-      "usd": "US$ {{value}}",
-      "brl": "R$ {{value}}"
+      "usd": "US$\u00a0{{value}}",
+      "brl": "R$\u00a0{{value}}"
+    },
+    "units": {
+      "ms": "{{value}}\u00a0ms",
+      "s": "{{value}}\u00a0s",
+      "thousands": "{{value}}k"
     },
     "detail": {
       "model": "model",
@@ -199,6 +207,7 @@
     "heading_zero": "Conversation <token>{{token}}</token>, started on {{date}} at {{time}}, with no turns yet",
     "heading_one": "Conversation <token>{{token}}</token>, started on {{date}} at {{time}}, with {{count}} turn",
     "heading_other": "Conversation <token>{{token}}</token>, started on {{date}} at {{time}}, with {{count}} turns",
+    "tokenShort": "{{head}}…",
     "loading": "Conversation trace",
     "share": "Anyone with this link sees this conversation. It stops working between 7 and 8 days after the last message, or at once if the person deletes their data.",
     "loadFailed": "I could not load this trace right now. Reload the page in a little while.",

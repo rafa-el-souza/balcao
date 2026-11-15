@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Trans, useTranslation } from "react-i18next";
 
 import { rateOf, type Trace } from "../chat/api";
-import { Text } from "../chat/Thread";
+import { joinMoney, Text } from "../chat/Thread";
 import { cx } from "../ui/cx";
 import { Icon } from "../ui/Icon";
 import { PageMasthead } from "../ui/PageMasthead";
@@ -69,8 +69,12 @@ function TurnSection({ turn, trace }: { turn: Turn; trace: Trace }) {
         <span className={styles.turnNumber}>
           {t("instrument.turn", { number: turn.number })}
         </span>{" "}
-        {said && <span className={styles.said}>{said.body}</span>}{" "}
-        <span className={styles.turnTime}>{line.time(turn)}</span>
+        {said && <span className={styles.said}>{joinMoney(said.body)}</span>}{" "}
+        {/* It counts ten times a second while the turn runs: the live region
+            around the turns does not read it out. */}
+        <span className={styles.turnTime} aria-live="off">
+          {line.time(turn)}
+        </span>
       </h2>
       <ol className={rowStyles.events}>
         <TurnRows turn={turn} open={false} />
@@ -96,10 +100,10 @@ function Roll({ trace, turns }: { trace: Trace; turns: Turn[] }) {
   const { t, i18n } = useTranslation();
   const sum = (pick: (turn: Turn) => number) =>
     turns.reduce((total, turn) => total + pick(turn), 0);
-  const tokens = (n: number) => formatTokens(n, i18n.language);
+  const tokens = (n: number) => formatTokens(n, i18n);
   const time = formatDuration(
     sum((turn) => turn.durationMs ?? 0),
-    i18n.language,
+    i18n,
   );
   // The receipt's total is the cost, and the turns' time a line of its own;
   // a conversation with no cost to show totals its time (docs/prototype/
@@ -111,9 +115,16 @@ function Roll({ trace, turns }: { trace: Trace; turns: Turn[] }) {
       className={cx(parts.slip, styles.roll)}
       aria-label={t("trace.roll")}
     >
-      {turns.map((turn) => (
-        <TurnSection key={turn.id} turn={turn} trace={trace} />
-      ))}
+      {/* The turns are the live region of what the stream brings, there
+          before a new turn and its first row, since a live region speaks
+          only of what changes in it (the owner's round at the MVP close, row
+          IR-W11; the finder's C1 on pull request #38); the totals below,
+          which change with every turn's end, stay outside it. */}
+      <div aria-live="polite">
+        {turns.map((turn) => (
+          <TurnSection key={turn.id} turn={turn} trace={trace} />
+        ))}
+      </div>
       <dl className={styles.total}>
         <div>
           <dt>{t("trace.total", { count: turns.length })}</dt>
@@ -183,7 +194,11 @@ export function TracePage() {
           <Trans
             i18nKey="trace.heading"
             count={turns.length}
-            values={{ token: `${token.slice(0, 4)}…`, date, time }}
+            values={{
+              token: t("trace.tokenShort", { head: token.slice(0, 4) }),
+              date,
+              time,
+            }}
             components={{ token: <span className={styles.token} /> }}
           />
         </h1>

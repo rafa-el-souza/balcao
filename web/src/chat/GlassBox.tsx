@@ -81,6 +81,7 @@ const eventsOf = (turn: Turn) => turn.rows.length + turn.local.length;
 function Earlier({ turns }: { turns: Turn[] }) {
   const { t } = useTranslation();
   const line = useTurnLine();
+  const separator = t("separator");
   const [only] = turns;
   if (turns.length === 1 && only)
     return (
@@ -88,7 +89,10 @@ function Earlier({ turns }: { turns: Turn[] }) {
         <details>
           <summary>
             <span className={rowStyles.name}>
-              {line.number(only)} · {line.events(eventsOf(only))} ·{" "}
+              {line.number(only)}
+              {separator}
+              {line.events(eventsOf(only))}
+              {separator}
               {line.figure(only.cost, line.time(only))}
             </span>
           </summary>
@@ -106,8 +110,10 @@ function Earlier({ turns }: { turns: Turn[] }) {
       <details>
         <summary>
           <span className={rowStyles.name}>
-            {t("instrument.earlier", { count: turns.length })} ·{" "}
-            {line.events(events)} ·{" "}
+            {t("instrument.earlier", { count: turns.length })}
+            {separator}
+            {line.events(events)}
+            {separator}
             {line.figure(costOf(turns), line.total(time))}
           </span>
         </summary>
@@ -136,6 +142,9 @@ function Earlier({ turns }: { turns: Turn[] }) {
   );
 }
 
+// The rows are announced as they come from the glass box's body, the live
+// region around this list (Chat.tsx). Nothing in the list counts: a running
+// turn's time is in the totals and the line, outside it.
 export function GlassRows({ glass }: { glass: Glass }) {
   const { t } = useTranslation();
   return (
@@ -152,10 +161,27 @@ export function GlassRows({ glass }: { glass: Glass }) {
 }
 
 // The line that stands for the glass box at 390 px: the last turn alone, its
-// number, rows, cost and time (docs/prototype/chat.html).
-export function useSummary(glass: Glass): string {
+// number, rows, cost and time (docs/prototype/chat.html), in parts, since the
+// count of rows leaves first when the four do not fit (Chat.module.css); with
+// no turn yet, the count alone.
+export interface Summary {
+  turn: string | null;
+  events: string;
+  figure: string | null;
+}
+
+export function useSummary(glass: Glass): Summary {
   const line = useTurnLine();
   const { last } = glass;
-  if (!last) return line.events(glass.leading.length);
-  return `${line.number(last)} · ${line.events(eventsOf(last))} · ${line.figure(last.cost, line.time(last))}`;
+  if (!last)
+    return {
+      turn: null,
+      events: line.events(glass.leading.length),
+      figure: null,
+    };
+  return {
+    turn: line.number(last),
+    events: line.events(eventsOf(last)),
+    figure: line.figure(last.cost, line.time(last)),
+  };
 }

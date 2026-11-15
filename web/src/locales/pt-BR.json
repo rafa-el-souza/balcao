@@ -3,6 +3,7 @@
     "name": "Balcão",
     "pharmacy": "Farmácia Vida Longa"
   },
+  "separator": " · ",
   "language": {
     "label": "Idioma",
     "pt-BR": "Português",
@@ -67,6 +68,7 @@
     "offline": "Sem conexão com o servidor agora. Continuo tentando.",
     "failed": "não enviada",
     "retry": "enviar de novo",
+    "refused": "recarregue a página e escreva de novo",
     "thinking": "pensando…",
     "slow": "está demorando mais que o normal",
     "composer": {
@@ -88,6 +90,7 @@
       "delete": "apagar dados",
       "deleteCommand": "/apagar",
       "open": "abrir a caixa de vidro",
+      "hide": "fechar a caixa de vidro",
       "close": "fechar",
       "openTrace": "abrir trace em página"
     }
@@ -119,8 +122,13 @@
       "paused": "pausado"
     },
     "money": {
-      "usd": "US$ {{value}}",
-      "brl": "R$ {{value}}"
+      "usd": "US$\u00a0{{value}}",
+      "brl": "R$\u00a0{{value}}"
+    },
+    "units": {
+      "ms": "{{value}}\u00a0ms",
+      "s": "{{value}}\u00a0s",
+      "thousands": "{{value}}k"
     },
     "detail": {
       "model": "modelo",
@@ -199,6 +207,7 @@
     "heading_zero": "Conversa <token>{{token}}</token>, iniciada em {{date}} às {{time}}, ainda sem turnos",
     "heading_one": "Conversa <token>{{token}}</token>, iniciada em {{date}} às {{time}}, com {{count}} turno",
     "heading_other": "Conversa <token>{{token}}</token>, iniciada em {{date}} às {{time}}, com {{count}} turnos",
+    "tokenShort": "{{head}}…",
     "loading": "Trace da conversa",
     "share": "Quem tiver este link vê esta conversa. Ele deixa de funcionar entre 7 e 8 dias depois da última mensagem, ou na hora, se a pessoa apagar seus dados.",
     "loadFailed": "Não consegui carregar este trace agora. Recarregue a página daqui a pouco.",

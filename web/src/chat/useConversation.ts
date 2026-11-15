@@ -164,9 +164,12 @@ export function useConversation() {
       setPollDelay((delay) =>
         answer.kind === "ok" ? POLL_MS : Math.min(delay * 2, POLL_MAX_MS),
       );
-      // An answer that finds nothing is no answer either (review finding C11).
+      // An answer that finds nothing, or that the server refuses, is no answer
+      // either (review finding C11).
       setPollFailures((failures) =>
-        answer.kind === "failed" || answer.kind === "missing"
+        answer.kind === "failed" ||
+        answer.kind === "missing" ||
+        answer.kind === "refused"
           ? failures + 1
           : 0,
       );
@@ -293,6 +296,11 @@ export function useConversation() {
       }
       const at = new Date(serverNow()).toISOString();
       if (outcome.kind === "ok") {
+        // A page whose first session failed, or met the edge's limit, has not
+        // asked for its conversation: the message's session lets it, and the
+        // conversation's answer sets the conversation the page follows (the
+        // owner's round at the MVP close, row IR-U1).
+        setOpened(true);
         const { message } = outcome.value;
         dispatch({
           type: "accepted",
@@ -312,6 +320,10 @@ export function useConversation() {
           void queryClient.invalidateQueries({ queryKey: CURRENT });
       } else if (outcome.kind === "limit")
         dispatch({ type: "limited", clientId, text: outcome.text, at });
+      // Refused, or answered as missing, the same request would be again: no
+      // retry is offered (rows 14-V2V3 and IR-V2).
+      else if (outcome.kind === "refused" || outcome.kind === "missing")
+        dispatch({ type: "refused", clientId });
       else dispatch({ type: "failed", clientId });
     },
     [api, language, session, queryClient],
@@ -381,12 +393,16 @@ export function useConversation() {
     const say = takeSay();
     void (async () => {
       const opened = await session(language());
+      // A load that ends here has said so: the conversation's answers that a
+      // message opens later are polls (row IR-U1).
       if (opened.kind === "limit") {
+        loaded.current = true;
         dispatch({ type: "limited", clientId: null, text: opened.text });
         dispatch({ type: "loaded" });
         return;
       }
       if (opened.kind !== "ok") {
+        loaded.current = true;
         dispatch({ type: "loadFailed" });
         return;
       }

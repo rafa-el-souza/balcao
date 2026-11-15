@@ -29,7 +29,8 @@ function Notice({ text }: { text: string }) {
   if (colon < 1) return <Text text={text} />;
   return (
     <p>
-      <strong>{text.slice(0, colon + 1)}</strong> {text.slice(colon + 2)}
+      <strong>{text.slice(0, colon + 1)}</strong>{" "}
+      {joinMoney(text.slice(colon + 2))}
     </p>
   );
 }
@@ -54,6 +55,13 @@ function stamped(line: string, marks: readonly string[]) {
     );
 }
 
+// A price's symbol stays with its figure: the server and the model write
+// "R$ 7,90" with a plain space, and the page joins them as it draws the
+// message, so a narrow screen never parts them (docs/prototype/landing.html's
+// note; the owner's round at the MVP close, rows IR-V1 and Q44).
+export const joinMoney = (line: string) =>
+  line.replace(/(R\$) (?=\d)/g, "$1\u00a0");
+
 // Plain text with its line breaks (design §6.9, threat model SR-03): a blank
 // line opens a paragraph, a single one breaks the line. Nothing is markup;
 // only the codes given are stamped.
@@ -72,12 +80,18 @@ export function Text({
         {paragraph.split("\n").map((line, at) => (
           <Fragment key={at}>
             {at > 0 && <br />}
-            {stamped(line, marks)}
+            {stamped(joinMoney(line), marks)}
           </Fragment>
         ))}
       </p>
     ));
 }
+
+// The visitor's preference, read at each scroll, so a change made while the
+// page is open holds at once.
+const reducedMotion = () =>
+  typeof window.matchMedia === "function" &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // NFR-03: past ten seconds of waiting (NFR-01's p95), the attendant says the
 // answer is taking longer.
@@ -172,7 +186,8 @@ function Message({
       )}
       {failed && (
         <p className={styles.failed}>
-          {t("chat.failed")} ·{" "}
+          {t("chat.failed")}
+          {t("separator")}
           <button
             type="button"
             className={styles.retry}
@@ -182,6 +197,13 @@ function Message({
           >
             {t("chat.retry")}
           </button>
+        </p>
+      )}
+      {entry.status === "refused" && (
+        <p className={styles.failed}>
+          {t("chat.failed")}
+          {t("separator")}
+          {t("chat.refused")}
         </p>
       )}
     </li>
@@ -220,33 +242,52 @@ export function Thread({
   // #18), for this scroll alone: left on the root, the padding would move the
   // window whenever a control in the foot takes the focus, and outlive the
   // layout it measured (R2 and V4). The scroll keeps the destination it was
-  // given when the padding goes.
+  // given when the padding goes. It glides, unless the visitor asked for
+  // reduced motion: then nothing slides (design brief §5; the owner's round
+  // at the MVP close, row 18-L-motion).
   const reveal = useCallback(
     (element: Element | null | undefined) => {
       if (!element || !("scrollIntoView" in element)) return;
       const root = document.documentElement.style;
       root.scrollPaddingBottom = `${String(covered())}px`;
-      element.scrollIntoView({ block: "end", behavior: "smooth" });
+      element.scrollIntoView({
+        block: "end",
+        // "auto" is at once, since no sheet sets a smooth scroll-behavior,
+        // and every engine takes it ("instant" is newer).
+        behavior: reducedMotion() ? "auto" : "smooth",
+      });
       root.scrollPaddingBottom = "";
     },
     [covered],
   );
 
   // What the thread ends with scrolls its column to itself: a new message,
-  // "pensando…" when it appears (review finding C1 of pull request #18) and
-  // the stamps of a limit or a lost connection (V2).
-  const tail = `${String(entries.length)}:${String(waiting)}:${String(offline)}:${refused ?? ""}`;
+  // "pensando…" when it appears (review finding C1 of pull request #18), the
+  // stamps of a limit or a lost connection (V2), and the line a message that
+  // could not be sent gains (the owner's round at the MVP close, row
+  // 18-L-notsent).
+  const unsent = entries.filter(
+    (entry) => entry.status === "failed" || entry.status === "refused",
+  ).length;
+  const tail = `${String(entries.length)}:${String(unsent)}:${String(waiting)}:${String(offline)}:${refused ?? ""}`;
   const revealEnd = useCallback(() => {
     reveal(list.current?.lastElementChild);
   }, [reveal]);
   useEffect(revealEnd, [tail, revealEnd]);
 
+  // Beside the glass box the thread scrolls on its own: it takes the focus,
+  // so a keyboard can scroll it where the browser does not focus a scroller
+  // by itself, as Safari does not (the owner's round at the MVP close, row
+  // 18-axe; axe's scrollable-region-focusable, WCAG 2.1.1). The lint rule's
+  // own documentation names a scroll container as its exception.
   return (
     <ol
       ref={list}
       className={styles.thread}
       aria-label={t("chat.conversation")}
       aria-live="polite"
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scroll container
+      tabIndex={0}
     >
       {state.phase === "failed" && (
         <li className={cx(styles.msg, VOICE_CLASS.stamp)} data-voice="stamp">

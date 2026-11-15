@@ -160,6 +160,36 @@ describe("FR-18 the composer", () => {
     expect(within(thread()).getByText("tem dipirona?")).toBeInTheDocument();
   });
 
+  // The owner's round at the MVP close, rows 14-FN-ime and Q45 (the
+  // interface review's W10): an input method's Enter chooses a word. In
+  // Safari it comes after compositionend, with isComposing false, and it
+  // sent half a message.
+  it("sends nothing with the Enter that ends an input method's composition", async () => {
+    renderPage(<Chat />);
+    await ready();
+
+    // Safari's order: the composition ends, then its Enter.
+    fireEvent.compositionStart(field());
+    type("にほ");
+    fireEvent.compositionEnd(field());
+    fireEvent.keyDown(field(), { key: "Enter", keyCode: 229 });
+    // A browser that says nothing on the key itself, mid-composition.
+    fireEvent.compositionStart(field());
+    type("にほん");
+    fireEvent.keyDown(field(), { key: "Enter", keyCode: 13 });
+    await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
+    expect(server.sent()).toEqual([]);
+
+    fireEvent.compositionEnd(field());
+    type("にほんご");
+    fireEvent.keyDown(field(), { key: "Enter", keyCode: 13 });
+
+    await waitFor(() => {
+      expect(server.sent()).toHaveLength(1);
+    });
+    expect(server.sent()[0]?.body).toMatchObject({ text: "にほんご" });
+  });
+
   it("sends nothing when the field holds only spaces", async () => {
     renderPage(<Chat />);
     await ready();
@@ -420,16 +450,24 @@ describe("NFR-03 the turn that waits", () => {
 
   describe("brought into view", () => {
     // jsdom lays nothing out and has no scrollIntoView: each entry the page
-    // brings into view is recorded with the room the window keeps clear then.
-    const scrolled: { element: Element; padding: string }[] = [];
+    // brings into view is recorded with the room the window keeps clear then,
+    // and with what it said then.
+    const scrolled: {
+      element: Element;
+      padding: string;
+      text: string;
+      behavior: ScrollBehavior | undefined;
+    }[] = [];
     beforeEach(() => {
       scrolled.length = 0;
       Object.defineProperty(Element.prototype, "scrollIntoView", {
         configurable: true,
-        value(this: Element) {
+        value(this: Element, options?: ScrollIntoViewOptions) {
           scrolled.push({
             element: this,
             padding: document.documentElement.style.scrollPaddingBottom,
+            text: this.textContent,
+            behavior: options?.behavior,
           });
         },
       });
@@ -489,6 +527,65 @@ describe("NFR-03 the turn that waits", () => {
 
       expect(within(thread()).getByText(pt.offline)).toBeInTheDocument();
       expect(inThread().at(-1)?.element).toHaveTextContent(pt.offline);
+    });
+
+    // The owner's round at the MVP close, row 18-L-motion (the interface
+    // review's W5): nothing slides for a visitor who asked for reduced motion
+    // (design brief §5; interface checklist item 15).
+    const motion = (reduce: boolean) => {
+      vi.stubGlobal("matchMedia", (query: string) => ({
+        matches: reduce && query === "(prefers-reduced-motion: reduce)",
+        media: query,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+      }));
+    };
+
+    it("brings the thread's end into view at once for reduced motion", async () => {
+      motion(true);
+      renderPage(<Chat />);
+      await ready();
+
+      await sendAndWait();
+      await waitFor(() => {
+        expect(inThread().at(-1)?.element).toHaveTextContent(pt.thinking);
+      });
+      // "auto", which every browser takes, and no sheet sets a smooth
+      // scroll-behavior, so the scroll is at once (the finder's note N1 on
+      // pull request #38: an engine without "instant" would throw).
+      expect(inThread().map(({ behavior }) => behavior)).toEqual(
+        inThread().map(() => "auto"),
+      );
+    });
+
+    it("lets the thread's end glide into view otherwise", async () => {
+      motion(false);
+      renderPage(<Chat />);
+      await ready();
+
+      await sendAndWait();
+      await waitFor(() => {
+        expect(inThread().at(-1)?.element).toHaveTextContent(pt.thinking);
+      });
+      expect(inThread().at(-1)?.behavior).toBe("smooth");
+    });
+
+    // The owner's round at the MVP close, row 18-L-notsent (the interface
+    // review's W2): a send that fails grows the slip under the composer's
+    // foot, and its "not sent" line stayed out of sight.
+    it("brings a message that could not be sent into view with its line", async () => {
+      renderPage(<Chat />);
+      await ready();
+      server.answers.messages.push("network");
+
+      type("tem dipirona?");
+      fireEvent.keyDown(field(), { key: "Enter" });
+
+      await within(thread()).findByText(pt.failed, { exact: false });
+      // Brought into view once the line is there, not only as it was sent.
+      await waitFor(() => {
+        expect(inThread().at(-1)?.text).toContain(pt.failed);
+      });
     });
 
     // Review finding R1 of pull request #18: stacked, the open drawer covers
@@ -691,6 +788,61 @@ describe("NFR-02 a message that could not be sent", () => {
   });
 });
 
+// The owner's round at the MVP close, rows 14-V2V3 and IR-V2 (the interface
+// review's W3, the verifier's V2): a request the server refuses is refused
+// again when it is sent again, so the page offers no retry for it.
+describe("FR-18 NFR-02 a message the server refuses", () => {
+  const refused = `${pt.failed} · ${pt.refused}`;
+
+  it("offers no retry for an opener the server no longer knows", async () => {
+    server.answers.messages.push({ status: 422, body: { error: "say" } });
+    renderPage(<Chat />);
+    await ready();
+
+    fireEvent.click(
+      within(thread()).getByRole("button", { name: openers.stock_pt.text }),
+    );
+
+    expect(await within(thread()).findByText(refused)).toBeInTheDocument();
+    expect(within(thread()).queryByRole("button", { name: pt.retry })).toBe(
+      null,
+    );
+    expect(server.sent()).toHaveLength(1);
+  });
+
+  it("offers no retry once a message sent again meets an id another visitor holds", async () => {
+    server.answers.messages.push(
+      "network",
+      { status: 401, body: { error: "session" } },
+      { status: 409, body: { error: "id" } },
+    );
+    renderPage(<Chat />);
+    await ready();
+    type("tem dipirona?");
+    fireEvent.keyDown(field(), { key: "Enter" });
+
+    fireEvent.click(await screen.findByRole("button", { name: pt.retry }));
+
+    expect(await within(thread()).findByText(refused)).toBeInTheDocument();
+    expect(within(thread()).queryByRole("button", { name: pt.retry })).toBe(
+      null,
+    );
+    expect(server.sent()).toHaveLength(3);
+  });
+
+  it("still offers a retry for a refusal at the edge that is not its limit", async () => {
+    server.answers.messages.push({ status: 429, body: {} });
+    renderPage(<Chat />);
+    await ready();
+    type("tem dipirona?");
+    fireEvent.keyDown(field(), { key: "Enter" });
+
+    expect(
+      await screen.findByRole("button", { name: pt.retry }),
+    ).toBeInTheDocument();
+  });
+});
+
 describe("FR-18 the chat that cannot open", () => {
   it("says so when the session cannot be had", async () => {
     server.answers.session.push({ status: 500, body: {} });
@@ -721,6 +873,30 @@ describe("Threat model SR-03 the attendant's words are text", () => {
     expect(reply?.querySelectorAll("p")).toHaveLength(2);
     expect(reply?.querySelectorAll("br")).toHaveLength(1);
     expect(reply).toHaveAttribute("data-voice", "attendant");
+  });
+
+  // The owner's round at the MVP close, rows IR-V1 and Q44: at 390 px a
+  // reply broke between "R$" and its figure, which the server and the model
+  // write with a plain space; the page joins them as it draws the message
+  // (docs/prototype/landing.html's note, E-23).
+  it("keeps a price's symbol with its figure, and writes the words as they came", async () => {
+    server.answers.current.push(
+      conversation(1, [
+        message({
+          author: "bot",
+          body: "Dipirona 500 mg, 10 comprimidos: R$ 7,90.\nA entrega custa R$ 7,00; R$ sozinho fica.",
+        }),
+      ]),
+    );
+    renderPage(<Chat />);
+    await ready();
+
+    const reply = (
+      await within(thread()).findByText(/Dipirona 500 mg/)
+    ).closest("li");
+    expect(reply?.textContent).toBe(
+      "Dipirona 500 mg, 10 comprimidos: R$\u00a07,90.A entrega custa R$\u00a07,00; R$ sozinho fica.",
+    );
   });
 });
 
@@ -861,6 +1037,18 @@ describe("NFR-10 the chat for assistive technology", () => {
     expect(screen.getByRole("region", { name: pt.heading })).toContainElement(
       thread(),
     );
+  });
+
+  // The owner's round at the MVP close, row 18-axe (the interface review's
+  // W6; axe's scrollable-region-focusable, WCAG 2.1.1): beside the glass box
+  // the thread scrolls on its own, and a browser that does not focus a
+  // scroller by itself (Safari) left a keyboard no way to scroll it.
+  it("lets the keyboard take the conversation, which scrolls on its own beside the glass box", async () => {
+    renderPage(<Chat />);
+    await ready();
+
+    expect(thread()).toHaveAttribute("tabindex", "0");
+    expect(thread()).toHaveAccessibleName(pt.conversation);
   });
 });
 
@@ -1051,6 +1239,42 @@ describe("FR-18 the chat that could not open, and then could", () => {
 
     expect(within(thread()).getByText("Temos duas.")).toBeInTheDocument();
     expect(screen.queryByText(pt.loadFailed)).toBeNull();
+  });
+});
+
+// The owner's round at the MVP close, row IR-U1: when the first session
+// request failed or the edge refused it, a message written afterwards got its
+// 202, but the page never asked for the conversation nor followed its
+// stream, so "pensando…" stayed for ever.
+describe("FR-18 NFR-03 a message written after the chat could not open", () => {
+  const limit = "Você chegou ao limite da demo por agora.";
+  it.each([
+    ["the session request failed", "network" as const, pt.loadFailed],
+    [
+      "the edge refused the session",
+      { status: 429, body: { error: "limit", text: limit } },
+      limit,
+    ],
+  ])("brings the reply when %s", async (_case, answer, said) => {
+    server.answers.session.push(answer);
+    server.answers.current.push(() => {
+      const copy = server.copy();
+      return conversation(1, [copy, replyTo(copy, "Temos duas.")]);
+    });
+    renderPage(<Chat />);
+    await within(thread()).findByText(said);
+
+    type("tem dipirona?");
+    fireEvent.keyDown(field(), { key: "Enter" });
+
+    expect(await within(thread()).findByText("Temos duas.")).toBeVisible();
+    expect(within(thread()).queryByText(pt.thinking)).toBeNull();
+    expect(screen.queryByText(pt.loadFailed)).toBeNull();
+    // What the page said before the visitor wrote stays before the message.
+    const items = within(thread())
+      .getAllByRole("listitem")
+      .map((item) => item.textContent.trim());
+    expect(items.slice(-2)).toEqual(["tem dipirona?", "Temos duas."]);
   });
 });
 

@@ -26,7 +26,7 @@ import {
   reservationTool,
   runningTurn,
 } from "../test/spans";
-import { Chat } from "./Chat";
+import { Chat, LIVE_AFTER_MS } from "./Chat";
 
 const pt = ptBR;
 let server: ReturnType<typeof fakeServer>;
@@ -50,6 +50,11 @@ const ready = () =>
   waitFor(() => {
     expect(server.polls()).toHaveLength(1);
   });
+// The 390 px line's name, from its parts (the turn, the count, the figure),
+// each a box of its own: a browser keeps the space after a part's
+// separator, and jsdom's name trims each part's text.
+const summaryName = (source: string) =>
+  new RegExp(source.replaceAll(" · ", " ·\\s?"));
 
 // React applies the updates made inside one act() when it ends, so a timer
 // the page re-arms after an answer needs time to pass in steps.
@@ -257,7 +262,9 @@ describe("FR-12 FR-14 the costs in the glass box", () => {
     );
     expect(
       screen.getByRole("button", {
-        name: /turno 1 · 5 eventos · US\$ 0,009 · 3,0 s/,
+        name: summaryName(
+          "turno 1 · 5 eventos · US\\$\u00a00,009 · 3,0\u00a0s",
+        ),
       }),
     ).toBeInTheDocument();
   });
@@ -297,7 +304,9 @@ describe("FR-12 FR-14 the costs in the glass box", () => {
     await ready();
 
     const total = await within(glass()).findByText("custo do turno");
-    expect(total.closest("div")?.textContent).toBe("custo do turnoUS$ 0,009");
+    expect(total.closest("div")?.textContent).toBe(
+      "custo do turnoUS$\u00a00,009",
+    );
     expect(glass().textContent).not.toMatch(/R\$/);
   });
 
@@ -508,6 +517,76 @@ describe("FR-12 a long conversation in the glass box", () => {
 });
 
 // Review findings C3 and C4 of pull request #17 (the verifier's examples).
+// The owner's round at the MVP close, row IR-W11 (the interface review's
+// W11), and the finder's C1 on pull request #38: the rows the stream brings
+// are announced, the conversation's first row too, from a region that was
+// there before them, as a live region only speaks of what changes in it;
+// what the conversation already had when the page opened is not read out,
+// and the time a running turn counts, ten times a second, is not either.
+describe("FR-12 NFR-10 the glass box for assistive technology", () => {
+  it("announces the rows as they come, the conversation's first row too, and not the time that counts", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date("2026-11-12T15:05:12Z")); // the turn started at 15:05:10Z
+    const cable = fakeCable();
+    renderPage(<Chat />, "pt-BR", cable.cable);
+    await ready();
+    await waitFor(() => {
+      expect(cable.active()).toHaveLength(1);
+    });
+    // The glass box's body, which holds the empty text, then the rows.
+    const region = within(glass()).getByText(pt.chat.glass.empty).parentElement;
+    await waitFor(
+      () => {
+        expect(region).toHaveAttribute("aria-live", "polite");
+      },
+      { timeout: LIVE_AFTER_MS * 4 },
+    );
+
+    const [root, call] = runningTurn("t1");
+    if (!root || !call) throw new Error("no running turn");
+    cable.send({ type: "span", span: root });
+    cable.send({ type: "span", span: call });
+
+    expect(region).toContainElement(
+      await within(glass()).findByText(pt.instrument.received),
+    );
+    const counting = await within(glass()).findByText(/^\d+,\d s …$/);
+    expect(counting.closest("[aria-live]")).toBeNull();
+  });
+
+  it("does not read out what the conversation already had as the page opens", async () => {
+    const live: (string | null)[] = [];
+    const watch = new MutationObserver(() => {
+      const list = document.querySelector(
+        `[aria-label="${pt.instrument.events_label}"]`,
+      );
+      if (list && live.length === 0)
+        live.push(
+          list.closest("[aria-live]")?.getAttribute("aria-live") ?? null,
+        );
+    });
+    watch.observe(document.body, { childList: true, subtree: true });
+    server.answers.current.push(conversation(1, [], false, answeredTurn("t1")));
+    renderPage(<Chat />);
+    await ready();
+    await within(glass()).findByRole("list", {
+      name: pt.instrument.events_label,
+    });
+    watch.disconnect();
+
+    expect(live[0] ?? "off").toBe("off");
+    await waitFor(
+      () => {
+        expect(events().closest("[aria-live]")).toHaveAttribute(
+          "aria-live",
+          "polite",
+        );
+      },
+      { timeout: LIVE_AFTER_MS * 4 },
+    );
+  });
+});
+
 describe("FR-12 the glass box and the clocks", () => {
   it("counts the running turn's time up in the totals and the summary line", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
@@ -517,11 +596,15 @@ describe("FR-12 the glass box and the clocks", () => {
     await ready();
 
     expect(
-      await screen.findByRole("button", { name: /turno 1 · .* · 2,\d s …/ }),
+      await screen.findByRole("button", {
+        name: summaryName("turno 1 · .* · 2,\\d\u00a0s …"),
+      }),
     ).toBeInTheDocument();
     await act(() => vi.advanceTimersByTimeAsync(1000));
     expect(
-      screen.getByRole("button", { name: /turno 1 · .* · 3,\d s …/ }),
+      screen.getByRole("button", {
+        name: summaryName("turno 1 · .* · 3,\\d\u00a0s …"),
+      }),
     ).toBeInTheDocument();
   });
 
@@ -720,7 +803,7 @@ describe("FR-12 the glass box at 390 px", () => {
     await ready();
 
     const line = await screen.findByRole("button", {
-      name: /turno 2 · 1 evento · 12 ms/,
+      name: summaryName("turno 2 · 1 evento · 12\u00a0ms"),
     });
     expect(line).toHaveAttribute("aria-expanded", "false");
     expect(line).toHaveAttribute("aria-controls", "glass");
@@ -732,6 +815,26 @@ describe("FR-12 the glass box at 390 px", () => {
     fireEvent.keyDown(document, { key: "Escape" });
     expect(line).toHaveAttribute("aria-expanded", "false");
     expect(screen.getByRole("main")).not.toHaveAttribute("data-drawer");
+  });
+
+  // The owner's round at the MVP close, row IR-S2: while the drawer is open
+  // the line's button closes it, and its name still said "open".
+  it("names the line's button by what a press does: open, then close", async () => {
+    renderPage(<Chat />);
+    await ready();
+    const line = await screen.findByRole("button", { name: /0 eventos/ });
+    expect(line).toHaveAccessibleName(new RegExp(pt.chat.glass.open));
+
+    fireEvent.click(line);
+
+    expect(line).toHaveAttribute("aria-expanded", "true");
+    expect(line).not.toHaveAccessibleName(new RegExp(pt.chat.glass.open));
+    expect(line).toHaveAccessibleName(new RegExp(pt.chat.glass.hide));
+
+    fireEvent.click(line);
+
+    expect(line).toHaveAttribute("aria-expanded", "false");
+    expect(line).toHaveAccessibleName(new RegExp(pt.chat.glass.open));
   });
 
   it("says there is nothing yet on a first visit", async () => {
@@ -771,6 +874,28 @@ describe("FR-01 the demo notice, stamped apart from the reply", () => {
       .closest("li");
     expect(reply).toHaveAttribute("data-voice", "attendant");
     expect(reply).not.toHaveTextContent("Aviso");
+  });
+
+  // The finder's sisters of row IR-V1 on pull request #38: the notice is a
+  // message's text too, so a price in it keeps "R$" with its figure.
+  it("keeps a price's symbol with its figure in the notice", async () => {
+    server.answers.current.push(
+      conversation(1, [
+        message({ author: "visitor", body: "oi" }),
+        message({
+          author: "bot",
+          notice: "Aviso: R$ 7,00 é a entrega, e R$ sozinho fica.",
+          body: "Olá!",
+        }),
+      ]),
+    );
+    renderPage(<Chat />);
+    await ready();
+
+    const stamp = (await within(thread()).findByText("Aviso:")).closest("li");
+    expect(stamp?.textContent).toBe(
+      "Aviso: R$\u00a07,00 é a entrega, e R$ sozinho fica.",
+    );
   });
 });
 

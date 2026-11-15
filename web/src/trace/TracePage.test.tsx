@@ -187,6 +187,23 @@ describe("FR-12 the trace page, the glass box at full length", () => {
     expect(second.getByText("trace")).toBeInTheDocument();
   });
 
+  // The finder's sisters of row IR-V1 on pull request #38: the visitor's
+  // words in a turn's heading are a message's text too, so a price in them
+  // keeps "R$" with its figure, as the reply under them does.
+  it("keeps a price's symbol with its figure in the visitor's words and in the reply", async () => {
+    const answer = trace();
+    answer.body.messages[0] = said("m1", "t1", "tem por menos de R$ 10?");
+    answer.body.messages[1] = reply("m2", "t1", "Tem, por R$ 7,90.");
+    server.answers.trace.push(answer);
+    renderPage(<TracePage />);
+    await screen.findByRole("region", { name: pt.roll });
+
+    expect(
+      within(turn(1)).getByRole("heading", { level: 2 }).textContent,
+    ).toContain("tem por menos de R$\u00a010?");
+    expect(turn(1).textContent).toContain("Tem, por R$\u00a07,90.");
+  });
+
   // FR-12, FR-14: the turn's cost closes it, and the receipt's total is the
   // cost, with the turns' time a line of its own (docs/prototype/trace.html).
   it("closes each turn with its cost in dollars and reais, and totals the cost above the tokens and the time", async () => {
@@ -202,16 +219,20 @@ describe("FR-12 the trace page, the glass box at full length", () => {
     const line = within(turn(1))
       .getByText("custo do turno")
       .closest("p") as HTMLElement;
-    expect(line.textContent).toBe("custo do turno US$ 0,009 · R$ 0,05");
+    expect(line.textContent).toBe(
+      "custo do turno US$\u00a00,009 · R$\u00a00,05",
+    );
     expect(within(turn(2)).queryByText("custo do turno")).toBeNull();
     const total = within(roll())
       .getByText("total · 2 turnos")
       .closest("div") as HTMLElement;
-    expect(total.textContent).toBe("total · 2 turnosUS$ 0,009 · R$ 0,05");
+    expect(total.textContent).toBe(
+      "total · 2 turnosUS$\u00a00,009 · R$\u00a00,05",
+    );
     const time = within(roll())
       .getByText("tempo dos turnos")
       .closest("div") as HTMLElement;
-    expect(time.textContent).toBe("tempo dos turnos3,0 s");
+    expect(time.textContent).toBe("tempo dos turnos3,0\u00a0s");
   });
 
   it("writes the dollars alone when the trace's answer has no rate", async () => {
@@ -223,7 +244,7 @@ describe("FR-12 the trace page, the glass box at full length", () => {
 
     expect(
       within(roll()).getByText("custo do turno").closest("p")?.textContent,
-    ).toBe("custo do turno US$ 0,009");
+    ).toBe("custo do turno US$\u00a00,009");
     expect(roll().textContent).not.toMatch(/R\$/);
   });
 
@@ -334,6 +355,37 @@ describe("FR-12 the trace page follows the conversation live", () => {
     await waitFor(() => {
       expect(server.traces()).toHaveLength(3);
     });
+  });
+
+  // The owner's round at the MVP close, row IR-W11 (the interface review's
+  // W11), and the finder's C1 on pull request #38: the rows the stream
+  // brings are announced, a new turn's first row too, from a region that was
+  // there before them, as a live region only speaks of what changes in it;
+  // the time a running turn counts, ten times a second, is not.
+  it("announces the rows its stream brings, a new turn's first row too, and not the time that counts", async () => {
+    server.defaults.trace = trace(answeredTurn("t1"));
+    const cable = fakeCable();
+    renderPage(<TracePage />, "pt-BR", cable.cable);
+    await screen.findByRole("region", { name: pt.roll });
+    await waitFor(() => {
+      expect(cable.active()).toHaveLength(1);
+    });
+    const region = within(turn(1)).getByRole("list").closest("[aria-live]");
+    expect(region).toHaveAttribute("aria-live", "polite");
+
+    const [root, call] = runningTurn("t3", 9);
+    cable.send({ type: "span", span: root });
+    await within(roll()).findByRole("heading", { level: 2, name: /^turno 2/ });
+
+    expect(region).toContainElement(
+      within(turn(2)).getByText(ptBR.instrument.received),
+    );
+    cable.send({ type: "span", span: call });
+    expect(region).toContainElement(
+      within(turn(2)).getByText(ptBR.instrument.model),
+    );
+    const counting = within(turn(2)).getByText(/ …$/);
+    expect(counting.closest("[aria-live]")).toHaveAttribute("aria-live", "off");
   });
 
   // Design §10, note of 2026-11-13: the tab's cross dims while a turn of the

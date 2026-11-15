@@ -1,6 +1,11 @@
+import i18next from "i18next";
 import { describe, expect, it } from "vitest";
 
 import type { Span } from "../chat/api";
+import chatSource from "../chat/Chat.tsx?raw";
+import glassSource from "../chat/GlassBox.tsx?raw";
+import threadSource from "../chat/Thread.tsx?raw";
+import { createI18n } from "../i18n";
 import {
   formatClock,
   formatDuration,
@@ -11,6 +16,7 @@ import {
 } from "./model";
 import modelSource from "./model.ts?raw";
 import rowsSource from "./Rows.tsx?raw";
+import traceSource from "./TracePage.tsx?raw";
 
 // Spans as the server sends them (app/models/trace_recorder.rb,
 // app/models/turn_trace.rb), for one answered turn: the root from the
@@ -456,18 +462,71 @@ describe("FR-12 the glass box's own rows, for what the server did not trace", ()
 });
 
 describe("FR-12 the instrument's figures", () => {
+  const ptBR = createI18n("pt-BR");
+  const en = createI18n("en");
+  const es = createI18n("es");
+
   it("writes tokens in thousands past a thousand, in the page's language", () => {
-    expect(formatTokens(42, "pt-BR")).toBe("42");
-    expect(formatTokens(3100, "pt-BR")).toBe("3,1k");
-    expect(formatTokens(22_000, "pt-BR")).toBe("22,0k");
-    expect(formatTokens(3100, "en")).toBe("3.1k");
+    expect(formatTokens(42, ptBR)).toBe("42");
+    expect(formatTokens(3100, ptBR)).toBe("3,1k");
+    expect(formatTokens(22_000, ptBR)).toBe("22,0k");
+    expect(formatTokens(3100, en)).toBe("3.1k");
   });
 
   it("writes a duration in milliseconds under a second and in seconds past it", () => {
-    expect(formatDuration(38, "pt-BR")).toBe("38 ms");
-    expect(formatDuration(1100, "pt-BR")).toBe("1,1 s");
-    expect(formatDuration(10_700, "es")).toBe("10,7 s");
-    expect(formatDuration(3000, "en")).toBe("3.0 s");
+    // A no-break space joins the figure to its unit, so a narrow row never
+    // parts them (docs/prototype/landing.html's note; the owner's round at
+    // the MVP close, row 35-nbsp).
+    expect(formatDuration(38, ptBR)).toBe("38\u00a0ms");
+    expect(formatDuration(1100, ptBR)).toBe("1,1\u00a0s");
+    expect(formatDuration(10_700, es)).toBe("10,7\u00a0s");
+    expect(formatDuration(3000, en)).toBe("3.0\u00a0s");
+  });
+
+  // The owner's round at the MVP close, row 29-V1w (the interface review's
+  // W9; NFR-09): a unit is a word of the locale files, which a language that
+  // writes it otherwise changes there, and nowhere in the code.
+  it("takes the units from the locale files", () => {
+    const other = i18next.createInstance();
+    void other.init({
+      lng: "pt-BR",
+      initAsync: false,
+      interpolation: { escapeValue: false },
+      resources: {
+        "pt-BR": {
+          translation: {
+            instrument: {
+              units: {
+                ms: "{{value}} mseg",
+                s: "{{value}} seg",
+                thousands: "{{value}} mil",
+              },
+            },
+          },
+        },
+      },
+    });
+
+    expect(formatDuration(2800, other)).toBe("2,8 seg");
+    expect(formatDuration(38, other)).toBe("38 mseg");
+    expect(formatTokens(3100, other)).toBe("3,1 mil");
+  });
+
+  it("leaves units and separators to the locale files", () => {
+    // Comments may quote what the page shows; the code may not write it.
+    const code = (source: string) =>
+      source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+    for (const source of [
+      modelSource,
+      rowsSource,
+      traceSource,
+      glassSource,
+      chatSource,
+      threadSource,
+    ]) {
+      expect(code(source)).not.toMatch(/[·…]/);
+      expect(code(source)).not.toMatch(/\}(\\u00a0| )?(ms|s|k)`/);
+    }
   });
 
   it("writes dollars to three decimals and reais to two, more where a small figure would round to zero", () => {

@@ -52,8 +52,10 @@ export interface Entry {
   // An opener's language, when it is not the page's.
   lang?: string;
   // The page's own message: the id it generated, its state and its content.
+  // A message that failed may be sent again; one the server refused may not,
+  // since the server would refuse it again (rows 14-V2V3 and IR-V2).
   clientId?: string;
-  status?: "sending" | "sent" | "failed" | "limited";
+  status?: "sending" | "sent" | "failed" | "refused" | "limited";
   content?: Content;
   // The turn the server opened for it (the 202's answer), and when the
   // server accepted it or the edge refused it, for the glass box's own rows.
@@ -120,6 +122,7 @@ export type Action =
       message?: ServerMessage;
     }
   | { type: "failed"; clientId: string }
+  | { type: "refused"; clientId: string }
   | { type: "limited"; clientId: string | null; text: string; at?: string }
   | { type: "retrying"; clientId: string }
   | { type: "snapshot"; answer: Snapshot | Deleted }
@@ -305,8 +308,9 @@ export function reduce(state: State, action: Action): State {
         : accepted;
     }
     case "failed":
+    case "refused":
       return update(state, action.clientId, {
-        status: "failed",
+        status: action.type,
         after: lastDrawn(state, action.clientId),
       });
     case "retrying":
@@ -383,8 +387,15 @@ function mergeConversation(state: State, answer: Snapshot): State {
   const server = withMessages(changed ? [] : state.server, answer.messages);
   const held = new Set(server.map((message) => message.client_id));
   // What the page drew before it knew the history follows the history
-  // (review finding R3).
-  const last = server.at(-1);
+  // (review finding R3), and stays before the page's own messages the
+  // history holds: drawn while the thread was empty, it came before any of
+  // them, as a limit met by the load does before a message the visitor then
+  // sent (the owner's round at the MVP close, row IR-U1).
+  const sent = new Set(state.own.map((entry) => entry.clientId));
+  const mine = server.findIndex(
+    (message) => message.client_id !== null && sent.has(message.client_id),
+  );
+  const last = mine === -1 ? server.at(-1) : server[mine - 1];
   const start = last ? keyOf(last) : null;
   const own = state.own
     .filter((entry) => {
