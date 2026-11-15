@@ -1,6 +1,6 @@
 # Balcão — design document
 
-**Status:** v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
+**Status:** v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
 coding session, reading this file top to bottom.
 
 Balcão ("the counter", where a pharmacist serves customers) is an AI attendant
@@ -1856,9 +1856,10 @@ a later milestone, and until the round most of them had no line in this
 plan (§10's note of that day). They are part of each row's scope above. The
 slice that opens a milestone copies its lines into its brief and answers
 each in its pull request's Review section, done or with the reason it was
-not (the rule ADR-0019 writes at the close). In brackets: the pull request
-and the review line an item came from; `docs/reviews/mvp-close-round.md`,
-written at the close, has every line of the round.
+not (ADR-0019's first amendment to the review policy). In brackets: the
+pull request and the review line an item came from;
+`docs/reviews/mvp-review.md`, written at the close, has every line of the
+round.
 
 *M4, the first slice (the bot's finish).*
 - NFR-03's sweep: a Telegram update left unread and a turn left without
@@ -1866,6 +1867,12 @@ written at the close, has every line of the round.
   with a fixed line; a later update no longer spends its attempts waiting
   for an earlier one that keeps breaking (#33, H6; #32, H1 and H3; #18,
   V3).
+- A deletion that reaches the dead letter (FR-05 on Telegram) writes a
+  line naming it and keeps no reply, so that the sweep or the next message
+  runs it again, and never gets the generic fallback after "deleted"; the
+  later turns are held on any break of an earlier deletion, not only on a
+  confirmation that did not leave; and the "deleted all the same" line is
+  written after the erase (#41, C3, H1, H2, H3's third part and R1).
 - The turn's loose ends that the sweep meets: a turn's runs are counted,
   bounded from the usage records, and it fails after three (#11's review;
   #18, R4); the reply and the turn's state are written in one transaction
@@ -1887,6 +1894,10 @@ written at the close, has every line of the round.
 - With the economy model: `formatMoney` by significant digits (#29, C5);
   anything but a mapping with `economy_allowed: true` is "not allowed"
   (#29, S6).
+- With the `injection` suite: `injection-hostile-product-name-01`'s list
+  and rubric made to agree, since the rubric lets a reply quote the hostile
+  product's name, which holds "prêmio", a word the list forbids (#39's
+  review).
 
 *M3.*
 - The fourth chip's link to the injection score, with FR-13 (FR-21's
@@ -1903,7 +1914,9 @@ written at the close, has every line of the round.
 - One SR-30 sweep with the log review: Solid Cache's failsafe line, Solid
   Queue's "Error enqueuing recurring task" line, Action Cable's own error
   lines and its "Started GET /cable" line (#29, V4 and its review; the
-  round's triage); threat model R10 looked at again (#23, V2 and V6).
+  round's triage); `cause: nil` on `Telegram::Client`'s three raises, as
+  its header says (#41, H5); threat model R10 looked at again (#23, V2 and
+  V6).
 - The canary's system visitor carries a marker and both purges leave it
   (#7, RS1); the app connects with a least-privilege role, not the image's
   superuser (#4's review).
@@ -1943,7 +1956,9 @@ written at the close, has every line of the round.
   everywhere at once, the boundary phrase lists with it (FR-02).
 - The evals' growth to 60: English and Spanish cases that must not be
   refused; the judge calibrated against a few dozen replies labelled by
-  hand, about 90 % agreement on the clear ones (the close's eval audit).
+  hand, about 90 % agreement on the clear ones (the close's eval audit); a
+  rubric for `boundary-pt-02` and `boundary-es-02`, whose lists pass a dose
+  written without units (#39's review).
 - With FR-25's offer, which brings "R$" into a page's text: the build
   plugin inserts rendered text through replacer functions (#14, C9); the
   shell's description and `og:` tags from the locale files, with the
@@ -2003,9 +2018,10 @@ C2 and R1). The store sheet names a key that is not text.
   review, the eval audit, the docs reader test), were triaged against the
   code, weighed against the documents and decided by the owner in one
   round: 51 questions and four lots. The record, one row per line with its
-  outcome, is `docs/reviews/mvp-close-round.md`; the method and what it
-  changes in the review policy is ADR-0019. Both are written by the pull
-  request that closes the MVP.
+  outcome, is `docs/reviews/mvp-review.md` (the owner named the work "the
+  MVP review" on 2026-11-15); the method and what it changes in the review
+  policy is ADR-0019. Both were written by the pull request that closes the
+  MVP.
   - **What the round changed in this document:** FR-02 (money and hours as
     the store writes them; "tú" in Spanish; the system's own texts in the
     conversation's language), FR-05 (what counts as the deletion command; the
