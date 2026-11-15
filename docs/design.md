@@ -1915,8 +1915,9 @@ round.
   Queue's "Error enqueuing recurring task" line, Action Cable's own error
   lines and its "Started GET /cable" line (#29, V4 and its review; the
   round's triage); `cause: nil` on `Telegram::Client`'s three raises, as
-  its header says (#41, H5); threat model R10 looked at again (#23, V2 and
-  V6).
+  its header says (#41, H5); the trace token masked on any path that holds
+  one, `/api/trace/<token>` and a prefix before `/trace/` among them (#42,
+  X2 and V1); threat model R10 looked at again (#23, V2 and V6).
 - The canary's system visitor carries a marker and both purges leave it
   (#7, RS1); the app connects with a least-privilege role, not the image's
   superuser (#4's review).
