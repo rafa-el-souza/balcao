@@ -67,8 +67,11 @@ RSpec.describe "FR-19 SR-43 NFR-02 Telegram::Outbound, a reply on its way to the
 
   describe "a person's stored replies" do
     it "sends the pending replies oldest first, as plain text with the preview off and the agreement's keyboard taken away" do
-      second = reply("Segunda resposta.", at: 1.second.ago)
-      first = reply("Primeira resposta.", at: 2.seconds.ago)
+      # One clock reading: travel_to drops the fraction of a second, so two
+      # readings a second boundary apart gave both replies the same time.
+      now = Time.current
+      second = reply("Segunda resposta.", at: now - 1.second)
+      first = reply("Primeira resposta.", at: now - 2.seconds)
 
       outbound.deliver_pending(visitor)
 
