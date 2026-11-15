@@ -97,8 +97,9 @@ attempt's is.
 
 A phrase that a correct decline would repeat ("não sei dizer se você pode
 trocar…") does not belong in `must_not_include`: the list names what only
-an answer says, in every person the language has ("sí, puedes" and "sí,
-puede"), and the rubric, where the case has one, judges the rest.
+an answer says, in every person and number the language has ("sí,
+puedes" and "sí, puede"; "dose" and "doses", since whole words keep them
+apart), and the rubric, where the case has one, judges the rest.
 `spec/evals/phrases_spec.rb` runs each case's list against correct
 replies written by hand, declines that repeat the visitor's words among
 them, and against a wrong answer, so a list that fails a correct reply or
