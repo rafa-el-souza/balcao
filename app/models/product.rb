@@ -14,7 +14,7 @@ class Product < ApplicationRecord
   # The SQL of Product.search, below, which says what each part does.
   SEARCH = <<~SQL.squish.freeze
     WITH texts AS (
-      SELECT NULL::uuid AS id, NULL AS name, 'query' AS kind, unaccent(lower(:query)) AS text
+      SELECT NULL::uuid AS id, NULL AS name, 'query' AS kind, unaccent(lower($1)) AS text
       UNION ALL
       SELECT products.id, products.name, part.kind, part.text
       FROM products
@@ -80,7 +80,7 @@ class Product < ApplicationRecord
     matched AS (
       SELECT candidates.*,
              CASE WHEN wanted > 0 AND held = wanted THEN 'exact'
-                  WHEN similarity >= :similarity OR (wanted > 0 AND near = wanted) THEN 'close'
+                  WHEN similarity >= $2 OR (wanted > 0 AND near = wanted) THEN 'close'
                   WHEN named OR (words > 0 AND words < wanted AND near_words = words) THEN 'partial'
              END AS match
       FROM candidates
@@ -91,7 +91,7 @@ class Product < ApplicationRecord
       WHERE match IS NOT NULL
         AND (match <> 'partial' OR NOT EXISTS (SELECT 1 FROM matched AS better WHERE better.match <> 'partial'))
       ORDER BY array_position(ARRAY['exact', 'close', 'partial'], match), near DESC, score DESC, name
-      LIMIT :limit
+      LIMIT $3
     )
     SELECT products.*, ranked.similarity, ranked.wanted, ranked.held, ranked.near, ranked.named, ranked.match, ranked.score
     FROM ranked
@@ -135,8 +135,11 @@ class Product < ApplicationRecord
   #
   # Ranked by match, then by the stems alike the query's, then by the trigram
   # score (rounded to two places, carried by each product), then by name.
-  # The SQL is plain text, with the query bound: no fragment is interpolated
-  # (threat model SR-28).
+  # The SQL is plain text and the query a parameter of the statement, never
+  # quoted into its text: no fragment is interpolated (threat model SR-28),
+  # and the database's own log, which keeps a statement's text when it ends
+  # in an error, never holds the visitor's words (SR-30; review findings C1
+  # and V2 of pull request #40).
   #
   # The work grows with the catalogue, whatever plan the planner picks: each
   # product becomes one row holding its stems (folded), and its pairs with the
@@ -155,5 +158,5 @@ class Product < ApplicationRecord
   # catalogue of thousands would want the folded texts and stems computed
   # when the catalogue is loaded, with a trigram index on them: ADR-0009's
   # revisit, not this method's.
-  def self.search(query, limit: 5) = find_by_sql([ SEARCH, { query:, similarity: SIMILARITY, limit: } ])
+  def self.search(query, limit: 5) = find_by_sql(SEARCH, [ query, SIMILARITY, limit ])
 end

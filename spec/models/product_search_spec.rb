@@ -150,6 +150,21 @@ RSpec.describe "FR-06 ADR-0009 the catalogue search" do
     expect(names("comprimidos", limit: 3).size).to eq(3)
   end
 
+  # Review finding C1 of pull request #40 (threat model SR-30): the query,
+  # the visitor's words as the model passed them, was quoted into the
+  # statement's text, which the database's own log keeps when a statement
+  # ends in an error (a timeout, a reboot's fast shutdown); it travels as a
+  # parameter, which that log leaves out.
+  it "sends the query as a parameter, never in the statement's text" do
+    statements = []
+    recording = ->(*, payload) { statements << payload[:sql] }
+
+    ActiveSupport::Notifications.subscribed(recording, "sql.active_record") { Product.search("zqxlosartana 100 mg") }
+
+    expect(statements.grep(/\AWITH texts/).size).to eq(1)
+    expect(statements.grep(/zqxlosartana/)).to eq([])
+  end
+
   it "takes the query as data, never as SQL" do
     expect(names("dipirona'); DELETE FROM products; --")).to be_an(Array)
     expect(Product.count).to eq(CatalogueSeed.entries.size)

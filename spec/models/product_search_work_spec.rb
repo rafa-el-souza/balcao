@@ -53,12 +53,12 @@ RSpec.describe "FR-06 ADR-0009 the catalogue search's work grows with the catalo
   end
 
   # The rows Product.search reads for the query, from the plan of the very
-  # statement it runs.
+  # statement it runs, with the very parameters it sends.
   def work(query)
-    sql = nil
-    capture = ->(*, payload) { sql = payload[:sql] if payload[:name] == "Product Load" }
+    sql = binds = nil
+    capture = ->(*, payload) { sql, binds = payload.values_at(:sql, :binds) if payload[:name] == "Product Load" }
     ActiveSupport::Notifications.subscribed(capture, "sql.active_record") { Product.search(query) }
-    plan = ApplicationRecord.connection.select_value("EXPLAIN (ANALYZE, FORMAT JSON) #{sql}")
+    plan = ApplicationRecord.connection.select_value("EXPLAIN (ANALYZE, FORMAT JSON) #{sql}", "EXPLAIN", binds)
     rows_read((plan.is_a?(String) ? JSON.parse(plan) : plan).first.fetch("Plan"))
   end
 
