@@ -21,9 +21,17 @@ default: &default
   # for the turn ahead and TelegramUpdateJob's for a person's earlier updates,
   # lifts both for its one statement (app/models/advisory_lock.rb). A
   # migration that needs longer sets its own.
+  #
+  # PostgreSQL's JIT compiler is off. The planner estimates the catalogue
+  # search past the cost at which the server compiles a plan before running
+  # it, and the compiling took 1.4 of the 1.4 s a search spent on the demo
+  # host, against under 10 ms without it; no result changes (NFR-01, FR-06;
+  # design §10, the note of 2026-11-15, the plan after the MVP). Quoted, since
+  # YAML reads a bare off as false.
   variables:
     statement_timeout: 5s
     lock_timeout: 2s
+    jit: "off"
   # For details on connection pooling, see Rails configuration guide
   # https://guides.rubyonrails.org/configuring.html#database-pooling
   max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
