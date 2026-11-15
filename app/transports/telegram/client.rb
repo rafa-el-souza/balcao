@@ -15,12 +15,16 @@ module Telegram
   # error whole would print too (review finding L1 of pull request #32).
   #
   # Only the network's own failures are failures of the way there, each by
-  # its name (NETWORK). Anything else is raised as itself, never tried again
+  # its name (NETWORK), OpenSSL's error among them unless the certificate was
+  # refused: OpenSSL raises that one class for a connection cut during the
+  # handshake or the answer too ("unexpected eof while reading"), and only
+  # the certificate's check, which calls back with false, tells a
+  # certificate that does not prove the host apart (review finding C1 of
+  # pull request #47). Anything else is raised as itself, never tried again
   # as the network (review finding H7 of pull request #33): a local bug, the
-  # request's body among them, which is built before any connection opens;
-  # and a certificate that does not prove the host, which Net::HTTP raises as
-  # OpenSSL's error, so no TLS error is in the list. The callers' jobs try
-  # those again with their own backoff, and log them by their class (SR-30).
+  # request's body among them, which is built before any connection opens,
+  # and a refused certificate. The callers' jobs try those again with their
+  # own backoff, and log them by their class (SR-30).
   class Client
     HOST = "api.telegram.org".freeze
     METHODS = %w[
@@ -30,12 +34,13 @@ module Telegram
     OPEN_TIMEOUT = 5
     READ_TIMEOUT = 10
     # A timeout (Net::OpenTimeout, ReadTimeout, WriteTimeout), a name that
-    # does not resolve, a connection refused, reset, cut or unreachable, and
-    # an answer cut short (EOFError) or that is not HTTP.
+    # does not resolve, a call on the socket the system failed (a connection
+    # refused, reset, cut or unreachable, Errno's every kind), an answer cut
+    # short (EOFError) or that is not HTTP, and OpenSSL's error when no
+    # certificate was refused (post).
     NETWORK = [
-      Timeout::Error, SocketError, IOError, Errno::ECONNREFUSED, Errno::ECONNRESET, Errno::ECONNABORTED, Errno::EPIPE,
-      Errno::EHOSTUNREACH, Errno::ENETUNREACH, Errno::ENETDOWN, Errno::ETIMEDOUT,
-      Net::HTTPBadResponse, Net::HTTPHeaderSyntaxError
+      Timeout::Error, SocketError, SystemCallError, IOError, Net::HTTPBadResponse, Net::HTTPHeaderSyntaxError,
+      OpenSSL::SSL::SSLError
     ].freeze
 
     # A call that did not answer ok. Telegram's answer has a code: 429 is a
@@ -122,14 +127,23 @@ module Telegram
 
     def post(method, params)
       body = params.to_json
+      refused = false
       http = Net::HTTP.new(HOST, 443)
       http.use_ssl = true
       http.open_timeout = OPEN_TIMEOUT
       http.read_timeout = READ_TIMEOUT
       http.write_timeout = READ_TIMEOUT
+      # OpenSSL calls it for each certificate of the chain, the host's name
+      # checked on the last; it notes a refusal and changes no answer.
+      http.verify_callback = lambda do |verified, _store|
+        refused ||= !verified
+        verified
+      end
       begin
         http.start { |session| session.post("/bot#{@token}/#{method}", body, "content-type" => "application/json") }
       rescue *NETWORK => e
+        raise if refused
+
         raise Error.new("#{method}: #{e.class}", method_name: method, failure: e.class.name), cause: nil
       end
     end

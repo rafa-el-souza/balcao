@@ -326,12 +326,40 @@ RSpec.describe "FR-19 SR-43 NFR-02 Telegram::Outbound, a reply on its way to the
     # network as itself, and nothing here takes it for a failure of the way
     # there; the job that sends tries again with its own backoff.
     it "leaves the reply pending, its attempts untouched, when the client raises what is not the network" do
-      stub_request(:post, bot_api_url("sendMessage")).to_raise(OpenSSL::SSL::SSLError.new("certificate verify failed"))
+      stub_request(:post, bot_api_url("sendMessage")).to_raise(NoMethodError.new("undefined method 'bytesize' for nil"))
 
-      expect { outbound.deliver_pending(visitor) }.to raise_error(OpenSSL::SSL::SSLError)
+      expect { outbound.deliver_pending(visitor) }.to raise_error(NoMethodError)
 
       expect(message.reload).to have_attributes(status: "pending", send_attempts: 0, next_attempt_at: nil)
       expect(enqueued_jobs).to be_empty
+    end
+
+    # Review finding C1 of pull request #47: OpenSSL raises its one error for a
+    # connection cut during the handshake or the answer too (measured on
+    # 2026-11-15: "unexpected eof while reading"), and the client raised it as
+    # itself, so the reply missed its three attempts and could stay pending.
+    it "takes a connection cut during the TLS handshake or the answer for a failure of the way there: 3 s, 18 s, then failed" do
+      lines = []
+      allow(Rails.logger).to receive(:error) { |line| lines << line }
+      [ "SSL_connect returned=1 errno=0 peeraddr=149.154.167.220:443 state=error: unexpected eof while reading",
+        "SSL_read: unexpected eof while reading" ].each do |cut|
+        message.update_columns(status: "pending", send_attempts: 0, next_attempt_at: nil)
+        lines.clear
+        stub_request(:post, bot_api_url("sendMessage")).to_raise(OpenSSL::SSL::SSLError.new(cut))
+        started = Time.current
+
+        outbound.deliver_pending(visitor)
+
+        expect(message.reload).to have_attributes(status: "pending", send_attempts: 1)
+        expect(message.next_attempt_at).to be_within(1.second).of(started + 3)
+        2.times do
+          travel_to(message.reload.next_attempt_at + 1.second)
+          TelegramReplyJob.perform_now(visitor.id)
+        end
+        expect(message.reload).to have_attributes(status: "failed", send_attempts: 3)
+        expect(lines).to eq([ "telegram reply #{message.id}: failed after 3 attempts, Telegram::Client::Error (OpenSSL::SSL::SSLError)" ])
+        travel_back
+      end
     end
 
     it "goes on to the person's next reply after one that failed" do
