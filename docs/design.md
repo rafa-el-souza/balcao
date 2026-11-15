@@ -182,15 +182,16 @@ pt-BR (default), en and es; fixed UI strings follow the same choice.
   everywhere at once (the owner, 2026-11-15).
 - Given a turn that ends in one of the system's own texts with no reply
   of the model's to read the language from (the decline after a refusal,
-  the fallback, a turn given up), When the message's own words show its
-  language, Then the text is in that language and not in the one the
-  conversation had stored; a message too short to tell keeps the
-  conversation's. The server reads the message's language with the
-  function-word detector the evals use, moved into the application: no
-  model call, no new dependency. A command phrase that several languages
-  list keeps following the conversation's (`config/commands.yml`). (The
-  owner, 2026-11-15; FR-02's gap of PR-14's review, which §10 had left for
-  the MVP close.)
+  the fallback, a turn given up), Then the text is in the conversation's
+  language: the page's language on the web or the language of the
+  person's Telegram app when the conversation began, and after that the
+  language of the model's last reply. No detector reads the message: a
+  visitor who switches language in the very message that ends in such a
+  text gets that one text in the conversation's language, and the next
+  reply of the model follows the switch. A command phrase that several
+  languages list keeps following the conversation's
+  (`config/commands.yml`). (The owner, 2026-11-15; FR-02's gap of
+  PR-14's review.)
 
 **FR-03 Store information.** The system prompt carries only the store's
 identity, opening hours and the behaviour policy. Everything else about
@@ -1986,7 +1987,7 @@ C2 and R1). The store sheet names a key that is not text.
   request that closes the MVP.
   - **What the round changed in this document:** FR-02 (money and hours as
     the store writes them; "tú" in Spanish; the system's own texts in the
-    message's language), FR-05 (what counts as the deletion command; the
+    conversation's language), FR-05 (what counts as the deletion command; the
     confirmation before the deletion on Telegram), FR-09 (CVV's 188 in the
     emergency line; a refused message ends with that line; three runs of
     the boundary at a close), FR-12 (the refused seventh call, the rate's
