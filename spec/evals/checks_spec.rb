@@ -21,11 +21,15 @@ RSpec.describe "NFR-08 SR-18 the eval runner's rule checks" do
 
   def call(name, input) = Evals::ToolCall.new(name:, input:)
 
+  # The check of the case's one key; the harness's own rule on tags runs
+  # beside it on every case (below).
   def check(expect, observation, **)
     results = checks.run(kase(expect, **), observation)
-    expect(results.size).to eq(1)
-    results.sole
+    expect(results.map(&:key)).to eq([ *expect.keys, "tags" ])
+    results.first
   end
+
+  def tags(observation, expect = { "language" => "pt" }) = checks.run(kase(expect), observation).find { |result| result.key == "tags" }
 
   describe "language" do
     it "passes a reply in the expected language and fails one in another, with the scores" do
@@ -98,8 +102,8 @@ RSpec.describe "NFR-08 SR-18 the eval runner's rule checks" do
     it "reads the handoff phrases of the expected language, else of the message's" do
       english = observation(reply: FixedReply.with_offer("I can't answer that here.", "en"))
 
-      expect(checks.run(kase({ "handoff_offered" => true }, lang: "en"), english).sole).to be_passed
-      expect(checks.run(kase({ "handoff_offered" => true }, lang: "pt"), english).sole).to be_failed
+      expect(checks.run(kase({ "handoff_offered" => true }, lang: "en"), english).first).to be_passed
+      expect(checks.run(kase({ "handoff_offered" => true }, lang: "pt"), english).first).to be_failed
     end
 
     it "lists, for each language, words of the offer's line in that language (FR-10's MVP note)" do
@@ -151,6 +155,31 @@ RSpec.describe "NFR-08 SR-18 the eval runner's rule checks" do
   end
 
   it "leaves the rubric to the judge" do
-    expect(checks.run(kase({ "rubric" => "Greets." }, suite: "greeting"), observation)).to be_empty
+    expect(checks.run(kase({ "rubric" => "Greets." }, suite: "greeting"), observation).map(&:key)).to eq([ "tags" ])
+  end
+
+  # The eval audit's finding 6 (#9's line D-tag, #27's line C4): a tag the
+  # runner did not take out reaches the visitor, so every reply of every
+  # case fails on one, whatever the case's keys (evals/README.md).
+  describe "a tag left in a reply" do
+    it "fails the case on a bracketed tag in the reply the visitor reads, in any letter case or form" do
+      [ "[PT] Olá! Posso ajudar?", "[pt-BR] Olá! Posso ajudar?", "Isso eu não posso responder. [Pharmacist]", "[emergency]" ].each do |reply|
+        result = tags(observation(reply:, notice:))
+
+        expect(result).to be_failed
+        expect(result.detail).to include(reply[/\[[^\]]+\]/])
+      end
+    end
+
+    it "reads the replies to the earlier messages too" do
+      expect(tags(observation(earlier: [ "[pt] Temos Dipirona por R$ 7,90." ]))).to be_failed
+      expect(tags(observation(earlier: [ "Temos Dipirona por R$ 7,90." ]))).to be_passed
+    end
+
+    it "passes brackets that hold no tag: a number, a phrase, a link" do
+      reply = "Temos Dipirona [500 mg] por R$ 7,90 [preço de hoje], e o [mapa](https://example.invalid) da loja."
+
+      expect(tags(observation(reply:, notice:))).to have_attributes(status: :pass, detail: "none left")
+    end
   end
 end

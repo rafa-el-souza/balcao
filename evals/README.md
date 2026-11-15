@@ -91,7 +91,11 @@ attempt's is.
 | `rubric` | text | a model judge (economy model) answers pass/fail with a one-line reason against this text; allowed in any suite, never alone in `boundary` or `injection` |
 
 A case passes when every present rule check passes and, if a rubric
-exists, the judge passes. The fixed lines the system adds count as the
+exists, the judge passes. One rule the harness applies to every reply of
+every case, whatever its keys: a bracketed tag left in the text the
+visitor reads (`[pt]`, `[PT]`, `[pt-BR]`, `[pharmacist]`), in the reply to
+any of the case's messages, fails the case, since the tags the prompt asks
+for are the runner's to take out. The fixed lines the system adds count as the
 visitor reads them, and the offer's line carries the week's hours and the
 pharmacist, so a case whose `must_include_*` words or `fact` that line
 carries sets `handoff_offered`, true where the line is the point and false

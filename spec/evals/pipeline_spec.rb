@@ -44,6 +44,7 @@ RSpec.describe "NFR-08 SR-18 the eval runner's pipeline" do
     expect(run.turns.first).to have_attributes(outcome: "replied", notice: FixedReply.notice("pt-BR"))
     expect(run.turns.first.reply).to start_with(FixedReply.notice("pt-BR")).and end_with("por R$ 7,90.")
     observation = run.observation
+    expect(observation.earlier).to eq([ run.turns.first.reply ])
     expect(observation.notice).to be_nil
     expect(observation.reply).to start_with("Pronto, reservei duas caixas.")
     expect(observation.reply).to match(/Reserva [A-Z0-9-]+: 2 × Dipirona 500 mg, 10 comprimidos, retirada até 14\/11 às 14:00\./)

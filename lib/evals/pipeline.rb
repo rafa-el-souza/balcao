@@ -37,7 +37,7 @@ module Evals
         prepare(kase.seed)
         identity_hash = SecureRandom.hex(32)
         said = kase.messages.map { |text| say(identity_hash, text) }
-        result = Run.new(turns: said.map(&:first), observation: observe(identity_hash, *said.last))
+        result = Run.new(turns: said.map(&:first), observation: observe(identity_hash, *said.last, earlier: said[...-1].map { |record, _| record.reply }))
         raise ActiveRecord::Rollback
       end
       result
@@ -119,10 +119,10 @@ module Evals
     # The last message's reply, the turn's tool calls, and the rows of the
     # visitor who sent it: a reservation (FR-07), the case's conversation
     # closed with another open (FR-04), nothing left under the visitor's
-    # identity (FR-05).
-    def observe(identity_hash, last, conversation_id, visitor)
+    # identity (FR-05); and the replies to the earlier messages.
+    def observe(identity_hash, last, conversation_id, visitor, earlier:)
       Observation.new(
-        reply: last.reply, notice: last.notice, tool_calls: last.tool_calls,
+        reply: last.reply, notice: last.notice, tool_calls: last.tool_calls, earlier:,
         reservation_created: Reservation.exists?(visitor_id: visitor.id),
         conversation_reset: Conversation.where(id: conversation_id).where.not(closed_at: nil).exists? &&
           Conversation.where(visitor_id: visitor.id, closed_at: nil).where.not(id: conversation_id).exists?,
