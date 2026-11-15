@@ -5,14 +5,17 @@
 #
 # 1. reservations past their pickup deadline expire; their units come back
 #    with step 3;
-# 2. the purge, each record by its own age: visitors not seen for seven days,
-#    with everything under them (the database cascades); messages, turns,
-#    spans and usage records older than seven days, a turn's spans and usage
-#    going with it; conversations whose last message went, or that never had
-#    one, once seven days old (a trace link dies with its conversation);
-#    reservations seven days past their deadline, which outlive the
-#    conversation of their turn until then; and the stored Telegram updates,
-#    read or not (FR-19);
+# 2. the purge, each record by its own age: messages, turns, spans and usage
+#    records older than seven days, a turn's spans and usage going with it;
+#    then visitors not seen for seven days, with everything still under them
+#    (the database cascades), which is little, since a visitor silent for
+#    seven days wrote nothing since and its older rows went just before (the
+#    finder's note on pull request #40: a batch of visitors deleted first
+#    took all their rows in one statement); conversations whose last message
+#    went, or that never had one, once seven days old (a trace link dies with
+#    its conversation); reservations seven days past their deadline, which
+#    outlive the conversation of their turn until then; and the stored
+#    Telegram updates, read or not (FR-19);
 # 3. the catalogue returns to the seed, its stock less the units that open
 #    reservations hold (CatalogueSeed), counted after the purge;
 # 4. a message body an image before PR-18 wrote in plain text is encrypted
@@ -39,14 +42,15 @@ class NightlyResetJob < ApplicationJob
   RETENTION = 7.days
   BATCH = 1_000
 
-  # The purge's deletes, in the order they run; the database cascades a
-  # visitor's rows, and a conversation goes once its messages have.
+  # The purge's deletes, in the order they run: the records by their own
+  # age first, so the database's cascade from a visitor finds little left;
+  # a conversation goes once its messages have.
   PURGE = {
-    "visitors" => ->(_before) { Visitor.unseen_for(RETENTION) },
     "messages" => ->(before) { Message.where(created_at: ...before) },
     "turns" => ->(before) { Turn.where(created_at: ...before) },
     "spans" => ->(before) { TraceEvent.where(created_at: ...before) },
     "usage records" => ->(before) { UsageRecord.where(created_at: ...before) },
+    "visitors" => ->(_before) { Visitor.unseen_for(RETENTION) },
     "conversations" => ->(before) { Conversation.where(created_at: ...before).where.missing(:messages) },
     "reservations" => ->(before) { Reservation.where(pickup_until: ...before) },
     "stored updates" => ->(before) { WebhookEvent.where(created_at: ...before) }

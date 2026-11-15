@@ -317,6 +317,25 @@ RSpec.describe "FR-15 SR-31 the nightly reset and the seven-day purge" do
     expect(Rails.logger).to have_received(:info).with(a_string_including("limit counters failed: ActiveRecord::ConnectionNotEstablished"))
   end
 
+  # The finder's note on pull request #40: a batch of 1,000 visitors deleted
+  # every row under them in one statement, through the database's cascade,
+  # so its size was bounded by visitors, not by rows. The messages go first,
+  # in their own batches, with their turns, spans and usage records; a
+  # visitor silent for seven days wrote nothing since, so its own delete
+  # finds little left under it.
+  it "purges the messages, with what hangs from them, before the visitors" do
+    visitor = create(:visitor, last_seen_at: three_am - 8.days)
+    turn = turn_of(create(:conversation, visitor:), at: three_am - 8.days)
+    at(three_am - 8.days) { create(:trace_event, turn:) && create(:usage_record, turn:) }
+    tables = []
+    recording = ->(*, payload) { tables << payload[:sql][/\ADELETE FROM "(\w+)"/, 1] if payload[:sql].start_with?("DELETE FROM") }
+
+    ActiveSupport::Notifications.subscribed(recording, "sql.active_record") { run }
+
+    expect(tables.index("messages")).to be < tables.index("visitors")
+    expect(Visitor.where(id: visitor.id)).to be_empty
+  end
+
   # Review finding S5 of pull request #29: one DELETE of a week's rows could
   # run past the 5 s statement timeout (SR-20); each goes in batches.
   it "deletes in batches, each its own statement" do
