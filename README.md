@@ -109,7 +109,9 @@ what each folder holds.
 - Answers on Telegram too, since WhatsApp's business policy rules out a
   pharmacy without a licence
   ([ADR-0016](docs/adr/0016-telegram-bot-api-as-the-messaging-channel.md)),
-  and as a plain text channel on purpose
+  and as a plain text channel on purpose, with a few plain buttons: a
+  reservation's code to copy, the trace to open, and the suggested first
+  messages under the greeting
   ([ADR-0017](docs/adr/0017-the-telegram-bot-stays-a-text-channel.md));
   voice notes after the MVP.
 - Shows the **glass box**: a live trace of your conversation with model,
@@ -250,10 +252,10 @@ ADR-0019 adds four rules to the review policy. What each day brought:
 Next, in the plan's order (design §9.2, where a milestone's number is a
 label for its content, not its place in the order):
 
-- **M4, voice and the bot's finish:** first a turn's latency, which the
-  first real conversation measured above its target (design §10); then
-  buttons in the bot for a reservation's code and the trace, the landing's
-  suggested first messages as reply buttons, and voice notes.
+- **M4, voice and the bot's finish:** a turn's latency, which the first
+  real conversation measured above its target, is measured and cut, and
+  the bot has its buttons (design §10); next, a sweep that answers a turn
+  left without a reply, then voice notes.
 - **M2, pharmacy work:** Cloudflare Turnstile, a check that a visitor is a
   person, before a session opens; a second model checking every reply;
   service bookings; a conversation handed over to a person; and the

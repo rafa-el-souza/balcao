@@ -373,7 +373,14 @@ the env file loaded in the same call.
   a `last_error_message` of 401 means the secret Telegram sends differs from
   the app's (run the task), a timeout that the app did not answer. Then, on
   a phone: the description in the empty chat, the menu, and Start answered
-  with the ask and its button.
+  with the ask and its button; the button's tap answered with the greeting
+  and FR-21's three suggestions in the button's place, and a tap on one
+  answered as a typed message, the suggestions gone; a reservation's reply
+  with a button that copies its code; `/trace`'s reply, with no link
+  preview, and its button opening the trace page; a photo and a text over
+  1,000 characters each answered with their fixed line; `/apagar`
+  answered with its confirmation, and the next message with the ask again
+  (FR-19).
 - **Rotating the webhook's secret** (when it may have leaked, SR-06): delete
   its line from the env file, append the one `bin/secrets-example` prints,
   `bin/deploy -d ensaio`, then the task at once. Between the two, Telegram's
@@ -392,7 +399,15 @@ the env file loaded in the same call.
   failed. A reply Telegram asked to wait for, or that failed on the way (a
   timeout, a broken connection, an answer of 5xx, whose line names it
   `HTTP 5xx`), stays `pending` with its time (`next_attempt_at`) until
-  `TelegramReplyJob` tries it again, three attempts in all.
+  `TelegramReplyJob` tries it again, three attempts in all. An error that is
+  not the network's (a certificate the host does not prove, which names
+  `OpenSSL::SSL::SSLError`, or a bug) is no failure of the way there: the
+  reply stays `pending` with its attempts untouched, and the job that sends
+  logs the error's class and tries again with its own backoff (a turn's
+  job logs `telegram replies of visitor <id>: not sent, <class>`, and
+  `TelegramReplyJob` tries again a minute later). A certificate that fails
+  every time is the host's certificate store or something between the host
+  and Telegram, not Telegram.
 - **A reply that is never stored** (the ask, `/help` and the deletion
   before the agreement, the fixed lines) is tried once, since nothing keeps
   its chat to try again; one that could not be sent has a `telegram fixed
