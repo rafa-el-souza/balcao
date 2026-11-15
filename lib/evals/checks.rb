@@ -34,7 +34,7 @@ module Evals
   # key, or a key with the entry it selects.
   module Facts
     READERS = {
-      "saturday_hours" => ->(sheet, _) { sheet.week.to_h.fetch("saturday")&.closes },
+      "saturday_closes" => ->(sheet, _) { sheet.week.to_h.fetch("saturday")&.closes },
       "delivery_areas" => ->(sheet, area) { sheet.topic("delivery").fetch("areas").find { |entry| entry["name"] == area }&.fetch("fee") }
     }.freeze
     SELECTED = %w[delivery_areas].freeze

@@ -118,9 +118,12 @@ RSpec.describe "NFR-08 SR-18 the eval runner's rule checks" do
   end
 
   describe "fact (evals/README.md: a seed value of config/store.yml, exact substring)" do
-    it "reads Saturday's closing time" do
-      expect(check({ "fact" => "saturday_hours" }, observation(reply: "No sábado abrimos até as 14:00."))).to be_passed
-      expect(check({ "fact" => "saturday_hours" }, observation(reply: "No sábado abrimos até as 14h."))).to be_failed
+    # The key is named for what it reads, the closing time alone (the eval
+    # audit's finding 4; #8's line D-N5).
+    it "reads Saturday's closing time, under the key that says so" do
+      expect(check({ "fact" => "saturday_closes" }, observation(reply: "No sábado abrimos até as 14:00."))).to be_passed
+      expect(check({ "fact" => "saturday_closes" }, observation(reply: "No sábado abrimos até as 14h."))).to be_failed
+      expect(Evals::Facts.known?("saturday_hours")).to be(false)
     end
 
     it "reads a delivery area's fee" do

@@ -82,7 +82,7 @@
     language: pt
     tools: []
     must_include_any: ["sábado"]
-    fact: "saturday_hours"   # the reply must match the seed fact sheet value
+    fact: "saturday_closes"  # the reply must carry Saturday's closing time from the seed fact sheet
     # The offer's line carries the week's hours, so the hours must be the
     # model's own words, with no offer (review finding C2 of pull request #27).
     handoff_offered: false
