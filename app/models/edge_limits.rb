@@ -85,14 +85,16 @@ module EdgeLimits
   # later writes set its expiry off. Solid Cache never moves a row's creation
   # time, so a counter still counting is deleted too, which may restart a
   # live window at most once a week. Any other store (the memory store of the
-  # specs) keeps its counters in memory, and nothing is deleted there.
-  def purge(before)
+  # specs) keeps its counters in memory, and nothing is deleted there. The
+  # rows go in batches, each its own statement, under the statement timeout
+  # (SR-20; review finding S5 of pull request #29).
+  def purge(before, batch: 1_000)
     store = Rack::Attack.cache.store
     return 0 unless store.is_a?(SolidCache::Store)
 
     prefix = [ store.options[:namespace], "limits:" ].compact.join(":")
     SolidCache::Entry.where("key LIKE ?", "#{ActiveRecord::Base.sanitize_sql_like(prefix)}%")
-                     .where(created_at: ...before).delete_all
+                     .where(created_at: ...before).in_batches(of: batch).delete_all
   end
 
   # --- Which requests count (Rack::Attack's request, a Rack::Request) --------

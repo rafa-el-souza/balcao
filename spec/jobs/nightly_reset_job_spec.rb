@@ -242,6 +242,62 @@ RSpec.describe "FR-15 SR-31 the nightly reset and the seven-day purge" do
     expect(dipirona.reload.stock).to eq(seed_stock - 2)
   end
 
+  # Review finding S5 of pull request #29 and the triage's A-V1: one step
+  # that broke (a delete past the statement timeout, the cache's database
+  # down) stopped every step after it, the catalogue's reset and the
+  # plain-body sweep among them.
+  it "runs every step when one fails, names that one in its line, and raises at the end for the retry" do
+    allow(Rails.logger).to receive(:info)
+    visitor = create(:visitor, last_seen_at: three_am - 8.days)
+    dipirona.update!(stock: 1)
+    allow(Message).to receive(:where).and_call_original
+    allow(Message).to receive(:where).with(created_at: ...(three_am - 7.days)).and_raise(ActiveRecord::StatementTimeout, "canceling")
+    allow(Message).to receive(:encrypt_plain_bodies).and_return(2)
+    allow(EdgeLimits).to receive(:purge).and_return(3)
+
+    expect { run }.to have_enqueued_job(NightlyResetJob)
+
+    expect(Visitor.where(id: visitor.id)).to be_empty
+    expect(dipirona.reload.stock).to eq(seed_stock)
+    expect(Message).to have_received(:encrypt_plain_bodies)
+    expect(Rails.logger).to have_received(:info).with(
+      a_string_including("deleted 1 visitors", "messages failed: ActiveRecord::StatementTimeout", "3 limit counters",
+                         "encrypted 2 plain bodies")
+    )
+  end
+
+  # Review findings V2 and M5 of pull request #32: the counters' purge ran on
+  # the cache's database before the catalogue's reset, so a cache down at
+  # 03:00 stopped the reset; it runs after the reset, its failure apart.
+  it "resets the catalogue before it purges the limits' counters, and a failed purge of them stops nothing" do
+    allow(Rails.logger).to receive(:info)
+    dipirona.update!(stock: 1)
+    allow(CatalogueSeed).to receive(:seed!).and_call_original
+    allow(EdgeLimits).to receive(:purge).and_raise(ActiveRecord::ConnectionNotEstablished, "cache down")
+
+    expect { run }.to have_enqueued_job(NightlyResetJob)
+
+    expect(dipirona.reload.stock).to eq(seed_stock)
+    expect(CatalogueSeed).to have_received(:seed!).ordered
+    expect(EdgeLimits).to have_received(:purge).ordered
+    expect(Rails.logger).to have_received(:info).with(a_string_including("limit counters failed: ActiveRecord::ConnectionNotEstablished"))
+  end
+
+  # Review finding S5 of pull request #29: one DELETE of a week's rows could
+  # run past the 5 s statement timeout (SR-20); each goes in batches.
+  it "deletes in batches, each its own statement" do
+    stub_const("NightlyResetJob::BATCH", 2)
+    conversation = create(:conversation, visitor: create(:visitor, last_seen_at: three_am - 1.hour))
+    5.times { message(conversation, at: three_am - 8.days) }
+    statements = []
+    counting = ->(*, payload) { statements << payload[:sql] if payload[:sql].start_with?('DELETE FROM "messages"') }
+
+    ActiveSupport::Notifications.subscribed(counting, "sql.active_record") { run }
+
+    expect(Message.count).to eq(0)
+    expect(statements.size).to eq(3)
+  end
+
   it "says what it did in one line of counts, never a message or an identity (SR-30)" do
     allow(Rails.logger).to receive(:info)
     reserve(quantity: 3, made: three_am - 2.days, pickup_until: three_am - 7.hours)
