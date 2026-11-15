@@ -178,6 +178,46 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
       end
     end
 
+    # A tag the prompt did not spell exactly reached the visitor and named no
+    # language (a dismissal of pull request #9's review and finding C4 of
+    # #27, fixed by the MVP review's lot, 2026-11-15).
+    {
+      "[PT] Temos, sim." => "pt-BR", "[pt-BR] Temos, sim." => "pt-BR", "[Pt-br] Temos, sim." => "pt-BR",
+      "[pt_BR] Temos, sim." => "pt-BR", "[EN-US] Temos, sim." => "en", "[es-419] Temos, sim." => "es", "[ES] Temos, sim." => "es"
+    }.each do |written, language|
+      context "when the tag is written #{written[/\[[^\]]+\]/]}" do
+        let(:responses) { [ reply(written) ] }
+
+        it "reads it as #{language} and shows it not" do
+          expect(runner.run(turn)).to have_attributes(outcome: :replied, text: "Temos, sim.", language:)
+        end
+      end
+    end
+
+    context "when a line tag comes before the language tag" do
+      let(:responses) { [ reply("[pharmacist] [pt] Isso eu não posso responder.") ] }
+
+      it "takes the line tag out first, then reads the language tag" do
+        expect(runner.run(turn)).to have_attributes(text: "Isso eu não posso responder.", language: "pt-BR", offer: true)
+      end
+    end
+
+    context "when a line tag stands on its own line before the language tag" do
+      let(:responses) { [ reply("[emergency]\n[en] Call the emergency services now.") ] }
+
+      it "reads the language all the same" do
+        expect(runner.run(turn)).to have_attributes(text: "Call the emergency services now.", language: "en", emergency: true)
+      end
+    end
+
+    context "when a bracketed word is no language tag" do
+      let(:responses) { [ reply("[fr] Bonjour.") ] }
+
+      it "leaves it in the text and names no language" do
+        expect(runner.run(turn)).to have_attributes(text: "[fr] Bonjour.", language: nil)
+      end
+    end
+
     context "when the reply carries no tag" do
       let(:responses) { [ reply("Temos, sim.") ] }
 
