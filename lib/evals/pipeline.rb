@@ -14,6 +14,10 @@ require_relative "case_set"
 # transaction rolled back at its end: it starts with no visitor and the
 # catalogue of the case's seed, and no attempt sees another's reservations,
 # stock or conversations. Nothing the app does in a turn waits for a commit.
+# The transaction is not joinable, so each of the app's own transaction
+# blocks is a savepoint of it and rolls back with its block, as it does in
+# production, when an exception leaves the block (the eval audit's finding
+# 5, pull request #20's line C7S3).
 module Evals
   class Pipeline
     # One message of the case and what it got. reply is what the visitor
@@ -29,7 +33,7 @@ module Evals
 
     def run(kase)
       result = nil
-      ApplicationRecord.transaction(requires_new: true) do
+      ApplicationRecord.transaction(requires_new: true, joinable: false) do
         prepare(kase.seed)
         identity_hash = SecureRandom.hex(32)
         said = kase.messages.map { |text| say(identity_hash, text) }
