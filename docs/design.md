@@ -184,8 +184,12 @@ pt-BR (default), en and es; fixed UI strings follow the same choice.
   of the model's to read the language from (the decline after a refusal,
   the fallback, a turn given up), Then the text is in the conversation's
   language: the page's language on the web or the language of the
-  person's Telegram app when the conversation began, and after that the
-  language of the model's last reply. No detector reads the message: a
+  person's Telegram app when the first conversation began, and after that
+  the language of the model's last reply. A conversation a reset opens
+  begins in the reset phrase's language (the closed one's when several
+  languages list the phrase), and one opened after 24 hours of silence in
+  the closed one's (FR-04; the MVP close, line 12 of pull request #41's
+  review). No detector reads the message: a
   visitor who switches language in the very message that ends in such a
   text gets that one text in the conversation's language, and the next
   reply of the model follows the switch. A command phrase that several
