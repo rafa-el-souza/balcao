@@ -188,8 +188,10 @@ pt-BR (default), en and es; fixed UI strings follow the same choice.
   the language of the model's last reply. A conversation a reset opens
   begins in the reset phrase's language (the closed one's when several
   languages list the phrase), and one opened after 24 hours of silence in
-  the closed one's (FR-04; the MVP close, line 12 of pull request #41's
-  review). No detector reads the message: a
+  the closed one's (FR-04); on the web, until its first reply, the page's
+  language still names it, as it does any conversation not yet answered
+  (§10, PR-10's note). (The MVP close: line 12 of pull request #41's
+  review, and C3 of #42's.) No detector reads the message: a
   visitor who switches language in the very message that ends in such a
   text gets that one text in the conversation's language, and the next
   reply of the model follows the switch. A command phrase that several
