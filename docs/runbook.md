@@ -336,11 +336,17 @@ the env file loaded in the same call.
   with Telegram's answer) and ends with `getWebhookInfo`. It exits 1 when a
   setting was not written: Telegram limits `setMyName` and its neighbours,
   and a 429 names the wait (sometimes hours); the others were written, and a
-  run after that wait writes the rest.
+  run after that wait writes the rest. It exits 1 too when `getWebhookInfo`
+  reports the webhook otherwise than the task set it, in any of `url`,
+  `allowed_updates`, `max_connections` and `has_custom_certificate`
+  (`false`), or leaves one of them out: a line `webhook <field>: set …,
+  Telegram reports …` names each (FR-19). The secret is not among them:
+  Telegram never shows it back, so the smoke below reads the delivery
+  errors.
 - **The smoke** reads `getWebhookInfo`, at the end of the task or alone:
   `kamal app exec -d ensaio --roles=web --reuse "bin/rails runner 'puts JSON.pretty_generate(Telegram::Client.new.webhook_info)'"`.
-  Expect `url` at `/webhooks/telegram` on the demo's name,
-  `max_connections` 1, `allowed_updates` `["message"]`, a
+  The task has compared `url`, `max_connections`, `allowed_updates` and
+  `has_custom_certificate`; read the rest yourself: a
   `pending_update_count` near 0, and no `last_error_date` after the deploy:
   a `last_error_message` of 401 means the secret Telegram sends differs from
   the app's (run the task), a timeout that the app did not answer. Then, on

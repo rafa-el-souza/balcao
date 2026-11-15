@@ -630,8 +630,12 @@ platform; until 2026-11-14 this requirement was the WhatsApp Cloud API).
   must register the new one (§10, PR-18). It ends by printing
   `getWebhookInfo`, which the runbook's smoke reads. It exits non-zero when
   what Telegram reports differs from what the task set (the URL, the kinds
-  of update, the connection limit), so a deploy's smoke fails on a webhook
-  that did not take (the owner, 2026-11-15). It runs inside the application's container, where
+  of update, the connection limit, and no custom certificate), a field
+  missing from the answer counting as a difference, so a deploy's smoke
+  fails on a webhook that did not take (the owner, 2026-11-15). Telegram
+  never shows the secret back, so a secret that differs shows only as
+  delivery errors: the runbook's smoke reads them after a deploy, and from
+  M3 a recurring job does (§9.2). It runs inside the application's container, where
   the token already is, so no workstation runs repository code for it
   (SR-38). The application registers nothing at boot.
 - The bot's name says it is a demo. Its description, which Telegram shows

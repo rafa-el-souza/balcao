@@ -13,7 +13,12 @@ require "rake"
 RSpec.describe "FR-19 SR-06 SR-09 SR-42 the task that sets the bot" do
   let(:client) { instance_double(Telegram::Client) }
   let(:out) { StringIO.new }
-  let(:info) { { "url" => "https://demo.example/webhooks/telegram", "pending_update_count" => 0, "max_connections" => 1, "allowed_updates" => [ "message" ] } }
+  # What Telegram reports after a webhook that took: the four fields the task
+  # set (the answer of the demo bot on 2026-11-15 had them all).
+  let(:info) do
+    { "url" => "#{Rails.configuration.x.public_origin}/webhooks/telegram", "has_custom_certificate" => false, "pending_update_count" => 0,
+      "max_connections" => 1, "allowed_updates" => [ "message" ] }
+  end
   let(:scope) { { type: "all_private_chats" } }
   let(:privacy) { "#{Rails.configuration.x.public_origin}/privacy" }
   # What Telegram holds, by method and language code; empty until written.
@@ -111,14 +116,47 @@ RSpec.describe "FR-19 SR-06 SR-09 SR-42 the task that sets the bot" do
     expect(out.string).not_to include(Rails.configuration.x.telegram_bot_token)
   end
 
-  it "is the rake task telegram:setup, which fails when a setting was not written" do
+  # FR-19 as the owner decided it on 2026-11-15 (the MVP review, rows
+  # 32-D-L2 and Q27): the task exits non-zero when what Telegram reports
+  # differs from what it set in any of four fields, a field missing from the
+  # answer counting as a difference, so a deploy's smoke fails on a webhook
+  # that did not take. Telegram never shows the secret back, so no field
+  # compares it.
+  describe "the webhook Telegram reports, compared with what the task set" do
+    it "finds nothing to say when the four fields are what it set" do
+      expect(setup.call.differs).to be_empty
+      expect(out.string).not_to include("differs")
+    end
+
+    {
+      "url" => "https://other.example/webhooks/telegram", "allowed_updates" => [ "message", "callback_query" ],
+      "max_connections" => 40, "has_custom_certificate" => true
+    }.each do |field, value|
+      it "names #{field} when Telegram reports another value, and prints both" do
+        info[field] = value
+
+        expect(setup.call.differs).to eq([ field ])
+        expect(out.string).to include("webhook #{field}: set #{Telegram::Setup.webhook.fetch(field).to_json}, Telegram reports #{value.to_json}")
+      end
+
+      it "names #{field} when the answer leaves it out" do
+        info.delete(field)
+
+        expect(setup.call.differs).to eq([ field ])
+        expect(out.string).to include("webhook #{field}: set #{Telegram::Setup.webhook.fetch(field).to_json}, Telegram reports nothing")
+      end
+    end
+  end
+
+  it "is the rake task telegram:setup, which fails when a setting was not written or the webhook differs" do
     Rails.application.load_tasks if Rake::Task.tasks.none? { |task| task.name == "telegram:setup" }
-    setup = instance_double(Telegram::Setup, call: Telegram::Setup::Result.new(info:, failed: []))
+    setup = instance_double(Telegram::Setup, call: Telegram::Setup::Result.new(info:, failed: [], differs: []))
     allow(Telegram::Setup).to receive(:new).and_return(setup)
 
     Rake::Task["telegram:setup"].execute
-    allow(setup).to receive(:call).and_return(Telegram::Setup::Result.new(info:, failed: [ "name en" ]))
-
+    allow(setup).to receive(:call).and_return(Telegram::Setup::Result.new(info:, failed: [ "name en" ], differs: []))
     expect { Rake::Task["telegram:setup"].execute }.to raise_error(SystemExit)
+    allow(setup).to receive(:call).and_return(Telegram::Setup::Result.new(info:, failed: [], differs: [ "max_connections" ]))
+    expect { Rake::Task["telegram:setup"].execute }.to raise_error(SystemExit, /max_connections/)
   end
 end

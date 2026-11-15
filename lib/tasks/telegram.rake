@@ -4,6 +4,9 @@ namespace :telegram do
   desc "Sets the Telegram bot from the repository: its webhook, command menu and profile; prints getWebhookInfo (FR-19)"
   task setup: :environment do
     result = Telegram::Setup.new.call
-    abort("telegram:setup: not written: #{result.failed.join(", ")}; run it again later (the runbook)") if result.failed.any?
+    problems = []
+    problems << "not written: #{result.failed.join(", ")}" if result.failed.any?
+    problems << "the webhook Telegram reports differs in #{result.differs.join(", ")}" if result.differs.any?
+    abort("telegram:setup: #{problems.join("; ")}; run it again later (the runbook)") if problems.any?
   end
 end
