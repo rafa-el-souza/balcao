@@ -85,6 +85,16 @@ RSpec.describe "FR-19 FR-05 NFR-03 ProcessTurnJob on Telegram, the reply on its 
       expect(turn.reload.latency_ms).to be_within(1_000).of(8_000)
     end
 
+    # The verifier's V2 on #45: a command's span opened when its job ran, so a
+    # command that waited for the conversation was drawn after a later question.
+    it "starts a command's trace at the update's receipt too" do
+      turn = inbound("/trace", webhook_event: event)
+
+      perform(turn)
+
+      expect(TraceEvent.find_by!(turn_id: turn.id, name: "balcao.command").started_at).to be_within(0.001).of(received)
+    end
+
     it "counts a command's latency to its send too" do
       stub_request(:post, bot_api_url("sendMessage")).to_return do |request|
         travel(5.seconds)

@@ -160,7 +160,8 @@ module Telegram
         turn = Turn.for_inbound!(inbound)
         unless Message.exists?(turn_id: turn.id)
           recorder = TraceRecorder.new(turn)
-          span = recorder.start_span("balcao.command", attributes: { "balcao.command.name" => "agree" })
+          span = recorder.start_span("balcao.command", started_at: inbound.received_at,
+                                                       attributes: { "balcao.command.name" => "agree" })
           Message.record_outbound!(turn:, body: greeting)
           turn.update!(state: "replied")
           span.finish

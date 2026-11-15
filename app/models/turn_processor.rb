@@ -221,7 +221,8 @@ class TurnProcessor
   # finding C4 of pull request #11).
   def command(name)
     @inbound.update_columns(source: "command")
-    span = @recorder.start_span("balcao.command", attributes: { "balcao.command.name" => name.to_s })
+    span = @recorder.start_span("balcao.command", started_at: @inbound.received_at,
+                                                  attributes: { "balcao.command.name" => name.to_s })
     yield
     @turn.update!(state: "replied", **latency)
   rescue StandardError => e

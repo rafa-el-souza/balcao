@@ -173,6 +173,8 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
 
       expect(Message.outbound.sole.status).to eq "sent"
       expect(Turn.sole.latency_ms).to be_within(1_000).of(8_000)
+      # The verifier's V2 on #45: the agreement's span starts at the receipt too.
+      expect(TraceEvent.sole.started_at).to be_within(0.001).of(event.received_at)
     end
 
     it "starts the first conversation in English for an English app, and the greeting follows" do
