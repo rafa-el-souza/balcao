@@ -29,7 +29,8 @@ function Notice({ text }: { text: string }) {
   if (colon < 1) return <Text text={text} />;
   return (
     <p>
-      <strong>{text.slice(0, colon + 1)}</strong> {text.slice(colon + 2)}
+      <strong>{text.slice(0, colon + 1)}</strong>{" "}
+      {joinMoney(text.slice(colon + 2))}
     </p>
   );
 }
@@ -58,7 +59,8 @@ function stamped(line: string, marks: readonly string[]) {
 // "R$ 7,90" with a plain space, and the page joins them as it draws the
 // message, so a narrow screen never parts them (docs/prototype/landing.html's
 // note; the owner's round at the MVP close, rows IR-V1 and Q44).
-const joinMoney = (line: string) => line.replace(/(R\$) (?=\d)/g, "$1\u00a0");
+export const joinMoney = (line: string) =>
+  line.replace(/(R\$) (?=\d)/g, "$1\u00a0");
 
 // Plain text with its line breaks (design §6.9, threat model SR-03): a blank
 // line opens a paragraph, a single one breaks the line. Nothing is markup;

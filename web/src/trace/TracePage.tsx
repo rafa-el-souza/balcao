@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Trans, useTranslation } from "react-i18next";
 
 import { rateOf, type Trace } from "../chat/api";
-import { Text } from "../chat/Thread";
+import { joinMoney, Text } from "../chat/Thread";
 import { cx } from "../ui/cx";
 import { Icon } from "../ui/Icon";
 import { PageMasthead } from "../ui/PageMasthead";
@@ -69,7 +69,7 @@ function TurnSection({ turn, trace }: { turn: Turn; trace: Trace }) {
         <span className={styles.turnNumber}>
           {t("instrument.turn", { number: turn.number })}
         </span>{" "}
-        {said && <span className={styles.said}>{said.body}</span>}{" "}
+        {said && <span className={styles.said}>{joinMoney(said.body)}</span>}{" "}
         {/* It counts ten times a second while the turn runs: the live region
             around the turns does not read it out. */}
         <span className={styles.turnTime} aria-live="off">

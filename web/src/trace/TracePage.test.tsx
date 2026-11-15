@@ -187,6 +187,23 @@ describe("FR-12 the trace page, the glass box at full length", () => {
     expect(second.getByText("trace")).toBeInTheDocument();
   });
 
+  // The finder's sisters of row IR-V1 on pull request #38: the visitor's
+  // words in a turn's heading are a message's text too, so a price in them
+  // keeps "R$" with its figure, as the reply under them does.
+  it("keeps a price's symbol with its figure in the visitor's words and in the reply", async () => {
+    const answer = trace();
+    answer.body.messages[0] = said("m1", "t1", "tem por menos de R$ 10?");
+    answer.body.messages[1] = reply("m2", "t1", "Tem, por R$ 7,90.");
+    server.answers.trace.push(answer);
+    renderPage(<TracePage />);
+    await screen.findByRole("region", { name: pt.roll });
+
+    expect(
+      within(turn(1)).getByRole("heading", { level: 2 }).textContent,
+    ).toContain("tem por menos de R$\u00a010?");
+    expect(turn(1).textContent).toContain("Tem, por R$\u00a07,90.");
+  });
+
   // FR-12, FR-14: the turn's cost closes it, and the receipt's total is the
   // cost, with the turns' time a line of its own (docs/prototype/trace.html).
   it("closes each turn with its cost in dollars and reais, and totals the cost above the tokens and the time", async () => {

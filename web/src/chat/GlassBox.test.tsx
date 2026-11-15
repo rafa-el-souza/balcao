@@ -875,6 +875,28 @@ describe("FR-01 the demo notice, stamped apart from the reply", () => {
     expect(reply).toHaveAttribute("data-voice", "attendant");
     expect(reply).not.toHaveTextContent("Aviso");
   });
+
+  // The finder's sisters of row IR-V1 on pull request #38: the notice is a
+  // message's text too, so a price in it keeps "R$" with its figure.
+  it("keeps a price's symbol with its figure in the notice", async () => {
+    server.answers.current.push(
+      conversation(1, [
+        message({ author: "visitor", body: "oi" }),
+        message({
+          author: "bot",
+          notice: "Aviso: R$ 7,00 é a entrega, e R$ sozinho fica.",
+          body: "Olá!",
+        }),
+      ]),
+    );
+    renderPage(<Chat />);
+    await ready();
+
+    const stamp = (await within(thread()).findByText("Aviso:")).closest("li");
+    expect(stamp?.textContent).toBe(
+      "Aviso: R$\u00a07,00 é a entrega, e R$ sozinho fica.",
+    );
+  });
 });
 
 describe("FR-18 the conversation's stream, with the polling as its fallback", () => {
