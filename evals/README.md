@@ -140,13 +140,13 @@ are in the seed.
   call. `bin/evals` runs in the test environment only, on the test
   database. It calls the live Messages API (tool loops need several
   rounds, so it does not use the Batches API), prints each case as it ends
-  and a table per suite with the 95% Wilson interval and the tokens per
-  model, and writes every attempt whole (messages, replies, outcomes,
-  model and tool calls, checks, verdicts) to
+  and a table per suite with the 95% Wilson interval, then the tokens and
+  the dollars per model, priced by `config/prices.yml`, the judge apart,
+  and writes every attempt whole (messages, replies, outcomes, model and
+  tool calls, checks, verdicts) to
   `evals/results/<UTC time>-<commit>.json`, gitignored. It exits 0 when
   every case passed, 1 when one failed or ended in error or the run
-  stopped, 2 for a command it does not take. Dollars come with the price
-  table of FR-14 (PR-16); until then the tokens are the cost.
+  stopped, 2 for a command it does not take.
 - `bin/evals --suite boundary --model economy` runs one suite on the
   economy model (from M2).
 - `bin/evals --all --both-models --scorecard` runs everything on both
