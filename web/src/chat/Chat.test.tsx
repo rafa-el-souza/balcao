@@ -841,6 +841,30 @@ describe("Threat model SR-03 the attendant's words are text", () => {
     expect(reply?.querySelectorAll("br")).toHaveLength(1);
     expect(reply).toHaveAttribute("data-voice", "attendant");
   });
+
+  // The owner's round at the MVP close, rows IR-V1 and Q44: at 390 px a
+  // reply broke between "R$" and its figure, which the server and the model
+  // write with a plain space; the page joins them as it draws the message
+  // (docs/prototype/landing.html's note, E-23).
+  it("keeps a price's symbol with its figure, and writes the words as they came", async () => {
+    server.answers.current.push(
+      conversation(1, [
+        message({
+          author: "bot",
+          body: "Dipirona 500 mg, 10 comprimidos: R$ 7,90.\nA entrega custa R$ 7,00; R$ sozinho fica.",
+        }),
+      ]),
+    );
+    renderPage(<Chat />);
+    await ready();
+
+    const reply = (
+      await within(thread()).findByText(/Dipirona 500 mg/)
+    ).closest("li");
+    expect(reply?.textContent).toBe(
+      "Dipirona 500 mg, 10 comprimidos: R$\u00a07,90.A entrega custa R$\u00a07,00; R$ sozinho fica.",
+    );
+  });
 });
 
 // docs/prototype/chat-reservation.html: a reservation's code is a small stamp

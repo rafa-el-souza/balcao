@@ -54,6 +54,12 @@ function stamped(line: string, marks: readonly string[]) {
     );
 }
 
+// A price's symbol stays with its figure: the server and the model write
+// "R$ 7,90" with a plain space, and the page joins them as it draws the
+// message, so a narrow screen never parts them (docs/prototype/landing.html's
+// note; the owner's round at the MVP close, rows IR-V1 and Q44).
+const joinMoney = (line: string) => line.replace(/(R\$) (?=\d)/g, "$1\u00a0");
+
 // Plain text with its line breaks (design §6.9, threat model SR-03): a blank
 // line opens a paragraph, a single one breaks the line. Nothing is markup;
 // only the codes given are stamped.
@@ -72,7 +78,7 @@ export function Text({
         {paragraph.split("\n").map((line, at) => (
           <Fragment key={at}>
             {at > 0 && <br />}
-            {stamped(line, marks)}
+            {stamped(joinMoney(line), marks)}
           </Fragment>
         ))}
       </p>
