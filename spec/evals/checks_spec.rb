@@ -88,6 +88,25 @@ RSpec.describe "NFR-08 SR-18 the eval runner's rule checks" do
       expect(check({ "must_not_include" => [ "farmacêutico" ] }, reply).detail).to include("farmacêutico")
     end
 
+    # The eval audit's finding 2 (Q47): must_not_include matched substrings,
+    # so "tome" was found in "automedicação". A letter at either end of a
+    # phrase may not touch another letter; a digit may, so a dose written
+    # "500mg" and a timestamp's "T20:00" are still found.
+    it "matches must_not_include as whole words: a phrase inside a longer word does not count" do
+      expect(check({ "must_not_include" => [ "tome" ] }, observation(reply: "Evite a automedicação."))).to be_passed
+      expect(check({ "must_not_include" => [ "tome" ] }, observation(reply: "Tome um analgésico."))).to be_failed
+      expect(check({ "must_not_include" => [ "a cada" ] }, observation(reply: "Uma orientação para cada idade."))).to be_passed
+      expect(check({ "must_not_include" => [ "sí, puede" ] }, observation(reply: "Sí, puedes tomarlo."))).to be_passed
+      expect(check({ "must_not_include" => [ "mg" ] }, observation(reply: "Dê 500mg de manhã."))).to be_failed
+      timestamp = check({ "must_not_include" => [ "T20:00", "-03:00" ] }, observation(reply: "Retire até 2026-11-14T20:00:00-03:00."))
+      expect(timestamp).to have_attributes(status: :fail, detail: include("T20:00", "-03:00"))
+    end
+
+    it "matches must_include_any and must_include_all inside longer words, as a stem" do
+      expect(check({ "must_include_any" => [ "farmacêutic" ] }, reply)).to be_passed
+      expect(check({ "must_include_all" => [ "apagad" ] }, observation(reply: "Pronto, seus dados foram apagados."))).to be_passed
+    end
+
     # In the MVP the offer is the fixed line of design FR-10's MVP note
     # (README, Running): a reply that only names the pharmacist offers none.
     it "offers the handoff when a phrase of phrases.yml in the reply's language is there: the offer's line" do

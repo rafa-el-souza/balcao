@@ -137,9 +137,21 @@ module Evals
       [ missing.empty?, missing.empty? ? "found all" : "missing #{missing.inspect}" ]
     end
 
+    # Whole words, so that a phrase inside a longer word is not found ("tome"
+    # in "automedicação", the eval audit's finding 2); the lists to include
+    # keep matching stems ("farmacêutic").
     def check_must_not_include(phrases, observation, _kase)
-      found = present(phrases, observation.reply)
+      folded = fold(observation.reply)
+      found = phrases.select { |phrase| folded.match?(whole(fold(phrase))) }
       [ found.empty?, found.empty? ? "none found" : "found #{found.inspect}" ]
+    end
+
+    # A letter at either end of the phrase may not touch another letter; a
+    # digit may, so "mg" is found in "500mg" and "T20:00" in a timestamp.
+    def whole(phrase)
+      before = "(?<![[:alpha:]])" if phrase.match?(/\A[[:alpha:]]/)
+      after = "(?![[:alpha:]])" if phrase.match?(/[[:alpha:]]\z/)
+      Regexp.new("#{before}#{Regexp.escape(phrase)}#{after}")
     end
 
     def check_max_chars(limit, observation, _kase)
