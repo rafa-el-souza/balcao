@@ -159,4 +159,23 @@ RSpec.describe "FR-19 SR-06 SR-09 SR-42 the task that sets the bot" do
     allow(setup).to receive(:call).and_return(Telegram::Setup::Result.new(info:, failed: [], differs: [ "max_connections" ]))
     expect { Rake::Task["telegram:setup"].execute }.to raise_error(SystemExit, /max_connections/)
   end
+
+  # The hunter's H4 on pull request #41 (dono, the verifier): the task gave
+  # the remedy of a refused write ("run it again later") to a field that
+  # differs, which a second run sets the same way and finds the same.
+  it "names each failure's own remedy: a later run for a write Telegram refused, the runbook's check for a field that differs" do
+    Rails.application.load_tasks if Rake::Task.tasks.none? { |task| task.name == "telegram:setup" }
+    setup = instance_double(Telegram::Setup)
+    allow(Telegram::Setup).to receive(:new).and_return(setup)
+    messages = [ [ [ "name en" ], [] ], [ [], [ "url" ] ] ].map do |failed, differs|
+      allow(setup).to receive(:call).and_return(Telegram::Setup::Result.new(info:, failed:, differs:))
+      Rake::Task["telegram:setup"].execute
+    rescue SystemExit => e
+      e.message
+    end
+
+    expect(messages.first).to eq("telegram:setup: not written: name en; run it again after the wait Telegram named (the runbook)")
+    expect(messages.last).to eq("telegram:setup: the webhook Telegram reports differs in url, which a run again sets the same way; " \
+                                "check the values against the runbook's part on the bot before running it again")
+  end
 end

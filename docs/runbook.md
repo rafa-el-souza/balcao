@@ -340,9 +340,16 @@ the env file loaded in the same call.
   reports the webhook otherwise than the task set it, in any of `url`,
   `allowed_updates`, `max_connections` and `has_custom_certificate`
   (`false`), or leaves one of them out: a line `webhook <field>: set …,
-  Telegram reports …` names each (FR-19). The secret is not among them:
-  Telegram never shows it back, so the smoke below reads the delivery
-  errors.
+  Telegram reports …` names each (FR-19). That is no wait, and a run again
+  sets the same values: a `url` on another name means the destination's
+  `APP_HOST` (`config/deploy.ensaio.yml`) is not the demo's name, or the
+  task ran in another destination's container; any other field means
+  Telegram took or reports something other than what the task sent, so
+  compare its two values with the Bot API's page on `setWebhook` and
+  `getWebhookInfo` (a field left out counts too, two of the four being
+  optional there) before running the task again. The secret is not among
+  them: Telegram never shows it back, so the smoke below reads the
+  delivery errors.
 - **The smoke** reads `getWebhookInfo`, at the end of the task or alone:
   `kamal app exec -d ensaio --roles=web --reuse "bin/rails runner 'puts JSON.pretty_generate(Telegram::Client.new.webhook_info)'"`.
   The task has compared `url`, `max_connections`, `allowed_updates` and
