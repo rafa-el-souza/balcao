@@ -54,6 +54,14 @@ RSpec.describe "FR-03 system prompt (FR-01, FR-02, FR-05, FR-09, FR-26, SR-21, d
     expect(prompt).to match(/any other language.*Portuguese/m)
   end
 
+  # FR-02 (the owner, 2026-11-15; the MVP review, Q48): the fixed texts and
+  # the page say "tú", and the model's replies mixed in "usted".
+  it "asks for \"tú\" in Spanish, in one sentence of the language's section (FR-02)" do
+    language = prompt[/# Language\n\n(.+?)\n\n# /m, 1]
+
+    expect(language).to include('In Spanish, address the visitor as "tú", as the system\'s own texts do.')
+  end
+
   it "asks for the reply's language tag, which the runner reads and strips (FR-02)" do
     expect(prompt).to include("[pt]", "[en]", "[es]")
   end
