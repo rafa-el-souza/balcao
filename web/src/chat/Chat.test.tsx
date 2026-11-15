@@ -160,6 +160,36 @@ describe("FR-18 the composer", () => {
     expect(within(thread()).getByText("tem dipirona?")).toBeInTheDocument();
   });
 
+  // The owner's round at the MVP close, rows 14-FN-ime and Q45 (the
+  // interface review's W10): an input method's Enter chooses a word. In
+  // Safari it comes after compositionend, with isComposing false, and it
+  // sent half a message.
+  it("sends nothing with the Enter that ends an input method's composition", async () => {
+    renderPage(<Chat />);
+    await ready();
+
+    // Safari's order: the composition ends, then its Enter.
+    fireEvent.compositionStart(field());
+    type("にほ");
+    fireEvent.compositionEnd(field());
+    fireEvent.keyDown(field(), { key: "Enter", keyCode: 229 });
+    // A browser that says nothing on the key itself, mid-composition.
+    fireEvent.compositionStart(field());
+    type("にほん");
+    fireEvent.keyDown(field(), { key: "Enter", keyCode: 13 });
+    await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
+    expect(server.sent()).toEqual([]);
+
+    fireEvent.compositionEnd(field());
+    type("にほんご");
+    fireEvent.keyDown(field(), { key: "Enter", keyCode: 13 });
+
+    await waitFor(() => {
+      expect(server.sent()).toHaveLength(1);
+    });
+    expect(server.sent()[0]?.body).toMatchObject({ text: "にほんご" });
+  });
+
   it("sends nothing when the field holds only spaces", async () => {
     renderPage(<Chat />);
     await ready();

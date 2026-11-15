@@ -61,11 +61,20 @@ export function Composer({ onSend }: { onSend: (text: string) => void }) {
     setText("");
   };
 
+  // An input method's Enter chooses a word, and sends nothing. The field
+  // tracks its composition, since a browser may not say so on the key: in
+  // Safari the Enter that ends one comes after compositionend, with
+  // isComposing false and the key code 229 that marks a key the input method
+  // took (the owner's round at the MVP close, rows 14-FN-ime and Q45).
+  const composing = useRef(false);
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (
       event.key !== "Enter" ||
       event.shiftKey ||
-      event.nativeEvent.isComposing
+      event.nativeEvent.isComposing ||
+      composing.current ||
+      // eslint-disable-next-line @typescript-eslint/no-deprecated -- Safari's only mark of an input method's key
+      event.keyCode === 229
     )
       return;
     event.preventDefault();
@@ -97,6 +106,12 @@ export function Composer({ onSend }: { onSend: (text: string) => void }) {
             setText(event.target.value);
           }}
           onKeyDown={onKeyDown}
+          onCompositionStart={() => {
+            composing.current = true;
+          }}
+          onCompositionEnd={() => {
+            composing.current = false;
+          }}
         />
         <div className={styles.composerSide}>
           {count !== null && (
