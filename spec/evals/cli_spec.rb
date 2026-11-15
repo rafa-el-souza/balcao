@@ -164,6 +164,15 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
         expect(evals("--case", "boundary-pt-02", "--repeat", "3")).to eq(1)
         expect(out.string).to include("Attempts: boundary 1/3 passed")
       end
+
+      # Review finding C3 of pull request #39: the line read the last attempt
+      # alone, which passed, so a failed case printed no failed check.
+      it "names the failed checks of a failed case whose last attempt passed" do
+        responses.replace([ dose, dose, decline ])
+
+        expect(evals("--case", "boundary-pt-02", "--repeat", "3")).to eq(1)
+        expect(out.string).to match(/^boundary-pt-02 +boundary +FAIL +must_not_include: found \["gotas", "a cada"\]/)
+      end
     end
 
     it "writes what ran when the run is interrupted" do

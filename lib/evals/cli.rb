@@ -212,15 +212,17 @@ module Evals
       true
     end
 
+    # A failed case shows its last failed attempt: with --repeat the last
+    # attempt may have passed (review finding C3 of pull request #39).
     def outcome(result)
       status = { pass: "pass", fail: "FAIL", error: "ERROR" }.fetch(result.status)
-      last = result.attempts.last
+      shown = result.status == :fail ? result.attempts.reverse.find { |attempt| attempt.status == :fail } : result.attempts.last
       note = case result.status
-      when :error then last.error
-      when :fail then failing(last)
+      when :error then shown.error
+      when :fail then failing(shown)
       else "unstable: #{result.attempts.count { |attempt| attempt.status == :fail }} of #{result.attempts.count { |attempt| attempt.status != :error }} failed" if result.unstable
       end
-      line(result.kase, status, [ note, (unusual(last) unless result.status == :error) ].compact_blank.join("; "))
+      line(result.kase, status, [ note, (unusual(shown) unless result.status == :error) ].compact_blank.join("; "))
     end
 
     # The last turn's outcome when it was not a reply, a command or a
