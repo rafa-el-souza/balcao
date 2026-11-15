@@ -147,3 +147,24 @@ RSpec.describe "FR-05 a visitor's data deleted on request" do
     expect(Reservation.exists?(reservation.id)).to be(false)
   end
 end
+
+# Threat model SR-10: a visitor is known by the SHA-256 of an identifier,
+# never by the identifier itself. Both channels compute it as a lowercase
+# hex digest (WebSession, Telegram::Inbound), so anything else is a bug that
+# would store what the hash keeps out: a Telegram user id passed unhashed, a
+# cookie's token (review finding C7 of pull request #7).
+RSpec.describe "SR-10 an identity is stored as a SHA-256 digest, never as it came" do
+  let(:digest) { Digest::SHA256.hexdigest("pepper734120") }
+
+  it "takes a visitor's identity only as 64 lowercase hex characters" do
+    [ "734120", SecureRandom.urlsafe_base64(32), digest.upcase, digest[0, 63], "#{digest}0" ].each do |raw|
+      expect { Visitor.identify!(channel: "telegram", identity_hash: raw) }.to raise_error(ActiveRecord::RecordInvalid), raw
+    end
+    expect(Visitor.identify!(channel: "telegram", identity_hash: digest)).to be_persisted
+  end
+
+  it "takes a stored update's sender the same way" do
+    expect(build(:webhook_event, identity_hash: digest.upcase)).not_to be_valid
+    expect(build(:webhook_event, identity_hash: digest)).to be_valid
+  end
+end
