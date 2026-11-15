@@ -53,7 +53,8 @@ whose opening comment says what it does and why.
    Anthropic SDK's tool loop inside three limits: six tool calls, 1,500
    output tokens per model call, sixty seconds in all.
    [`app/agent/model_policy.rb`](app/agent/model_policy.rb) is the one place
-   that names a model.
+   that names a model: Claude Opus 5.5, and Claude Haiku 5.5 as the cheaper
+   model of the budget's economy mode.
 4. **The prompt draws a line.**
    [`app/agent/system_prompt.rb`](app/agent/system_prompt.rb) holds the
    attendant's instructions, nothing secret among them, and the rule that
@@ -215,8 +216,13 @@ Design complete and independently reviewed (2026-11-02, 30 findings;
 (design §9.1), closed on 2026-11-15 after a review of all its pull requests
 ([`docs/reviews/mvp-review.md`](docs/reviews/mvp-review.md),
 [ADR-0019](docs/adr/0019-the-review-at-a-close-and-four-amendments-to-the-review-policy.md)):
-the demo answers at the address above, on the web and on Telegram. What
-each day brought:
+the demo answers at the address above, on the web and on Telegram. The
+review read the 367 lines that the reviews of the pull requests had left
+for the owner: 74 were fixed, 10 changed a requirement's sentence instead
+of the code, 45 wait in a later milestone or for a decision, 10 were read
+again by one more reviewer, and the other 228 were accepted, kept by the
+owner's word, already made, measured or dropped (the table has each line);
+ADR-0019 adds four rules to the review policy. What each day brought:
 
 - **Day 2:** the demo host at the address above, with TLS.
 - **Day 5:** a conversation over the HTTP API.
@@ -237,20 +243,27 @@ each day brought:
 - **Day 11:** the Telegram bot takes messages in, asks a new person to
   agree before it keeps anything of theirs, and what visitors send is
   encrypted at rest.
-- **Day 12:** the bot answers in plain text, with the typing status, its
-  own command menu and profile in three languages, and the landing's QR
-  opens it.
+- **Day 12:** the bot answers in plain text, with the typing status;
+  `/trace` sends the conversation's trace page; the bot has its own command
+  menu and profile in three languages, and the landing's QR opens it.
 
-Next, in the plan's order (design §9.2):
+Next, in the plan's order (design §9.2, where a milestone's number is a
+label for its content, not its place in the order):
 
-- **M4, voice and the bot's finish:** buttons for a reservation's code and
-  the trace, the openers as a keyboard, voice notes.
-- **M2, pharmacy work:** Turnstile, a second model checking every reply,
-  service bookings, the handoff to a person and the operator console.
-- **M3, operation:** the status page, the budget's modes and kill switch,
-  the canary, nightly backups, and production on its own host.
-- **M5, polish:** the exhibit traces, referrer counts, the landing's final
-  copy, the Spanish review and the README's tour.
+- **M4, voice and the bot's finish:** buttons in the bot for a
+  reservation's code and the trace, the landing's suggested first messages
+  as reply buttons, and voice notes.
+- **M2, pharmacy work:** Cloudflare Turnstile, a check that a visitor is a
+  person, before a session opens; a second model checking every reply;
+  service bookings; a conversation handed over to a person; and the
+  operator's console.
+- **M3, operation:** the status page, the budget's modes and kill switch, a
+  test conversation the app runs on a schedule (the canary), nightly
+  backups, and production on a host of its own (until then the demo runs
+  on the rehearsal host).
+- **M5, polish:** three example traces kept as files, a count of where
+  visitors come from, the landing's final copy, a review of the Spanish
+  texts and the README's final tour.
 
 ## Running locally
 
