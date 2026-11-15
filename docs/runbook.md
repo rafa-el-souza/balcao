@@ -27,7 +27,7 @@ two.
 | Kamal | 2.12.0 | A global gem in each deploying account, the same version in both; not in the Gemfile, no `bin/kamal`. `bin/deploy` prints `kamal version` first. |
 | kamal-proxy | v0.10.2 | `proxy.run.version` in `config/deploy.yml`, by tag: Kamal reads the running version back from the image tag, so a digest there stops every deploy. A tag can be pushed again, so the digest it resolved to when pinned is written beside it, and a host gets the image by that digest, under the tag, before Kamal boots the proxy (the swap below). Kamal 2.12 alone boots v0.9.2, which GHSA-g8jf-9mcc-x4f2 (high) affects. A deploy never swaps a running proxy. |
 | Docker on the workstation | rootless | Kamal builds with the engine's own builder (`builder.driver: docker` in `config/deploy.yml`), which fetches no BuildKit image. |
-| Base images | by digest | The `Dockerfile`'s, which Dependabot proposes, and the Postgres accessory's in `config/deploy.yml`, checked by hand on bump day. |
+| Base images | by digest | Those of the `Dockerfile`, which Dependabot proposes, and the Postgres accessory's in `config/deploy.yml`, checked by hand on bump day. |
 
 ## The host contract
 
@@ -155,19 +155,22 @@ Only a green `main` is deployed to the MVP host.
 
      ```
      ORIGIN=https://balcao.rafasouza.dev.br; JAR=$(mktemp)
-     curl -s -o /dev/null -w '%{http_code}\n' -c "$JAR" -H "Origin: $ORIGIN" -H 'Content-Type: application/json' -d '{}' "$ORIGIN/api/session"
-     curl -s -o /dev/null -w '%{http_code}\n' -b "$JAR" -H "Origin: $ORIGIN" -H 'Content-Type: application/json' -d "{\"id\": \"$(uuidgen)\", \"say\": \"stock_pt\"}" "$ORIGIN/api/messages"
+     curl -s -o /dev/null -w '%{http_code}\n' -c "$JAR" -H "Origin: $ORIGIN" \
+       -H 'Content-Type: application/json' -d '{}' "$ORIGIN/api/session"
+     curl -s -o /dev/null -w '%{http_code}\n' -b "$JAR" -H "Origin: $ORIGIN" \
+       -H 'Content-Type: application/json' \
+       -d "{\"id\": \"$(uuidgen)\", \"say\": \"stock_pt\"}" "$ORIGIN/api/messages"
      curl -s -b "$JAR" "$ORIGIN/api/conversations/current"
      rm "$JAR"
      ```
 
-     The session answers `201` and the message `202`; the third line,
-     repeated for up to a minute (the reply took about five seconds on
+     The session answers `201` and the message `202`; the third request,
+     repeated for up to a minute (the reply took five to ten seconds on
      2026-11-15), shows the reply to "tem dipirona?" and `"pending":false`.
-     Each such turn spends a cent or so of the dev/eval key. Since PR-16 the
-     same answer also carries `"mode":"normal"` and the rate of the real
-     (`"brl"`), and the reply's spans carry each model call's cost
-     (`balcao.cost.usd`).
+     Each such turn spends about two cents of the dev/eval key (US$ 0.019
+     that day). Since PR-16 the same answer also carries `"mode":"normal"`
+     and the rate of the real (`"brl"`), and the reply's spans carry each
+     model call's cost (`balcao.cost.usd`).
 5. The catalogue: after the first deploy that runs turns (PR-09) and after
    any change to `db/seeds/catalogue.yml`,
    `kamal app exec -d ensaio --roles=web --reuse 'bin/rails db:seed'`. It
@@ -402,9 +405,9 @@ In this order, from the workstation, with the destination's env file
 loaded as for a deploy. Steps 3 and 4 interrupt the demo, so they are done
 only when there is something to change; the others never do.
 
-1. **Dependabot's pull requests** (gems, npm, the `Dockerfile`'s base
-   images, Actions): read, merged when CI is green, then the MVP deploy
-   flow above.
+1. **Dependabot's pull requests** (gems, npm, the base images of the
+   `Dockerfile`, Actions): read, merged when CI is green, then the MVP
+   deploy flow above.
 2. **The pinned Kamal gem:** the same new version in both accounts, and
    this file's table.
 3. **The pinned kamal-proxy**, against the advisories kamal-proxy publishes
