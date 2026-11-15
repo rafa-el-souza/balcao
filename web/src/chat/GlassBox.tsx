@@ -152,10 +152,27 @@ export function GlassRows({ glass }: { glass: Glass }) {
 }
 
 // The line that stands for the glass box at 390 px: the last turn alone, its
-// number, rows, cost and time (docs/prototype/chat.html).
-export function useSummary(glass: Glass): string {
+// number, rows, cost and time (docs/prototype/chat.html), in parts, since the
+// count of rows leaves first when the four do not fit (Chat.module.css); with
+// no turn yet, the count alone.
+export interface Summary {
+  turn: string | null;
+  events: string;
+  figure: string | null;
+}
+
+export function useSummary(glass: Glass): Summary {
   const line = useTurnLine();
   const { last } = glass;
-  if (!last) return line.events(glass.leading.length);
-  return `${line.number(last)} · ${line.events(eventsOf(last))} · ${line.figure(last.cost, line.time(last))}`;
+  if (!last)
+    return {
+      turn: null,
+      events: line.events(glass.leading.length),
+      figure: null,
+    };
+  return {
+    turn: line.number(last),
+    events: line.events(eventsOf(last)),
+    figure: line.figure(last.cost, line.time(last)),
+  };
 }

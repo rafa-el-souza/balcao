@@ -16,7 +16,7 @@ read with that list.
 |---|---|---|---|
 | 1 | The screen shows the wireframe's content in the wireframe's order; nothing added, nothing missing, nothing moved without a decision | design §6.8 | reading the sketch against the DOM order |
 | 2 | Every visible string comes from the three locale files; no literal user-facing string in code | NFR-09 | Grep of `web/src/`; the locale-key parity check in CI |
-| 3 | The longest locale (pt-BR or es, up to 30 % longer than en) fits at 390 px with no overflow, truncation or layout change | brief §4 | screenshot at 390 px per locale; assertion on `scrollWidth` |
+| 3 | The longest locale (pt-BR or es, up to 30 % longer than en) fits at 390 px with no overflow, truncation or layout change; nothing widens the page down to 320 px | brief §4 | screenshot at 390 px per locale; assertion on `scrollWidth` |
 | 4 | The language switcher is in the header on every page and keeps the current route | design §6.7 | Playwright assertion |
 | 5 | Light paper theme: surface and text come from the `paper` and `ink` tokens, never white on black or raw hex outside `tokens.css` | brief §4, ADR-0008 | Grep of CSS Modules for colour literals |
 | 6 | Two faces only, both self-hosted: the counter face for the conversation, landing and calendar; the mono instrument face with tabular figures for the glass box, trace and status. Never Inter, Roboto, Arial or `system-ui` as the text face; no font CDN | brief §5, SR-03 | computed `font-family` assertion; Grep for `@font-face` sources |

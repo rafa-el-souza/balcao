@@ -509,6 +509,43 @@
     cursor: pointer;
   }
 
+  /* When the turn's number, rows, cost and time do not fit, the count of rows leaves first, since
+     the drawer shows the rows; cost and time stay whole, and the line never widens the page (the
+     owner, 2026-11-15; docs/prototype/chat.html). The count and the figure share a box one line
+     tall that wraps: laid out from its end with the figure first in its order, the count is the
+     part that goes, whole, to the second line, which the box clips. */
+  .summaryLine {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    line-height: var(--leading-row);
+  }
+
+  .summaryTurn {
+    flex: none;
+    white-space: pre;
+  }
+
+  .summaryRest {
+    display: flex;
+    flex: 1 1 0;
+    flex-flow: row-reverse wrap;
+    justify-content: flex-end;
+    align-content: flex-start;
+    min-width: 0;
+    height: var(--leading-row);
+    overflow: hidden;
+  }
+
+  .summaryRest > * {
+    white-space: pre;
+  }
+
+  .summaryFigure {
+    order: -1;
+  }
+
   .summaryOpen::after {
     content: "";
     display: inline-block;

@@ -150,7 +150,25 @@ export function Chat() {
                 else openDrawer();
               }}
             >
-              <span>{summary}</span>
+              <span className={styles.summaryLine}>
+                {summary.turn !== null && (
+                  <span className={styles.summaryTurn}>
+                    {`${summary.turn} · `}
+                  </span>
+                )}
+                <span className={styles.summaryRest}>
+                  <span>
+                    {summary.figure === null
+                      ? summary.events
+                      : `${summary.events} · `}
+                  </span>
+                  {summary.figure !== null && (
+                    <span className={styles.summaryFigure}>
+                      {summary.figure}
+                    </span>
+                  )}
+                </span>
+              </span>
               <span className={styles.summaryOpen}>
                 <span className={parts.visuallyHidden}>
                   {t("chat.glass.open")}

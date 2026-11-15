@@ -50,6 +50,11 @@ const ready = () =>
   waitFor(() => {
     expect(server.polls()).toHaveLength(1);
   });
+// The 390 px line's name, from its parts (the turn, the count, the figure),
+// each a box of its own: a browser keeps the space after a part's
+// separator, and jsdom's name trims each part's text.
+const summaryName = (source: string) =>
+  new RegExp(source.replaceAll(" · ", " ·\\s?"));
 
 // React applies the updates made inside one act() when it ends, so a timer
 // the page re-arms after an answer needs time to pass in steps.
@@ -257,7 +262,7 @@ describe("FR-12 FR-14 the costs in the glass box", () => {
     );
     expect(
       screen.getByRole("button", {
-        name: /turno 1 · 5 eventos · US\$ 0,009 · 3,0 s/,
+        name: summaryName("turno 1 · 5 eventos · US\\$ 0,009 · 3,0 s"),
       }),
     ).toBeInTheDocument();
   });
@@ -517,11 +522,15 @@ describe("FR-12 the glass box and the clocks", () => {
     await ready();
 
     expect(
-      await screen.findByRole("button", { name: /turno 1 · .* · 2,\d s …/ }),
+      await screen.findByRole("button", {
+        name: summaryName("turno 1 · .* · 2,\\d s …"),
+      }),
     ).toBeInTheDocument();
     await act(() => vi.advanceTimersByTimeAsync(1000));
     expect(
-      screen.getByRole("button", { name: /turno 1 · .* · 3,\d s …/ }),
+      screen.getByRole("button", {
+        name: summaryName("turno 1 · .* · 3,\\d s …"),
+      }),
     ).toBeInTheDocument();
   });
 
@@ -720,7 +729,7 @@ describe("FR-12 the glass box at 390 px", () => {
     await ready();
 
     const line = await screen.findByRole("button", {
-      name: /turno 2 · 1 evento · 12 ms/,
+      name: summaryName("turno 2 · 1 evento · 12 ms"),
     });
     expect(line).toHaveAttribute("aria-expanded", "false");
     expect(line).toHaveAttribute("aria-controls", "glass");
