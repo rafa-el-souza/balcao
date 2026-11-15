@@ -118,9 +118,12 @@ RSpec.describe "FR-04 FR-05 FR-12 FR-19 command phrases, matched before the mode
   # FR-05 (the owner, 2026-11-15): a deletion phrase that ends in a question
   # mark is a question, which goes to the attendant, who says how to delete;
   # the rule is the deletion's alone ("como você funciona?" stays the trace).
+  # A final "¿" is a question mark too (line 9 of pull request #41's review,
+  # carried to the MVP close); the opening one alone stays the command.
   [
     "apagar meus dados?", "/apagar?", "delete my data?", "¿borrar mis datos?", "apagar meus dados? 🙏",
-    "apagar meus dados 🙏?", "apagar meus dados?!", "apagar meus dados ？", "apagar meus dados❓", '"apagar meus dados?"'
+    "apagar meus dados 🙏?", "apagar meus dados?!", "apagar meus dados ？", "apagar meus dados❓", '"apagar meus dados?"',
+    "borrar mis datos¿", "¿borrar mis datos¿", "borrar mis datos ¿"
   ].each do |text|
     it "takes #{text.inspect} as a question for the attendant, not the deletion" do
       expect(commands.match(text)).to be_nil

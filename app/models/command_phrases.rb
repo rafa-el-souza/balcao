@@ -21,8 +21,9 @@ class CommandPhrases
   # not U+FFFD, which stands for bytes that were not UTF-8.
   TAIL = /[[\s\p{P}\p{S}\p{Extended_Pictographic}\p{Cf}\p{Me}]&&[^\uFFFD]]+\z/
   # A question mark in what follows a deletion phrase: NFKD reads the
-  # full-width "？" and "⁉" as "?".
-  QUESTION = /[?‽❓❔]/
+  # full-width "？" and "⁉" as "?"; a final "¿" counts as one (line 9 of
+  # pull request #41's review), while an opening one is OPENING's.
+  QUESTION = /[?¿‽❓❔]/
   # The agreement's phrase counts only as written (FR-19, Telegram's
   # "explicit, active" consent): around it, spaces, an opening ¡ and
   # quotation marks, and after it a full stop, an exclamation or an ellipsis

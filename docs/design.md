@@ -237,7 +237,9 @@ never through a tool, so no prompt injection can trigger it.
   spaces, an opening "¿" or "¡", quotation marks around the phrase, and
   punctuation or emoji after it do not count, so "apagar meus dados 🙏"
   deletes. A deletion phrase that ends in a question mark is a question,
-  not the command: it goes to the attendant, who says how to delete. A
+  not the command: it goes to the attendant, who says how to delete; a
+  final "¿" is a question mark too, while an opening one alone stays the
+  command (the MVP close, line 9 of pull request #41's review). A
   phrase inside a longer message is never the command. (The owner,
   2026-11-15; review finding N8 of pull request #8 and the round's
   verifier.)
