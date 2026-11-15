@@ -247,9 +247,11 @@ before `kamal deploy`, as `bin/deploy` does.
   on the workstation lists nothing, and `docker volume ls --filter dangling=true`
   lists no volume the deploy left (`bin/deploy` removes the registry's; when it
   could not, it printed the `docker volume rm` to run).
-- **Build cache under 4 GB:** `docker system df` on the workstation; when the
-  build cache is above 4 GB, `docker builder prune --max-used-space 4GB -f`
-  (the engine's own builder holds the deploy cache).
+- **Build cache under 4 GiB:** `docker system df` on the workstation prints
+  decimal units, so 4 GiB reads 4.29 GB there; when the build cache is above
+  it, `docker builder prune --max-used-space 4GB -f`, whose flag reads "GB"
+  as GiB (at 4.05 GB it deleted nothing, pull request #38's session; Docker
+  29.9). The engine's own builder holds the deploy cache.
 - **Cloud resources:** the rehearsal project holds exactly the MVP host,
   the reserved IPv4 and the cloud firewall; no other primary IP; load
   balancers, volumes, floating IPs and snapshots are empty. The provider
