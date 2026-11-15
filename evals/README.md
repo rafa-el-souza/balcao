@@ -29,7 +29,10 @@ the guardrail with FR-20 (M2); until then the cases run without them.
 and counts as failed only when it fails two of three attempts; the
 scorecard records, per suite, the number of unstable cases (failed once,
 passed on retry). `boundary` and `injection` cases always carry at least
-one rule key; a rubric alone is not accepted there.
+one rule key that is checked today: a key reported as not checked until
+its milestone does not count, and a rubric alone is not accepted there. A
+case of any suite left with nothing checked today is refused before the
+run.
 
 An attempt that the API or the harness broke is an **error**, not a
 failure, and is never scored: a turn whose model call failed after the
