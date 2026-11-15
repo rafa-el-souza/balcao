@@ -159,6 +159,22 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
       expect(enqueued_jobs.map { |job| job["job_class"] }).not_to include("ProcessTurnJob")
     end
 
+    # NFR-01 runs from the update's receipt to the reply's send (M4-2): the
+    # greeting is the agreement's reply, sent by its status after the read.
+    it "gives the agreement's turn its latency from the update's receipt to the greeting's send (NFR-01)" do
+      stub_request(:post, bot_api_url("sendMessage")).to_return do |request|
+        travel(5.seconds) # the send itself takes five seconds
+        sent << JSON.parse(request.body)
+        bot_api_answer({ "message_id" => sent.size })
+      end
+      event = travel_to(3.seconds.ago) { store(fixture("agree")) }
+
+      TelegramUpdateJob.perform_now(event.id)
+
+      expect(Message.outbound.sole.status).to eq "sent"
+      expect(Turn.sole.latency_ms).to be_within(1_000).of(8_000)
+    end
+
     it "starts the first conversation in English for an English app, and the greeting follows" do
       update = variant("agree") do |message|
         message["text"] = "I agree"

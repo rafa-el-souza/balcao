@@ -26,6 +26,15 @@ class Turn < ApplicationRecord
     end
   end
 
+  # NFR-01's figure, in ms: from the inbound message's receipt to the reply's
+  # send. A web reply is sent as it is stored, to the page's stream, and
+  # TurnProcessor writes the figure then; a Telegram reply leaves later, by
+  # its status, and Telegram::Outbound writes it when the Bot API takes its
+  # last part (reply_sent!), so a reply that never left has none.
+  def latency_until(sent_at) = ((sent_at - inbound_message.received_at) * 1000).round
+
+  def reply_sent!(at = Time.current) = update_columns(latency_ms: latency_until(at), updated_at: at)
+
   private
 
   def inbound_message_is_inbound

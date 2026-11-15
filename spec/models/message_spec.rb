@@ -21,6 +21,24 @@ RSpec.describe "NFR-02 SR-07 inbound message, keyed by the channel's message id"
     expect(Message.record_inbound!(conversation:, external_id: "id-1", body: "oi")).to be_previously_new_record
   end
 
+  # NFR-01 measures a turn from its message's receipt (M4-2): on Telegram the
+  # update's arrival at the webhook, before the queue's wait and the job that
+  # stored the message.
+  describe "the message's receipt (NFR-01)" do
+    it "is the update's arrival at the webhook for a message that came in one" do
+      event = WebhookEvent.record!(update_id: 734_120_901, kind: "message", payload: "{}", received_at: 2.seconds.ago)
+      message = Message.record_inbound!(conversation:, external_id: "v1:8", body: "oi", webhook_event: event)
+
+      expect(message.received_at).to eq(event.received_at)
+    end
+
+    it "is when the message was stored for one that came in no update, as on the web" do
+      message = Message.record_inbound!(conversation:, external_id: "v1:9", body: "oi")
+
+      expect(message.received_at).to eq(message.created_at)
+    end
+  end
+
   it "does not key messages that carry no channel id" do
     2.times { create(:message, conversation:, external_id: nil) }
 

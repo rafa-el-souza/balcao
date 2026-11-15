@@ -9,7 +9,8 @@ module Telegram
   #   Telegram answers ok, part by part when it was cut, so a new attempt
   #   starts at the first part not sent; one marked sent is never sent again
   #   (NFR-02). A send whose answer was lost may arrive twice: sendMessage
-  #   takes no idempotency key.
+  #   takes no idempotency key. When the last part leaves, the reply's turn
+  #   gets its latency, from the message's receipt to that moment (NFR-01).
   # - A reply that is not stored (the ask, /help and the deletion before the
   #   agreement, the fixed lines, the deletion's confirmation) is sent where
   #   it is made, to the chat of the update or of the row, before the
@@ -139,8 +140,19 @@ module Telegram
 
         return again_or_failed(message, error, visitor, [ message.parts_sent + 1, parts.size ])
       end
-      message.update_columns(status: "sent", next_attempt_at: nil, updated_at: Time.current)
+      sent_at = Time.current
+      message.update_columns(status: "sent", next_attempt_at: nil, updated_at: sent_at)
+      latency(message, sent_at)
       true
+    end
+
+    # NFR-01's figure for the reply's turn (Turn#reply_sent!). A measure never
+    # holds a delivery back: one that cannot be written is a line naming the
+    # reply and the error's class, and the person's next replies go on.
+    def latency(message, sent_at)
+      message.turn&.reply_sent!(sent_at)
+    rescue StandardError => e
+      Rails.logger.error("telegram reply #{message.id}: its turn's latency not written, #{e.class}")
     end
 
     # nil once the part left, else the error.

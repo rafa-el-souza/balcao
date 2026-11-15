@@ -19,8 +19,9 @@ RSpec.describe "FR-19 FR-05 NFR-03 ProcessTurnJob on Telegram, the reply on its 
 
   before { allow(AgentRunner).to receive(:default_client) { FakeModel.new(responses).client } }
 
-  def inbound(text, conversation: self.conversation)
-    message = Message.record_inbound!(conversation:, external_id: "#{conversation.visitor_id}:#{SecureRandom.random_number(10**9)}", body: text)
+  def inbound(text, conversation: self.conversation, webhook_event: nil)
+    message = Message.record_inbound!(conversation:, external_id: "#{conversation.visitor_id}:#{SecureRandom.random_number(10**9)}",
+                                      body: text, webhook_event:)
     Turn.for_inbound!(message)
   end
 
@@ -53,6 +54,59 @@ RSpec.describe "FR-19 FR-05 NFR-03 ProcessTurnJob on Telegram, the reply on its 
 
     expect(sent_when_second_ran).to eq 1
     expect(sent.map { |body| body["text"] }).to eq([ first.reload.outbound_message.body, second.reload.outbound_message.body ])
+  end
+
+  # NFR-01 runs from the update's receipt to the reply's send (M4-2): the
+  # queue's wait before the update's job stored the message, and the send
+  # after the reply was stored, are both part of what the visitor waits for.
+  describe "the turn's latency, from the update's receipt to the reply's send (NFR-01)" do
+    let(:received) { 3.seconds.ago }
+    let(:event) { WebhookEvent.record!(update_id: 734_120_902, kind: "message", payload: "{}", received_at: received) }
+
+    it "starts the turn's trace at the update's receipt" do
+      turn = inbound("Vocês têm dipirona?", webhook_event: event)
+
+      perform(turn)
+
+      expect(TraceEvent.find_by!(turn_id: turn.id, name: "balcao.turn").started_at).to be_within(0.001).of(received)
+    end
+
+    it "counts the latency to the moment Telegram took the reply, not to the moment it was stored" do
+      stub_request(:post, bot_api_url("sendMessage")).to_return do |request|
+        travel(5.seconds) # the send itself takes five seconds
+        sent << JSON.parse(request.body)
+        bot_api_answer({ "message_id" => sent.size })
+      end
+      turn = inbound("Vocês têm dipirona?", webhook_event: event)
+
+      perform(turn)
+
+      expect(turn.outbound_message.reload.status).to eq "sent"
+      expect(turn.reload.latency_ms).to be_within(1_000).of(8_000)
+    end
+
+    it "counts a command's latency to its send too" do
+      stub_request(:post, bot_api_url("sendMessage")).to_return do |request|
+        travel(5.seconds)
+        sent << JSON.parse(request.body)
+        bot_api_answer({ "message_id" => sent.size })
+      end
+      turn = inbound("/trace", webhook_event: event)
+
+      perform(turn)
+
+      expect(turn.reload.latency_ms).to be_within(1_000).of(8_000)
+    end
+
+    it "writes no latency for a reply that never left" do
+      stub_request(:post, bot_api_url("sendMessage")).to_return(bot_api_error(403, "Forbidden: bot was blocked by the user"))
+      turn = inbound("Vocês têm dipirona?", webhook_event: event)
+
+      perform(turn)
+
+      expect(turn.outbound_message.reload.status).to eq "failed"
+      expect(turn.reload).to have_attributes(state: "replied", latency_ms: nil)
+    end
   end
 
   it "shows no typing status for a command, whose reply is at once" do
