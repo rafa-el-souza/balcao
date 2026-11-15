@@ -1960,16 +1960,18 @@ arrives (#31's review). By the owner's word of 2026-11-15 the round below
 fixes two defects of what exists without changing the contract, in its
 first server pull request: the search with a dose in the query, and the
 error for a YAML key that is not text. Both were fixed there (#40): a
-query that, its doses set aside, names a product finds it as a partial
-match, so "losartana 100 mg" finds the "Losartana potássica 50 mg" the
-store carries though no one says "potássica"; over 138 queries on the
-seed two results changed, both dose queries that found nothing
-("losartana 100 mg", "losartna 100mg"). A first version left a short list
-of salts out of what a partial match asks for, which also changed five
-queries with no dose ("losartana infantil", "metformina genérico") and
-would have offered one salt of a medicine for another; the review
-narrowed it to the doses (its findings V1 and C2). The store sheet names
-a key that is not text.
+query with a dose that names a product's active ingredient, its salt set
+aside, finds it as a partial match, so "losartana 100 mg" finds the
+"Losartana potássica 50 mg" the store carries though no one says
+"potássica"; over 147 queries on the seed two results changed, both dose
+queries that found nothing ("losartana 100 mg", "losartna 100mg"). A
+first version left a short list of salts out of every partial match,
+which also changed five queries with no dose ("losartana infantil",
+"metformina genérico") and would have offered one salt of a medicine for
+another; a second asked only that the query's words be the product's,
+which listed the Losartana potássica for "potássio 600 mg"; the review
+narrowed it to the doses and to the medicine's name (its findings V1,
+C2 and R1). The store sheet names a key that is not text.
 
 - Note 2026-11-15 (the owner's round at the MVP close, ADR-0013; FR-02,
   FR-05, FR-09, FR-12, FR-14, FR-18's note, FR-19, FR-21, NFR-03, NFR-10,
