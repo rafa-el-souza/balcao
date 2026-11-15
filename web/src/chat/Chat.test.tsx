@@ -550,8 +550,11 @@ describe("NFR-03 the turn that waits", () => {
       await waitFor(() => {
         expect(inThread().at(-1)?.element).toHaveTextContent(pt.thinking);
       });
-      expect(inThread().map(({ behavior }) => behavior)).not.toContain(
-        "smooth",
+      // "auto", which every browser takes, and no sheet sets a smooth
+      // scroll-behavior, so the scroll is at once (the finder's note N1 on
+      // pull request #38: an engine without "instant" would throw).
+      expect(inThread().map(({ behavior }) => behavior)).toEqual(
+        inThread().map(() => "auto"),
       );
     });
 

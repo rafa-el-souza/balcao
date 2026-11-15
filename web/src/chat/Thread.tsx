@@ -250,7 +250,9 @@ export function Thread({
       root.scrollPaddingBottom = `${String(covered())}px`;
       element.scrollIntoView({
         block: "end",
-        behavior: reducedMotion() ? "instant" : "smooth",
+        // "auto" is at once, since no sheet sets a smooth scroll-behavior,
+        // and every engine takes it ("instant" is newer).
+        behavior: reducedMotion() ? "auto" : "smooth",
       });
       root.scrollPaddingBottom = "";
     },
