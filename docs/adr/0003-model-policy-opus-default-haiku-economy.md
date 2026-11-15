@@ -1,6 +1,6 @@
 # ADR-0003: Opus 5.5 by default, Haiku 5.5 as economy mode, three-level budget
 
-**Status:** accepted; the budget gates are extended by ADR-0012 (daily slice, per-source limits, challenge) · **Date:** 2026-11-02
+**Status:** accepted; the budget gates are extended by ADR-0012 (daily slice, per-source limits, challenge); the normal mode's effort amended by [ADR-0021](0021-the-normal-route-at-low-effort.md) (low, 2026-11-15) · **Date:** 2026-11-02
 
 ## Context
 

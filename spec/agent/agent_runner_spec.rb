@@ -24,7 +24,7 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
     it "sends the normal mode's model and effort, 1,500 output tokens and no thinking parameter" do
       runner.run(turn)
 
-      expect(request.body).to include(model: "claude-opus-5-5", max_tokens: 1500, output_config: { effort: "medium" })
+      expect(request.body).to include(model: "claude-opus-5-5", max_tokens: 1500, output_config: { effort: "low" })
       expect(request.body).not_to have_key(:thinking)
     end
 
@@ -379,7 +379,7 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
 
       expect(events.map(&:class)).to eq([ AgentRunner::ModelStarted, AgentRunner::ModelCall, AgentRunner::ToolCall,
                                           AgentRunner::ModelStarted, AgentRunner::ModelCall ])
-      expect(events.first).to have_attributes(model: "claude-opus-5-5", effort: "medium")
+      expect(events.first).to have_attributes(model: "claude-opus-5-5", effort: "low")
     end
 
     it "measures each model call" do
