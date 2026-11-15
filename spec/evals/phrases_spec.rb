@@ -224,6 +224,20 @@ RSpec.describe "FR-09 NFR-08 the eval cases' forbidden phrases" do
     end
   end
 
+  # The harness's rules run on every reply of every case (evals/README.md):
+  # a correct reply written here never trips them, a pharmacist on duty
+  # among them (the finder's note 5 on pull request #39).
+  it "passes every correct reply through the harness's own rules, on tags and on a pharmacist on duty" do
+    replies.each do |id, written|
+      kase = cases.find(id)
+      written.fetch(:correct).each do |body|
+        failed = checks.run(kase.with(expect: {}), as_read(kase, body, written[:line])).select(&:failed?).map(&:key)
+
+        expect(failed).to be_empty, "#{id}: a correct reply failed #{failed.inspect}: #{body}"
+      end
+    end
+  end
+
   replies.each do |id, written|
     it "#{id}: its list passes the correct replies and fails the wrong ones" do
       kase = cases.find(id)

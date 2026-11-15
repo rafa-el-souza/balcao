@@ -21,15 +21,17 @@ RSpec.describe "NFR-08 SR-18 the eval runner's rule checks" do
 
   def call(name, input) = Evals::ToolCall.new(name:, input:)
 
-  # The check of the case's one key; the harness's own rule on tags runs
-  # beside it on every case (below).
+  # The check of the case's one key; the harness's own rules, on tags and on
+  # a pharmacist on duty, run beside it on every case (below).
   def check(expect, observation, **)
     results = checks.run(kase(expect, **), observation)
-    expect(results.map(&:key)).to eq([ *expect.keys, "tags" ])
+    expect(results.map(&:key)).to eq([ *expect.keys, "tags", "on_duty" ])
     results.first
   end
 
-  def tags(observation, expect = { "language" => "pt" }) = checks.run(kase(expect), observation).find { |result| result.key == "tags" }
+  def harness(key, observation, expect = { "language" => "pt" }) = checks.run(kase(expect), observation).find { |result| result.key == key }
+
+  def tags(observation, expect = { "language" => "pt" }) = harness("tags", observation, expect)
 
   describe "language" do
     it "passes a reply in the expected language and fails one in another, with the scores" do
@@ -174,7 +176,7 @@ RSpec.describe "NFR-08 SR-18 the eval runner's rule checks" do
   end
 
   it "leaves the rubric to the judge" do
-    expect(checks.run(kase({ "rubric" => "Greets." }, suite: "greeting"), observation).map(&:key)).to eq([ "tags" ])
+    expect(checks.run(kase({ "rubric" => "Greets." }, suite: "greeting"), observation).map(&:key)).to eq([ "tags", "on_duty" ])
   end
 
   # The eval audit's finding 6 (#9's line D-tag, #27's line C4): a tag the
@@ -199,6 +201,38 @@ RSpec.describe "NFR-08 SR-18 the eval runner's rule checks" do
       reply = "Temos Dipirona [500 mg] por R$ 7,90 [preço de hoje], e o [mapa](https://example.invalid) da loja."
 
       expect(tags(observation(reply:, notice:))).to have_attributes(status: :pass, detail: "none left")
+    end
+  end
+
+  # FR-09 (the owner, 2026-11-14): the pharmacist is the store's, never one
+  # "on duty", which would promise someone out of the store's hours. Nothing
+  # checked it (the finder's note 5 on pull request #39, carried by the MVP
+  # review, 2026-11-15), so every reply of every case fails on the phrase, in
+  # each language, whatever the case's keys (evals/README.md).
+  describe "a pharmacist on duty" do
+    def on_duty(observation) = harness("on_duty", observation)
+
+    {
+      "Quem responde é o farmacêutico de plantão." => "de plantão",
+      "The pharmacist on duty can answer that." => "on duty",
+      "Eso lo responde el farmacéutico de turno." => "de turno",
+      "Pregunta en la farmacia de guardia." => "de guardia",
+      "O FARMACÊUTICO DE PLANTÃO responde." => "de plantão"
+    }.each do |reply, phrase|
+      it "fails the case on #{phrase.inspect} in #{reply.inspect}" do
+        expect(on_duty(observation(reply:))).to have_attributes(status: :fail, detail: "said #{phrase.inspect}")
+      end
+    end
+
+    it "reads the replies to the earlier messages too" do
+      expect(on_duty(observation(earlier: [ "Fale com o farmacêutico de plantão." ]))).to be_failed
+    end
+
+    it "passes the store's pharmacist, and the phrases inside longer words" do
+      [ "Quem responde é o farmacêutico da loja.", "The store's pharmacist can answer that.",
+        "Eso lo responde el farmacéutico de la tienda.", "Os plantões de vacinação são às terças.", "Hay cambio de turnos a las 14:00." ].each do |reply|
+        expect(on_duty(observation(reply:))).to have_attributes(status: :pass, detail: "none said")
+      end
     end
   end
 end

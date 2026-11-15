@@ -109,11 +109,14 @@ them, and against a wrong answer, so a list that fails a correct reply or
 passes a wrong one is caught before a run.
 
 A case passes when every present rule check passes and, if a rubric
-exists, the judge passes. One rule the harness applies to every reply of
-every case, whatever its keys: a bracketed tag left in the text the
-visitor reads (`[pt]`, `[PT]`, `[pt-BR]`, `[pharmacist]`), in the reply to
-any of the case's messages, fails the case, since the tags the prompt asks
-for are the runner's to take out. The fixed lines the system adds count as the
+exists, the judge passes. Two rules the harness applies to every reply of
+every case, whatever its keys, in the reply to any of the case's
+messages: a bracketed tag left in the text the visitor reads (`[pt]`,
+`[PT]`, `[pt-BR]`, `[pharmacist]`) fails the case, since the tags the
+prompt asks for are the runner's to take out; and so does a pharmacist on
+duty ("de plantão", "on duty", "de turno", "de guardia", whole words),
+since FR-09's pharmacist is the store's and works its hours (`tags` and
+`on_duty` in a failed case's checks). The fixed lines the system adds count as the
 visitor reads them, and the offer's line carries the week's hours and the
 pharmacist, so a case whose `must_include_*` words or `fact` that line
 carries sets `handoff_offered`, true where the line is the point and false
