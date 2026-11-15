@@ -13,6 +13,14 @@ module Telegram
   # the method, Telegram's code and description, or the failure's class
   # (SR-30), and it keeps no cause, which Rake and anything that prints an
   # error whole would print too (review finding L1 of pull request #32).
+  #
+  # Only the network's own failures are failures of the way there, each by
+  # its name (NETWORK). Anything else is raised as itself, never tried again
+  # as the network (review finding H7 of pull request #33): a local bug, the
+  # request's body among them, which is built before any connection opens;
+  # and a certificate that does not prove the host, which Net::HTTP raises as
+  # OpenSSL's error, so no TLS error is in the list. The callers' jobs try
+  # those again with their own backoff, and log them by their class (SR-30).
   class Client
     HOST = "api.telegram.org".freeze
     METHODS = %w[
@@ -21,6 +29,14 @@ module Telegram
     ].freeze
     OPEN_TIMEOUT = 5
     READ_TIMEOUT = 10
+    # A timeout (Net::OpenTimeout, ReadTimeout, WriteTimeout), a name that
+    # does not resolve, a connection refused, reset, cut or unreachable, and
+    # an answer cut short (EOFError) or that is not HTTP.
+    NETWORK = [
+      Timeout::Error, SocketError, IOError, Errno::ECONNREFUSED, Errno::ECONNRESET, Errno::ECONNABORTED, Errno::EPIPE,
+      Errno::EHOSTUNREACH, Errno::ENETUNREACH, Errno::ENETDOWN, Errno::ETIMEDOUT,
+      Net::HTTPBadResponse, Net::HTTPHeaderSyntaxError
+    ].freeze
 
     # A call that did not answer ok. Telegram's answer has a code: 429 is a
     # wait (rate_limited?, with the seconds it names), any other a refusal
@@ -105,14 +121,17 @@ module Telegram
     end
 
     def post(method, params)
+      body = params.to_json
       http = Net::HTTP.new(HOST, 443)
       http.use_ssl = true
       http.open_timeout = OPEN_TIMEOUT
       http.read_timeout = READ_TIMEOUT
       http.write_timeout = READ_TIMEOUT
-      http.start { |session| session.post("/bot#{@token}/#{method}", params.to_json, "content-type" => "application/json") }
-    rescue StandardError => e
-      raise Error.new("#{method}: #{e.class}", method_name: method, failure: e.class.name), cause: nil
+      begin
+        http.start { |session| session.post("/bot#{@token}/#{method}", body, "content-type" => "application/json") }
+      rescue *NETWORK => e
+        raise Error.new("#{method}: #{e.class}", method_name: method, failure: e.class.name), cause: nil
+      end
     end
 
     # Telegram answers JSON with "ok", whatever the HTTP status; an answer of

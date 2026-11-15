@@ -177,6 +177,40 @@ RSpec.describe "SR-22 FR-19 the Telegram Bot API client" do
       }
     end
 
+    # Review finding H7 of pull request #33: every error was a failure of the
+    # way there, tried again as the network, a local bug and a certificate
+    # that does not prove the host among them.
+    it "takes for the way there only the network's own failures, each by its name" do
+      [ Net::OpenTimeout, Net::ReadTimeout, Net::WriteTimeout, SocketError, Errno::ECONNREFUSED, Errno::ECONNRESET,
+        Errno::ECONNABORTED, Errno::EPIPE, Errno::EHOSTUNREACH, Errno::ENETUNREACH, Errno::ENETDOWN, Errno::ETIMEDOUT,
+        EOFError, IOError, Net::HTTPBadResponse, Net::HTTPHeaderSyntaxError ].each do |failure|
+        stub_request(:post, "#{base}/sendMessage").to_raise(failure)
+
+        expect { client.send_message(chat_id: 1, text: "Oi") }.to raise_error(Telegram::Client::Error) { |error|
+          expect(error).to have_attributes(code: nil, failure: failure.name, message: "sendMessage: #{failure.name}")
+          expect(error.cause).to be_nil
+        }
+      end
+    end
+
+    it "raises a certificate that does not prove api.telegram.org as itself, never as the network" do
+      refused = OpenSSL::SSL::SSLError.new("SSL_connect returned=1 errno=0 state=error: certificate verify failed (unable to get local issuer certificate)")
+      stub_request(:post, "#{base}/sendMessage").to_raise(refused)
+
+      expect { client.send_message(chat_id: 1, text: "Oi") }.to raise_error(refused)
+    end
+
+    it "raises a local bug as itself, and one in the request's body before any connection is opened" do
+      stub_request(:post, "#{base}/sendMessage").to_raise(NoMethodError.new("undefined method 'bytesize' for nil"))
+
+      expect { client.send_message(chat_id: 1, text: "Oi") }.to raise_error(NoMethodError)
+      WebMock.reset!
+      allow(Net::HTTP).to receive(:new).and_call_original
+
+      expect { client.send_message(chat_id: 1, text: "a\xffb".dup.force_encoding(Encoding::UTF_8)) }.to raise_error(JSON::GeneratorError)
+      expect(Net::HTTP).not_to have_received(:new)
+    end
+
     it "on a timeout, a broken connection or an answer that is not JSON, by the error's class" do
       [ -> { stub_request(:post, "#{base}/getWebhookInfo").to_timeout },
         -> { stub_request(:post, "#{base}/getWebhookInfo").to_raise(SocketError.new("getaddrinfo: #{token}")) },

@@ -304,6 +304,18 @@ RSpec.describe "FR-19 SR-43 NFR-02 Telegram::Outbound, a reply on its way to the
       expect(a_request(:post, bot_api_url("sendMessage"))).to have_been_made.times(6)
     end
 
+    # Review finding H7 of pull request #33: the client raises what is not the
+    # network as itself, and nothing here takes it for a failure of the way
+    # there; the job that sends tries again with its own backoff.
+    it "leaves the reply pending, its attempts untouched, when the client raises what is not the network" do
+      stub_request(:post, bot_api_url("sendMessage")).to_raise(OpenSSL::SSL::SSLError.new("certificate verify failed"))
+
+      expect { outbound.deliver_pending(visitor) }.to raise_error(OpenSSL::SSL::SSLError)
+
+      expect(message.reload).to have_attributes(status: "pending", send_attempts: 0, next_attempt_at: nil)
+      expect(enqueued_jobs).to be_empty
+    end
+
     it "goes on to the person's next reply after one that failed" do
       later = reply("Depois.", at: 1.minute.from_now)
       stub_request(:post, bot_api_url("sendMessage"))

@@ -36,7 +36,12 @@ module Telegram
   #   job tries it again (TurnProcessor, FR-05).
   # Any other answer that is not ok fails a reply at once. A failed reply is
   # marked failed with one line that names the error by its class (NFR-03,
-  # SR-30); the chat and the text never reach a line.
+  # SR-30); the chat and the text never reach a line. What the client raises
+  # as itself, not being the network (a local bug, a certificate that does
+  # not prove the host; Client::NETWORK, review finding H7 of pull request
+  # #33), is no answer of Telegram's: it leaves the reply pending, its
+  # attempts untouched, and breaks the job that sends, whose own retries
+  # carry it (ProcessTurnJob's delivery tries again a minute later).
   #
   # A reply to a person who agreed takes the agreement's keyboard away, the
   # greeting first; the ask shows it (FR-19).
