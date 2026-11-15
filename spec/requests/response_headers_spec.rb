@@ -61,6 +61,9 @@ RSpec.describe "SR-03 the response headers", :spa_shells, type: :request do
   OWN = { "GET /trace" => { "referrer-policy" => "no-referrer" } }.freeze
 
   PROBE = <<~'RUBY'
+    # The pages' shells the spec wrote (spec/support/spa_shells.rb), so the
+    # walk serves the pages with or without a build of web/.
+    Rails.configuration.x.spa_shells = Pathname(ENV.fetch("SPA_SHELLS_DIR"))
     Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new
     answers = {}
     call = lambda do |label, method, path, env = {}|
@@ -107,7 +110,8 @@ RSpec.describe "SR-03 the response headers", :spa_shells, type: :request do
 
   it "sends SR-03's set on every answer, every route's and the catalogue's, from the production configuration", :aggregate_failures do
     env = ProductionEnv.complete.merge("APP_HOST" => "demo.example", "RAILS_ENV" => "production", "DATABASE_URL" => nil,
-                                       "RAILS_LOG_LEVEL" => "fatal", "DB_HOST" => "/nonexistent/balcao-spec")
+                                       "RAILS_LOG_LEVEL" => "fatal", "DB_HOST" => "/nonexistent/balcao-spec",
+                                       "SPA_SHELLS_DIR" => Rails.configuration.x.spa_shells.to_s)
 
     out, err, status = Open3.capture3(env, "bin/rails", "runner", PROBE, chdir: Rails.root.to_s)
 
@@ -117,6 +121,9 @@ RSpec.describe "SR-03 the response headers", :spa_shells, type: :request do
     routes = Rails.application.routes.routes.map { |route| route.verb.empty? ? "GET" : route.verb }
     expect(answers.size).to eq(routes.size + CATALOGUE.size)
     expect(answers.slice(*CATALOGUE.keys).transform_values { |answer| answer["status"] }).to eq(CATALOGUE)
+    # A route that broke would be read as its error page, not as its own
+    # answer: give the walk what the route needs instead.
+    expect(answers.except(*CATALOGUE.keys).select { |_, answer| answer["status"] >= 500 }.keys).to eq([])
     defaults = Rails.application.config.action_dispatch.default_headers.transform_keys(&:downcase)
     expect(defaults.keys).to include("x-content-type-options", "x-frame-options", "referrer-policy", "permissions-policy")
     expect(probe.fetch("policy")).to include("default-src 'self'", "frame-ancestors 'none'")
