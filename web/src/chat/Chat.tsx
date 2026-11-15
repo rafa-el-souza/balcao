@@ -15,6 +15,10 @@ import { useConversation } from "./useConversation";
 // its rows (below).
 export const LIVE_AFTER_MS = 500;
 
+// The layout with the glass box beside the counter, which Chat.module.css
+// opens at the same width; below it the glass box is a drawer.
+const WIDE = "(width >= 52rem)";
+
 // The chat, `/chat` (design §6.7, §6.8; docs/prototype/chat*.html): the
 // counter and, beside it, the instrument. The glass box shows the turn's rows
 // as the server traces them (FR-12), each cost in dollars and in reais at the
@@ -121,6 +125,22 @@ export function Chat() {
     setDrawer(false);
     opener.current?.focus();
   };
+  // Wide, the glass box is the second column and there is no drawer, so a
+  // drawer left open when the window widens (a tablet turned) is closed: the
+  // reveal would otherwise keep the glass box's height clear beside the
+  // thread (the MVP close's verifier, X3 on pull request #42).
+  useEffect(() => {
+    if (!drawer || typeof window.matchMedia !== "function") return;
+    const wide = window.matchMedia(WIDE);
+    const onChange = () => {
+      if (wide.matches) setDrawer(false);
+    };
+    onChange();
+    wide.addEventListener("change", onChange);
+    return () => {
+      wide.removeEventListener("change", onChange);
+    };
+  }, [drawer]);
   // Escape closes the open drawer.
   useEffect(() => {
     if (!drawer) return;

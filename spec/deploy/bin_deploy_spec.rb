@@ -24,11 +24,12 @@ RSpec.describe "SR-38 bin/deploy deploys only the rehearsal destination" do
 
   after { FileUtils.remove_entry(shims) }
 
-  def write_shim(name, exit_status: "0", output: "''")
+  def write_shim(name, exit_status: "0", output: "''", effect: "nil")
     path = File.join(shims, name)
     File.write(path, <<~RUBY)
       #!/usr/bin/env ruby
       File.open(#{log.inspect}, "a") { |file| file.puts(["#{name}", *ARGV].join(" ")) }
+      #{effect}
       print(#{output})
       exit(#{exit_status})
     RUBY
@@ -180,5 +181,94 @@ RSpec.describe "SR-38 bin/deploy deploys only the rehearsal destination" do
 
     expect(status).not_to be_success
     expect(kamal_calls.last).to eq "kamal registry remove -d ensaio"
+  end
+
+  # The MVP close (the session's own line, not a review's): Kamal 2.12 runs
+  # its local registry from registry:3, whose image declares a volume for
+  # /var/lib/registry, and removes the container without it, so every deploy
+  # left an anonymous volume of about 158 MB on the deploying machine.
+  # bin/deploy reads that volume's name before the registry goes and removes
+  # it afterwards; it touches no other volume.
+  describe "the local registry's volume" do
+    let(:anonymous) { "7a184fc7a3d580358d7359cfeae92ab2cdbf407e58683a2624a081d46824a413" }
+    # The registry's container exists while DOCKER_SHIM_MOUNTS is set and
+    # until kamal's removal takes it; DOCKER_SHIM_REGISTRY_STAYS makes the
+    # removal leave it, as a docker stop or rm that fails does while Kamal
+    # 2.12 still exits 0 (review finding C1 of pull request #42).
+    let(:gone) { File.join(shims, "registry-gone") }
+
+    before do
+      write_shim("kamal",
+                 exit_status: "ENV.fetch('KAMAL_SHIM_FAIL_ON', '').split(',').include?(ARGV.first) ? 1 : 0",
+                 effect: "File.write(#{gone.inspect}, '') if ARGV.first(2) == %w[registry remove] && " \
+                         "!ENV.key?('DOCKER_SHIM_REGISTRY_STAYS') && !ENV.fetch('KAMAL_SHIM_FAIL_ON', '').include?('registry')")
+      write_shim("docker",
+                 exit_status: "ARGV[0, 2] == %w[container inspect] && (!ENV.key?('DOCKER_SHIM_MOUNTS') || File.exist?(#{gone.inspect})) ? 1 : 0",
+                 output: "ARGV[0, 2] == %w[container inspect] && !File.exist?(#{gone.inspect}) ? ENV.fetch('DOCKER_SHIM_MOUNTS', '') : ''")
+    end
+
+    def docker_calls = calls.grep(/\Adocker /)
+    def with_mounts(mounts, **more) = rehearsal_env.merge("DOCKER_SHIM_MOUNTS" => mounts, **more)
+
+    it "removes the registry container's anonymous volume after kamal registry remove" do
+      status, _err = deploy("-d", "ensaio", env: with_mounts("#{anonymous} /var/lib/registry\n\n"))
+
+      expect(status).to be_success
+      inspect = calls.index { |call| call.start_with?("docker container inspect ") && call.end_with?(" kamal-docker-registry") }
+      expect(inspect).to be < calls.index("kamal registry remove -d ensaio")
+      expect(calls.last(3)).to eq [ "kamal registry remove -d ensaio", "docker container inspect kamal-docker-registry",
+                                    "docker volume rm #{anonymous}" ]
+    end
+
+    it "removes it when the deploy fails too" do
+      status, _err = deploy("-d", "ensaio", env: with_mounts("#{anonymous} /var/lib/registry\n", "KAMAL_SHIM_FAIL_ON" => "setup"))
+
+      expect(status).not_to be_success
+      expect(calls.last).to eq "docker volume rm #{anonymous}"
+    end
+
+    it "leaves a named volume, and an anonymous one mounted elsewhere, alone" do
+      status, _err = deploy("-d", "ensaio", env: with_mounts("registry-data /var/lib/registry\n#{anonymous} /srv/other\n"))
+
+      expect(status).to be_success
+      expect(docker_calls.grep(/\Adocker volume /)).to be_empty
+    end
+
+    # Review finding C2 of pull request #42 (teorico, fixed for its few
+    # lines): the volume is read first, inside the ensure, and nothing that
+    # read raises may keep the registry from being removed.
+    it "removes the registry even when reading its volume raises" do
+      write_shim("docker", output: '"\\xFF /var/lib/registry\\n"')
+      _status, _err = deploy("-d", "ensaio")
+
+      expect(kamal_calls.last).to eq "kamal registry remove -d ensaio"
+    end
+
+    it "removes nothing when there is no registry container" do
+      status, _err = deploy("-d", "ensaio")
+
+      expect(status).to be_success
+      expect(docker_calls.grep(/\Adocker volume /)).to be_empty
+    end
+
+    it "keeps the volume, and says how to remove both, when kamal itself fails to remove the registry" do
+      status, err = deploy("-d", "ensaio", env: with_mounts("#{anonymous} /var/lib/registry\n", "KAMAL_SHIM_FAIL_ON" => "registry"))
+
+      expect(status).to be_success
+      expect(docker_calls.grep(/\Adocker volume /)).to be_empty
+      expect(err).to include("kamal registry remove -d ensaio", "docker volume rm #{anonymous}")
+    end
+
+    # Review finding C1 of pull request #42: Kamal 2.12 runs `docker stop`
+    # and `docker rm` without raising on their exit status, so its removal
+    # exits 0 with the registry still there; whether it is gone is docker's
+    # to say.
+    it "says the registry is still there when kamal's removal exits 0 but the container stays" do
+      status, err = deploy("-d", "ensaio", env: with_mounts("#{anonymous} /var/lib/registry\n", "DOCKER_SHIM_REGISTRY_STAYS" => "1"))
+
+      expect(status).to be_success
+      expect(docker_calls.grep(/\Adocker volume /)).to be_empty
+      expect(err).to include("still there", "kamal registry remove -d ensaio", "docker volume rm #{anonymous}")
+    end
   end
 end

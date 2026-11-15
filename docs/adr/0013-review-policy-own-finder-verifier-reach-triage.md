@@ -6,7 +6,12 @@ MVP; the built-in reviewer's recipe was read and probed on 2026-11-06, see
 `docs/reviews/instruments.md`) · The risk list amended by
 [ADR-0016](0016-telegram-bot-api-as-the-messaging-channel.md) on
 2026-11-14: the Telegram webhook and Bot API client take the WhatsApp
-webhook's and Graph client's place.
+webhook's and Graph client's place · Extended by
+[ADR-0019](0019-the-review-at-a-close-and-four-amendments-to-the-review-policy.md)
+on 2026-11-15: the method of the review at a close, and four amendments
+(a recommendation carried by its destination, the author's dismissals
+verified, the visual review of a CSS-only pull request, an extra finder at
+a close).
 
 ## Context
 

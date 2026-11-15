@@ -2,7 +2,10 @@
 
 **Status:** accepted · **Date:** 2026-11-13 (decided with the owner after an
 analysis of the demo's cable and an independent review that cut the plan
-down; threat model SR-03, SR-04, SR-32, SR-40).
+down; threat model SR-03, SR-04, SR-32, SR-40) · Its sentence on the 21st
+command amended by
+[ADR-0019](0019-the-review-at-a-close-and-four-amendments-to-the-review-policy.md)
+on 2026-11-15: the connection closes with `reconnect: true`.
 
 ## Context
 

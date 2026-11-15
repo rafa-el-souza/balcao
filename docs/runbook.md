@@ -135,8 +135,10 @@ Only a green `main` is deployed to the MVP host.
    refusing an image whose own version label names another release (a
    digest a bump left behind), runs `kamal setup` (on a fresh host it boots the
    accessory first; afterwards it deploys like `kamal deploy`), and always
-   ends with `kamal registry remove -d ensaio`. The first run on a fresh
-   host took about two and a half minutes.
+   ends with `kamal registry remove -d ensaio` and the removal of the
+   registry's anonymous volume, which Kamal's own removal leaves (about
+   158 MB a deploy; the MVP close). The first run on a fresh host took about
+   two and a half minutes.
 4. Smoke, from the workstation:
    - `curl -s -o /dev/null -w '%{http_code}\n' https://balcao.rafasouza.dev.br/up`
      answers `200`;
@@ -242,13 +244,25 @@ before `kamal deploy`, as `bin/deploy` does.
 ## End of a deploy session
 
 - **No registry left behind:** `docker ps -a --filter name=kamal-docker-registry`
-  on the workstation lists nothing.
-- **Build cache under 4 GB:** `docker system df` on the workstation; when the
-  build cache is above 4 GB, `docker builder prune --max-used-space 4GB -f`
-  (the engine's own builder holds the deploy cache).
+  on the workstation lists nothing, and `docker volume ls --filter dangling=true`
+  lists no volume the deploy left (`bin/deploy` removes the registry's once
+  docker says the container is gone, since Kamal's removal exits 0 even when
+  docker's failed; a registry still there is named, with the two commands to
+  run, as long as docker answers: a daemon that stops answering in those
+  seconds is read as "gone", and this check is what finds it).
+- **Build cache under 4 GiB:** `docker system df` on the workstation prints
+  decimal units, so 4 GiB reads 4.29 GB there; when the build cache is above
+  it, `docker builder prune --max-used-space 4GB -f`, whose flag reads "GB"
+  as GiB (at 4.05 GB it deleted nothing, pull request #38's session; Docker
+  29.9). The engine's own builder holds the deploy cache.
 - **Cloud resources:** the rehearsal project holds exactly the MVP host,
   the reserved IPv4 and the cloud firewall; no other primary IP; load
-  balancers, volumes, floating IPs and snapshots are empty. The provider
+  balancers, volumes, floating IPs and snapshots are empty. With the
+  provider's CLI in the rehearsal project's context: `hcloud server list`,
+  `hcloud primary-ip list`, `hcloud load-balancer list`, `hcloud volume
+  list`, `hcloud floating-ip list` and `hcloud image list -t snapshot`; to
+  count one, add `-o json | jq length`, which reads 0 for an empty list
+  (`-o noheader | wc -l` reads 1). The provider
   bills a server until it is deleted, powered off or not; the MVP host is
   never deleted before M3.
 
@@ -452,7 +466,12 @@ only when there is something to change; the others never do.
    (it reads the `Dockerfile`, not `config/deploy.yml`): checked by hand
    against the image's releases. A new image is a pull request that changes
    the digest and then a deliberate reboot from that `main`, never a side
-   effect of a deploy, and the jobs stop first:
+   effect of a deploy, and the jobs stop first. The digest is the image
+   index's, which `docker buildx imagetools inspect postgres:<tag> --format
+   '{{json .Manifest.Digest}}'` prints, and it follows the tag in the `db`
+   accessory's `image:` line (`postgres:18.6@sha256:…`). The reboot needs
+   no deploy: a deploy never reboots an accessory, and the app's containers
+   keep the version they run.
 
    ```
    RUNNING=$(kamal app version -d ensaio -q | grep -E '^[0-9a-f]{40}$')
@@ -469,14 +488,20 @@ only when there is something to change; the others never do.
    and still end without an error. (The variable is not named `VERSION`,
    which Kamal itself reads from the environment.) The fourth line is
    repeated until it says "accepting connections"; only then do the jobs
-   start, and the last line must list the `job` container, up.
+   start, and the last line must list the `job` container, up; `kamal
+   accessory details db -d ensaio` then shows the new image running.
    *Interrupts the demo:* while Postgres is down a message gets "not sent"
    on the page and Telegram sends its update again later; with the jobs
    stopped no turn is cut in the middle, and what was waiting runs when
    they start. Rebooted with the jobs running, a turn can lose its lock, a
    turn can be left without a reply and an update unread (the verifier of
-   the owner's round at the MVP close, 2026-11-15). The downtime is written
-   here at the first bump day that measures it.
+   the owner's round at the MVP close, 2026-11-15). *Measured* on
+   2026-11-15, when the demo's database was rebooted for its new log
+   settings (the step whole, from `4c2587a`): the jobs stopped for 39 s,
+   `kamal accessory reboot db` took 19.3 s, the first `pg_isready` already
+   said "accepting connections", and a probe from outside every 3 s saw the
+   database answer no request for between 6 and 12 s (three reads answered
+   500) while `/up` answered 200 throughout; a turn was answered after it.
 5. **`registry:3`**, the image Kamal runs for its local registry on the
    workstation: Kamal pulls it by tag, outside the digest pins, so the tag
    Kamal names is checked against its release notes.

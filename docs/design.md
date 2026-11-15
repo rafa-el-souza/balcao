@@ -1,6 +1,6 @@
 # Balcão — design document
 
-**Status:** v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
+**Status:** v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
 coding session, reading this file top to bottom.
 
 Balcão ("the counter", where a pharmacist serves customers) is an AI attendant
@@ -184,8 +184,14 @@ pt-BR (default), en and es; fixed UI strings follow the same choice.
   of the model's to read the language from (the decline after a refusal,
   the fallback, a turn given up), Then the text is in the conversation's
   language: the page's language on the web or the language of the
-  person's Telegram app when the conversation began, and after that the
-  language of the model's last reply. No detector reads the message: a
+  person's Telegram app when the first conversation began, and after that
+  the language of the model's last reply. A conversation a reset opens
+  begins in the reset phrase's language (the closed one's when several
+  languages list the phrase), and one opened after 24 hours of silence in
+  the closed one's (FR-04); on the web, until its first reply, the page's
+  language still names it, as it does any conversation not yet answered
+  (§10, PR-10's note). (The MVP close: line 12 of pull request #41's
+  review, and C3 of #42's.) No detector reads the message: a
   visitor who switches language in the very message that ends in such a
   text gets that one text in the conversation's language, and the next
   reply of the model follows the switch. A command phrase that several
@@ -237,7 +243,9 @@ never through a tool, so no prompt injection can trigger it.
   spaces, an opening "¿" or "¡", quotation marks around the phrase, and
   punctuation or emoji after it do not count, so "apagar meus dados 🙏"
   deletes. A deletion phrase that ends in a question mark is a question,
-  not the command: it goes to the attendant, who says how to delete. A
+  not the command: it goes to the attendant, who says how to delete; a
+  final "¿" is a question mark too, while an opening one alone stays the
+  command (the MVP close, line 9 of pull request #41's review). A
   phrase inside a longer message is never the command. (The owner,
   2026-11-15; review finding N8 of pull request #8 and the round's
   verifier.)
@@ -1850,9 +1858,10 @@ a later milestone, and until the round most of them had no line in this
 plan (§10's note of that day). They are part of each row's scope above. The
 slice that opens a milestone copies its lines into its brief and answers
 each in its pull request's Review section, done or with the reason it was
-not (the rule ADR-0019 writes at the close). In brackets: the pull request
-and the review line an item came from; `docs/reviews/mvp-close-round.md`,
-written at the close, has every line of the round.
+not (ADR-0019's first amendment to the review policy). In brackets: the
+pull request and the review line an item came from;
+`docs/reviews/mvp-review.md`, written at the close, has every line of the
+round.
 
 *M4, the first slice (the bot's finish).*
 - NFR-03's sweep: a Telegram update left unread and a turn left without
@@ -1860,6 +1869,12 @@ written at the close, has every line of the round.
   with a fixed line; a later update no longer spends its attempts waiting
   for an earlier one that keeps breaking (#33, H6; #32, H1 and H3; #18,
   V3).
+- A deletion that reaches the dead letter (FR-05 on Telegram) writes a
+  line naming it and keeps no reply, so that the sweep or the next message
+  runs it again, and never gets the generic fallback after "deleted"; the
+  later turns are held on any break of an earlier deletion, not only on a
+  confirmation that did not leave; and the "deleted all the same" line is
+  written after the erase (#41, C3, H1, H2, H3's third part and R1).
 - The turn's loose ends that the sweep meets: a turn's runs are counted,
   bounded from the usage records, and it fails after three (#11's review;
   #18, R4); the reply and the turn's state are written in one transaction
@@ -1881,6 +1896,10 @@ written at the close, has every line of the round.
 - With the economy model: `formatMoney` by significant digits (#29, C5);
   anything but a mapping with `economy_allowed: true` is "not allowed"
   (#29, S6).
+- With the `injection` suite: `injection-hostile-product-name-01`'s list
+  and rubric made to agree, since the rubric lets a reply quote the hostile
+  product's name, which holds "prêmio", a word the list forbids (#39's
+  review).
 
 *M3.*
 - The fourth chip's link to the injection score, with FR-13 (FR-21's
@@ -1897,7 +1916,10 @@ written at the close, has every line of the round.
 - One SR-30 sweep with the log review: Solid Cache's failsafe line, Solid
   Queue's "Error enqueuing recurring task" line, Action Cable's own error
   lines and its "Started GET /cable" line (#29, V4 and its review; the
-  round's triage); threat model R10 looked at again (#23, V2 and V6).
+  round's triage); `cause: nil` on `Telegram::Client`'s three raises, as
+  its header says (#41, H5); the trace token masked on any path that holds
+  one, `/api/trace/<token>` and a prefix before `/trace/` among them (#42,
+  X2 and V1); threat model R10 looked at again (#23, V2 and V6).
 - The canary's system visitor carries a marker and both purges leave it
   (#7, RS1); the app connects with a least-privilege role, not the image's
   superuser (#4's review).
@@ -1937,7 +1959,9 @@ written at the close, has every line of the round.
   everywhere at once, the boundary phrase lists with it (FR-02).
 - The evals' growth to 60: English and Spanish cases that must not be
   refused; the judge calibrated against a few dozen replies labelled by
-  hand, about 90 % agreement on the clear ones (the close's eval audit).
+  hand, about 90 % agreement on the clear ones (the close's eval audit); a
+  rubric for `boundary-pt-02` and `boundary-es-02`, whose lists pass a dose
+  written without units (#39's review).
 - With FR-25's offer, which brings "R$" into a page's text: the build
   plugin inserts rendered text through replacer functions (#14, C9); the
   shell's description and `og:` tags from the locale files, with the
@@ -1989,6 +2013,51 @@ which listed the Losartana potássica for "potássio 600 mg"; the review
 narrowed it to the doses and to the medicine's name (its findings V1,
 C2 and R1). The store sheet names a key that is not text.
 
+- Note 2026-11-15 (the MVP close, #42; FR-02, FR-05, FR-09, FR-14,
+  NFR-01, SR-20, SR-27; ADR-0019). The pull request that closes the MVP.
+  - **The first real conversation** (PR-19's last line in §9.1) took place
+    on 2026-11-15 between 17:15 and 17:39 UTC, from a phone of a person the
+    owner trusts, on the demo bot: the agreement, 25 messages (22 texts and
+    3 commands), every one answered, every reply sent, no error line. Its
+    22 text turns are NFR-01's first measure on the demo: a median of 6.4 s
+    and a p95 of 15.9 s from the message's receipt to the stored reply,
+    which Telegram's send then follows (5 of the 22 under 4 s, 17 under
+    10 s), against NFR-01's 4 s and 10 s, on the normal route
+    (Claude Opus 5.5 at medium effort). The requirement stands; what moves
+    the figures is the owner's to weigh (#42's Review section).
+  - **The scorecard** of `3e89c51` (`evals/scorecard.md`): every MVP case
+    passed, the `boundary` suite 13 of 13 cases and 39 of 39 attempts,
+    three per case (FR-09's three runs at a close). Against the scorecard
+    of `837996c`: one boundary case more (a visitor thinking of hurting
+    themselves, #41), the boundary's bracket from 76–100 to 77–100, every
+    other row the same. Before it, by the owner's word of 2026-11-15,
+    `boundary-pt-01`'s rubric reads FR-09's "one or two sentences" as the
+    decline's, after the judge once read them as the whole reply's (#39).
+    No verdict of the run contradicted its reason, the check #41's sixth
+    line asked for; one reason came back cut at an opening parenthesis,
+    most likely a double quote that the structured output took as the end
+    of the string, with the verdict "pass" on a correct reply.
+  - **Question 20, the cost of an abandoned call** (FR-14, SR-20).
+    AgentRunner's 60 s cut charges an attempt it abandons nothing, and
+    whether the provider bills such a call was unknown (#29, S8). At 17:34
+    UTC on 2026-11-15, with the dev/eval key and on a model no route, eval
+    or judge uses (Claude Sonnet 5.5), one call of 12,618 input tokens ran
+    to its end as a control (4 output tokens) and three of 46,038, 45,038
+    and 47,038 were abandoned by the client after 5 s, as the cut abandons
+    a call (the SDK's timeout, no retry). The day's Sonnet 5.5 usage in
+    the Console tells the two cases apart: about 12.6 thousand input tokens
+    if an abandoned call is not billed, about 150.7 thousand if its input
+    is. The Console is the owner's alone and its figures arrive within
+    hours; the reading lands here when he has it.
+  - **Two Docker lines of the session's own**, outside the review's ledger:
+    `bin/deploy` removes the local registry's anonymous volume, which
+    Kamal 2.12's own removal leaves (about 158 MB a deploy; every earlier
+    deploy's volume was deleted by hand on 2026-11-15, by the owner's
+    word); and the runbook's build-cache
+    limit is said in one unit, since `docker builder prune --max-used-space
+    4GB` reads its "GB" as GiB while `docker system df` prints decimal
+    units.
+
 - Note 2026-11-15 (the owner's round at the MVP close, ADR-0013; FR-02,
   FR-05, FR-09, FR-12, FR-14, FR-18's note, FR-19, FR-21, NFR-03, NFR-10,
   §6.3, §6.7, §6.8, §9; threat model SR-03, SR-19, SR-20, SR-27, SR-39,
@@ -1997,9 +2066,10 @@ C2 and R1). The store sheet names a key that is not text.
   review, the eval audit, the docs reader test), were triaged against the
   code, weighed against the documents and decided by the owner in one
   round: 51 questions and four lots. The record, one row per line with its
-  outcome, is `docs/reviews/mvp-close-round.md`; the method and what it
-  changes in the review policy is ADR-0019. Both are written by the pull
-  request that closes the MVP.
+  outcome, is `docs/reviews/mvp-review.md` (the owner named the work "the
+  MVP review" on 2026-11-15); the method and what it changes in the review
+  policy is ADR-0019. Both were written by the pull request that closes the
+  MVP.
   - **What the round changed in this document:** FR-02 (money and hours as
     the store writes them; "tú" in Spanish; the system's own texts in the
     conversation's language), FR-05 (what counts as the deletion command; the

@@ -623,6 +623,56 @@ describe("NFR-03 the turn that waits", () => {
       );
     });
 
+    // The MVP close's verifier, X3 on pull request #42: a drawer left open
+    // when the window widens past the stacked layout (a tablet turned) kept
+    // the glass box's height clear at every reveal, beside the thread.
+    it("closes the drawer when the window widens past the stacked layout", async () => {
+      const listeners = new Set<() => void>();
+      const wide = { matches: false };
+      vi.stubGlobal("matchMedia", (query: string) => ({
+        get matches() {
+          return query === "(width >= 52rem)" && wide.matches;
+        },
+        media: query,
+        addEventListener: (_: string, listener: () => void) =>
+          listeners.add(listener),
+        removeEventListener: (_: string, listener: () => void) =>
+          listeners.delete(listener),
+      }));
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      renderPage(<Chat />);
+      await ready();
+      const drawer = document.getElementById("glass");
+      const foot = field().closest("form")?.parentElement;
+      if (!drawer || !foot) throw new Error("no drawer or foot");
+      drawer.getBoundingClientRect = () => box(0);
+      foot.getBoundingClientRect = () => box(window.innerHeight - 80);
+      fireEvent.click(
+        screen.getByRole("button", { name: new RegExp(pt.glass.open) }),
+      );
+      await elapse(1000);
+      expect(document.querySelector("main")).toHaveAttribute("data-drawer");
+
+      wide.matches = true;
+      act(() => {
+        listeners.forEach((listener) => {
+          listener();
+        });
+      });
+      expect(document.querySelector("main")).not.toHaveAttribute("data-drawer");
+
+      const sent = scrolled.length;
+      await sendAndWait();
+      await within(thread()).findByText(pt.thinking);
+      const since = scrolled
+        .slice(sent)
+        .filter(({ element }) => thread().contains(element));
+      expect(since.length).toBeGreaterThan(0);
+      expect(since.map(({ padding }) => padding)).toEqual(
+        since.map(() => "80px"),
+      );
+    });
+
     // Review findings R2 and V4 of pull request #18: left on the root, the
     // padding moved the window whenever a control in the foot took the focus,
     // and outlived the layout it had measured.
