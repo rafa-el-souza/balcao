@@ -1,6 +1,8 @@
 # ADR-0017: The Telegram bot stays a text channel: one update type in, plain text out
 
-**Status:** accepted · **Date:** 2026-11-14 (after a survey of the Bot API's
+**Status:** accepted; its question on the operator's alert answered, and the
+place of the bot's finish in M4 amended, by [ADR-0020](0020-what-v1-leaves-out-the-plan-after-the-mvp.md) ·
+**Date:** 2026-11-14 (after a survey of the Bot API's
 reference, version 10.4, and of the platform's guides and terms, kept
 outside the repository; the pages were read that day and are listed at the
 end) · Extends [ADR-0016](0016-telegram-bot-api-as-the-messaging-channel.md).
