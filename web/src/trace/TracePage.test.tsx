@@ -341,9 +341,11 @@ describe("FR-12 the trace page follows the conversation live", () => {
   });
 
   // The owner's round at the MVP close, row IR-W11 (the interface review's
-  // W11): the rows the stream brings are announced, as the chat's messages
-  // are; the time a running turn counts, ten times a second, is not.
-  it("announces the rows its stream brings, and not the time that counts", async () => {
+  // W11), and the finder's C1 on pull request #38: the rows the stream
+  // brings are announced, a new turn's first row too, from a region that was
+  // there before them, as a live region only speaks of what changes in it;
+  // the time a running turn counts, ten times a second, is not.
+  it("announces the rows its stream brings, a new turn's first row too, and not the time that counts", async () => {
     server.defaults.trace = trace(answeredTurn("t1"));
     const cable = fakeCable();
     renderPage(<TracePage />, "pt-BR", cable.cable);
@@ -351,21 +353,22 @@ describe("FR-12 the trace page follows the conversation live", () => {
     await waitFor(() => {
       expect(cable.active()).toHaveLength(1);
     });
+    const region = within(turn(1)).getByRole("list").closest("[aria-live]");
+    expect(region).toHaveAttribute("aria-live", "polite");
 
     const [root, call] = runningTurn("t3", 9);
     cable.send({ type: "span", span: root });
-    cable.send({ type: "span", span: call });
+    await within(roll()).findByRole("heading", { level: 2, name: /^turno 2/ });
 
-    const heading = await within(roll()).findByRole("heading", {
-      level: 2,
-      name: /^turno 2/,
-    });
-    const rows = within(turn(2)).getByRole("list");
-    expect(rows.closest("[aria-live]")).toHaveAttribute("aria-live", "polite");
-    expect(within(turn(1)).getByRole("list").closest("[aria-live]")).not.toBe(
-      null,
+    expect(region).toContainElement(
+      within(turn(2)).getByText(ptBR.instrument.received),
     );
-    expect(heading.closest("[aria-live]")).toBeNull();
+    cable.send({ type: "span", span: call });
+    expect(region).toContainElement(
+      within(turn(2)).getByText(ptBR.instrument.model),
+    );
+    const counting = within(turn(2)).getByText(/ …$/);
+    expect(counting.closest("[aria-live]")).toHaveAttribute("aria-live", "off");
   });
 
   // Design §10, note of 2026-11-13: the tab's cross dims while a turn of the

@@ -11,6 +11,10 @@ import { glassOf, GlassRows, useSummary } from "./GlassBox";
 import { Thread } from "./Thread";
 import { useConversation } from "./useConversation";
 
+// How long after the page's first answer the glass box starts announcing
+// its rows (below).
+export const LIVE_AFTER_MS = 500;
+
 // The chat, `/chat` (design §6.7, §6.8; docs/prototype/chat*.html): the
 // counter and, beside it, the instrument. The glass box shows the turn's rows
 // as the server traces them (FR-12), each cost in dollars and in reais at the
@@ -66,6 +70,25 @@ export function Chat() {
   useEffect(() => {
     document.title = t("chat.title");
   }, [t]);
+
+  // The glass box's body is the live region of its rows, there before the
+  // first of them, since a live region speaks only of what changes in it: the
+  // conversation's first row is heard too. It starts announcing a while
+  // after the page's first answer has drawn what the conversation already
+  // had, once the browser has taken those rows in as they are, so a
+  // returning visitor's history is not read out as the page opens (the
+  // owner's round at the MVP close, row IR-W11; the finder's C1 on pull
+  // request #38). React does not hold the attribute, so it stays.
+  const answered = state.phase !== "loading";
+  useEffect(() => {
+    if (!answered) return;
+    const timer = window.setTimeout(() => {
+      rows.current?.setAttribute("aria-live", "polite");
+    }, LIVE_AFTER_MS);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [answered]);
 
   // A new row scrolls the glass box to itself.
   const count = glass.open.reduce(

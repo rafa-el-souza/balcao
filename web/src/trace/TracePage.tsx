@@ -70,12 +70,13 @@ function TurnSection({ turn, trace }: { turn: Turn; trace: Trace }) {
           {t("instrument.turn", { number: turn.number })}
         </span>{" "}
         {said && <span className={styles.said}>{said.body}</span>}{" "}
-        <span className={styles.turnTime}>{line.time(turn)}</span>
+        {/* It counts ten times a second while the turn runs: the live region
+            around the turns does not read it out. */}
+        <span className={styles.turnTime} aria-live="off">
+          {line.time(turn)}
+        </span>
       </h2>
-      {/* The rows the stream brings are announced, as the chat's are (the
-          owner's round at the MVP close, row IR-W11); the turn's time,
-          which counts while it runs, stays in the heading, outside. */}
-      <ol className={rowStyles.events} aria-live="polite">
+      <ol className={rowStyles.events}>
         <TurnRows turn={turn} open={false} />
       </ol>
       {reply && (
@@ -114,9 +115,16 @@ function Roll({ trace, turns }: { trace: Trace; turns: Turn[] }) {
       className={cx(parts.slip, styles.roll)}
       aria-label={t("trace.roll")}
     >
-      {turns.map((turn) => (
-        <TurnSection key={turn.id} turn={turn} trace={trace} />
-      ))}
+      {/* The turns are the live region of what the stream brings, there
+          before a new turn and its first row, since a live region speaks
+          only of what changes in it (the owner's round at the MVP close, row
+          IR-W11; the finder's C1 on pull request #38); the totals below,
+          which change with every turn's end, stay outside it. */}
+      <div aria-live="polite">
+        {turns.map((turn) => (
+          <TurnSection key={turn.id} turn={turn} trace={trace} />
+        ))}
+      </div>
       <dl className={styles.total}>
         <div>
           <dt>{t("trace.total", { count: turns.length })}</dt>

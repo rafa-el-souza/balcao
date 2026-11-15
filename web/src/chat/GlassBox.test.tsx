@@ -26,7 +26,7 @@ import {
   reservationTool,
   runningTurn,
 } from "../test/spans";
-import { Chat } from "./Chat";
+import { Chat, LIVE_AFTER_MS } from "./Chat";
 
 const pt = ptBR;
 let server: ReturnType<typeof fakeServer>;
@@ -518,22 +518,72 @@ describe("FR-12 a long conversation in the glass box", () => {
 
 // Review findings C3 and C4 of pull request #17 (the verifier's examples).
 // The owner's round at the MVP close, row IR-W11 (the interface review's
-// W11): the rows the stream brings are announced, as the thread's messages
-// are; the time a running turn counts, ten times a second, is not.
+// W11), and the finder's C1 on pull request #38: the rows the stream brings
+// are announced, the conversation's first row too, from a region that was
+// there before them, as a live region only speaks of what changes in it;
+// what the conversation already had when the page opened is not read out,
+// and the time a running turn counts, ten times a second, is not either.
 describe("FR-12 NFR-10 the glass box for assistive technology", () => {
-  it("announces the rows as they come, and not the time that counts", async () => {
+  it("announces the rows as they come, the conversation's first row too, and not the time that counts", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.setSystemTime(new Date("2026-11-12T15:05:12Z")); // the turn started at 15:05:10Z
-    server.answers.current.push(conversation(1, [], true, runningTurn("t1")));
-    renderPage(<Chat />);
+    const cable = fakeCable();
+    renderPage(<Chat />, "pt-BR", cable.cable);
     await ready();
+    await waitFor(() => {
+      expect(cable.active()).toHaveLength(1);
+    });
+    // The glass box's body, which holds the empty text, then the rows.
+    const region = within(glass()).getByText(pt.chat.glass.empty).parentElement;
+    await waitFor(
+      () => {
+        expect(region).toHaveAttribute("aria-live", "polite");
+      },
+      { timeout: LIVE_AFTER_MS * 4 },
+    );
 
-    expect(events().closest("[aria-live]")).toHaveAttribute(
-      "aria-live",
-      "polite",
+    const [root, call] = runningTurn("t1");
+    if (!root || !call) throw new Error("no running turn");
+    cable.send({ type: "span", span: root });
+    cable.send({ type: "span", span: call });
+
+    expect(region).toContainElement(
+      await within(glass()).findByText(pt.instrument.received),
     );
     const counting = await within(glass()).findByText(/^\d+,\d s …$/);
     expect(counting.closest("[aria-live]")).toBeNull();
+  });
+
+  it("does not read out what the conversation already had as the page opens", async () => {
+    const live: (string | null)[] = [];
+    const watch = new MutationObserver(() => {
+      const list = document.querySelector(
+        `[aria-label="${pt.instrument.events_label}"]`,
+      );
+      if (list && live.length === 0)
+        live.push(
+          list.closest("[aria-live]")?.getAttribute("aria-live") ?? null,
+        );
+    });
+    watch.observe(document.body, { childList: true, subtree: true });
+    server.answers.current.push(conversation(1, [], false, answeredTurn("t1")));
+    renderPage(<Chat />);
+    await ready();
+    await within(glass()).findByRole("list", {
+      name: pt.instrument.events_label,
+    });
+    watch.disconnect();
+
+    expect(live[0] ?? "off").toBe("off");
+    await waitFor(
+      () => {
+        expect(events().closest("[aria-live]")).toHaveAttribute(
+          "aria-live",
+          "polite",
+        );
+      },
+      { timeout: LIVE_AFTER_MS * 4 },
+    );
   });
 });
 
