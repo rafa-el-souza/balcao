@@ -933,7 +933,7 @@ answered, or given up with a fixed line. The sweep ships at M4,
 in the slice §9.2 names (the owner, 2026-11-15); until then the one known way to strand them
 is a database restart with the jobs running, which the runbook's bump day
 no longer does. While a turn runs, the web client shows a "pensando…" state and,
-after 10 s, a visible note that the answer is taking longer; on Telegram
+after 12 s (NFR-01's p95), a visible note that the answer is taking longer; on Telegram
 the chat shows the typing status meanwhile (FR-19); the turn's
 wall clock is 60 s (SR-20).
 - Given the model API returns 529 three times, When the turn runs, Then
