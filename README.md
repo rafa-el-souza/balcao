@@ -246,8 +246,8 @@ read that file), PostgreSQL 18 running locally and reachable by your own
 user (no password, no `DATABASE_URL`), and Git. The test suite needs no
 secret: it never calls the model or any outside service. A conversation in
 development calls the real model, with the `ANTHROPIC_API_KEY` of the shell
-that starts `bin/dev`: a paid Anthropic API key of your own, about a cent a
-turn. `bin/setup` ends by starting `bin/dev`, so export the key first, or
+that starts `bin/dev`: a paid Anthropic API key of your own, a cent or two
+a turn. `bin/setup` ends by starting `bin/dev`, so export the key first, or
 run `bin/setup --skip-server` and start `bin/dev` once it is set. Without
 the key the chat still opens, and every turn ends, after its three attempts
 (some twenty seconds), in the fallback reply.

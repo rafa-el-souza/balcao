@@ -1933,7 +1933,7 @@ first.
 trigger does the item and removes the line.
 - The first spec that requires `spec_helper` alone: WebMock moves there
   from `rails_helper` (review of pull request #1, F6).
-- The first `eslint-disable` in `web/`'s own code: unnamed disables are
+- The first `eslint-disable` in the code of `web/`: unnamed disables are
   forbidden by rule (#1's review).
 - The next slice that touches the Dockerfile: the image spec's guard reads
   the whole leading directive block, case-insensitive (#4, FR4).
