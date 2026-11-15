@@ -7,9 +7,14 @@
 # /start the parameter of a deep link, which is ignored until FR-23 reads it.
 #
 # A message is a command when it is exactly one of these phrases, ignoring
-# case, accents, spaces around and between words, an opening ¿ or ¡ and the
-# final punctuation; never when a phrase is only part of it, so "não quero
-# apagar meus dados" is a message for the attendant, not a deletion. A command
+# case, accents, spaces around and between words, an opening ¿ or ¡,
+# quotation marks around the phrase and the punctuation or emoji after it, so
+# "apagar meus dados 🙏" deletes; never when a phrase is only part of it, so
+# "não quero apagar meus dados" is a message for the attendant, not a
+# deletion. A deletion phrase followed by a question mark ("apagar meus
+# dados?") is a question, which goes to the attendant, who says how to
+# delete; that rule is the deletion's alone, so "como você funciona?" is the
+# trace with or without its mark (FR-05, the owner, 2026-11-15). A command
 # is matched in any language, whatever the conversation's; a phrase belongs to
 # one command only. A reply follows the language of a phrase only one
 # language lists; a phrase several list, such as "reset", which FR-04 names
