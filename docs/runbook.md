@@ -4,8 +4,9 @@ How the host is made, checked and deployed (design §8, ADR-0011, threat
 model SR-24, SR-26, SR-38). Started on day 2 of the MVP with the host
 contract, the host checklist and the MVP deploy flow; completed during M3
 with the operator checklist for production (SR-37, SR-38), roll back, the
-rotations, the modes, restore, reset, the canary's failure and the
-per-slice rehearsal flow with the Certificate Transparency count.
+rotations, the modes, reset, the canary's failure and the per-slice
+rehearsal flow with the Certificate Transparency count (no restore: V1
+keeps no backup, ADR-0020).
 
 Until M3 there is one host: the Kamal destination `ensaio`, which serves
 the demo itself at `https://balcao.rafasouza.dev.br` and is deployed from

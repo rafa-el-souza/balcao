@@ -1,6 +1,6 @@
 # ADR-0001: Rails API with a React SPA in one repository
 
-**Status:** accepted · **Date:** 2026-11-02
+**Status:** accepted; its sentence on the OpenAPI document amended by [ADR-0020](0020-what-v1-leaves-out-the-plan-after-the-mvp.md) · **Date:** 2026-11-02
 
 ## Context
 

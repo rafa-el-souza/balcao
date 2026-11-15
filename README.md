@@ -250,20 +250,26 @@ ADR-0019 adds four rules to the review policy. What each day brought:
 Next, in the plan's order (design §9.2, where a milestone's number is a
 label for its content, not its place in the order):
 
-- **M4, voice and the bot's finish:** buttons in the bot for a
-  reservation's code and the trace, the landing's suggested first messages
-  as reply buttons, and voice notes.
+- **M4, voice and the bot's finish:** first a turn's latency, which the
+  first real conversation measured above its target (design §10); then
+  buttons in the bot for a reservation's code and the trace, the landing's
+  suggested first messages as reply buttons, and voice notes.
 - **M2, pharmacy work:** Cloudflare Turnstile, a check that a visitor is a
   person, before a session opens; a second model checking every reply;
   service bookings; a conversation handed over to a person; and the
   operator's console.
 - **M3, operation:** the status page, the budget's modes and kill switch, a
-  test conversation the app runs on a schedule (the canary), nightly
-  backups, and production on a host of its own (until then the demo runs
-  on the rehearsal host).
+  test conversation the app runs on a schedule (the canary), and
+  production on a host of its own (until then the demo runs on the
+  rehearsal host).
 - **M5, polish:** three example traces kept as files, a count of where
   visitors come from, the landing's final copy, a review of the Spanish
   texts and the README's final tour.
+
+Design §9.2 lists the 33 slices of that plan in order, and
+[ADR-0020](docs/adr/0020-what-v1-leaves-out-the-plan-after-the-mvp.md)
+says what V1 leaves out and why: backups of fictional data, an OpenAPI
+document, a workflow for the full eval run and a push service among them.
 
 ## Running locally
 

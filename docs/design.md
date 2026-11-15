@@ -1,6 +1,6 @@
 # Balcão — design document
 
-**Status:** v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
+**Status:** v1.12, 2026-11-15 (the plan after the MVP: §9.2 lists its slices in order, behind the data-contract gate where it holds, and ADR-0020 says what V1 leaves out; §2.2, J3, FR-10, FR-14, NFR-03, NFR-08, §6.1, §6.6, §6.9, §8 and OD-2 follow it, see §10); v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
 coding session, reading this file top to bottom.
 
 Balcão ("the counter", where a pharmacist serves customers) is an AI attendant
@@ -103,6 +103,8 @@ and FR-10 keeps the operator inside 24 hours anyway.
 - No real pharmacy, no real customers, no real prescriptions, no payments.
 - No proactive messages: the bot answers visitors who wrote first, which
   Telegram enforces anyway ("Bots can't start conversations with users").
+  The one message the bot starts is the operator's alert, to the chat the
+  operator opened with it (FR-10, ADR-0020).
 - No WhatsApp, Instagram or Signal channels (ADR-0016): WhatsApp's business
   policy forbids messaging that facilitates the exchange of drugs, and
   Signal has no bot API and its terms forbid auto-messaging. The
@@ -136,7 +138,8 @@ the pharmacy delivers to Santa Tereza, gets an answer in text, asks for an
 appointment to take a shot, receives three slots, picks one, gets a
 confirmation and a link to the live calendar.
 
-**J3 — the operator.** Gets an email: a visitor asked for a human. Opens the
+**J3 — the operator.** Gets a message from the bot in his own chat: a
+visitor asked for a human. Opens the
 operator console, reads the conversation, replies, closes the handoff; the
 bot resumes. Once a month glances at spend and the eval scorecard.
 
@@ -387,9 +390,12 @@ Transitions and scenarios:
   same conversation; a failed turn is one that ended in a model error or
   timeout (NFR-03) or a guardrail replacement (FR-20).
 - Given `active` and presence online, When `request_human` is called, Then
-  the state becomes `handoff_online`, a push notification goes to the
-  operator within 30 s (email fallback within one minute if push fails),
-  and the visitor sees the online text.
+  the state becomes `handoff_online`, an alert goes to the operator within
+  30 s, through the bot to the operator's own chat, which the operator
+  links once from the console (ADR-0020: no push service and no e-mail in
+  V1), carrying the conversation's id and a console link and never a
+  visitor's words (threat model SR-35), and the visitor sees the online
+  text.
 - Given `active` and presence offline, When `request_human` is called,
   Then the state becomes `handoff_offline`, the request is logged in the
   console (no notification), the visitor sees the offline text, and a
@@ -516,7 +522,7 @@ levels (ADR-0003), with a daily slice and per-source limits (ADR-0012).
   all new turns and the status page shows it.
 - Given spend at 100% of the cap, Then the system pauses: inbound messages
   get a fixed "demo pausada até o próximo mês" reply without a model call,
-  and the operator is notified once.
+  and the operator is notified once, by the bot's alert (FR-10).
 - Given a new calendar month, Then the automatic mode starts over in
   normal; a forced mode holds until released.
 - The operator can force any mode from the console (kill switch), and the
@@ -918,8 +924,8 @@ then land in a dead-letter state visible in the console. "Never a silent
 drop" covers every message the application accepted, not only a turn the
 model failed: a Telegram update left unread and a turn left without any
 reply are found by a sweep (those stopped for more than five minutes) and
-answered, or given up with a fixed line. The sweep ships with M4's first
-slice (the owner, 2026-11-15); until then the one known way to strand them
+answered, or given up with a fixed line. The sweep ships at M4,
+in the slice §9.2 names (the owner, 2026-11-15); until then the one known way to strand them
 is a database restart with the jobs running, which the runbook's bump day
 no longer does. While a turn runs, the web client shows a "pensando…" state and,
 after 10 s, a visible note that the answer is taking longer; on Telegram
@@ -952,7 +958,8 @@ test citing its identifier (`describe "FR-07 reservation"`).
 `bin/traceability` reads the suite (dry run, JSON) and writes
 `docs/traceability.md`, a table requirement → number of examples, run at
 each milestone close from M2 and committed beside the scorecard, linked
-from the README; from M5 it is a CI gate. Identifiers that are steps rather
+from the README; it stays a report, with no CI gate (ADR-0020).
+Identifiers that are steps rather
 than tests (SR-24, SR-26, SR-33, SR-37, SR-38), CI steps rather than
 examples (SR-25, SR-27, SR-28, SR-29, NFR-10) and measured ones (NFR-01,
 NFR-04, NFR-06, read from the status page and the monitor) are listed in
@@ -961,10 +968,11 @@ they are verified. CI runs lint, static security analysis, dependency
 audit, actionlint over the workflows, the unit and integration suites with
 a fake model, the fast eval subset with recorded responses for the cases of
 delivered milestones, and the NFR-10 gate over the public pages. The full
-eval suite runs on `workflow_dispatch` at milestone close, with the eval
-key from the protected `evals` environment (SR-29), and writes the
-scorecard to a branch; re-recording the fast subset is local work in the
-slice that changes a prompt, tool or opener; live runs apply the flakiness
+eval suite runs locally at each milestone close and on the bump day, with
+the dev/eval key, and its scorecard is committed by hand in the close's
+pull request; CI holds no key (SR-29, ADR-0020). Re-recording the fast
+subset is local work in the slice that changes a prompt, tool or opener;
+live runs apply the flakiness
 policy of `evals/README.md`. Coverage: SimpleCov's threshold is set at M3
 (with the rest of the CI furniture, §9.2) to the measured value minus
 three points and is only ever raised, never set to a round number. No shell script lives in the repository: `bin/*`
@@ -1015,15 +1023,13 @@ C4Context
   System_Ext(telegram, "Telegram Bot API", "Telegram")
   System_Ext(stt, "Transcription service", "ADR-0005")
   System_Ext(monitor, "Uptime monitor", "External, free tier")
-  System_Ext(mail, "Email delivery", "Operator notifications")
   Rel(visitor, balcao, "Chats via web or Telegram")
   Rel(operator, balcao, "Console: handoffs, budget, kill switch")
   Rel(balcao, claude, "Messages API, tool use")
   Rel(telegram, balcao, "Webhooks")
-  Rel(balcao, telegram, "Send messages, fetch media")
+  Rel(balcao, telegram, "Send messages, fetch media, alert the operator")
   Rel(balcao, stt, "Audio → text")
   Rel(balcao, monitor, "Heartbeats")
-  Rel(balcao, mail, "Handoff and budget alerts")
 ```
 
 ### 6.2 Containers (C4 level 2)
@@ -1365,8 +1371,8 @@ apart. `message.author` ∈ {visitor, bot, operator, system};
 
 ### 6.6 Interfaces
 
-**Public HTTP API** (OpenAPI document generated from the implementation and
-committed as `docs/openapi.yaml`):
+**Public HTTP API** (this table is its description; no OpenAPI document in
+V1, ADR-0020):
 
 | Method | Path | Purpose |
 |---|---|---|
@@ -1386,7 +1392,8 @@ the holder of the visitor cookie), `trace:<token>` (read-only trace page),
 
 **Telegram Bot API, the methods the application calls** (one client class,
 which exposes no other; FR-19, ADR-0017): `sendMessage` and
-`sendChatAction` in a turn; `setWebhook`, `getWebhookInfo`,
+`sendChatAction` in a turn, and `sendMessage` to the operator's own chat
+for an alert from M2 (FR-10); `setWebhook`, `getWebhookInfo`,
 `setMyCommands`, `setMyName`, `setMyDescription` and
 `setMyShortDescription`, each with the `get` that reads it back, in the
 task that sets the bot; `getFile` from M4 (FR-11).
@@ -1635,10 +1642,9 @@ implementer may swap it with a one-line note in the pull request.
 | Static analysis | Brakeman, bundler-audit, RuboCop with the Rails omakase config | fixed (SR-27, SR-28) |
 | Secret scan | gitleaks in CI and pre-commit | fixed (SR-25) |
 | i18n | Rails I18n with `i18n-tasks` for the key-parity check | default |
-| OpenAPI | rswag, generated from request specs (keeps the document automatic, which is the only way it earns its place) | default |
 | JSON output | plain presenter objects returning hashes, no serializer gem | default |
 | HTTP client for Telegram and transcription | Net::HTTP behind one small client class with timeouts and retries; Faraday if middleware becomes necessary | default |
-| Push notification | ntfy (self-hostable, free app) via HTTP; email via Action Mailer as fallback | default |
+| Operator alert | the bot's own `sendMessage` to the operator's chat; no push service and no mailer (ADR-0020) | fixed (FR-10) |
 | Logging | Rails structured JSON logs with parameter filtering (`lograge` or Rails 8 built-ins, implementer's call) | default |
 | Jobs dashboard | `mission_control-jobs`, mounted behind the console authentication (ADR-0006) | default |
 
@@ -1744,18 +1750,17 @@ the cloud firewall; dependency and static analysis in CI.
   production always builds its own from a fast-forwarded `origin/main`
   after the deploy-path review (SR-38); `kamal audit` on the host and the
   operator's `.last-deployed-sha` are the deploy record.
-- **Backups.** Nightly `pg_dump` to the host disk with 7-day rotation; the
-  data is fictional, the traces are the only thing worth keeping and they
-  expire anyway. Backups share the VM's disk and die with it (R1);
-  exhibits (FR-22) are committed files and survive. Documented restore
-  procedure, drilled once at M3 into a throwaway Postgres container in the
-  operator account (row counts and schema version checked, container
-  deleted); production data never enters the rehearsal project.
+- **Backups.** None in V1 (ADR-0020): the data is fictional and expires in
+  seven days, a dump on the VM's own disk would die with it (R1), and a
+  dump would keep for seven more days what a visitor asked to delete. A
+  lost VM is made again from the repository and the secrets (SR-26) and
+  takes the status page's counters with it; exhibits (FR-22) are committed
+  files and survive. Production data never enters the rehearsal project.
 - **Monitoring.** External uptime monitor on `/up` every 3 minutes (the
   owner's free account, provided on day 2 of the MVP; the free tier's
   interval, inside NFR-04's 15 minutes); canary (FR-17) every
-  10 minutes from M3; email on failure and on recovery; push through the
-  owner's ntfy topic from M2.
+  10 minutes from M3; the monitor's e-mail on failure and on recovery; the
+  operator's alerts through the bot from M2 (FR-10, ADR-0020).
 - **Updates.** Unattended security upgrades on the host; Dependabot on the
   repo; monthly manual bump day, which also checks the pinned kamal-proxy
   against its published advisories (SR-27; §10, note 2026-11-13, the edge).
@@ -1768,7 +1773,7 @@ the cloud firewall; dependency and static analysis in CI.
   deploy-path diff, fast-forward, `kamal deploy`, post-deploy smoke), roll
   back, rotate the model key, rotate the bot token and the webhook secret,
   set the bot (the task of FR-19 and the BotFather checklist), force a
-  mode, restore from backup, reset the demo, and what to do when the
+  mode, reset the demo, and what to do when the
   canary fails.
 
 ---
@@ -1841,16 +1846,65 @@ the order below. Each is shippable; "days" is the unit above.
 
 | Order | Milestone | Scope (what remains after the MVP) | Days | Done when |
 |---|---|---|---|---|
-| 1 | M4 Voice, and the bot's finish | The bot's finish, as M4's first slice (ADR-0017, FR-19): the button that copies a reservation code, FR-21's openers as a reply keyboard under the greeting, the button that opens the trace; FR-11 voice notes with the ADR-0005 measurement recorded as ADR-0014; the portable QR card for profiles. What the owner's round gave this milestone is listed below the table (2026-11-15) | 2.5 | J2 works with a voice note on the demo bot, up to its booking, which is M2's (FR-08), and the bot's buttons do their work on the owner's phone |
-| 2 | M2 Pharmacy work, complete | SR-39 Turnstile (the first slice, ADR-0012); FR-20 guardrail with the two must-not-replace cases and the fixed-reply unit suite (SR-18); FR-08 + bookings list + `calendar` stream, FR-15's slot step, on Telegram the offered slots as a reply keyboard, and whether the booked time carries a date entity (ADR-0017); FR-10 state machine with presence toggle + push (SR-35), the operator's alert through the bot weighed against a push service (ADR-0017); FR-16 console with auth, lockout, block list, "copy trace as JSON" and "turn into eval case"; FR-09 on the economy model and `economy_allowed` committed; `injection` suite at 10 cases in the seven families; the first full eval run (`workflow_dispatch`, the `evals` environment) and committed scorecard with the unstable count; `bin/traceability` report at milestone close. What the owner's round gave this milestone is listed below the table (2026-11-15) | 10 | J3 works; boundary suite at 100 % on both models |
-| 3 | M3 Operation | FR-13 status page + live strip (cached), with the sources the drawing still lacks (§10, note 2026-11-12); FR-14 modes + daily slice + kill switch + operator notification; FR-17 in-process canary; resource limits in Kamal; nightly `pg_dump` and one restore drill into a throwaway container in the operator account, and the privacy page's lines on the backups (§10, note 2026-11-14, PR-17); runbook completed (operator checklist with SR-37, the SR-38 deploy-path review and SR-27's kamal-proxy put on the host by its digest before `kamal deploy`, as `bin/deploy` does, roll back, rotations, modes, restore, reset, canary failure, the per-slice rehearsal flow with the Certificate Transparency count, which also checks that every certificate logged for the domain's names came from Let's Encrypt, since the domain's DNS service offers no CAA record); the visitor cookie renamed `__Host-balcao_visitor` (threat model R7), a clean cut with no migration, since the MVP host's data dies with it; `docs/traceability.yml`; threat-model verification table filled; the two-account deploy of ADR-0011: production host created by the owner from `ops/cloud-init.yml`, the demo name moved to it, the MVP host destroyed, `ensaio.rafasouza.dev.br` on the reserved IP, the bot token reissued for the production set; the CI furniture: `bin/evals --recorded` over the `fast` subset with recordings, the NFR-10 gate, the SimpleCov ratchet, actionlint, the static secrets check, the `.kamal/hooks` absence check, rswag OpenAPI. What the owner's round gave this milestone is listed below the table (2026-11-15) | 10 | Shipped on the production host, then the soak passes after 7 consecutive days with canary success ≥ 99 % (NFR-04), no manual restart or deploy, spend within projection, a nightly dump present every night, and one restore drill from a production dump into a throwaway container in the operator account; a failed day restarts the week |
-| 4 | M5 Polish | FR-22 static exhibits (three committed trace files); FR-23 referrers, the bot's deep-link parameter among them; landing copy in both registers and three languages with FR-25; Spanish review pass; README sixty-second tour with links to five files (webhook secret check, reservation idempotency test, model policy, boundary eval cases, deploy config), 8-second GIF, social preview image, 30-second video; scorecard at 60 cases (15 `injection`); NFR-10 gate over all six public pages; traceability gate on in CI; an "OWASP LLM Top 10" column in the threat model's SR table; ADR review; the review policy revisited with the PR records (ADR-0013). What the owner's round gave this milestone is listed below the table (2026-11-15) | 5 | A stranger completes J1 without help |
+| 1 | M4 Voice, the bot's finish, and a turn's latency | A turn's latency first (NFR-01; §10, note 2026-11-15, the plan after the MVP): the catalogue search without the database's JIT compiler, then the normal route measured at low effort against medium, for the owner to decide. The bot's finish (ADR-0017, FR-19): the button that copies a reservation code, FR-21's openers as a reply keyboard under the greeting, the button that opens the trace; FR-11 voice notes with the ADR-0005 measurement recorded as ADR-0014. The slices are listed below the table, and what the owner's round gave this milestone below them (2026-11-15) | 2.5 | J2 works with a voice note on the demo bot, up to its booking, which is M2's (FR-08), and the bot's buttons do their work on the owner's phone |
+| 2 | M2 Pharmacy work, complete | SR-39 Turnstile (the first slice, ADR-0012); FR-20 guardrail with the two must-not-replace cases and the fixed-reply unit suite (SR-18); FR-09 on the economy model and `economy_allowed` committed; `injection` suite at 10 cases in the seven families. Then, once ADR-0018 on the data contract is merged (§10's list; the owner writes it): FR-08 + bookings list + `calendar` stream, FR-15's slot step, on Telegram the offered slots as a reply keyboard, and whether the booked time carries a date entity (ADR-0017); FR-10 state machine with presence toggle and the operator's alert through the bot (SR-35, ADR-0020); FR-16 console with auth, lockout, block list, "copy trace as JSON" and "turn into eval case". At the close: the first full eval run on both models, run locally and committed by hand (ADR-0020), with the unstable count, and `bin/traceability`'s first report. The slices are listed below the table, and what the owner's round gave this milestone below them (2026-11-15) | 10 | J3 works; boundary suite at 100 % on both models |
+| 3 | M3 Operation | FR-13 status page + live strip (cached), with the sources the drawing still lacks (§10, note 2026-11-12); FR-14 modes + daily slice + kill switch + the operator's alert at the cap; FR-17 in-process canary; resource limits in Kamal; no backups (ADR-0020); runbook completed (operator checklist with SR-37, the SR-38 deploy-path review and SR-27's kamal-proxy put on the host by its digest before `kamal deploy`, as `bin/deploy` does, roll back, rotations, modes, reset, canary failure, the per-slice rehearsal flow with the Certificate Transparency count, which also checks that every certificate logged for the domain's names came from Let's Encrypt, since the domain's DNS service offers no CAA record); the visitor cookie renamed `__Host-balcao_visitor` (threat model R7), a clean cut with no migration, since the MVP host's data dies with it; `docs/traceability.yml`; threat-model verification table filled; the two-account deploy of ADR-0011: production host created by the owner from `ops/cloud-init.yml`, the demo name moved to it, the MVP host destroyed, `ensaio.rafasouza.dev.br` on the reserved IP, the bot token reissued for the production set; the CI furniture: `bin/evals --recorded` over the `fast` subset with recordings, the NFR-10 gate, the SimpleCov ratchet, actionlint, the static secrets check, the `.kamal/hooks` absence check. The slices are listed below the table, and what the owner's round gave this milestone below them (2026-11-15) | 10 | Shipped on the production host, then the soak passes after 7 consecutive days with canary success ≥ 99 % (NFR-04), no manual restart or deploy, and spend within projection; a failed day restarts the week |
+| 4 | M5 Polish | FR-22 static exhibits (three committed trace files); FR-23 referrers, the bot's deep-link parameter among them; landing copy in both registers and three languages with FR-25; Spanish review pass; README sixty-second tour with links to five files (webhook secret check, reservation idempotency test, model policy, boundary eval cases, deploy config), 8-second GIF, social preview image; scorecard at 60 cases (15 `injection`); NFR-10 gate over all six public pages; an "OWASP LLM Top 10" column in the threat model's SR table; ADR review; the review policy revisited with the PR records (ADR-0013). The slices are listed below the table, and what the owner's round gave this milestone below them (2026-11-15) | 5 | A stranger completes J1 without help |
 
 Total: 12 + 2.5 + 10 + 10 + 5 = 39.5 days, plus the soak's calendar week.
 Before day 11 the owner creates the bot in BotFather, keeps it out of
 groups, sets `/privacy` (live since day 10) as its privacy policy and its
 photo, and pastes the token into the env file. Meta's lane (number
 registered, display name, Live mode) closed on 2026-11-14 (ADR-0016).
+
+**The slices, in order (2026-11-15).** A slice is one pull request and one
+session; the next session takes the next row. This is the plan as ADR-0020
+cut it, 33 slices; the days above are the estimates of 2026-11-09 and were
+not revised. A slice that splits keeps its number with a letter; one that
+appears on the way (a dependency's bump, a defect met on the demo) takes no
+number, as in the MVP.
+
+| Slice | What it brings | Before it |
+|---|---|---|
+| M4-1 | The catalogue search without the database's JIT compiler: `jit` off on the application's connections, read back by a spec, measured on the demo before and after (NFR-01, FR-06; §10's note of this day) | The owner's word, given: the data-contract gate names the search |
+| M4-2 | A turn's latency measured by what moves it: the normal route at low effort against medium (the evals with the boundary at three runs, and turns on the demo), the reply's length, the queue's polling; NFR-01's measure taken from an update's receipt to its send; question 20's reading written into §10 | The owner's reading of the Console for question 20; after it, his word on the effort and on NFR-01's figures (ADR-0003's route) |
+| M4-3 | The bot's finish (ADR-0017, FR-19): the three buttons; `Telegram::Chat`'s id hidden everywhere and the client's rescue by name (the list below) | — |
+| M4-4 | NFR-03's sweep, with the deletion at the dead letter and the turn's loose ends (the list below) | — |
+| M4-5 | Voice notes (FR-11): ADR-0005's comparison of two models on ten real notes as its first step and ADR-0014 in the same pull request; then the fetch by `getFile`, the transcript as the inbound message, the echo, the caps (SR-22, SR-23), the minutes in the ledger, the vendors on `/privacy` | From the owner: the transcription key, with its spend cap, and ten voice notes in the three languages |
+| M4-6 | M4's close: the scorecard; the review at the close (ADR-0019) over the lines the MVP review's own pull requests left (#36 to #42) and M4's; a real conversation with a voice note | — |
+| M2-1 | SR-39, Turnstile at session creation | From the owner: the widget's site key and its secret |
+| M2-2 | FR-20, the guardrail, with the evals run through it | — |
+| M2-3 | The economy model: FR-09 on it, `evals/economy_allowed.yml` and its reading at boot, `formatMoney` (the list below) | — |
+| M2-4 | The `injection` suite at ten cases and FR-21's fourth chip | — |
+| — | ADR-0018, the data contract: a documents-only pull request out of a specification session with the owner | The owner's decisions |
+| M2-5 | FR-08's bookings: services, slots, `list_slots`, `book_appointment`, the nightly slot step; delivery areas' names checked for uniqueness | ADR-0018 merged |
+| M2-6 | The calendar page, drawn first, with `/api/calendar` and the `calendar` stream; the offered slots as a reply keyboard on Telegram | ADR-0018 merged; the owner's look at the drawing |
+| M2-7 | The console's door (FR-16), built from §6.8's wireframe: authentication and lockout, the conversations with their traces, the dead letter, the block list | ADR-0018 merged; from the owner: the operator's password |
+| M2-8 | FR-10's handoff: `request_human`, the states, the presence, the timers; the chat's states drawn first | ADR-0018 merged; the owner's look at the drawing |
+| M2-9 | The handoff in the console (the queue, the reply as the pharmacist) and the operator's alert through the bot (SR-35) | — |
+| M2-10 | The console's tools: the trace as JSON, a conversation turned into an eval case, and what ADR-0018 gives the console | — |
+| M2-11 | M2's close: the full eval run on both models, `bin/traceability`'s first report, the review at the close with the interface review in three languages, J3 run for real | The owner as the pharmacist |
+| M3-1 | FR-14's modes: economy at 70 %, the daily slice, the kill switch in the console, the alert at the cap (SR-02 in full) | — |
+| M3-2 | FR-17's canary, with its marked system visitor, and the delivery watch over `getWebhookInfo` | — |
+| M3-3 | FR-13's status page and the landing's live strip; the fourth chip's link | — |
+| M3-4 | A turn's hard edge and the short log sweep: SR-20's exception closed, a least-privilege database role, and SR-30's lines that stay (the list below) | — |
+| M3-5 | The CI furniture: the recorded fast subset, NFR-10's gate over four pages with the build's size, the SimpleCov ratchet, actionlint, the static secrets check, the `.kamal/hooks` check | — |
+| M3-6 | The runbook completed and the cut prepared: the operator checklist, roll back, the rotations, the modes, the rehearsal flow, Kamal's resource limits, `bin/deploy`'s exit, the `__Host-` cookie, `docs/traceability.yml`, SR-03's catalogue from outside | A security scan of the codebase, run and read |
+| M3-7 | The production cut (ADR-0011): the owner's host, the demo's name moved to it, the bot's token reissued, the MVP host destroyed; then the soak's seven days | The owner's operator account, host, DNS records and production secrets |
+| M3-8 | M3's close, after the soak: the full eval run, the threat model's verification table, an external port scan, the review at the close, the merging policy revisited | The soak passed |
+| M5-1 | FR-22's three exhibits | The three conversations recorded by the operator |
+| M5-2 | FR-23's referrer counts, the bot's deep link among them | — |
+| M5-3 | The landing's final copy with FR-25's offer and FR-26's sentence, the Spanish review pass, the social preview image | From the owner: the freelance profile's address and the tagline |
+| M5-4 | The evals at sixty cases; the judge calibrated against labels made by hand | The owner's labels |
+| M5-5 | NFR-10's gate over all six pages, with the live regions' `aria-relevant` | — |
+| M5-6 | The README's final tour with its GIF and a from-zero setup; `docs/visual-identity.md`; the threat model's OWASP LLM column and its re-read; the invented names checked again (SR-33) | — |
+| M5-7 | The ADR review; the review policy revisited (ADR-0013) | — |
+| M5-8 | V1's close: the interface review, the full eval run, the docs reader test, a stranger completing J1 | A stranger |
+
+M5's slices are written while M3's soak runs and reach production after it,
+since the soak allows no deploy. If ADR-0018 is not merged when M2-4 ends,
+M3's slices that need neither the console nor the contract come first
+(M3-2, M3-4, M3-5), and M2 goes on once it is.
 
 **What the owner's round at the MVP close gave each milestone
 (2026-11-15).** The reviews of the MVP's pull requests left these items for
@@ -1906,28 +1960,23 @@ round.
   note).
 - SR-20's exception closed: no run passes its 60 s, a retry of the
   provider's call included (#9, C2's sister).
-- The advisory lock checked after a reconnect, before the turn and before
-  the reply, with a non-transactional test, and connection errors
-  re-raised from `run_earlier` (#11, C3; #18's review; #32, L7).
-- The budget's two loose ends: the spend incremented first and alone, with
-  a log line of the turn and the amount when the records cannot be written
-  (#29, S1); an answer whose usage the SDK cannot read charged an estimate
-  at the route's prices, and logged (#29, S2).
-- One SR-30 sweep with the log review: Solid Cache's failsafe line, Solid
-  Queue's "Error enqueuing recurring task" line, Action Cable's own error
-  lines and its "Started GET /cable" line (#29, V4 and its review; the
+- One short SR-30 sweep: Action Cable's own error lines and its "Started
+  GET /cable" line, which holds the visitor's address (#42, X1; the
   round's triage); `cause: nil` on `Telegram::Client`'s three raises, as
   its header says (#41, H5); the trace token masked on any path that holds
   one, `/api/trace/<token>` and a prefix before `/trace/` among them (#42,
-  X2 and V1); threat model R10 looked at again (#23, V2 and V6).
+  X2 and V1); threat model R10 looked at again (#23, V2 and V6). The lines
+  of Solid Cache, Solid Queue and the proxies, the address check's error
+  line and the two lines a failing cache leaves unwritten are accepted
+  (ADR-0020; SR-30 names them), and so are the advisory lock after a lost
+  connection and the budget's two loose ends (threat model R11).
 - The canary's system visitor carries a marker and both purges leave it
   (#7, RS1); the app connects with a least-privilege role, not the image's
   superuser (#4's review).
-- The CI furniture: whole-tree scanners on a schedule, gating a pull
-  request only on what it introduces, weighed against SR-27 as written; a
-  workflow linter beside actionlint; actionlint in CI, installed by
-  `bin/setup`, and the audit's database refreshed by `bin/bundler-audit`
-  itself (#1's review, the three). NFR-10's gate measure set from the
+- The CI furniture: actionlint in CI, installed by `bin/setup`, and the
+  audit's database refreshed by `bin/bundler-audit` itself (#1's review);
+  no scheduled whole-tree scanners and no second workflow linter, so
+  SR-27's gate stays as written (ADR-0020). NFR-10's gate measure set from the
   build's size: on 2026-11-15 the landing's first visit without fonts is
   about 457 kB as built and 141 kB compressed, the script 419 and 132 of
   them (319 and 99 when pull request #14 measured it), so which of the two
@@ -1935,12 +1984,16 @@ round.
 - The runbook: never run `bin/setup` in the operator checkout, since it
   would turn on the repository's hooks (#1's review, SR-38); `bin/deploy`
   fails when the local registry's container is still there after `kamal
-  registry remove` (#4, R4).
+  registry remove` (#4, R4); `public/robots.txt` and its cache are settled
+  when `NOINDEX` first reaches a rehearsal host (#40's thirteenth line;
+  §10's standing trigger).
 - SR-03 from outside: the rehearsal flow requests the catalogue of
   `spec/requests/response_headers_spec.rb` against the rehearsal host
   before a production deploy, which also shows what kamal-proxy or
   Thruster add, remove or answer by themselves, which no test in the
-  process can see. No DAST scanner now: a crawler here would reach the 404
+  process can see. The catalogue names Puma's own 500 and Thruster's
+  bodiless 502 as the two answers without the headers, accepted (ADR-0020;
+  #40, C2). No DAST scanner now: a crawler here would reach the 404
   alone, and it would be one more third-party action in CI (the owner,
   2026-11-15, question 31).
 - A recurring job beside FR-17's canary reads `getWebhookInfo` and pings
@@ -1956,7 +2009,8 @@ round.
 - Before the demo is publicised: the invented name, address and phone
   looked at again against real businesses (SR-33; #8's review).
 - The Spanish review pass confirms "tú" or changes the register
-  everywhere at once, the boundary phrase lists with it (FR-02).
+  everywhere at once, the boundary phrase lists with it (FR-02), and the
+  on-duty phrases if a run shows one the list misses (#41's review).
 - The evals' growth to 60: English and Spanish cases that must not be
   refused; the judge calibrated against a few dozen replies labelled by
   hand, about 90 % agreement on the clear ones (the close's eval audit); a
@@ -1967,6 +2021,18 @@ round.
   shell's description and `og:` tags from the locale files, with the
   social preview image (#4, FR2).
 - Under forced colours the QR keeps a margin of 4 modules (#33, R4).
+- The live regions (the thread, the glass box, the trace page's turns)
+  carry `aria-relevant="additions"`, with a screen reader's own test, so
+  that a language switch is not read out again whole (#38's review).
+- With the judge's calibration: a reason that ends mid-sentence is asked
+  again, or the judge's prompt asks for a reason without double quotes
+  (#42's sixth line).
+- The README's from-zero setup: the version manager, Postgres by peer
+  authentication, the systems supported (#42's docs reader test).
+- FR-26's sentence on the landing, in the words ADR-0018 leaves true (the
+  owner, 2026-11-15); other companies' marks stay as words unless the
+  owner brings each one's official file; `docs/visual-identity.md` closes
+  the design brief (§10, note 2026-11-12).
 
 ---
 
@@ -1989,14 +2055,24 @@ trigger does the item and removes the line.
 - The next slice that touches the static files' headers:
   `public/robots.txt` and its year of cache, pinned on purpose (#22, C1's
   sister).
+- The next slice that touches `config/openers.yml` or
+  `config/commands.yml`: a key that is not text is named as the store
+  sheet names one, not raised as an `ArgumentError` (#40's twelfth line).
+- The next failure of `GlassBox.test.tsx`'s example "stops 'pensando…' and
+  lights the tab's cross again": its timing is fixed, not run again (#38's
+  review; it failed once in a parallel run).
 
 **Waiting for the data-contract ADR.** The ADR on the data a pharmacy
 would hand Balcão is the owner's to write (number 0018, reserved in the
-index; the study behind it is the catalogue search note's, below). With the
-slice that follows it: delivery areas checked for unique names in the
-store sheet (#8, N10); the catalogue search's pair subquery fenced,
-measured (#31, V2); the sku as the last sort key when a real catalogue
-arrives (#31's review). By the owner's word of 2026-11-15 the round below
+index; the study behind it is the catalogue search note's, below). FR-08,
+FR-10 and FR-16 are built after it, and so is any slice that changes
+reservations, the catalogue or the store sheet (the owner, 2026-11-14;
+§9.2's slices mark it); it also settles what FR-26's sentence on the
+landing may promise (the owner, 2026-11-15). With FR-08's slice: delivery
+areas checked for unique names in the store sheet (#8, N10). For a real
+catalogue, after V1 (ADR-0020): the catalogue search's pair subquery
+fenced, measured (#31, V2), and the sku as the last sort key (#31's
+review). By the owner's word of 2026-11-15 the round below
 fixes two defects of what exists without changing the contract, in its
 first server pull request: the search with a dose in the query, and the
 error for a YAML key that is not text. Both were fixed there (#40): a
@@ -2011,7 +2087,62 @@ which also changed five queries with no dose ("losartana infantil",
 another; a second asked only that the query's words be the product's,
 which listed the Losartana potássica for "potássio 600 mg"; the review
 narrowed it to the doses and to the medicine's name (its findings V1,
-C2 and R1). The store sheet names a key that is not text.
+C2 and R1). The store sheet names a key that is not text. A third
+exception, the same day: the application's connections run with the
+database's JIT compiler off, which changes no result of the search
+(M4-1; the note below).
+
+- Note 2026-11-15 (the plan after the MVP, a documents-only pull request;
+  §2.2, J3, FR-06, FR-10, FR-14, FR-26, NFR-01, NFR-03, NFR-08, §6, §8,
+  §9.2; threat model SR-03, SR-26, SR-29, SR-30, SR-31, SR-35, R1, R11;
+  ADR-0020). Planned with the owner the day the MVP closed.
+  - **§9.2 lists the slices in order**, 33 of them, each one pull request,
+    with what each waits for. The order of the milestones stands. The
+    data-contract gate is written into the plan: FR-08, FR-10 and FR-16
+    wait for ADR-0018, which a specification session with the owner writes
+    while M4 and M2's first four slices run.
+  - **Where the first real conversation's seconds went** (NFR-01; its 22
+    text turns, read from the spans alone): the model took 84 % of the
+    time, the catalogue search 12 %, everything else 4 %. Thirty-five model
+    calls, a median of 3.7 s and 257 output tokens each, about 1.2 s plus
+    10.6 ms an output token; eleven turns made one call (a median of 4.6 s)
+    and eleven made two or three (9.6 s); a call that only asks for a tool
+    spent a median of 179 output tokens. Outside the stored figure, which
+    runs from the stored message to the stored reply: a median of 0.5 s
+    between the webhook's receipt and the stored message, since the
+    queue's worker polls once a second, and 0.3 s between the stored reply
+    and its send. NFR-01 reads receipt to send; M4-2 measures it so.
+  - **The catalogue search took 1.4 to 2.0 s a call on the host**, thirteen
+    calls in six turns, with twenty products. The cause is PostgreSQL's JIT
+    compiler, on by default in the host's image and not installed with the
+    development database, where the same search takes about 10 ms: on one
+    connection of the application, three searches of the seed took 1,667,
+    1,467 and 1,406 ms as configured and 9, 11 and 14 ms with `jit` off.
+    Without that time the conversation's p95 falls from 15.9 s to 11.5 s
+    and its median stays at 6.4 s. M4-1 turns it off on the application's
+    connections; the search and its results do not change, and the owner
+    allowed it past the data-contract gate.
+  - **What V1 leaves out** is ADR-0020: sixteen cuts, the sentences of this
+    document that follow them, and what stays though it was weighed.
+  - **Lines the MVP review's own pull requests left with a destination**
+    now have it (ADR-0019's first amendment): in §9.2's lists, #38's
+    `aria-relevant`, #40's `robots.txt`, #41's on-duty phrases, #42's cut
+    reason and from-zero setup; in the standing triggers above, #40's key
+    that is not text and #38's timing example. The other lines of #36 to
+    #42 are read at M4's close.
+  - **The owner's answers of the day** (#42's lines and two older ones):
+    NFR-01's figures stand until M4-2's table; a conversation a reset or a
+    silence opens keeps the page's switch as it is (#42's fourth line);
+    what the close's extra finder left unread is the extra finder's at M4's
+    close; that a visitor can change the theme is not a requirement of V1;
+    FR-26's sentence on the landing waits for ADR-0018 and is written with
+    M5's copy.
+  - **Voice notes go through OpenRouter's transcription endpoint** (the
+    owner; ADR-0020's third cut). Read on the day: one endpoint and one key
+    for several models, the audio's seconds and the cost in each answer,
+    and a request that asks for endpoints with no retention. Whether a
+    Telegram voice note's Opus in Ogg is taken as sent is the voice
+    slice's first test.
 
 - Note 2026-11-15 (the MVP close, #42; FR-02, FR-05, FR-09, FR-14,
   NFR-01, SR-20, SR-27; ADR-0019). The pull request that closes the MVP.
@@ -4001,8 +4132,8 @@ C2 and R1). The store sheet names a key that is not text.
   at the MVP close weighs whether a stronger guard is worth it.
 
 - OD-1 Resolved 2026-11-02: hosted transcription only (ADR-0005).
-- OD-2 Email delivery provider for operator notifications (free tier of a
-  transactional provider vs. the host's SMTP); decide at M2.
+- OD-2 Resolved 2026-11-15: none. The operator's alert goes through the
+  bot (ADR-0020), and the external monitor sends its own e-mail.
 - OD-3 Resolved 2026-11-02, amended 2026-11-04: trace pages expire with
   the conversation (7 days); the exhibits are committed files outside the
   database (FR-22).
