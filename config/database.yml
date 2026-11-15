@@ -17,9 +17,10 @@ default: &default
   encoding: unicode
   # A statement or a lock wait that runs past these is stuck: it gives up
   # rather than hold a turn past its sixty seconds (threat model SR-20, review
-  # finding C5 of pull request #10). ConversationLock's wait for the turn
-  # ahead lifts both for its one statement (app/models/conversation_lock.rb).
-  # A migration that needs longer sets its own.
+  # finding C5 of pull request #10). An advisory lock's wait, ConversationLock's
+  # for the turn ahead and TelegramUpdateJob's for a person's earlier updates,
+  # lifts both for its one statement (app/models/advisory_lock.rb). A
+  # migration that needs longer sets its own.
   variables:
     statement_timeout: 5s
     lock_timeout: 2s
