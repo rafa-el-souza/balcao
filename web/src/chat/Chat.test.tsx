@@ -420,8 +420,9 @@ describe("NFR-03 the turn that waits", () => {
 
   describe("brought into view", () => {
     // jsdom lays nothing out and has no scrollIntoView: each entry the page
-    // brings into view is recorded with the room the window keeps clear then.
-    const scrolled: { element: Element; padding: string }[] = [];
+    // brings into view is recorded with the room the window keeps clear then,
+    // and with what it said then.
+    const scrolled: { element: Element; padding: string; text: string }[] = [];
     beforeEach(() => {
       scrolled.length = 0;
       Object.defineProperty(Element.prototype, "scrollIntoView", {
@@ -430,6 +431,7 @@ describe("NFR-03 the turn that waits", () => {
           scrolled.push({
             element: this,
             padding: document.documentElement.style.scrollPaddingBottom,
+            text: this.textContent,
           });
         },
       });
@@ -489,6 +491,24 @@ describe("NFR-03 the turn that waits", () => {
 
       expect(within(thread()).getByText(pt.offline)).toBeInTheDocument();
       expect(inThread().at(-1)?.element).toHaveTextContent(pt.offline);
+    });
+
+    // The owner's round at the MVP close, row 18-L-notsent (the interface
+    // review's W2): a send that fails grows the slip under the composer's
+    // foot, and its "not sent" line stayed out of sight.
+    it("brings a message that could not be sent into view with its line", async () => {
+      renderPage(<Chat />);
+      await ready();
+      server.answers.messages.push("network");
+
+      type("tem dipirona?");
+      fireEvent.keyDown(field(), { key: "Enter" });
+
+      await within(thread()).findByText(pt.failed, { exact: false });
+      // Brought into view once the line is there, not only as it was sent.
+      await waitFor(() => {
+        expect(inThread().at(-1)?.text).toContain(pt.failed);
+      });
     });
 
     // Review finding R1 of pull request #18: stacked, the open drawer covers

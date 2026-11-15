@@ -233,9 +233,12 @@ export function Thread({
   );
 
   // What the thread ends with scrolls its column to itself: a new message,
-  // "pensando…" when it appears (review finding C1 of pull request #18) and
-  // the stamps of a limit or a lost connection (V2).
-  const tail = `${String(entries.length)}:${String(waiting)}:${String(offline)}:${refused ?? ""}`;
+  // "pensando…" when it appears (review finding C1 of pull request #18), the
+  // stamps of a limit or a lost connection (V2), and the line a message that
+  // could not be sent gains (the owner's round at the MVP close, row
+  // 18-L-notsent).
+  const failed = entries.filter((entry) => entry.status === "failed").length;
+  const tail = `${String(entries.length)}:${String(failed)}:${String(waiting)}:${String(offline)}:${refused ?? ""}`;
   const revealEnd = useCallback(() => {
     reveal(list.current?.lastElementChild);
   }, [reveal]);
