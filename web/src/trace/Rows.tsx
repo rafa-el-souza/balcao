@@ -39,13 +39,13 @@ export function useMoney() {
     });
   return {
     usd: (cost: number) => money("usd", cost),
-    reais: (cost: number) =>
-      rate === null ? null : `· ${money("brl", cost * rate)}`,
+    reais: (cost: number) => (rate === null ? null : money("brl", cost * rate)),
   };
 }
 
 // A cost in both currencies, or nothing for none or a zero.
 export function Cost({ cost }: { cost: number | null }) {
+  const { t } = useTranslation();
   const money = useMoney();
   if (cost === null || cost <= 0) return null;
   const reais = money.reais(cost);
@@ -53,10 +53,10 @@ export function Cost({ cost }: { cost: number | null }) {
     <>
       {money.usd(cost)}
       {reais && (
-        <>
-          {" "}
-          <span className={styles.quiet}>{reais}</span>
-        </>
+        <span className={styles.quiet}>
+          {t("separator")}
+          {reais}
+        </span>
       )}
     </>
   );
@@ -146,15 +146,13 @@ function ModelRow({
 }) {
   const { t, i18n } = useTranslation();
   const money = useMoney();
-  const tokens = (n: number) => formatTokens(n, i18n.language);
+  const tokens = (n: number) => formatTokens(n, i18n);
   const time =
-    row.latencyMs === null
-      ? null
-      : formatDuration(row.latencyMs, i18n.language);
+    row.latencyMs === null ? null : formatDuration(row.latencyMs, i18n);
   const cost = row.cost !== null && row.cost > 0 ? row.cost : null;
   const figure = [cost === null ? null : money.usd(cost), time]
     .filter((part) => part !== null)
-    .join(" · ");
+    .join(t("separator"));
 
   if (row.running || row.error) {
     const error = row.error
@@ -288,9 +286,7 @@ function ToolRow({
 }) {
   const { t, i18n } = useTranslation();
   const time =
-    row.latencyMs === null
-      ? null
-      : formatDuration(row.latencyMs, i18n.language);
+    row.latencyMs === null ? null : formatDuration(row.latencyMs, i18n);
   const cut = row.characters !== null && row.characters > MAX_RESULT;
   const counted =
     !row.failed && row.count !== null && row.unit !== null && isUnit(row.unit)
@@ -405,7 +401,7 @@ export function EventRow({
             <span className={styles.value}>{row.name}</span>{" "}
             {row.durationMs !== null && (
               <span className={styles.figure}>
-                {formatDuration(row.durationMs, i18n.language)}
+                {formatDuration(row.durationMs, i18n)}
               </span>
             )}
           </div>
@@ -478,18 +474,20 @@ export function useTurnLine() {
   const money = useMoney();
   const time = (turn: Turn) =>
     turn.durationMs === null
-      ? `${formatDuration(Math.max(0, serverNow() - Date.parse(turn.startedAt)), i18n.language)} ${t("instrument.running")}`
-      : formatDuration(turn.durationMs, i18n.language);
+      ? `${formatDuration(Math.max(0, serverNow() - Date.parse(turn.startedAt)), i18n)} ${t("instrument.running")}`
+      : formatDuration(turn.durationMs, i18n);
   const cost = (value: number | null) =>
     value !== null && value > 0 ? money.usd(value) : null;
   return {
     number: (turn: Turn) => t("instrument.turn", { number: turn.number }),
     events: (count: number) => t("instrument.events", { count }),
     time,
-    total: (ms: number) => formatDuration(ms, i18n.language),
+    total: (ms: number) => formatDuration(ms, i18n),
     // The cost and the time of a turn, or of turns' sums, as one figure.
     figure: (value: number | null, timeText: string) =>
-      [cost(value), timeText].filter((part) => part !== null).join(" · "),
+      [cost(value), timeText]
+        .filter((part) => part !== null)
+        .join(t("separator")),
   };
 }
 

@@ -99,10 +99,10 @@ function Roll({ trace, turns }: { trace: Trace; turns: Turn[] }) {
   const { t, i18n } = useTranslation();
   const sum = (pick: (turn: Turn) => number) =>
     turns.reduce((total, turn) => total + pick(turn), 0);
-  const tokens = (n: number) => formatTokens(n, i18n.language);
+  const tokens = (n: number) => formatTokens(n, i18n);
   const time = formatDuration(
     sum((turn) => turn.durationMs ?? 0),
-    i18n.language,
+    i18n,
   );
   // The receipt's total is the cost, and the turns' time a line of its own;
   // a conversation with no cost to show totals its time (docs/prototype/
@@ -186,7 +186,11 @@ export function TracePage() {
           <Trans
             i18nKey="trace.heading"
             count={turns.length}
-            values={{ token: `${token.slice(0, 4)}…`, date, time }}
+            values={{
+              token: t("trace.tokenShort", { head: token.slice(0, 4) }),
+              date,
+              time,
+            }}
             components={{ token: <span className={styles.token} /> }}
           />
         </h1>

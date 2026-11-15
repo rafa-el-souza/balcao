@@ -178,7 +178,8 @@ function Message({
       )}
       {failed && (
         <p className={styles.failed}>
-          {t("chat.failed")} ·{" "}
+          {t("chat.failed")}
+          {t("separator")}
           <button
             type="button"
             className={styles.retry}
@@ -192,7 +193,9 @@ function Message({
       )}
       {entry.status === "refused" && (
         <p className={styles.failed}>
-          {t("chat.failed")} · {t("chat.refused")}
+          {t("chat.failed")}
+          {t("separator")}
+          {t("chat.refused")}
         </p>
       )}
     </li>

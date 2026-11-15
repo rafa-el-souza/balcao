@@ -1,3 +1,5 @@
+import type { i18n as I18n } from "i18next";
+
 import type { Span } from "../chat/api";
 
 // The glass box and the trace page read a conversation's spans as turns of
@@ -319,26 +321,31 @@ export function placeLocal(
 
 // --- The instrument's figures (design brief §5: tabular, the page's locale) ---
 
-export function formatTokens(tokens: number, locale: string): string {
+// The number in the page's locale; its unit, and what joins them, are words
+// of the locale files (instrument.units; NFR-09; the owner's round at the MVP
+// close, row 29-V1w), where a no-break space keeps a figure with its unit on
+// a narrow row (docs/prototype/landing.html's note; row 35-nbsp).
+export function formatTokens(tokens: number, i18n: I18n): string {
+  const locale = i18n.language;
   if (tokens < 1000) return new Intl.NumberFormat(locale).format(tokens);
   const thousands = new Intl.NumberFormat(locale, {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   }).format(tokens / 1000);
-  return `${thousands}k`;
+  return i18n.t("instrument.units.thousands", { value: thousands });
 }
 
-// A no-break space joins a figure to its unit, so a narrow row never parts
-// them (docs/prototype/landing.html's note; the owner's round at the MVP
-// close, row 35-nbsp).
-export function formatDuration(ms: number, locale: string): string {
+export function formatDuration(ms: number, i18n: I18n): string {
+  const locale = i18n.language;
   if (ms < 1000)
-    return `${new Intl.NumberFormat(locale).format(Math.round(ms))}\u00a0ms`;
+    return i18n.t("instrument.units.ms", {
+      value: new Intl.NumberFormat(locale).format(Math.round(ms)),
+    });
   const seconds = new Intl.NumberFormat(locale, {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   }).format(ms / 1000);
-  return `${seconds}\u00a0s`;
+  return i18n.t("instrument.units.s", { value: seconds });
 }
 
 // A sum of money's figure as the drawings write it, in the page's locale:

@@ -153,14 +153,14 @@ export function Chat() {
               <span className={styles.summaryLine}>
                 {summary.turn !== null && (
                   <span className={styles.summaryTurn}>
-                    {`${summary.turn} · `}
+                    {summary.turn}
+                    {t("separator")}
                   </span>
                 )}
                 <span className={styles.summaryRest}>
                   <span>
-                    {summary.figure === null
-                      ? summary.events
-                      : `${summary.events} · `}
+                    {summary.events}
+                    {summary.figure !== null && t("separator")}
                   </span>
                   {summary.figure !== null && (
                     <span className={styles.summaryFigure}>

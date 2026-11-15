@@ -81,6 +81,7 @@ const eventsOf = (turn: Turn) => turn.rows.length + turn.local.length;
 function Earlier({ turns }: { turns: Turn[] }) {
   const { t } = useTranslation();
   const line = useTurnLine();
+  const separator = t("separator");
   const [only] = turns;
   if (turns.length === 1 && only)
     return (
@@ -88,7 +89,10 @@ function Earlier({ turns }: { turns: Turn[] }) {
         <details>
           <summary>
             <span className={rowStyles.name}>
-              {line.number(only)} · {line.events(eventsOf(only))} ·{" "}
+              {line.number(only)}
+              {separator}
+              {line.events(eventsOf(only))}
+              {separator}
               {line.figure(only.cost, line.time(only))}
             </span>
           </summary>
@@ -106,8 +110,10 @@ function Earlier({ turns }: { turns: Turn[] }) {
       <details>
         <summary>
           <span className={rowStyles.name}>
-            {t("instrument.earlier", { count: turns.length })} ·{" "}
-            {line.events(events)} ·{" "}
+            {t("instrument.earlier", { count: turns.length })}
+            {separator}
+            {line.events(events)}
+            {separator}
             {line.figure(costOf(turns), line.total(time))}
           </span>
         </summary>

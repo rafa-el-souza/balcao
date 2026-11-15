@@ -3,6 +3,7 @@
     "name": "Balcão",
     "pharmacy": "Farmácia Vida Longa"
   },
+  "separator": " · ",
   "language": {
     "label": "Idioma",
     "pt-BR": "Português",
@@ -124,6 +125,11 @@
       "usd": "US$\u00a0{{value}}",
       "brl": "R$\u00a0{{value}}"
     },
+    "units": {
+      "ms": "{{value}}\u00a0ms",
+      "s": "{{value}}\u00a0s",
+      "thousands": "{{value}}k"
+    },
     "detail": {
       "model": "modelo",
       "effort": "esfuerzo",
@@ -201,6 +207,7 @@
     "heading_zero": "Conversación <token>{{token}}</token>, iniciada el {{date}} a las {{time}}, todavía sin turnos",
     "heading_one": "Conversación <token>{{token}}</token>, iniciada el {{date}} a las {{time}}, con {{count}} turno",
     "heading_other": "Conversación <token>{{token}}</token>, iniciada el {{date}} a las {{time}}, con {{count}} turnos",
+    "tokenShort": "{{head}}…",
     "loading": "Trace de la conversación",
     "share": "Quien tenga este enlace ve esta conversación. Deja de funcionar entre 7 y 8 días después del último mensaje, o en el momento, si la persona borra sus datos.",
     "loadFailed": "No pude cargar este trace ahora. Recarga la página en un rato.",
