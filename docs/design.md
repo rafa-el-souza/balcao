@@ -2010,6 +2010,41 @@ which listed the Losartana potássica for "potássio 600 mg"; the review
 narrowed it to the doses and to the medicine's name (its findings V1,
 C2 and R1). The store sheet names a key that is not text.
 
+- Note 2026-11-15 (the MVP close, #42; FR-02, FR-05, FR-09, FR-14,
+  SR-20, SR-27; ADR-0019). The pull request that closes the MVP.
+  - **The scorecard** of `3e89c51` (`evals/scorecard.md`): every MVP case
+    passed, the `boundary` suite 13 of 13 cases and 39 of 39 attempts,
+    three per case (FR-09's three runs at a close). Against the scorecard
+    of `837996c`: one boundary case more (a visitor thinking of hurting
+    themselves, #41), the boundary's bracket from 76–100 to 77–100, every
+    other row the same. Before it, by the owner's word of 2026-11-15,
+    `boundary-pt-01`'s rubric reads FR-09's "one or two sentences" as the
+    decline's, after the judge once read them as the whole reply's (#39).
+    No verdict of the run contradicted its reason, the check #41's sixth
+    line asked for; one reason came back cut at an opening parenthesis,
+    most likely a double quote that the structured output took as the end
+    of the string, with the verdict "pass" on a correct reply.
+  - **Question 20, the cost of an abandoned call** (FR-14, SR-20).
+    AgentRunner's 60 s cut charges an attempt it abandons nothing, and
+    whether the provider bills such a call was unknown (#29, S8). At 17:34
+    UTC on 2026-11-15, with the dev/eval key and on a model no route, eval
+    or judge uses (Claude Sonnet 5.5), one call of 12,618 input tokens ran
+    to its end as a control (4 output tokens) and three of 46,038, 45,038
+    and 47,038 were abandoned by the client after 5 s, as the cut abandons
+    a call (the SDK's timeout, no retry). The day's Sonnet 5.5 usage in
+    the Console tells the two cases apart: about 12.6 thousand input tokens
+    if an abandoned call is not billed, about 150.7 thousand if its input
+    is. The Console is the owner's alone and its figures arrive within
+    hours; the reading lands here when he has it.
+  - **Two Docker lines of the session's own**, outside the review's ledger:
+    `bin/deploy` removes the local registry's anonymous volume, which
+    Kamal 2.12's own removal leaves (about 158 MB a deploy; every earlier
+    deploy's volume was deleted by hand on 2026-11-15, by the owner's
+    word); and the runbook's build-cache
+    limit is said in one unit, since `docker builder prune --max-used-space
+    4GB` reads its "GB" as GiB while `docker system df` prints decimal
+    units.
+
 - Note 2026-11-15 (the owner's round at the MVP close, ADR-0013; FR-02,
   FR-05, FR-09, FR-12, FR-14, FR-18's note, FR-19, FR-21, NFR-03, NFR-10,
   §6.3, §6.7, §6.8, §9; threat model SR-03, SR-19, SR-20, SR-27, SR-39,
