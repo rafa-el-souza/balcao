@@ -481,8 +481,13 @@ only when there is something to change; the others never do.
    stopped no turn is cut in the middle, and what was waiting runs when
    they start. Rebooted with the jobs running, a turn can lose its lock, a
    turn can be left without a reply and an update unread (the verifier of
-   the owner's round at the MVP close, 2026-11-15). The downtime is written
-   here at the first bump day that measures it.
+   the owner's round at the MVP close, 2026-11-15). *Measured* on
+   2026-11-15, when the demo's database was rebooted for its new log
+   settings (the step whole, from `4c2587a`): the jobs stopped for 39 s,
+   `kamal accessory reboot db` took 19.3 s, the first `pg_isready` already
+   said "accepting connections", and a probe from outside every 3 s saw the
+   database answer no request for between 6 and 12 s (three reads answered
+   500) while `/up` answered 200 throughout; a turn was answered after it.
 5. **`registry:3`**, the image Kamal runs for its local registry on the
    workstation: Kamal pulls it by tag, outside the digest pins, so the tag
    Kamal names is checked against its release notes.
