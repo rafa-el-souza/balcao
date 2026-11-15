@@ -9,10 +9,13 @@ module Telegram
   # menu's and the profile's, each with the get that reads it back (FR-19).
   #
   # Every Bot API URL carries the bot's token, so this class logs nothing and
-  # no error it raises names a URL or quotes what a library said: an error is
+  # no error of its own names a URL or quotes what a library said: an error is
   # the method, Telegram's code and description, or the failure's class
   # (SR-30), and it keeps no cause, which Rake and anything that prints an
-  # error whole would print too (review finding L1 of pull request #32).
+  # error whole would print too (review finding L1 of pull request #32). What
+  # it raises as itself (below) is the library's own error, whose message
+  # names no URL either: a refused certificate names Telegram's address and
+  # OpenSSL's reason (review finding C4 of pull request #47).
   #
   # Only the network's own failures are failures of the way there, each by
   # its name (NETWORK), OpenSSL's error among them unless the certificate was
