@@ -48,7 +48,16 @@ Rails.application.configure do
   config.active_support.report_deprecations = false
 
   # Replace the default in-process memory cache store with a durable alternative.
-  config.cache_store = :solid_cache_store
+  # Its failsafe answers nil for six transient errors of its database, and the
+  # limits then let the request through (app/models/edge_limits.rb); with no
+  # logger of its own it wrote nothing. This line names the error by its class
+  # alone, never by its message, which may quote a key: an address or an
+  # identity's hash (threat model SR-30; review finding M4 of pull request #32).
+  config.cache_store = :solid_cache_store, {
+    error_handler: lambda do |method:, returning:, exception:|
+      Rails.logger.warn("cache: #{method} failed, answered #{returning.inspect}: #{exception.class}")
+    end
+  }
 
   # Replace the default in-process and non-durable queuing backend for Active Job.
   config.active_job.queue_adapter = :solid_queue

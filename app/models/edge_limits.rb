@@ -61,14 +61,20 @@ module EdgeLimits
   # bounds the spend (FR-14; review finding C4 of pull request #12, the
   # owner's decision of 2026-11-14). Before, every API request answered 500;
   # and a write after a failed increment started a live counter over
-  # (review finding S4 of pull request #29).
+  # (review finding S4 of pull request #29). The decision holds for every
+  # error of the cache, not only those its failsafe answers nil for: one it
+  # raises is let through the same way, named by its class alone, never by
+  # its message, which may quote the key (SR-30; review finding M4 of pull
+  # request #32, the owner's word of 2026-11-15).
   def count(limit, discriminator)
     store = Rack::Attack.cache.store
     store.increment("limits:#{limit.name}:#{discriminator}", 1, expires_in: limit.period) || uncounted(limit)
+  rescue StandardError => e
+    uncounted(limit, "the cache raised #{e.class}")
   end
 
-  def uncounted(limit)
-    Rails.logger.warn("limits: #{limit.name} not counted: the cache did not answer")
+  def uncounted(limit, why = "the cache did not answer")
+    Rails.logger.warn("limits: #{limit.name} not counted: #{why}")
     0
   end
 
@@ -79,14 +85,16 @@ module EdgeLimits
   # later writes set its expiry off. Solid Cache never moves a row's creation
   # time, so a counter still counting is deleted too, which may restart a
   # live window at most once a week. Any other store (the memory store of the
-  # specs) keeps its counters in memory, and nothing is deleted there.
-  def purge(before)
+  # specs) keeps its counters in memory, and nothing is deleted there. The
+  # rows go in batches, each its own statement, under the statement timeout
+  # (SR-20; review finding S5 of pull request #29).
+  def purge(before, batch: 1_000)
     store = Rack::Attack.cache.store
     return 0 unless store.is_a?(SolidCache::Store)
 
     prefix = [ store.options[:namespace], "limits:" ].compact.join(":")
     SolidCache::Entry.where("key LIKE ?", "#{ActiveRecord::Base.sanitize_sql_like(prefix)}%")
-                     .where(created_at: ...before).delete_all
+                     .where(created_at: ...before).in_batches(of: batch).delete_all
   end
 
   # --- Which requests count (Rack::Attack's request, a Rack::Request) --------

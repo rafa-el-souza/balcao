@@ -16,7 +16,12 @@ class Visitor < ApplicationRecord
   has_many :conversations
   has_many :reservations
 
-  validates :identity_hash, presence: true
+  # SR-10: the SHA-256 of an identifier, as both channels compute it
+  # (WebSession, Telegram::Inbound); anything else would be an identifier
+  # stored as it came (review finding C7 of pull request #7).
+  IDENTITY_HASH = /\A[0-9a-f]{64}\z/
+
+  validates :identity_hash, format: { with: IDENTITY_HASH }
 
   # Visitors not seen for the retention period, or created and never seen
   # since, which the nightly job deletes with everything under them (FR-15,

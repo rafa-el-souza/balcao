@@ -64,8 +64,12 @@ D. **The stack's pitfalls.** Ruby and Rails: `rescue` wider than the
    `params.permit` where `params.expect` is the rule; a per-conversation
    lock that is not actually held across the whole turn; encryption or
    masking applied on one path and not on another; a secret read with a
-   default that hides its absence (SR-25). TypeScript and React: falsy zero
-   in JSX, a stale closure in an interval or listener, an effect without
+   default that hides its absence (SR-25); a new answer that the header
+   spec's walk of the routes does not reach (a middleware's refusal, a Rack
+   endpoint's other answers, an error page) and its catalogue in
+   `spec/requests/response_headers_spec.rb` does not list (SR-03).
+   TypeScript and React: falsy zero in JSX, a stale closure in an interval
+   or listener, an effect without
    its dependencies, a promise not awaited or not returned, a query key
    that does not change with its inputs, a fetch without an `ok` check, a
    string in code instead of the three locale files (NFR-09), a list

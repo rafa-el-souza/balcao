@@ -11,7 +11,11 @@
 # its model, reading the conversation only up to it, would answer again what
 # they had answered (review finding C1 of pull request #18). One that breaks
 # again is left to its own job, so one broken turn never holds the
-# conversation.
+# conversation. The order holds for one break. A turn that breaks again
+# inside a later turn's job is answered by its own next attempt, after the
+# later reply; the later turn's model had its message in the history, so the
+# visitor may read an answer to it twice (review findings R3 and V4 of pull
+# request #18 and C1 of #11; accepted by the owner, 2026-11-15).
 #
 # A job run again for a turn that has its reply calls, bills and traces
 # nothing (NFR-02).

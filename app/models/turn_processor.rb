@@ -8,7 +8,7 @@
 #   reservation's fixed line, never through the model again, which could
 #   reserve another product (NFR-02);
 # - a turn of a month the budget paused, at its cap or by the operator's
-#   hand, is answered with the pause's fixed reply, and no model is called
+#   hand, is answered with that pause's fixed reply, and no model is called
 #   (FR-14, threat model SR-02); the budget's mode is read here, before any
 #   model call, and names the route of the turn's model (ModelPolicy);
 # - anything else goes through AgentRunner, whose events become the turn's
@@ -174,11 +174,17 @@ class TurnProcessor
     command(name) { store_reply(yield(language), language:) }
   end
 
+  # A command that breaks is marked failed with its span closed by the error,
+  # as a turn that breaks outside the model is, for the job's retry (review
+  # finding C4 of pull request #11).
   def command(name)
     @inbound.update_columns(source: "command")
     span = @recorder.start_span("balcao.command", attributes: { "balcao.command.name" => name.to_s })
     yield
     @turn.update!(state: "replied", latency_ms:)
+  rescue StandardError => e
+    broken(e)
+    raise
   ensure
     span&.finish
   end
@@ -200,21 +206,23 @@ class TurnProcessor
     stored = reservations
     return finish("reservations", "replied", FixedReply.reservations(stored, @conversation.language)) if stored.any?
 
-    mode = Budget.mode
-    return paused if mode == "paused"
+    budget = Budget.status
+    return paused(forced: budget.forced) if budget.mode == "paused"
 
-    run_model(mode)
+    run_model(budget.mode)
   rescue StandardError => e
     broken(e)
     raise
   end
 
-  # FR-14: the month is paused, so the reply is the pause's, with no model;
-  # a model an earlier run of the turn named is no longer the turn's.
-  def paused
+  # FR-14: the month is paused, so the reply is the pause's, with no model:
+  # the cap's, or the forced pause's own (the owner, 2026-11-15); a model an
+  # earlier run of the turn named is no longer the turn's.
+  def paused(forced:)
     @turn.update!(mode: "paused", model: nil)
     @root.attributes["balcao.turn.mode"] = "paused"
-    finish("paused", "replied", FixedReply.paused(@conversation.language))
+    language = @conversation.language
+    finish("paused", "replied", forced ? FixedReply.forced_pause(language) : FixedReply.paused(language))
   end
 
   def run_model(mode)

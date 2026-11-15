@@ -20,13 +20,17 @@ module ApplicationCable
     # Every message the socket reads comes through here, from the event loop,
     # before Action Cable's message buffer and its worker pool, whose queue has
     # no bound (spec/channels/command_limit_spec.rb pins that path). Past the
-    # minute's commands the connection is closed for good: a page never gets
-    # there, and a client told to reconnect would only start over.
+    # minute's commands the connection is closed, and the client may open
+    # another: the browser's client sends a subscribe again every half second
+    # until it is confirmed, so a confirmation ten seconds late takes an honest
+    # page here, and told not to reconnect it stopped for good. A new socket
+    # meets the gate's count per source again, the limit that holds a flood
+    # (review finding C5 of pull request #23; the owner, 2026-11-15).
     def on_message(message)
       return super unless over_command_limit?
 
       logger.info "Closing the connection: more than #{COMMANDS_PER_MINUTE} commands in a minute"
-      close(reason: "limit", reconnect: false)
+      close(reason: "limit", reconnect: true)
       # Closing waits for the client's answer, with the socket open and its
       # driver reading whatever comes, no longer held to 16 KiB a frame; the
       # socket is shut here instead (review finding V1 of pull request #23).

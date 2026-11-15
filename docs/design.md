@@ -1906,6 +1906,13 @@ written at the close, has every line of the round.
   would turn on the repository's hooks (#1's review, SR-38); `bin/deploy`
   fails when the local registry's container is still there after `kamal
   registry remove` (#4, R4).
+- SR-03 from outside: the rehearsal flow requests the catalogue of
+  `spec/requests/response_headers_spec.rb` against the rehearsal host
+  before a production deploy, which also shows what kamal-proxy or
+  Thruster add, remove or answer by themselves, which no test in the
+  process can see. No DAST scanner now: a crawler here would reach the 404
+  alone, and it would be one more third-party action in CI (the owner,
+  2026-11-15, question 31).
 
 *M5.*
 - Before the demo is publicised: the invented name, address and phone
@@ -1952,7 +1959,19 @@ measured (#31, V2); the sku as the last sort key when a real catalogue
 arrives (#31's review). By the owner's word of 2026-11-15 the round below
 fixes two defects of what exists without changing the contract, in its
 first server pull request: the search with a dose in the query, and the
-error for a YAML key that is not text.
+error for a YAML key that is not text. Both were fixed there (#40): a
+query with a dose that names a product's active ingredient, its salt set
+aside, finds it as a partial match, so "losartana 100 mg" finds the
+"Losartana potássica 50 mg" the store carries though no one says
+"potássica"; over 147 queries on the seed two results changed, both dose
+queries that found nothing ("losartana 100 mg", "losartna 100mg"). A
+first version left a short list of salts out of every partial match,
+which also changed five queries with no dose ("losartana infantil",
+"metformina genérico") and would have offered one salt of a medicine for
+another; a second asked only that the query's words be the product's,
+which listed the Losartana potássica for "potássio 600 mg"; the review
+narrowed it to the doses and to the medicine's name (its findings V1,
+C2 and R1). The store sheet names a key that is not text.
 
 - Note 2026-11-15 (the owner's round at the MVP close, ADR-0013; FR-02,
   FR-05, FR-09, FR-12, FR-14, FR-18's note, FR-19, FR-21, NFR-03, NFR-10,
@@ -1988,7 +2007,7 @@ error for a YAML key that is not text.
     part, and, in the threat model, SR-19's emergency line and SR-27's
     reading of the scores. Each arrives with one of the round's pull
     requests (the evals and checks, then two of the server) before the MVP
-    closes; the page's fixes come in a pull request of their own, with the
+    closes (FR-14's text with the first of the server, #40); the page's fixes come in a pull request of their own, with the
     drawings that follow them. What a sentence sends to a milestone waits
     for it (§9.2).
   - **One amendment is narrower than the round's answer.** The answer on
@@ -2002,7 +2021,22 @@ error for a YAML key that is not text.
     page: each is an `{error}` code, a few plain words or no body at all.
     SR-03 now names the controllers' answers and the webhook's, which is
     what the code does; whether the four gain the headers, and SR-03 its
-    wider sentence, is the owner's to say.
+    wider sentence, is the owner's to say. **Closed on 2026-11-15** by the
+    MVP review's first server pull request (#40), after the owner's "SIM"
+    and his "Fecha" to the method: one middleware at the top of the stack
+    (`Balcao::ResponseHeaders`) completes SR-03's set on every answer,
+    the static files, the error pages and the refusal of another host
+    among them, and overrides nothing an answer carries (the trace page's
+    referrer policy, the webhook's own); SR-03 says every answer, its test
+    a walk of every route and a written catalogue of the rest under the
+    production configuration. An answer with no policy gets the app's own,
+    built as Rails builds it for an answer that crosses its middleware,
+    with no nonce, since the app sets none; one policy on every answer,
+    whose `frame-ancestors 'none'` is what a non-page answer needs, rather
+    than a second, stricter one for bodiless answers. A 304 that reaches it
+    with no policy gets none, as Rails' middleware leaves a 304 it sees; a
+    controller's answer turned into a 304 above that middleware keeps its
+    own. The same catalogue against the rehearsal host is M3's (§9.2).
   - **Three details go one step past the owner's words** and stand unless
     he says otherwise: that the message's language is read by the evals'
     function-word detector, moved into the application (FR-02); that the
@@ -2852,7 +2886,9 @@ error for a YAML key that is not text.
     not use; Rails' own middleware for it writes the legacy `Feature-Policy`
     name in actionpack 8.1.4.1, so it is not used. `Rack::Runtime` is
     removed, so no answer says how long the server took. A spec reads the
-    three from a production boot too.
+    three from a production boot too. (Since 2026-11-15, #40: every answer
+    carries Rails' default headers, the policy and the Permissions-Policy;
+    the MVP review's note.)
   - **Two sentences of this section were wrong**, and are corrected in
     their notes: the CSP covers the shells, the API's answers and the
     edge's refusals, not the bare answers of a path no route takes or an
@@ -3466,7 +3502,8 @@ error for a YAML key that is not text.
     The answers Rails writes on its own, for a path no route takes or an
     exception, carry no policy and none of Rails' default headers: they are
     empty, or a `{status, error}` body in JSON or XML when the request asks
-    for one (corrected 2026-11-13, the edge; measured on the demo).
+    for one (corrected 2026-11-13, the edge; measured on the demo; since
+    2026-11-15, #40, they carry both, the MVP review's note).
   - SR-20's timeouts (review finding C5 of pull request #10): every
     connection has a 5 s statement timeout and a 2 s lock timeout;
     `ConversationLock` lifts both for its wait, in a short transaction of

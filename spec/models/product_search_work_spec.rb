@@ -17,10 +17,16 @@ require "rails_helper"
 # passes on a day the estimates put the other side outer: of this slice's
 # two rewrites, the count fails the one linear only through a hash join on
 # any day, and failed the one square only with the products outer in the
-# slice's runs. Nor does the count see a small square term under the
-# eightfold bound, work inside an expression, or the close and partial
-# paths "dipirona" does not take (review findings C1, C2, C3 and V1 of pull
-# request #31, written for the owner).
+# slice's runs. Nor does the count see work inside an expression (review
+# findings C2 and C3 of pull request #31, written for the owner). It
+# measures 100 against 800 products, eight times as many, under a sixteenfold
+# bound, which a square term crosses even when it is small beside the rest,
+# and on the search's three paths, each checked to be the one its query
+# takes: exact ("dipirona"), close ("dipriona", two letters swapped) and
+# partial ("dipirona infantil", a word the catalogue lacks; "dipirona gotas"
+# scores 0.6 against this catalogue, the bound, and takes the close path);
+# the slice measured 50 against 200 and "dipirona" alone (C1 and V1, the MVP
+# review).
 RSpec.describe "FR-06 ADR-0009 the catalogue search's work grows with the catalogue, not with its square" do
   before do
     %w[enable_hashjoin enable_mergejoin enable_material enable_memoize].each do |setting|
@@ -47,20 +53,23 @@ RSpec.describe "FR-06 ADR-0009 the catalogue search's work grows with the catalo
   end
 
   # The rows Product.search reads for the query, from the plan of the very
-  # statement it runs.
+  # statement it runs, with the very parameters it sends.
   def work(query)
-    sql = nil
-    capture = ->(*, payload) { sql = payload[:sql] if payload[:name] == "Product Load" }
+    sql = binds = nil
+    capture = ->(*, payload) { sql, binds = payload.values_at(:sql, :binds) if payload[:name] == "Product Load" }
     ActiveSupport::Notifications.subscribed(capture, "sql.active_record") { Product.search(query) }
-    plan = ApplicationRecord.connection.select_value("EXPLAIN (ANALYZE, FORMAT JSON) #{sql}")
+    plan = ApplicationRecord.connection.select_value("EXPLAIN (ANALYZE, FORMAT JSON) #{sql}", "EXPLAIN", binds)
     rows_read((plan.is_a?(String) ? JSON.parse(plan) : plan).first.fetch("Plan"))
   end
 
-  it "reads about four times the rows for four times the products, where a search product by product reads sixteen" do
-    stock(50)
-    small = work("dipirona")
-    stock(200)
+  PATHS = { "dipirona" => "exact", "dipriona" => "close", "dipirona infantil" => "partial" }.freeze
 
-    expect(work("dipirona")).to be < 8 * small
+  it "reads about eight times the rows for eight times the products on each path, where a search product by product reads sixty-four" do
+    stock(100)
+    expect(PATHS.to_h { |query, _| [ query, Product.search(query).map(&:match).uniq ] }).to eq(PATHS.transform_values { |path| [ path ] })
+    small = PATHS.keys.to_h { |query| [ query, work(query) ] }
+    stock(800)
+
+    PATHS.each_key { |query| expect(work(query)).to be < 16 * small[query], "#{query}: #{work(query)} rows against #{small[query]}" }
   end
 end

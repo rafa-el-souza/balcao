@@ -25,7 +25,7 @@ class WebhookEvent < ApplicationRecord
   validates :update_id, numericality: { only_integer: true }
   validates :kind, format: { with: KIND }
   validates :received_at, presence: true
-  validates :identity_hash, format: { with: /\A\h{64}\z/ }, allow_nil: true
+  validates :identity_hash, format: { with: Visitor::IDENTITY_HASH }, allow_nil: true
 
   # A person's updates not read yet, in the order Telegram numbered them.
   scope :unread_of, ->(identity_hash) { received.where(identity_hash:).order(:update_id) }

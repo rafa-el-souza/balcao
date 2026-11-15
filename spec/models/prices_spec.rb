@@ -1,4 +1,5 @@
 require "rails_helper"
+require "open3"
 
 # The price table of the budget ledger (FR-14, ADR-0003) and the panel's rate
 # of the real (FR-12): config/prices.yml, read from the provider's price page
@@ -49,6 +50,56 @@ RSpec.describe "FR-14 FR-12 the price table, dated, and the rate of the real" do
     # 1,000 × 5 + 100 × 25 + 100 × 6.25 + 1,000 × 0.50, per million tokens.
     expect(cost).to eq(BigDecimal("0.008625"))
     expect(Rails.logger).to have_received(:warn).with(/claude-unknown-9.*highest/)
+  end
+
+  # Review findings C2 and S7 of pull request #29: the table was read on
+  # first use, after the first model call was paid, so a bad table left that
+  # call and every later one uncharged. Production reads it at boot, and a
+  # bad table stops the boot, as a blank secret does (threat model SR-25).
+  it "is read when production boots, so a bad table refuses to boot" do
+    boot = lambda do |table|
+      probe = <<~RUBY
+        require "yaml"
+        table = #{table.inspect}
+        YAML.singleton_class.prepend(Module.new do
+          define_method(:safe_load_file) { |path, **options| table && path.to_s.end_with?("config/prices.yml") ? table : super(path, **options) }
+        end)
+        require "./config/environment"
+        puts "booted"
+      RUBY
+      env = ProductionEnv.complete
+        .merge("APP_HOST" => "demo.example", "RAILS_ENV" => "production", "DATABASE_URL" => nil, "RAILS_LOG_LEVEL" => "fatal")
+      Open3.capture3(env, "ruby", "-e", probe, chdir: Rails.root.to_s)
+    end
+
+    out, err, status = boot.call(nil)
+    expect([ status.success?, out ]).to eq([ true, "booted\n" ]), err
+
+    out, err, status = boot.call({ "verified_on" => "2026-11-14" })
+    expect(status).not_to be_success
+    expect(out).not_to include("booted")
+    expect(err).to include("Prices::Invalid")
+
+    # Review finding C1 of pull request #40: a table that lists no model
+    # loaded, so production booted and the first paid call was charged nothing.
+    out, err, status = boot.call({ "verified_on" => "2026-11-14", "models" => {},
+                                   "brl" => { "per_usd" => "5.6518", "verified_on" => "2026-11-13" } })
+    expect(status).not_to be_success
+    expect(out).not_to include("booted")
+    expect(err).to include("Prices::Invalid")
+  end
+
+  it "refuses a table that lists no model, as YAML reads a blank, empty or outdented models key" do
+    Dir.mktmpdir do |dir|
+      path = File.join(dir, "prices.yml")
+      brl = %(brl: { per_usd: "5.6518", verified_on: "2026-11-13" }\n)
+      [ "models:\n", "models: {}\n", "models: []\n",
+        "models:\nclaude-opus-5-5: { input: \"4.00\", output: \"20.00\", cache_write: \"5.00\", cache_read: \"0.20\" }\n" ].each do |models|
+        File.write(path, %(verified_on: "2026-11-14"\n) + models + brl)
+
+        expect { Prices.load(path) }.to raise_error(Prices::Invalid, /models must price at least one model/), models
+      end
+    end
   end
 
   it "refuses a table with a model missing a price or a price that is not a decimal" do

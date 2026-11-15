@@ -30,10 +30,13 @@ module Balcao
       entry = { "time" => time.getutc.iso8601(3), "level" => severity }
       tags = []
       current_tags.each do |tag|
-        name, value = tag.to_s.match(FIELD)&.captures
-        # A field's value is written as a message is, masked and scrubbed
-        # (review findings V3 and L4 of pull request #32).
-        name ? entry[name] = text(value) : tags << text(tag.to_s)
+        # A tag is written as a message is, masked and scrubbed (review
+        # findings V3 and L4 of pull request #32), and scrubbed before it is
+        # read, since a regular expression raises on a byte that is not
+        # UTF-8 (review finding S9 of pull request #29).
+        tag = text(tag.to_s)
+        name, value = tag.match(FIELD)&.captures
+        name ? entry[name] = value : tags << tag
       end
       entry["tags"] = tags if tags.any?
       entry["message"] = message_of(message)

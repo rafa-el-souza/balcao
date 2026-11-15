@@ -1067,6 +1067,23 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
           expect(spans(turn).sole.span_attributes).to eq("balcao.command.name" => "trace")
         end
       end
+
+      # Review finding C4 of pull request #11: a command that broke closed its
+      # span as if it had answered and left its turn as it was, unlike a turn
+      # that breaks outside the model.
+      it "marks the turn failed, closes the command's span with the error and tries again later when it breaks" do
+        turn = inbound("/trace")
+        allow(Message).to receive(:record_outbound!).and_raise(ActiveRecord::ConnectionFailed, "gone")
+
+        perform(turn)
+
+        expect(enqueued_jobs.sole).to include(job: ProcessTurnJob, args: [ turn.id ])
+        expect(turn.reload.state).to eq("failed")
+        expect(spans(turn).sole).to have_attributes(
+          name: "balcao.command", finished_at: be_present,
+          span_attributes: { "balcao.command.name" => "trace", "error.type" => "ActiveRecord::ConnectionFailed" }
+        )
+      end
     end
 
     # FR-19: Telegram requires /start and /help of every bot, and the web chat

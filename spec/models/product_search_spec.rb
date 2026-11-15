@@ -84,6 +84,42 @@ RSpec.describe "FR-06 ADR-0009 the catalogue search" do
     expect(matches("dipirona sódica 1 g comprimido").keys).to contain_exactly("Dipirona 500 mg, 10 comprimidos", "Dipirona gotas 500 mg/ml, 20 ml")
   end
 
+  # #14's line for the owner (10-losartana; his word of 2026-11-15, question
+  # 38, which allowed the dose queries that found nothing): the model sends a
+  # dose with the name ("dipirona 500 mg comprimidos", the eval run of
+  # 2026-11-14), and "losartana 100 mg" found nothing: the dose kept the
+  # whole query from matching, and the partial match asked the query to name
+  # the salt in the name, "potássica", which no one says.
+  it "lists a product partial when the query, its doses set aside, names it, a typo included" do
+    expect(matches("losartana 100 mg")).to eq("Losartana potássica 50 mg, 30 comprimidos" => "partial")
+    expect(matches("losartna 100mg")).to eq("Losartana potássica 50 mg, 30 comprimidos" => "partial")
+  end
+
+  # Review finding V1 of pull request #40 (reach cliente), and C2: the first
+  # fix left a product's salt out of what a partial match asks for, so a
+  # query that added any word the catalogue lacks found it ("losartana
+  # infantil", "metformina genérico"), and one naming another salt found this
+  # one; the owner's exception covered the dose queries alone.
+  # Review finding R1 of pull request #40 (the fix review): the dose rule
+  # asked the query's words to be alike the product's, so a salt named as the
+  # medicine, with a dose, found another medicine that carries the salt as
+  # an adjective: "potássio 600 mg" listed the Losartana potássica. The query
+  # must name the medicine too, its active ingredient with its salt set aside.
+  it "lists nothing for a salt named as the medicine with a dose, the medicine itself not carried" do
+    create(:product, sku: "atorvastatina-calcica-20mg", name: "Atorvastatina cálcica 20 mg, 30 comprimidos", active_ingredient: "atorvastatina cálcica")
+
+    expect(names("potássio 600 mg")).to be_empty
+    expect(names("cálcio 500 mg")).to be_empty
+    expect(names("atorvastatina 80 mg")).to eq([ "Atorvastatina cálcica 20 mg, 30 comprimidos" ])
+  end
+
+  it "keeps every other query as it was: a word the catalogue lacks, or another salt, still finds nothing" do
+    create(:product, sku: "diclofenaco-sodico-50mg", name: "Diclofenaco sódico 50 mg, 20 comprimidos", active_ingredient: "diclofenaco sódico")
+
+    %w[losartana\ infantil losartana\ genérico metformina\ infantil metformina\ genérico enalapril\ genérico
+       diclofenaco\ potássico].each { |query| expect(names(query)).to be_empty, query }
+  end
+
   it "offers a partial match only when nothing matches the whole query" do
     expect(matches("dipirona gotas").values).not_to include("partial")
     expect(names("dipirona gotas")).not_to include("Simeticona gotas 75 mg/ml, 10 ml")
@@ -125,6 +161,21 @@ RSpec.describe "FR-06 ADR-0009 the catalogue search" do
 
   it "returns no more products than the limit" do
     expect(names("comprimidos", limit: 3).size).to eq(3)
+  end
+
+  # Review finding C1 of pull request #40 (threat model SR-30): the query,
+  # the visitor's words as the model passed them, was quoted into the
+  # statement's text, which the database's own log keeps when a statement
+  # ends in an error (a timeout, a reboot's fast shutdown); it travels as a
+  # parameter, which that log leaves out.
+  it "sends the query as a parameter, never in the statement's text" do
+    statements = []
+    recording = ->(*, payload) { statements << payload[:sql] }
+
+    ActiveSupport::Notifications.subscribed(recording, "sql.active_record") { Product.search("zqxlosartana 100 mg") }
+
+    expect(statements.grep(/\AWITH texts/).size).to eq(1)
+    expect(statements.grep(/zqxlosartana/)).to eq([])
   end
 
   it "takes the query as data, never as SQL" do

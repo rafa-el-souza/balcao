@@ -154,6 +154,19 @@ RSpec.describe "SR-30 NFR-05 the log: an error by its class alone, one JSON obje
       expect(lines.sole).to include("request_id" => "[FILTERED]", "path" => "raw �")
     end
 
+    # Review finding S9 of pull request #29: a tag was matched before it was
+    # scrubbed, and a regular expression raises on a UTF-8 string with an
+    # invalid byte, so the caller's line failed. Rails' tagged logging itself
+    # refuses such a String when it is pushed (its blank? check raises); a tag
+    # that is not a String, which Rails takes as it is (a log tag's lambda may
+    # return one), reaches the formatter, which reads it by its to_s.
+    it "scrubs a tag in UTF-8 with an invalid byte before reading it, field or not" do
+      tag = Struct.new(:text) { def to_s = text }
+      json_logger.tagged(tag.new("path=raw \xFF"), tag.new("raw \xFE tag")) { json_logger.info("x") }
+
+      expect(lines.sole).to include("path" => "raw �", "tags" => [ "raw � tag" ])
+    end
+
     it "keeps a message of several lines, a backtrace's, in one line of the log" do
       json_logger.tagged("request_id=3f1c") { json_logger.error("RuntimeError ([FILTERED]):\napp/x.rb:1\napp/y.rb:2") }
 

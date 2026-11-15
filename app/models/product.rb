@@ -11,17 +11,32 @@ class Product < ApplicationRecord
   # "omeprasol") and drops a shared suffix ("comprimidos" alone).
   SIMILARITY = 0.6
 
+  # The salts an active ingredient carries beside the medicine, which no one
+  # says when asking for it ("losartana", not "losartana potássica"), folded
+  # as the search folds a text, as whole words: "potássica" is a salt,
+  # "potássio" the medicine of "cloreto de potássio". Set aside only where a
+  # dose query names a product's medicine (review findings V1 and R1 of
+  # pull request #40). A short list, for the seed: a real catalogue's salts
+  # come with the data-contract ADR.
+  SALTS = %w[
+    potassica potassico sodica sodico calcica calcico cloridrato bromidrato maleato besilato mesilato
+    succinato fumarato hemifumarato tartarato
+  ].freeze
+  # The pattern the SQL sets the salts aside with: Postgres's word boundaries.
+  SALT_WORDS = "\\m(#{SALTS.join("|")})\\M".freeze
+
   # The SQL of Product.search, below, which says what each part does.
   SEARCH = <<~SQL.squish.freeze
     WITH texts AS (
-      SELECT NULL::uuid AS id, NULL AS name, 'query' AS kind, unaccent(lower(:query)) AS text
+      SELECT NULL::uuid AS id, NULL AS name, 'query' AS kind, unaccent(lower($1)) AS text
       UNION ALL
       SELECT products.id, products.name, part.kind, part.text
       FROM products
       CROSS JOIN LATERAL (VALUES
         ('whole', unaccent(lower(products.name || ' ' || coalesce(products.active_ingredient, '')))),
         ('ingredient', unaccent(lower(coalesce(products.active_ingredient, '')))),
-        ('head', regexp_replace(unaccent(lower(products.name)), '[0-9,:].*$', ''))
+        ('head', regexp_replace(unaccent(lower(products.name)), '[0-9,:].*$', '')),
+        ('bare', regexp_replace(unaccent(lower(coalesce(products.active_ingredient, ''))), $4, '', 'g'))
       ) AS part (kind, text)
       WHERE products.listed
     ),
@@ -34,14 +49,18 @@ class Product < ApplicationRecord
       FROM texts
     ),
     query AS MATERIALIZED (
-      SELECT text, stems FROM stemmed WHERE kind = 'query'
+      SELECT text, stems,
+             ARRAY(SELECT stem FROM unnest(stems) AS stem
+                   WHERE stem !~ '^[0-9]' AND stem <> ALL (ARRAY['mg', 'g', 'mcg', 'ml', 'l', 'ui'])) AS words
+      FROM stemmed WHERE kind = 'query'
     ),
     folded AS (
       SELECT id, max(name) AS name,
              max(text) FILTER (WHERE kind = 'whole') AS text,
              max(stems) FILTER (WHERE kind = 'whole') AS stems,
              max(stems) FILTER (WHERE kind = 'ingredient') AS ingredient,
-             max(stems) FILTER (WHERE kind = 'head') AS head
+             max(stems) FILTER (WHERE kind = 'head') AS head,
+             max(stems) FILTER (WHERE kind = 'bare') AS bare
       FROM stemmed
       WHERE kind <> 'query'
       GROUP BY id
@@ -50,14 +69,17 @@ class Product < ApplicationRecord
       SELECT folded.id, folded.name,
              word_similarity(query.text, folded.text) AS similarity,
              cardinality(query.stems) AS wanted,
-             tally.held, tally.near,
+             cardinality(query.words) AS words,
+             tally.held, tally.near, tally.near_words,
              coalesce(cardinality(folded.ingredient) > 0 AND folded.ingredient <@ tally.alike, false)
-               OR coalesce(cardinality(folded.head) > 0 AND folded.head <@ tally.alike, false) AS named
+               OR coalesce(cardinality(folded.head) > 0 AND folded.head <@ tally.alike, false) AS named,
+             coalesce(cardinality(folded.bare) > 0 AND folded.bare <@ tally.alike, false) AS named_bare
       FROM folded
       CROSS JOIN query
       CROSS JOIN LATERAL (
         SELECT count(DISTINCT asked) FILTER (WHERE asked = found) AS held,
                count(DISTINCT asked) FILTER (WHERE alike) AS near,
+               count(DISTINCT asked) FILTER (WHERE alike AND asked = ANY (query.words)) AS near_words,
                coalesce(array_agg(DISTINCT found) FILTER (WHERE alike), ARRAY[]::text[]) AS alike
         FROM (
           SELECT asked, found,
@@ -75,8 +97,8 @@ class Product < ApplicationRecord
     matched AS (
       SELECT candidates.*,
              CASE WHEN wanted > 0 AND held = wanted THEN 'exact'
-                  WHEN similarity >= :similarity OR (wanted > 0 AND near = wanted) THEN 'close'
-                  WHEN named THEN 'partial'
+                  WHEN similarity >= $2 OR (wanted > 0 AND near = wanted) THEN 'close'
+                  WHEN named OR (words > 0 AND words < wanted AND near_words = words AND named_bare) THEN 'partial'
              END AS match
       FROM candidates
     ),
@@ -86,7 +108,7 @@ class Product < ApplicationRecord
       WHERE match IS NOT NULL
         AND (match <> 'partial' OR NOT EXISTS (SELECT 1 FROM matched AS better WHERE better.match <> 'partial'))
       ORDER BY array_position(ARRAY['exact', 'close', 'partial'], match), near DESC, score DESC, name
-      LIMIT :limit
+      LIMIT $3
     )
     SELECT products.*, ranked.similarity, ranked.wanted, ranked.held, ranked.near, ranked.named, ranked.match, ranked.score
     FROM ranked
@@ -114,7 +136,15 @@ class Product < ApplicationRecord
   # - partial when the query names it, that is holds a stem alike each stem
   #   of its active ingredient or of the head of its name (the words before
   #   the first number or comma), a typo included (review finding R4 of pull
-  #   request #10), and adds words the catalogue lacks; offered
+  #   request #10), and adds words the catalogue lacks; or when the query
+  #   has a dose (a number, alone or joined to its unit, and the units mg,
+  #   g, mcg, ml, l and ui), names the product's active ingredient with its
+  #   salt set aside (SALTS), and its other words are each alike one of the
+  #   product's, so "losartana 100 mg" finds the "Losartana potássica 50 mg"
+  #   the store carries, though no one says "potássica", and "potássio 600
+  #   mg" does not (#14's line; the owner's exception to the data-contract
+  #   gate, 2026-11-15, the dose queries alone: review findings V1 and R1 of
+  #   pull request #40); offered
   #   only when no product matches exact or close. So "paracetamol infantil"
   #   still finds the paracetamol the store carries (review finding C1 of
   #   pull request #10), "dipirona gotas" lists no other drops, and a
@@ -124,8 +154,11 @@ class Product < ApplicationRecord
   #
   # Ranked by match, then by the stems alike the query's, then by the trigram
   # score (rounded to two places, carried by each product), then by name.
-  # The SQL is plain text, with the query bound: no fragment is interpolated
-  # (threat model SR-28).
+  # The SQL is plain text and the query a parameter of the statement, never
+  # quoted into its text: no fragment is interpolated (threat model SR-28),
+  # and the database's own log, which keeps a statement's text when it ends
+  # in an error, never holds the visitor's words (SR-30; review findings C1
+  # and V2 of pull request #40).
   #
   # The work grows with the catalogue, whatever plan the planner picks: each
   # product becomes one row holding its stems (folded), and its pairs with the
@@ -144,5 +177,5 @@ class Product < ApplicationRecord
   # catalogue of thousands would want the folded texts and stems computed
   # when the catalogue is loaded, with a trigram index on them: ADR-0009's
   # revisit, not this method's.
-  def self.search(query, limit: 5) = find_by_sql([ SEARCH, { query:, similarity: SIMILARITY, limit: } ])
+  def self.search(query, limit: 5) = find_by_sql(SEARCH, [ query, SIMILARITY, limit, SALT_WORDS ])
 end

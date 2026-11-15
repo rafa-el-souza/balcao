@@ -13,8 +13,8 @@ rescue ActiveRecord::PendingMigrationError => e
   abort e.to_s.strip
 end
 
-# No real HTTP leaves the suite: the model, Meta and every other service are
-# faked or recorded (design §6.9, threat model SR-29).
+# No real HTTP leaves the suite: the model, the Telegram Bot API and every
+# other service are faked or recorded (design §6.9, threat model SR-29).
 WebMock.disable_net_connect!
 
 RSpec.configure do |config|

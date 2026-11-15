@@ -181,6 +181,40 @@ RSpec.describe "FR-15 SR-31 the nightly reset and the seven-day purge" do
     # deletion takes (FR-05), and kept by Solid Cache alone two weeks or more.
     # The test database has only the primary's tables: the cache's are made
     # in the example's transaction, as Solid Cache writes there in test.
+    # Review finding C4 of pull request #30, the owner's word of 2026-11-15
+    # (question 21): a turn that fails for good leaves a failed execution in
+    # Solid Queue, the dead letter, whose stored error may quote what the
+    # visitor wrote; it goes at seven days, with its job. The test database
+    # has only the primary's tables: the queue's are made inside the
+    # example's transaction, which takes them away again.
+    describe "the failed jobs" do
+      before do
+        ActiveRecord::Migration.suppress_messages { load Rails.root.join("db/queue_schema.rb") }
+        [ SolidQueue::Job, SolidQueue::FailedExecution ].each(&:reset_column_information)
+        allow(NightlyResetJob).to receive(:queue_adapter).and_return(ActiveJob::QueueAdapters::SolidQueueAdapter.new)
+      end
+
+      def failed_job(at:)
+        job = SolidQueue::Job.create!(queue_name: "default", class_name: "ProcessTurnJob", arguments: "{}",
+                                      active_job_id: SecureRandom.uuid, scheduled_at: at, created_at: at)
+        SolidQueue::FailedExecution.where(job_id: job.id).delete_all
+        SolidQueue::ReadyExecution.where(job_id: job.id).delete_all
+        SolidQueue::FailedExecution.create!(job:, error: { exception_class: "PG::CheckViolation", message: "Failing row contains (oi)" }, created_at: at)
+        job
+      end
+
+      it "deletes the failed jobs older than seven days with their stored errors, and keeps the newer" do
+        old = failed_job(at: three_am - 8.days)
+        recent = failed_job(at: three_am - 6.days)
+
+        run
+
+        expect(SolidQueue::Job.pluck(:id)).to eq([ recent.id ])
+        expect(SolidQueue::FailedExecution.pluck(:job_id)).to eq([ recent.id ])
+        expect(SolidQueue::Job.where(id: old.id)).to be_empty
+      end
+    end
+
     describe "the limits' counters" do
       let(:store) { SolidCache::Store.new(namespace: "test") }
 
@@ -242,6 +276,103 @@ RSpec.describe "FR-15 SR-31 the nightly reset and the seven-day purge" do
     expect(dipirona.reload.stock).to eq(seed_stock - 2)
   end
 
+  # Review finding S5 of pull request #29 and the triage's A-V1: one step
+  # that broke (a delete past the statement timeout, the cache's database
+  # down) stopped every step after it, the catalogue's reset and the
+  # plain-body sweep among them.
+  it "runs every step when one fails, names that one in its line, and raises at the end for the retry" do
+    allow(Rails.logger).to receive(:warn)
+    allow(Rails.logger).to receive(:error)
+    visitor = create(:visitor, last_seen_at: three_am - 8.days)
+    dipirona.update!(stock: 1)
+    allow(Message).to receive(:where).and_call_original
+    allow(Message).to receive(:where).with(created_at: ...(three_am - 7.days)).and_raise(ActiveRecord::StatementTimeout, "canceling")
+    allow(Message).to receive(:encrypt_plain_bodies).and_return(2)
+    allow(EdgeLimits).to receive(:purge).and_return(3)
+
+    expect { run }.to have_enqueued_job(NightlyResetJob)
+
+    expect(Visitor.where(id: visitor.id)).to be_empty
+    expect(dipirona.reload.stock).to eq(seed_stock)
+    expect(Message).to have_received(:encrypt_plain_bodies)
+    expect(Rails.logger).to have_received(:warn).with(
+      a_string_including("deleted 1 visitors", "messages failed: ActiveRecord::StatementTimeout", "3 limit counters",
+                         "encrypted 2 plain bodies")
+    )
+  end
+
+  # Review findings V2 and M5 of pull request #32: the counters' purge ran on
+  # the cache's database before the catalogue's reset, so a cache down at
+  # 03:00 stopped the reset; it runs after the reset, its failure apart.
+  it "resets the catalogue before it purges the limits' counters, and a failed purge of them stops nothing" do
+    allow(Rails.logger).to receive(:warn)
+    allow(Rails.logger).to receive(:error)
+    dipirona.update!(stock: 1)
+    allow(CatalogueSeed).to receive(:seed!).and_call_original
+    allow(EdgeLimits).to receive(:purge).and_raise(ActiveRecord::ConnectionNotEstablished, "cache down")
+
+    expect { run }.to have_enqueued_job(NightlyResetJob)
+
+    expect(dipirona.reload.stock).to eq(seed_stock)
+    expect(CatalogueSeed).to have_received(:seed!).ordered
+    expect(EdgeLimits).to have_received(:purge).ordered
+    expect(Rails.logger).to have_received(:warn).with(a_string_including("limit counters failed: ActiveRecord::ConnectionNotEstablished"))
+  end
+
+  # Review finding H3 of pull request #40 (the silent-failure hunter, reach
+  # dono): a step that failed after the first was named only inside the
+  # summary, which went at INFO, with no backtrace, and only the first error
+  # was raised; until the third attempt nothing reached WARN.
+  it "logs each failed step at ERROR by its class with its backtrace, never its message, and its summary at WARN" do
+    allow(Rails.logger).to receive(:error)
+    allow(Rails.logger).to receive(:warn)
+    allow(TraceEvent).to receive(:where).and_call_original
+    allow(TraceEvent).to receive(:where).with(created_at: ...(three_am - 7.days)).and_raise(ActiveRecord::StatementTimeout, "secret words")
+    allow(EdgeLimits).to receive(:purge).and_raise(NoMethodError, "secret method")
+
+    expect { run }.to have_enqueued_job(NightlyResetJob)
+
+    expect(Rails.logger).to have_received(:error).with(%r{\Anightly reset: spans failed: ActiveRecord::StatementTimeout\n.*app/jobs/nightly_reset_job\.rb}m)
+    expect(Rails.logger).to have_received(:error).with(%r{\Anightly reset: limit counters failed: NoMethodError\n.*app/jobs/nightly_reset_job\.rb}m)
+    expect(Rails.logger).to have_received(:warn).with(a_string_including("spans failed: ActiveRecord::StatementTimeout", "limit counters failed: NoMethodError"))
+    expect(Rails.logger).not_to have_received(:error).with(/secret/)
+    expect(Rails.logger).not_to have_received(:warn).with(/secret/)
+  end
+
+  # The finder's note on pull request #40: a batch of 1,000 visitors deleted
+  # every row under them in one statement, through the database's cascade,
+  # so its size was bounded by visitors, not by rows. The messages go first,
+  # in their own batches, with their turns, spans and usage records; a
+  # visitor silent for seven days wrote nothing since, so its own delete
+  # finds little left under it.
+  it "purges the messages, with what hangs from them, before the visitors" do
+    visitor = create(:visitor, last_seen_at: three_am - 8.days)
+    turn = turn_of(create(:conversation, visitor:), at: three_am - 8.days)
+    at(three_am - 8.days) { create(:trace_event, turn:) && create(:usage_record, turn:) }
+    tables = []
+    recording = ->(*, payload) { tables << payload[:sql][/\ADELETE FROM "(\w+)"/, 1] if payload[:sql].start_with?("DELETE FROM") }
+
+    ActiveSupport::Notifications.subscribed(recording, "sql.active_record") { run }
+
+    expect(tables.index("messages")).to be < tables.index("visitors")
+    expect(Visitor.where(id: visitor.id)).to be_empty
+  end
+
+  # Review finding S5 of pull request #29: one DELETE of a week's rows could
+  # run past the 5 s statement timeout (SR-20); each goes in batches.
+  it "deletes in batches, each its own statement" do
+    stub_const("NightlyResetJob::BATCH", 2)
+    conversation = create(:conversation, visitor: create(:visitor, last_seen_at: three_am - 1.hour))
+    5.times { message(conversation, at: three_am - 8.days) }
+    statements = []
+    counting = ->(*, payload) { statements << payload[:sql] if payload[:sql].start_with?('DELETE FROM "messages"') }
+
+    ActiveSupport::Notifications.subscribed(counting, "sql.active_record") { run }
+
+    expect(Message.count).to eq(0)
+    expect(statements.size).to eq(3)
+  end
+
   it "says what it did in one line of counts, never a message or an identity (SR-30)" do
     allow(Rails.logger).to receive(:info)
     reserve(quantity: 3, made: three_am - 2.days, pickup_until: three_am - 7.hours)
@@ -249,7 +380,7 @@ RSpec.describe "FR-15 SR-31 the nightly reset and the seven-day purge" do
     run
 
     expect(Rails.logger).to have_received(:info).with(
-      /\Anightly reset: expired 1 reservations, reset \d+ products; deleted 0 visitors, 0 conversations, 0 messages, 0 turns, 0 spans, 0 usage records, 0 reservations, 0 stored updates, 0 limit counters; encrypted 0 plain bodies\z/
+      /\Anightly reset: expired 1 reservations, reset \d+ products; deleted 0 visitors, 0 conversations, 0 messages, 0 turns, 0 spans, 0 usage records, 0 reservations, 0 stored updates, 0 failed jobs, 0 limit counters; encrypted 0 plain bodies\z/
     )
   end
 

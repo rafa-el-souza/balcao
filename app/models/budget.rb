@@ -31,12 +31,20 @@ module Budget
   # (config/application.rb).
   def cap = Rails.configuration.x.budget_cap_usd
 
-  def mode(at = Time.current)
+  # The mode that serves, and whether a mode the operator forced made it: a
+  # forced pause, or a forced economy the eval run has not allowed, answers
+  # with a text of its own, the cap's pause with the month's (FR-14; the
+  # owner, 2026-11-15).
+  Status = Data.define(:mode, :forced)
+
+  def status(at = Time.current)
     state = month(at)
     automatic = automatic(state.spent_usd)
     record(state, automatic) unless state.automatic_mode == automatic
-    serving(state.forced_mode, automatic)
+    Status.new(mode: serving(state.forced_mode, automatic), forced: !state.forced_mode.nil?)
   end
+
+  def mode(at = Time.current) = status(at).mode
 
   # The mode that serves: a forced one wins, and economy only on the eval
   # run's word.

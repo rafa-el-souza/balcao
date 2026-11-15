@@ -203,6 +203,19 @@ RSpec.describe "SR-24 the containers Kamal runs" do
     expect(db.fetch("directories")).to eq [ "data:/var/lib/postgresql" ]
   end
 
+  # Review finding C1 of pull request #40 (threat model SR-30): Postgres's own
+  # log keeps a failing statement's text and its DETAIL line, which may quote
+  # a visitor's words, an address in a cache key or an identity's hash, past
+  # FR-15's seven days and an FR-05 deletion; the accessory writes neither,
+  # in the rehearsal too. Kamal applies a new command when the accessory
+  # boots again, never on a deploy.
+  it "keeps a failing statement's text and its detail out of the database's own log" do
+    expected = %w[postgres -c log_min_error_statement=panic -c log_error_verbosity=terse]
+
+    expect(base.dig("accessories", "db", "cmd").to_s.split).to eq expected
+    expect(rehearsal.dig("accessories", "db", "cmd").to_s.split).to eq expected
+  end
+
   it "runs Solid Queue in its own job container, not inside Puma" do
     expect(roles(base).dig("job", "cmd")).to eq "bin/jobs"
     expect(base.dig("env", "clear")).not_to have_key("SOLID_QUEUE_IN_PUMA")
