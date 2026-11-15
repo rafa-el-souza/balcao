@@ -46,4 +46,14 @@ RSpec.describe "SR-30 an advisory lock's key never in the statement's text" do
     expect(statements.grep(/pg_advisory_unlock\(/).size).to eq(1)
     expect(statements.join("\n")).not_to include("ab" * 32)
   end
+
+  # Review finding R2 of pull request #40 (the fix review): read as a value,
+  # the lock's void result was cast, and Rails, which does not know the void
+  # type, wrote a plain line to stderr on each connection's first lock,
+  # outside the JSON log (NFR-05).
+  it "takes the lock without a warning about its result's type" do
+    ApplicationRecord.connection.send(:reload_type_map)
+
+    expect { AdvisoryLock.hold("telegram:#{"cd" * 32}") { nil } }.not_to output(/unknown OID/).to_stderr
+  end
 end

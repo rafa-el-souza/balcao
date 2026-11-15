@@ -12,8 +12,10 @@ module AdvisoryLock
   # Telegram it names a person by their identity's hash, and the database's
   # own log keeps a statement's text when it ends in an error, as a wait ends
   # in a reboot's fast shutdown (threat model SR-30; review finding V1 of
-  # pull request #40).
-  LOCK = "SELECT pg_advisory_lock(hashtextextended($1, 0))".freeze
+  # pull request #40). The lock's own result is void, which Rails does not
+  # know and warned about on each connection, outside the JSON log, so the
+  # statement answers 1 instead (review finding R2 of the same pull request).
+  LOCK = "SELECT 1 FROM (SELECT pg_advisory_lock(hashtextextended($1, 0))) AS locked".freeze
   UNLOCK = "SELECT pg_advisory_unlock(hashtextextended($1, 0))".freeze
 
   module_function
