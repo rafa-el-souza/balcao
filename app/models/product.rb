@@ -11,6 +11,20 @@ class Product < ApplicationRecord
   # "omeprasol") and drops a shared suffix ("comprimidos" alone).
   SIMILARITY = 0.6
 
+  # The salts a medicine's name carries beside the medicine, which no one says
+  # when asking for it ("losartana", not "losartana potássica"), folded as the
+  # search folds a text. A partial match does not ask the query for them; the
+  # whole word alone, so "cloreto de potássio", whose potassium is the
+  # medicine, still asks for its "potássio" (#14's line, the MVP review). A
+  # short list, for the seed: a real catalogue's salts come with the
+  # data-contract ADR.
+  SALTS = %w[
+    potassica potassico sodica sodico calcica calcico cloridrato bromidrato maleato besilato mesilato
+    succinato fumarato hemifumarato tartarato
+  ].freeze
+  # The pattern the SQL removes the salts with: Postgres's word boundaries.
+  SALT_WORDS = "\\m(#{SALTS.join("|")})\\M".freeze
+
   # The SQL of Product.search, below, which says what each part does.
   SEARCH = <<~SQL.squish.freeze
     WITH texts AS (
@@ -20,8 +34,8 @@ class Product < ApplicationRecord
       FROM products
       CROSS JOIN LATERAL (VALUES
         ('whole', unaccent(lower(products.name || ' ' || coalesce(products.active_ingredient, '')))),
-        ('ingredient', unaccent(lower(coalesce(products.active_ingredient, '')))),
-        ('head', regexp_replace(unaccent(lower(products.name)), '[0-9,:].*$', ''))
+        ('ingredient', regexp_replace(unaccent(lower(coalesce(products.active_ingredient, ''))), :salts, '', 'g')),
+        ('head', regexp_replace(regexp_replace(unaccent(lower(products.name)), '[0-9,:].*$', ''), :salts, '', 'g'))
       ) AS part (kind, text)
       WHERE products.listed
     ),
@@ -114,7 +128,9 @@ class Product < ApplicationRecord
   # - partial when the query names it, that is holds a stem alike each stem
   #   of its active ingredient or of the head of its name (the words before
   #   the first number or comma), a typo included (review finding R4 of pull
-  #   request #10), and adds words the catalogue lacks; offered
+  #   request #10), its salts (SALTS) left out, and adds words the catalogue
+  #   lacks, a dose the store does not carry among them ("losartana 100
+  #   mg"); offered
   #   only when no product matches exact or close. So "paracetamol infantil"
   #   still finds the paracetamol the store carries (review finding C1 of
   #   pull request #10), "dipirona gotas" lists no other drops, and a
@@ -144,5 +160,5 @@ class Product < ApplicationRecord
   # catalogue of thousands would want the folded texts and stems computed
   # when the catalogue is loaded, with a trigram index on them: ADR-0009's
   # revisit, not this method's.
-  def self.search(query, limit: 5) = find_by_sql([ SEARCH, { query:, similarity: SIMILARITY, limit: } ])
+  def self.search(query, limit: 5) = find_by_sql([ SEARCH, { query:, similarity: SIMILARITY, salts: SALT_WORDS, limit: } ])
 end

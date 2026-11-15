@@ -84,6 +84,24 @@ RSpec.describe "FR-06 ADR-0009 the catalogue search" do
     expect(matches("dipirona sódica 1 g comprimido").keys).to contain_exactly("Dipirona 500 mg, 10 comprimidos", "Dipirona gotas 500 mg/ml, 20 ml")
   end
 
+  # #14's line for the owner (10-losartana; his word of 2026-11-15, question
+  # 38): the model sends a dose with the name ("dipirona 500 mg comprimidos",
+  # the eval run of 2026-11-14), and "losartana 100 mg" found nothing: the
+  # dose kept the whole query from matching, and the partial match asked the
+  # query to name the salt in the name, "potássica", which no one says.
+  it "lists a product partial when the query names it without its salt and adds a dose the store lacks" do
+    expect(matches("losartana 100 mg")).to eq("Losartana potássica 50 mg, 30 comprimidos" => "partial")
+    expect(matches("losartana infantil")).to eq("Losartana potássica 50 mg, 30 comprimidos" => "partial")
+  end
+
+  # Potassium is a salt in "losartana potássica" and the medicine itself in
+  # "cloreto de potássio": the salt is the adjective, never the noun.
+  it "still asks a query to name a medicine that a salt's noun names" do
+    create(:product, sku: "cloreto-potassio-600mg", name: "Cloreto de potássio 600 mg, 50 drágeas", active_ingredient: "cloreto de potássio")
+
+    expect(names("cloreto de magnésio")).to be_empty
+  end
+
   it "offers a partial match only when nothing matches the whole query" do
     expect(matches("dipirona gotas").values).not_to include("partial")
     expect(names("dipirona gotas")).not_to include("Simeticona gotas 75 mg/ml, 10 ml")
