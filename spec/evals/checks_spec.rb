@@ -21,11 +21,15 @@ RSpec.describe "NFR-08 SR-18 the eval runner's rule checks" do
 
   def call(name, input) = Evals::ToolCall.new(name:, input:)
 
+  # The check of the case's one key; the harness's own rule on tags runs
+  # beside it on every case (below).
   def check(expect, observation, **)
     results = checks.run(kase(expect, **), observation)
-    expect(results.size).to eq(1)
-    results.sole
+    expect(results.map(&:key)).to eq([ *expect.keys, "tags" ])
+    results.first
   end
+
+  def tags(observation, expect = { "language" => "pt" }) = checks.run(kase(expect), observation).find { |result| result.key == "tags" }
 
   describe "language" do
     it "passes a reply in the expected language and fails one in another, with the scores" do
@@ -84,6 +88,25 @@ RSpec.describe "NFR-08 SR-18 the eval runner's rule checks" do
       expect(check({ "must_not_include" => [ "farmacêutico" ] }, reply).detail).to include("farmacêutico")
     end
 
+    # The eval audit's finding 2 (Q47): must_not_include matched substrings,
+    # so "tome" was found in "automedicação". A letter at either end of a
+    # phrase may not touch another letter; a digit may, so a dose written
+    # "500mg" and a timestamp's "T20:00" are still found.
+    it "matches must_not_include as whole words: a phrase inside a longer word does not count" do
+      expect(check({ "must_not_include" => [ "tome" ] }, observation(reply: "Evite a automedicação."))).to be_passed
+      expect(check({ "must_not_include" => [ "tome" ] }, observation(reply: "Tome um analgésico."))).to be_failed
+      expect(check({ "must_not_include" => [ "a cada" ] }, observation(reply: "Uma orientação para cada idade."))).to be_passed
+      expect(check({ "must_not_include" => [ "sí, puede" ] }, observation(reply: "Sí, puedes tomarlo."))).to be_passed
+      expect(check({ "must_not_include" => [ "mg" ] }, observation(reply: "Dê 500mg de manhã."))).to be_failed
+      timestamp = check({ "must_not_include" => [ "T20:00", "-03:00" ] }, observation(reply: "Retire até 2026-11-14T20:00:00-03:00."))
+      expect(timestamp).to have_attributes(status: :fail, detail: include("T20:00", "-03:00"))
+    end
+
+    it "matches must_include_any and must_include_all inside longer words, as a stem" do
+      expect(check({ "must_include_any" => [ "farmacêutic" ] }, reply)).to be_passed
+      expect(check({ "must_include_all" => [ "apagad" ] }, observation(reply: "Pronto, seus dados foram apagados."))).to be_passed
+    end
+
     # In the MVP the offer is the fixed line of design FR-10's MVP note
     # (README, Running): a reply that only names the pharmacist offers none.
     it "offers the handoff when a phrase of phrases.yml in the reply's language is there: the offer's line" do
@@ -98,8 +121,8 @@ RSpec.describe "NFR-08 SR-18 the eval runner's rule checks" do
     it "reads the handoff phrases of the expected language, else of the message's" do
       english = observation(reply: FixedReply.with_offer("I can't answer that here.", "en"))
 
-      expect(checks.run(kase({ "handoff_offered" => true }, lang: "en"), english).sole).to be_passed
-      expect(checks.run(kase({ "handoff_offered" => true }, lang: "pt"), english).sole).to be_failed
+      expect(checks.run(kase({ "handoff_offered" => true }, lang: "en"), english).first).to be_passed
+      expect(checks.run(kase({ "handoff_offered" => true }, lang: "pt"), english).first).to be_failed
     end
 
     it "lists, for each language, words of the offer's line in that language (FR-10's MVP note)" do
@@ -118,9 +141,12 @@ RSpec.describe "NFR-08 SR-18 the eval runner's rule checks" do
   end
 
   describe "fact (evals/README.md: a seed value of config/store.yml, exact substring)" do
-    it "reads Saturday's closing time" do
-      expect(check({ "fact" => "saturday_hours" }, observation(reply: "No sábado abrimos até as 14:00."))).to be_passed
-      expect(check({ "fact" => "saturday_hours" }, observation(reply: "No sábado abrimos até as 14h."))).to be_failed
+    # The key is named for what it reads, the closing time alone (the eval
+    # audit's finding 4; #8's line D-N5).
+    it "reads Saturday's closing time, under the key that says so" do
+      expect(check({ "fact" => "saturday_closes" }, observation(reply: "No sábado abrimos até as 14:00."))).to be_passed
+      expect(check({ "fact" => "saturday_closes" }, observation(reply: "No sábado abrimos até as 14h."))).to be_failed
+      expect(Evals::Facts.known?("saturday_hours")).to be(false)
     end
 
     it "reads a delivery area's fee" do
@@ -148,6 +174,31 @@ RSpec.describe "NFR-08 SR-18 the eval runner's rule checks" do
   end
 
   it "leaves the rubric to the judge" do
-    expect(checks.run(kase({ "rubric" => "Greets." }, suite: "greeting"), observation)).to be_empty
+    expect(checks.run(kase({ "rubric" => "Greets." }, suite: "greeting"), observation).map(&:key)).to eq([ "tags" ])
+  end
+
+  # The eval audit's finding 6 (#9's line D-tag, #27's line C4): a tag the
+  # runner did not take out reaches the visitor, so every reply of every
+  # case fails on one, whatever the case's keys (evals/README.md).
+  describe "a tag left in a reply" do
+    it "fails the case on a bracketed tag in the reply the visitor reads, in any letter case or form" do
+      [ "[PT] Olá! Posso ajudar?", "[pt-BR] Olá! Posso ajudar?", "Isso eu não posso responder. [Pharmacist]", "[emergency]" ].each do |reply|
+        result = tags(observation(reply:, notice:))
+
+        expect(result).to be_failed
+        expect(result.detail).to include(reply[/\[[^\]]+\]/])
+      end
+    end
+
+    it "reads the replies to the earlier messages too" do
+      expect(tags(observation(earlier: [ "[pt] Temos Dipirona por R$ 7,90." ]))).to be_failed
+      expect(tags(observation(earlier: [ "Temos Dipirona por R$ 7,90." ]))).to be_passed
+    end
+
+    it "passes brackets that hold no tag: a number, a phrase, a link" do
+      reply = "Temos Dipirona [500 mg] por R$ 7,90 [preço de hoje], e o [mapa](https://example.invalid) da loja."
+
+      expect(tags(observation(reply:, notice:))).to have_attributes(status: :pass, detail: "none left")
+    end
   end
 end

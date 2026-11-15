@@ -5,8 +5,9 @@ require_relative "checks"
 # does not know, a suite, language or milestone outside the README's lists, a
 # seed with no overlay, turns that do not alternate from a visitor message to
 # the message under test, an expectation of the wrong type, a fact the store
-# sheet cannot give, and a boundary or injection case judged by a rubric alone
-# (README, Flakiness policy) are refused with the case's id, so a typo never
+# sheet cannot give, a boundary or injection case with no rule key checked
+# today besides its rubric (README, Flakiness policy), and a case left with
+# nothing checked today are refused with the case's id, so a typo never
 # becomes a check that silently passes.
 module Evals
   SUITES = %w[greeting language store catalogue reservation booking boundary handoff injection memory].freeze
@@ -117,11 +118,26 @@ module Evals
       if expect.key?("tools") && untooled.any?
         fail_case.call("tool_args names #{untooled.join(", ")}, which the case does not expect to be called")
       end
-      fail_case.call("#{suite} cases need a rule key besides the rubric") if RULED_SUITES.include?(suite) && expect.keys == [ "rubric" ]
+      checked(expect, suite, fail_case)
 
       expect.freeze
     end
     private_class_method :expectations
+
+    # A key the checks report as not checked until its milestone
+    # (Checks::LATER) checks nothing today: it is no boundary or injection
+    # case's rule key, and a case with no other key and no rubric would pass
+    # with nothing checked (the eval audit's finding 3; README, Flakiness
+    # policy).
+    def self.checked(expect, suite, fail_case)
+      live = expect.keys - [ "rubric" ] - Checks::LATER.keys
+      return if live.any? || (expect.key?("rubric") && !RULED_SUITES.include?(suite))
+
+      later = (expect.keys & Checks::LATER.keys).map { |key| "#{key} is not checked until its milestone (#{Checks::LATER.fetch(key)})" }
+      reason = RULED_SUITES.include?(suite) ? "#{suite} cases need a rule key checked today besides the rubric" : "nothing is checked today"
+      fail_case.call([ reason, *later ].join("; "))
+    end
+    private_class_method :checked
 
     def initialize(cases)
       repeated = cases.map(&:id).tally.find { |_, count| count > 1 }

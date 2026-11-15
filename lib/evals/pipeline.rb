@@ -14,6 +14,10 @@ require_relative "case_set"
 # transaction rolled back at its end: it starts with no visitor and the
 # catalogue of the case's seed, and no attempt sees another's reservations,
 # stock or conversations. Nothing the app does in a turn waits for a commit.
+# The transaction is not joinable, so each of the app's own transaction
+# blocks is a savepoint of it and rolls back with its block, as it does in
+# production, when an exception leaves the block (the eval audit's finding
+# 5, pull request #20's line C7S3).
 module Evals
   class Pipeline
     # One message of the case and what it got. reply is what the visitor
@@ -29,11 +33,11 @@ module Evals
 
     def run(kase)
       result = nil
-      ApplicationRecord.transaction(requires_new: true) do
+      ApplicationRecord.transaction(requires_new: true, joinable: false) do
         prepare(kase.seed)
         identity_hash = SecureRandom.hex(32)
         said = kase.messages.map { |text| say(identity_hash, text) }
-        result = Run.new(turns: said.map(&:first), observation: observe(identity_hash, *said.last))
+        result = Run.new(turns: said.map(&:first), observation: observe(identity_hash, *said.last, earlier: said[...-1].map { |record, _| record.reply }))
         raise ActiveRecord::Rollback
       end
       result
@@ -115,10 +119,10 @@ module Evals
     # The last message's reply, the turn's tool calls, and the rows of the
     # visitor who sent it: a reservation (FR-07), the case's conversation
     # closed with another open (FR-04), nothing left under the visitor's
-    # identity (FR-05).
-    def observe(identity_hash, last, conversation_id, visitor)
+    # identity (FR-05); and the replies to the earlier messages.
+    def observe(identity_hash, last, conversation_id, visitor, earlier:)
       Observation.new(
-        reply: last.reply, notice: last.notice, tool_calls: last.tool_calls,
+        reply: last.reply, notice: last.notice, tool_calls: last.tool_calls, earlier:,
         reservation_created: Reservation.exists?(visitor_id: visitor.id),
         conversation_reset: Conversation.where(id: conversation_id).where.not(closed_at: nil).exists? &&
           Conversation.where(visitor_id: visitor.id, closed_at: nil).where.not(id: conversation_id).exists?,

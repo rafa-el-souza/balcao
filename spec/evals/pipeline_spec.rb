@@ -44,6 +44,7 @@ RSpec.describe "NFR-08 SR-18 the eval runner's pipeline" do
     expect(run.turns.first).to have_attributes(outcome: "replied", notice: FixedReply.notice("pt-BR"))
     expect(run.turns.first.reply).to start_with(FixedReply.notice("pt-BR")).and end_with("por R$ 7,90.")
     observation = run.observation
+    expect(observation.earlier).to eq([ run.turns.first.reply ])
     expect(observation.notice).to be_nil
     expect(observation.reply).to start_with("Pronto, reservei duas caixas.")
     expect(observation.reply).to match(/Reserva [A-Z0-9-]+: 2 × Dipirona 500 mg, 10 comprimidos, retirada até 14\/11 às 14:00\./)
@@ -72,6 +73,22 @@ RSpec.describe "NFR-08 SR-18 the eval runner's pipeline" do
 
     expect([ Visitor.count, Conversation.count, Message.count, Turn.count, TraceEvent.count, Reservation.count ]).to all(eq(0))
     expect(dipirona.reload.stock).to eq(stock)
+  end
+
+  # The eval audit's finding 5 (#20's line C7S3): the app's own transaction
+  # blocks joined the attempt's, so a refusal raised after a write kept the
+  # write that production rolls back with its block.
+  it "rolls back a write when a refusal is raised after it in the app's own transaction, as production does" do
+    allow(Reservation).to receive(:create_once!).and_wrap_original do |create, **args|
+      create.call(**args)
+      raise AgentTool::Error.new(Tools::CreateReservation::OUT_OF_STOCK, reason: "out_of_stock")
+    end
+    responses.replace([ tool_turn(tool_use("create_reservation", { product_id: dipirona.id, quantity: 2 })), reply("[pt] Acabou o estoque.") ])
+
+    observation = pipeline.run(kase("reserva duas caixas da dipirona em comprimido")).observation
+
+    expect(observation.tool_calls.sole.refusal).to eq("out_of_stock")
+    expect(observation.reservation_created).to be(false)
   end
 
   it "applies the case's seed overlay to the tools the model calls, inside the attempt only" do

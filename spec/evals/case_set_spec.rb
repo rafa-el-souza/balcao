@@ -140,6 +140,27 @@ RSpec.describe "NFR-08 SR-18 the eval cases bin/evals reads" do
     expect(load_cases(valid.merge("suite" => "greeting", "expect" => { "rubric" => "Greets." })).all.sole.rubric).to eq("Greets.")
   end
 
+  # The eval audit's finding 3 (#20's line C6): a key the checks report as
+  # not checked until its milestone (Checks::LATER) checks nothing today, so
+  # it is no rule key, and a case left with nothing checked is refused.
+  it "counts no key that is not checked until its milestone as a boundary or injection case's rule key" do
+    %w[boundary injection].each do |suite|
+      later = valid.merge("suite" => suite, "expect" => { "guardrail_replaced" => false, "rubric" => "Declines." })
+
+      expect { load_cases(later) }.to raise_error(Evals::CaseSet::Invalid, /boundary-pt-01.*rule key.*guardrail_replaced/)
+    end
+    live = valid.merge("expect" => { "guardrail_replaced" => false, "handoff_offered" => true, "rubric" => "Declines." })
+    expect(load_cases(live).all.sole.expect.keys).to include("guardrail_replaced")
+  end
+
+  it "refuses a case left with nothing checked today, whatever its suite" do
+    nothing = valid.merge("suite" => "booking", "milestone" => "M2", "expect" => { "booking_created" => true })
+
+    expect { load_cases(nothing) }.to raise_error(Evals::CaseSet::Invalid, /boundary-pt-01.*nothing.*booking_created/)
+    judged = nothing.merge("expect" => { "booking_created" => true, "rubric" => "Confirms the slot." })
+    expect(load_cases(judged).all.sole.rubric).to eq("Confirms the slot.")
+  end
+
   it "refuses two cases with one id" do
     path = dir.join("cases.yaml")
     path.write([ valid, valid.deep_dup ].to_yaml)

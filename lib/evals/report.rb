@@ -1,37 +1,42 @@
 # One run of bin/evals as the person running it reads it and as the results
 # file keeps it (evals/README.md, Running): the table per suite with the 95%
 # Wilson interval, the tokens per model from the API's own usage (the
-# attendant's from each turn's spans, the judge's from its responses), and
-# every attempt whole: the messages and replies, the outcome of each turn, its
-# model and tool calls, each check with its detail and the judge's verdict.
-# The file is evals/results/<UTC time>-<commit>.json, gitignored.
+# attendant's from each turn's spans, the judge's from its responses) and
+# their dollars at config/prices.yml's prices (FR-14), and every attempt
+# whole: the messages and replies, the outcome of each turn, its model and
+# tool calls, each check with its detail and the judge's verdict. The file is
+# evals/results/<UTC time>-<commit>.json, gitignored.
 module Evals
   class Report
     # The outcomes of a turn the visitor got an answer from.
     ANSWERED = %w[replied command deleted].freeze
+    # The judge's usage is kept apart from the attendant's, under its model.
+    JUDGE = " (judge)".freeze
 
     attr_accessor :preflight, :stopped, :finished_at
     attr_reader :results, :started_at
 
-    def initialize(argv:, route:, judge:, started_at:, commit:, dirty:)
+    def initialize(argv:, route:, judge:, started_at:, commit:, dirty:, repeat: nil)
       @argv = argv
       @route = route
       @judge = judge
       @started_at = started_at
       @commit = commit
       @dirty = dirty
+      @repeat = repeat
       @results = []
       @clock = AgentRunner::MONOTONIC.call
     end
 
     def scorecard_run
-      Scorecard::Run.new(started_at:, commit: @commit, dirty: @dirty, model: @route.model, effort: @route.effort, judge_model: @judge.model)
+      Scorecard::Run.new(started_at:, commit: @commit, dirty: @dirty, model: @route.model, effort: @route.effort, judge_model: @judge.model,
+                         repeat: @repeat)
     end
 
     def summary
       [ format("%-12s %5s %6s %6s %9s %8s", "Suite", "Cases", "Passed", "Score", "95%", "Unstable"),
         *@results.group_by { |result| result.kase.suite }.map { |suite, results| suite_line(suite, results) },
-        totals, outcomes, tokens ].compact
+        attempts, totals, outcomes, tokens, dollars ].compact
     end
 
     def write(dir)
@@ -43,9 +48,23 @@ module Evals
 
     def to_h
       { run: { started_at: started_at.utc.iso8601, finished_at: finished_at&.utc&.iso8601, command: [ "bin/evals", *@argv ].join(" "),
-               commit: @commit, dirty: @dirty, model: @route.model, effort: @route.effort, judge_model: @judge.model, stopped: },
-        judge_preflight: preflight&.map(&:to_h), usage: usage,
+               commit: @commit, dirty: @dirty, model: @route.model, effort: @route.effort, judge_model: @judge.model, repeat: @repeat,
+               stopped: },
+        judge_preflight: preflight&.map(&:to_h), usage: usage, cost_usd: cost_usd.transform_values { |usd| usd.round(6).to_f },
         cases: @results.map { |result| case_h(result) } }
+    end
+
+    # The dollars of each model's tokens at config/prices.yml's prices
+    # (FR-14), unrounded: the input billed at the input price is the input
+    # less the cache read and written, which have prices of their own (the
+    # eval audit's finding 8).
+    def cost_usd
+      usage.to_h do |model, use|
+        billed = AgentRunner::Usage.new(model: model.delete_suffix(JUDGE), output_tokens: use[:output_tokens],
+                                        input_tokens: use[:input_tokens] - use[:cache_read_tokens] - use[:cache_write_tokens],
+                                        cache_creation_tokens: use[:cache_write_tokens], cached_tokens: use[:cache_read_tokens])
+        [ model, Prices.cost_usd(billed) ]
+      end
     end
 
     private
@@ -56,6 +75,20 @@ module Evals
       low, high = Scorecard.wilson(passed, graded).map { |bound| (bound * 100).round }
       score = graded.zero? ? "—" : "#{(passed * 100.0 / graded).round}%"
       format("%-12s %5d %6d %6s %9s %8d", suite, results.size, passed, score, "#{low}–#{high}%", results.count(&:unstable))
+    end
+
+    # With --repeat, the attempts of each repeated suite passed out of those
+    # graded, with their 95% Wilson interval (README, Flakiness policy),
+    # which counts them as independent though one case's attempts share its
+    # question (review finding C4 of pull request #39).
+    def attempts
+      repeated = @results.select { |result| @repeat && Runner::REPEATED_SUITES.include?(result.kase.suite) }.group_by { |result| result.kase.suite }
+      lines = repeated.map do |suite, results|
+        passed, graded = Scorecard.attempts(results)
+        low, high = Scorecard.wilson(passed, graded).map { |bound| (bound * 100).round }
+        "#{suite} #{passed}/#{graded} passed (#{low}–#{high}% as if independent), each case #{@repeat} times"
+      end
+      "Attempts: #{lines.join("; ")}" if lines.any?
     end
 
     def totals
@@ -80,6 +113,15 @@ module Evals
           "#{use[:cache_write_tokens].to_fs(:delimited, locale: :en)} written), #{use[:output_tokens].to_fs(:delimited, locale: :en)} out"
       end
       "Tokens: #{lines.join("; ")}" if lines.any?
+    end
+
+    # The attendant's models first, the judge apart after them; a model the
+    # table has no row for is priced at its highest prices (Prices), and said.
+    def dollars
+      costs = cost_usd.sort_by { |model, _| [ model.end_with?(JUDGE) ? 1 : 0, model ] }.map do |model, usd|
+        "#{model} US$ #{format("%.4f", usd)}#{" (no row in the table: its highest prices)" unless Prices.models.include?(model.delete_suffix(JUDGE))}"
+      end
+      "Dollars at config/prices.yml's prices of #{Prices.verified_on.iso8601}: #{costs.join("; ")}" if costs.any?
     end
 
     # Per model: the attendant's input counts the cache read and written, as

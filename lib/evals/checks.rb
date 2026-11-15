@@ -24,8 +24,11 @@ module Evals
 
   # What the case's last message got. reply is what the visitor reads, notice
   # included when the system put one first; tool_calls are the turn's, in the
-  # order they ran.
-  Observation = Data.define(:reply, :notice, :tool_calls, :reservation_created, :conversation_reset, :data_deleted) do
+  # order they ran; earlier are the replies to the case's earlier messages,
+  # in order, as the visitor read them.
+  Observation = Data.define(:reply, :notice, :tool_calls, :reservation_created, :conversation_reset, :data_deleted, :earlier) do
+    def initialize(reply:, notice:, tool_calls:, reservation_created:, conversation_reset:, data_deleted:, earlier: []) = super
+
     # The reply without the notice: what the attendant and the fixed lines wrote.
     def body = notice ? reply.delete_prefix(notice).delete_prefix("\n\n") : reply
   end
@@ -34,7 +37,7 @@ module Evals
   # key, or a key with the entry it selects.
   module Facts
     READERS = {
-      "saturday_hours" => ->(sheet, _) { sheet.week.to_h.fetch("saturday")&.closes },
+      "saturday_closes" => ->(sheet, _) { sheet.week.to_h.fetch("saturday")&.closes },
       "delivery_areas" => ->(sheet, area) { sheet.topic("delivery").fetch("areas").find { |entry| entry["name"] == area }&.fetch("fee") }
     }.freeze
     SELECTED = %w[delivery_areas].freeze
@@ -56,22 +59,36 @@ module Evals
     # Keys whose feature has not arrived; the README lists them for the cases
     # that will need them.
     LATER = { "booking_created" => "FR-08 bookings arrive at M2", "guardrail_replaced" => "the FR-20 guardrail arrives at M2" }.freeze
+    # A tag the runner takes out of a reply ([pt], [pharmacist]) or one like
+    # it: a bracketed word in any letter case, a region after a hyphen; a
+    # Markdown link's text is no tag.
+    TAG = /\[[[:alpha:]]+(?:[-_][[:alpha:]]+)*\](?!\()/
 
     def initialize(phrases:, sheet: StoreSheet.current)
       @phrases = phrases
       @sheet = sheet
     end
 
+    # The case's keys, then the harness's own rule on tags.
     def run(kase, observation)
-      (kase.expect.keys - [ "rubric" ]).map do |key|
+      keys = (kase.expect.keys - [ "rubric" ]).map do |key|
         next Check.new(key:, status: :skip, detail: LATER.fetch(key)) if LATER.key?(key)
 
         passed, detail = send(:"check_#{key}", kase.expect.fetch(key), observation, kase)
         Check.new(key:, status: passed ? :pass : :fail, detail:)
       end
+      [ *keys, tags(observation) ]
     end
 
     private
+
+    # Every reply of every case, the earlier ones too: a tag left in a text
+    # the visitor reads fails the case, whatever its keys (README, Expectation
+    # keys; the eval audit's finding 6).
+    def tags(observation)
+      left = [ *observation.earlier, observation.reply ].flat_map { |reply| reply.to_s.scan(TAG) }.uniq
+      Check.new(key: "tags", status: left.empty? ? :pass : :fail, detail: left.empty? ? "none left" : "left in a reply: #{left.join(", ")}")
+    end
 
     # FR-02: the reply's own words, and a notice, when there is one, in the
     # same language: the system writes it in the language the reply's tag named.
@@ -120,9 +137,21 @@ module Evals
       [ missing.empty?, missing.empty? ? "found all" : "missing #{missing.inspect}" ]
     end
 
+    # Whole words, so that a phrase inside a longer word is not found ("tome"
+    # in "automedicação", the eval audit's finding 2); the lists to include
+    # keep matching stems ("farmacêutic").
     def check_must_not_include(phrases, observation, _kase)
-      found = present(phrases, observation.reply)
+      folded = fold(observation.reply)
+      found = phrases.select { |phrase| folded.match?(whole(fold(phrase))) }
       [ found.empty?, found.empty? ? "none found" : "found #{found.inspect}" ]
+    end
+
+    # A letter at either end of the phrase may not touch another letter; a
+    # digit may, so "mg" is found in "500mg" and "T20:00" in a timestamp.
+    def whole(phrase)
+      before = "(?<![[:alpha:]])" if phrase.match?(/\A[[:alpha:]]/)
+      after = "(?![[:alpha:]])" if phrase.match?(/[[:alpha:]]\z/)
+      Regexp.new("#{before}#{Regexp.escape(phrase)}#{after}")
     end
 
     def check_max_chars(limit, observation, _kase)
