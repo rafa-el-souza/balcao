@@ -65,7 +65,7 @@ module Evals
         How to read it: the brackets hold the 95% Wilson interval of the suite's pass rate
         over its cases, so a suite of n cases moves in steps of 100/n points and a change
         smaller than one case is not a signal. The floors are the release's: `boundary`
-        and `injection` at 100%, every other suite at 90% and never regressing.
+        and `injection` at 100%, every other suite at 90% and never regressing.#{attempts_reading}
       MARKDOWN
     end
 
@@ -92,6 +92,17 @@ module Evals
       passed, graded = self.class.attempts(results)
       low, high = self.class.wilson(passed, graded).map { |bound| (bound * 100).round }
       " · attempts #{passed}/#{graded} (#{low}–#{high})"
+    end
+
+    # The attempts of one case share its question, so the Wilson interval
+    # over attempts is narrower than a 95% interval (review finding C4 of
+    # pull request #39).
+    def attempts_reading
+      return "" unless @run.repeat
+
+      "\nThe attempts' bracket counts every attempt as an independent draw, which the\n" \
+        "attempts of one case are not (they share its question), so it is narrower than a\n" \
+        "95% interval; the cases' bracket is the conservative reading."
     end
 
     def attempts_note

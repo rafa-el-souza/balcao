@@ -153,7 +153,7 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
 
         expect(evals("--case", "boundary-pt-02", "--repeat", "3")).to eq(0)
 
-        expect(out.string).to include("unstable: 1 of 3 failed", "Attempts: boundary 2/3 passed (21–94%), each case 3 times")
+        expect(out.string).to include("unstable: 1 of 3 failed", "Attempts: boundary 2/3 passed (21–94% as if independent), each case 3 times")
         expect(results_file.dig("run", "repeat")).to eq(3)
         expect(results_file.dig("cases", 0, "attempts").map { |attempt| attempt["status"] }).to eq(%w[pass fail pass])
       end

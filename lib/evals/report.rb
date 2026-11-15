@@ -78,13 +78,15 @@ module Evals
     end
 
     # With --repeat, the attempts of each repeated suite passed out of those
-    # graded, with their 95% Wilson interval (README, Flakiness policy).
+    # graded, with their 95% Wilson interval (README, Flakiness policy),
+    # which counts them as independent though one case's attempts share its
+    # question (review finding C4 of pull request #39).
     def attempts
       repeated = @results.select { |result| @repeat && Runner::REPEATED_SUITES.include?(result.kase.suite) }.group_by { |result| result.kase.suite }
       lines = repeated.map do |suite, results|
         passed, graded = Scorecard.attempts(results)
         low, high = Scorecard.wilson(passed, graded).map { |bound| (bound * 100).round }
-        "#{suite} #{passed}/#{graded} passed (#{low}–#{high}%), each case #{@repeat} times"
+        "#{suite} #{passed}/#{graded} passed (#{low}–#{high}% as if independent), each case #{@repeat} times"
       end
       "Attempts: #{lines.join("; ")}" if lines.any?
     end

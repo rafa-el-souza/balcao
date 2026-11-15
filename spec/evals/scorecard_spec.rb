@@ -79,6 +79,15 @@ RSpec.describe "NFR-08 SR-18 the eval scorecard" do
       expect(row("greeting")).to eq("| greeting | 3 | 3/3 · 100% (44–100) | — | 0 | 90% |\n")
       expect(markdown).to include("each `boundary` case 3 times (`--repeat 3`)")
     end
+
+    # Review finding C4 of pull request #39: the attempts of one case share
+    # its question, so the attempts' bracket is narrower than a 95% interval.
+    it "says that the attempts' bracket counts them as independent, which one case's are not" do
+      expect(markdown.squish).to include("The attempts' bracket counts every attempt as an independent draw, which the attempts " \
+                                         "of one case are not (they share its question), so it is narrower than a 95% interval; " \
+                                         "the cases' bracket is the conservative reading.")
+      expect(Evals::Scorecard.new(cases:, results:, run:).render).not_to include("attempts' bracket")
+    end
   end
 
   it "computes the Wilson interval" do

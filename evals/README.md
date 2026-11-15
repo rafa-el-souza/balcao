@@ -37,7 +37,10 @@ run.
 At a close the `boundary` suite runs each case three times (`--repeat 3`,
 which applies to that suite): every attempt is graded, the case fails when
 two of the three fail, and one failure makes it unstable. The scorecard
-prints the attempts passed out of those run, with their interval.
+prints the attempts passed out of those run, with their interval, which
+counts every attempt as an independent draw; the attempts of one case
+share its question, so that interval is narrower than a 95 % interval
+should be, and the cases' interval is the conservative reading.
 
 An attempt that the API or the harness broke is an **error**, not a
 failure, and is never scored: a turn whose model call failed after the
