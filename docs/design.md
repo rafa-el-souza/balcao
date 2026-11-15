@@ -2092,6 +2092,27 @@ exception, the same day: the application's connections run with the
 database's JIT compiler off, which changes no result of the search
 (M4-1; the note below).
 
+- Note 2026-11-15 (M4-1, the catalogue search without the database's JIT
+  compiler; NFR-01, FR-06). The application's connections run with `jit`
+  off, a variable of `config/database.yml` that the four databases
+  inherit, read back on the test connection and in the production
+  configuration (`spec/db/jit_spec.rb`). PostgreSQL compiles a plan whose
+  estimated cost passes `jit_above_cost` (100,000) before running it, and
+  inlines and optimizes the code past 500,000; the planner estimates the
+  search at 3.1 million, from its set-returning functions, though it reads
+  twenty products. On the demo host before the deploy, on one connection of
+  the application, twelve searches (four seed queries, a typo among them,
+  three times each) took 1,466 to 1,799 ms as configured, a median of
+  1,628 ms, and 5.3 to 10.4 ms with `jit` off in a transaction rolled
+  back, a median of 7.8 ms, each query finding the same products in the
+  same order. One search's plan, executed: 1,405 ms, of which the
+  compiler's 1,399 (optimizing 759, emitting 582, inlining 48). The
+  development database is built without the JIT library
+  (`pg_jit_available()` answers false), so no measure taken there showed
+  it. The server's own setting, the database accessory's command, stays:
+  changing it reboots the database for what the connections already do.
+  M4-2 writes the reading after the deploy with the turns it measures.
+
 - Note 2026-11-15 (the plan after the MVP, a documents-only pull request;
   §2.2, J3, FR-06, FR-10, FR-14, FR-26, NFR-01, NFR-03, NFR-08, §6, §8,
   §9.2; threat model SR-03, SR-26, SR-29, SR-30, SR-31, SR-35, R1, R11;
