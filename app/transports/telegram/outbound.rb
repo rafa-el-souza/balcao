@@ -26,9 +26,9 @@ module Telegram
   # - A stored reply Telegram asked to wait for (a 429) or that failed on the
   #   way is tried again by TelegramReplyJob, scheduled for the time the 429
   #   names or after the job's backoff (Active Job's polynomially_longer
-  #   without its jitter: 3 s, then 18 s), three attempts in all; until then
-  #   it and the person's later replies stay pending, in order, and a drain
-  #   meanwhile leaves them be.
+  #   without its jitter: 3 s, then 18 s), three attempts in all, counted for
+  #   each part of a reply cut in parts; until then it and the person's later
+  #   replies stay pending, in order, and a drain meanwhile leaves them be.
   # - A reply that is not stored is tried once: nothing keeps its chat to try
   #   it again. The deletion's confirmation is the exception: it leaves
   #   before the deletion, from the row that keeps the chat, and the turn's
@@ -128,12 +128,14 @@ module Telegram
 
     # The parts not sent yet, each tried once. Answers true when the person's
     # next reply may go (this one sent, or failed for good), false when this
-    # one waits for its time.
+    # one waits for its time. The three attempts count for each part: a part
+    # that leaves starts the count again for the next (FR-19, the owner,
+    # 2026-11-15).
     def deliver(message, chat, visitor)
       parts = self.class.parts(message.body)
       parts.drop(message.parts_sent).each do |part|
         error = send_part(chat, part, REMOVE_KEYBOARD)
-        next message.update_columns(parts_sent: message.parts_sent + 1, updated_at: Time.current) unless error
+        next message.update_columns(parts_sent: message.parts_sent + 1, send_attempts: 0, updated_at: Time.current) unless error
 
         return again_or_failed(message, error, visitor, [ message.parts_sent + 1, parts.size ])
       end

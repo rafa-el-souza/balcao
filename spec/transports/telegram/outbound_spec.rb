@@ -258,6 +258,27 @@ RSpec.describe "FR-19 SR-43 NFR-02 Telegram::Outbound, a reply on its way to the
       ])
     end
 
+    # FR-19 (the owner, 2026-11-15; the MVP review, row 33-R3): the three
+    # attempts counted for the reply, so a long reply whose parts each met a
+    # 429 failed at its third with its first parts delivered.
+    it "counts the three attempts for each part: a part that leaves starts the count again for the next" do
+      long = reply(Array.new(3) { |i| "#{i} #{"z" * 3_000}" }.join("\n\n"), at: 1.minute.from_now)
+      message.update_columns(status: "sent")
+      wait = bot_api_error(429, "Too Many Requests: retry after 1", retry_after: 1)
+      stub_request(:post, bot_api_url("sendMessage"))
+        .to_return(wait, bot_api_answer({ "message_id" => 1 }), wait, bot_api_answer({ "message_id" => 2 }),
+                   wait, bot_api_answer({ "message_id" => 3 }))
+
+      outbound.deliver_pending(visitor)
+      4.times do
+        at = long.reload.next_attempt_at or break
+        travel_to(at + 1.second) { perform_enqueued_jobs(only: TelegramReplyJob) }
+      end
+
+      expect(long.reload).to have_attributes(status: "sent", parts_sent: 3)
+      expect(a_request(:post, bot_api_url("sendMessage"))).to have_been_made.times(6)
+    end
+
     it "goes on to the person's next reply after one that failed" do
       later = reply("Depois.", at: 1.minute.from_now)
       stub_request(:post, bot_api_url("sendMessage"))
