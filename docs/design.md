@@ -1,6 +1,6 @@
 # Balcão — design document
 
-**Status:** v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
+**Status:** v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
 coding session, reading this file top to bottom.
 
 Balcão ("the counter", where a pharmacist serves customers) is an AI attendant
@@ -172,6 +172,25 @@ pt-BR (default), en and es; fixed UI strings follow the same choice.
   ambiguous (e.g. "ok"), Then the reply stays in English.
 - Given a message in a language outside the three, When it arrives, Then the
   reply is in Portuguese and says which languages are supported.
+- Times and prices are said as the store writes them ("14:00",
+  "R$ 14,90") in the three languages: they are the store's tag, not a
+  translation. The system prompt has said so since PR-06; the fact checks
+  of the evals read the same strings (the owner, 2026-11-15).
+- In Spanish the attendant addresses the visitor as "tú", as the fixed
+  texts and the page do. The system prompt says it in one sentence, and
+  M5's Spanish review pass confirms the register or changes it
+  everywhere at once (the owner, 2026-11-15).
+- Given a turn that ends in one of the system's own texts with no reply
+  of the model's to read the language from (the decline after a refusal,
+  the fallback, a turn given up), When the message's own words show its
+  language, Then the text is in that language and not in the one the
+  conversation had stored; a message too short to tell keeps the
+  conversation's. The server reads the message's language with the
+  function-word detector the evals use, moved into the application: no
+  model call, no new dependency. A command phrase that several languages
+  list keeps following the conversation's (`config/commands.yml`). (The
+  owner, 2026-11-15; FR-02's gap of PR-14's review, which §10 had left for
+  the MVP close.)
 
 **FR-03 Store information.** The system prompt carries only the store's
 identity, opening hours and the behaviour policy. Everything else about
@@ -213,6 +232,14 @@ never through a tool, so no prompt injection can trigger it.
   of every conversation of that visitor identity are deleted, the VISITOR
   row is deleted, and a fixed confirmation is sent. Daily aggregates keep
   their counts (they carry no identity).
+- A message is the command when it is the phrase alone. Case, accents,
+  spaces, an opening "¿" or "¡", quotation marks around the phrase, and
+  punctuation or emoji after it do not count, so "apagar meus dados 🙏"
+  deletes. A deletion phrase that ends in a question mark is a question,
+  not the command: it goes to the attendant, who says how to delete. A
+  phrase inside a longer message is never the command. (The owner,
+  2026-11-15; review finding N8 of pull request #8 and the round's
+  verifier.)
 - The per-visitor rate counter (FR-14) lives in the rate-limiter store
   keyed by the identity hash (web token or Telegram user id, FR-19), not in
   deleted rows, so deletion does not reset it.
@@ -221,7 +248,13 @@ never through a tool, so no prompt injection can trigger it.
   the ask for agreement again, since the deletion withdrew it (FR-19).
 - On Telegram the confirmation adds that the messages still shown in the
   chat are the visitor's own copy, which the app's "clear history" removes:
-  the command erases what the server holds (ADR-0017).
+  the command erases what the server holds (ADR-0017). There the
+  confirmation leaves before the rows go, since the chat to send it to
+  lives on the visitor's row (FR-19): a send that fails is tried again with
+  the job's backoff, three attempts in all, and the third deletes whether
+  or not its send left, so a request to delete is always carried out. A
+  confirmation may arrive twice when a run is repeated (NFR-02's accepted
+  duplicate). (The owner, 2026-11-15.)
 
 ### 4.2 Pharmacy work (tools)
 
@@ -299,14 +332,25 @@ condition, substitutions, diagnosis, or interpretation of symptoms.
 - When a message describes what may be an emergency ("meu filho engoliu
   uns comprimidos", a swelling throat), Then the reply gives no first aid
   and no clinical instruction, tells the visitor to call the emergency
-  services now, and ends with the fixed emergency line, SAMU's 192 and
-  Anvisa's Disque-Intoxicação (0800 722 6001), in place of the offer and in
-  every reply that asks for it. The numbers are real on purpose: the
+  services now, and ends with the fixed emergency line in place of the
+  offer and in every reply that asks for it: SAMU's 192, Anvisa's
+  Disque-Intoxicação (0800 722 6001) and, for someone thinking of hurting
+  themselves, CVV's 188 (free, 24 hours a day; read at cvv.org.br on
+  2026-11-15). The numbers are real on purpose: the
   visitor is a real person (the owner, 2026-11-14; §10, PR-15's note).
+- When the model itself refuses the message (stop reason `refusal`,
+  threat model SR-19), Then the reply is the decline text followed by the
+  emergency line, not by the offer: a refused message is the one the
+  system cannot read, so it may be a call for help (the owner,
+  2026-11-15; the finder's notes 1 and 6 of pull request #27).
 - The evals (`../evals/`) hold at least ten clinical-boundary cases across
   the three languages; the boundary suite must pass at 100% for a release
   (on the normal model at the MVP close; on both models from M2, when the
-  economy model enters).
+  economy model enters). At a close each boundary case runs three times,
+  so the 100 % rests on three times the attempts and the scorecard prints
+  them with their interval; a case fails when two of its three attempts
+  fail and is named unstable when one does, the flakiness rule of
+  `evals/README.md` (the owner, 2026-11-15).
 
 **FR-10 Human handoff.** A visitor can ask for a person; the attendant
 offers the human on clinical questions and unknowns; the operator takes
@@ -390,16 +434,23 @@ conversation in real time.
 - Given a web conversation, When a turn runs, Then the panel beside the chat
   shows, as they happen: inbound message received, model call started
   (model, effort), each tool call with arguments and result (truncated to
-  500 characters), model call finished (input/output/cached tokens, latency,
-  cost in USD and in BRL at a configured rate with its verification date),
+  500 characters; a call refused for passing SR-20's six draws no row: the
+  turn's outcome names the limit), model call finished (input/output/cached
+  tokens, latency, cost in USD and in BRL at a configured rate; the rate's
+  verification date lives with the rate in `config/prices.yml` and on the
+  status page, FR-13, not in the panel),
   guardrail check result (FR-20), outbound message sent. Events arrive via Action Cable within
   one second of occurring.
 - Given a Telegram conversation, When the visitor asks "como você funciona?"
   or sends `/trace`, Then the reply contains a link to a trace page for that
   conversation; the link carries a 128-bit random token and shows only that
   conversation.
-- The trace never shows the system prompt verbatim, secrets, other
-  conversations, a raw phone number or a Telegram id.
+- The trace never shows the system prompt verbatim, secrets, another
+  visitor's conversations, a raw phone number or a Telegram id. A visitor's
+  own open reservations, which a reply at FR-07's cap lists from any
+  conversation of theirs, are theirs to see. (The three precisions of this
+  requirement, the refused call, the rate's date and whose conversations:
+  the owner, 2026-11-15.)
 
 **FR-13 Status page and live strip.** A public page shows coarse health:
 uptime, messages processed in the last 24 h and
@@ -460,7 +511,11 @@ levels (ADR-0003), with a daily slice and per-source limits (ADR-0012).
 - Given a new calendar month, Then the automatic mode starts over in
   normal; a forced mode holds until released.
 - The operator can force any mode from the console (kill switch), and the
-  forced mode wins over the automatic one until released.
+  forced mode wins over the automatic one until released. A pause the
+  operator forced answers with a fixed text of its own, which names no
+  limit and no date; the monthly cap's text keeps naming the month (the
+  owner, 2026-11-15). Until the console has the switch (M3) the operator
+  forces a mode with the runbook's command.
 - Spend is computed from the API's `usage` fields and a price table in
   configuration; the table carries the date it was last verified.
 
@@ -527,8 +582,9 @@ referrer counters (FR-23), and a link to the current eval scorecard.
 ### 4.5 Channels
 
 **FR-18 Web channel.** Anonymous browser sessions, no sign-up. **MVP note
-(2026-11-09):** the Turnstile gate of the first scenario ships in the first
-slice after the MVP (ADR-0012); until then `POST /api/session` is gated by
+(2026-11-09):** the Turnstile gate of the first scenario ships in M2's
+first slice (ADR-0012, whose "first slice after the MVP" names M2; §9.2
+runs M4 before it); until then `POST /api/session` is gated by
 the per-IP limits of SR-01 alone, the CSP has no third-party origin and the
 Cloudflare line under the widget is absent.
 - When the page loads, Then the chat page runs a Cloudflare Turnstile
@@ -571,7 +627,10 @@ platform; until 2026-11-14 this requirement was the WhatsApp Cloud API).
   changes nothing; the webhook is the exception, set at every run, since
   Telegram never shows its secret back and a run after the secret's rotation
   must register the new one (§10, PR-18). It ends by printing
-  `getWebhookInfo`, which the runbook's smoke reads. It runs inside the application's container, where
+  `getWebhookInfo`, which the runbook's smoke reads. It exits non-zero when
+  what Telegram reports differs from what the task set (the URL, the kinds
+  of update, the connection limit), so a deploy's smoke fails on a webhook
+  that did not take (the owner, 2026-11-15). It runs inside the application's container, where
   the token already is, so no workstation runs repository code for it
   (SR-38). The application registers nothing at boot.
 - The bot's name says it is a demo. Its description, which Telegram shows
@@ -592,7 +651,7 @@ platform; until 2026-11-14 this requirement was the WhatsApp Cloud API).
   background job reads it from there. A redelivered update is a no-op.
   (`update_id` restarts at a random value after a week without updates, so
   it keys, it does not count.) An authenticated body that is not an update
-  at all is answered 200 too, and counted.
+  at all is answered 200 too, and logged.
 - Once its job has read it, a stored update keeps only its `update_id` and
   its kind: the text, the sender, the chat and all else are dropped
   (review finding RN3 of pull request #7), and no digest of the body is
@@ -678,11 +737,13 @@ revocable consent" (ADR-0016).
   messages, cut between paragraphs.
 - The outbound message is marked sent when `sendMessage` answers `ok`,
   part by part when it was cut, so a new attempt starts at the first part
-  not sent. An answer of 429 is tried again after the time it names and a
-  transport error with the job's backoff, three attempts in all; then the
-  message is marked failed, with a log line that names the error by its
-  class (NFR-03, SR-30); any other answer that is not `ok` marks it failed
-  at once. `sendMessage` takes no idempotency key, so a send whose answer
+  not sent. An answer of 429 is tried again after the time it names; a
+  transport error and an answer of 5xx, whatever its body, with the job's
+  backoff. Three attempts in all, counted for each part: a part that leaves
+  starts the count again for the next. Then the message is marked failed,
+  with a log line that names the error by its class (NFR-03, SR-30); any
+  other answer that is not `ok` (a 4xx) marks it failed at once (the 5xx
+  and the count per part: the owner, 2026-11-15). `sendMessage` takes no idempotency key, so a send whose answer
   was lost may arrive twice; one marked sent is never sent again (NFR-02).
 
 *After the MVP (ADR-0017); none of these adds a kind of update.*
@@ -728,7 +789,11 @@ allow-list (`config/openers.yml`, per language): a stock question in
 Portuguese, a delivery question in Spanish, a clinical trap in Portuguese.
 A fourth chip, "tente me enganar", opens an empty chat with a one-line
 hint inviting a prompt-injection attempt and a link to the injection
-score on the status page; it sends nothing.
+score on the status page; it sends nothing. **MVP note (2026-11-15):** the
+fourth chip ships at M2, once the `injection` suite and the guardrail
+(FR-20) exist, and its link to the score at M3 with the status page
+(FR-13). Until then the landing shows three chips (the owner; §10's note
+of 2026-11-12 had left it for him).
 - Given `/chat?say=stock_pt`, When the page loads, Then exactly one
   message with the allow-listed text is sent and the glass box starts.
 - Given `/chat?say=anything-else`, When the page loads, Then nothing is
@@ -832,8 +897,15 @@ per-visitor window, the daily slice) use `travel_to`.
 **NFR-03 Resilience.** A model-provider error or timeout produces a
 polite fallback reply (text key `fallback.model_error`) and a trace entry
 with `error` set on the model span, never a silent drop; jobs retry with
-backoff (3 attempts) and then land in a dead-letter state visible in the
-console. While a turn runs, the web client shows a "pensando…" state and,
+backoff (3 attempts; each attempt is a run with its own limits, SR-20) and
+then land in a dead-letter state visible in the console. "Never a silent
+drop" covers every message the application accepted, not only a turn the
+model failed: a Telegram update left unread and a turn left without any
+reply are found by a sweep (those stopped for more than five minutes) and
+answered, or given up with a fixed line. The sweep ships with M4's first
+slice (the owner, 2026-11-15); until then the one known way to strand them
+is a database restart with the jobs running, which the runbook's bump day
+no longer does. While a turn runs, the web client shows a "pensando…" state and,
 after 10 s, a visible note that the answer is taking longer; on Telegram
 the chat shows the typing status meanwhile (FR-19); the turn's
 wall clock is 60 s (SR-20).
@@ -898,7 +970,10 @@ a CI check that the three locales have the same keys. The README is in
 English with a short summary in Portuguese and Spanish.
 
 **NFR-10 Accessibility and footprint.** The public page works without
-JavaScript for its text content, meets WCAG AA contrast, and loads under
+JavaScript for its text content, meets WCAG AA contrast (measured on the
+page's own colours; under forced colours the browser's palette replaces
+them and AA's ratios do not apply, though every control and state must
+still be told apart there: the owner, 2026-11-15), and loads under
 300 KB on first visit excluding fonts.
 - Verified in CI: a Playwright run with axe-core over the six public
   pages (landing, chat, trace, privacy, calendar, status) fails on any
@@ -980,7 +1055,14 @@ and broadcasts events over Action Cable to the conversation's stream.
 a turn is running waits in `received` and starts when the running turn
 finishes, in arrival order (a database advisory lock per conversation).
 Bursts of short messages are therefore answered one by one; the model
-sees the earlier reply in context. Commands (FR-04, FR-05, FR-12 `/trace`)
+sees the earlier reply in context. A turn that broke and waits for its own
+job's next attempt is answered first by a later turn's job, under the same
+lock (§10, PR-12's note). The order holds for one break. A turn that breaks
+again inside a later turn's job is answered by its own next attempt, after
+the later reply; the later turn's model had its message in the history, so
+the visitor may read an answer to it twice (review findings R3 and V4 of
+pull request #18 and C1 of #11; accepted by the owner, 2026-11-15).
+Commands (FR-04, FR-05, FR-12 `/trace`)
 and fixed replies short-circuit before the model.
 
 **Transport port.** Adapters implement `receive(raw) → Inbound`,
@@ -1305,7 +1387,9 @@ command (FR-05), not a tool.
 
 Routes: `/` (landing: what it is, try it, business-language section,
 engineering section with links), `/chat` (chat + trace panel side by side;
-on narrow screens the panel is a drawer), `/trace/:token`, `/trace/exhibit-:n`
+on narrow screens the panel is a drawer), `/trace#<token>` (the token in
+the fragment, so it never reaches the proxy's log; §10, PR-11),
+`/trace/exhibit-:n`
 (the committed files of FR-22, rendered by the same component, never
 fetched from the API), `/privacy` (one screen, trilingual: fictional demo,
 seven-day retention, the delete command and what it does not reach, the
@@ -1426,7 +1510,7 @@ story worth telling; the suggestion chips are the three tasks the demo is
 best at. Mobile: panel becomes a bottom drawer with a one-line summary bar
 ("3 eventos · 1.9 s · US$ 0.006 ▲") always visible above the composer.
 
-**`/trace/:token` shareable trace page**
+**`/trace#<token>` shareable trace page**
 
 ```
 +----------------------------------------------------------------------+
@@ -1727,7 +1811,7 @@ every pull request.
 | 9 | PR-15 boundary prompt iteration to 100 %, the fixed offer line, the decline texts in three locales · PR-16 the budget ledger with the monthly cap's pause (FR-14), the nightly job (FR-15), log masking (SR-30), and the cost, rate and mode the drawings ask for, the price table's cache-write column included (§10, note 2026-11-12; done as §10, note 2026-11-14 on PR-16, says) | Wallet fenced; the demo honest about the boundary |
 | 10 | PR-17 `/privacy` page, the landing's stack line naming the Telegram Bot API (moved from PR-19), README sixty-second tour (written ahead of its day, §10, note 2026-11-14; kept true here), design and README status lines made true, the hours table in the handoff; the QR placeholder went to PR-19 (§10, note 2026-11-14, PR-17) | **Web demo showable** |
 | 11 | PR-18 Telegram inbound (ADR-0016, ADR-0017): the bot token and the webhook secret as Kamal env secrets with their boot check (SR-25), the Bot API client with timeouts, its one host and its closed list of methods (§6.6, SR-22), begun with `setWebhook` and `getWebhookInfo`, and the task that registers the webhook; the webhook with the `X-Telegram-Bot-Api-Secret-Token` header compared in constant time before parsing (SR-06), the update persisted keyed by its `update_id`, answered 200 within 2 s whatever it holds, stripped once read and purged at seven days (SR-07, SR-09, FR-15), private chats and `message` updates alone (SR-42), the agreement before anything of a person is stored, identity `sha256(pepper ‖ Telegram user id)` with the chat id encrypted on the visitor's row, each message keyed by its visitor and its message id and processed through `ProcessTurnJob`, the first conversation's language from the app's (SR-10, FR-19), `/start` and `/help` in `config/commands.yml` with their fixed texts, the fixed lines for a message that is not text and for one over 1,000 characters, the limits of FR-14 by the visitor's identity, visitors' words encrypted at rest (SR-41), the channel value `whatsapp` renamed `telegram`, tests against update payloads recorded from the demo bot and committed with invented ids and names (SR-33), the limits' counters deleted by the nightly job at seven days and the privacy page's sentence on them (§10, note 2026-11-14, PR-17) | Inbound messages traced on the host (the agreement typed, since nothing answers yet) |
-| 12 | PR-19 Telegram outbound: the client's `sendMessage` and `sendChatAction`, replies to the visitor's chat in plain text with link previews off (SR-43), the ask's button and the greeting that takes it away, the typing status while a turn runs, the retry on 429 and the cut at 4,096 characters, the `/trace` reply with the tokenised link, the task's command menu and profile in three languages from tracked files, the landing's receipt with the QR (the bot's `t.me` link) and a line on why Telegram, the system prompt's sentence about the channel, the runbook's part on the bot (the task, the BotFather checklist, the rotations, the smoke over `getWebhookInfo`); the first real conversation from the test customer's phone · slack | **J2 minus voice, live** |
+| 12 | PR-19 Telegram outbound: the client's `sendMessage` and `sendChatAction`, replies to the visitor's chat in plain text with link previews off (SR-43), the ask's button and the greeting that takes it away, the typing status while a turn runs, the retry on 429 and the cut at 4,096 characters, the `/trace` reply with the tokenised link, the task's command menu and profile in three languages from tracked files, the landing's receipt with the QR (the bot's `t.me` link) and a line on why Telegram, the system prompt's sentence about the channel, the runbook's part on the bot (the task, the BotFather checklist, the rotations, the smoke over `getWebhookInfo`); the first real conversation from the test customer's phone · slack | **J2 in text, without its voice note (M4) and its booking (M2), live** |
 
 The slack is one day spread over the plan and is expected to be spent on
 the first deploy (day 2) and on the boundary at 100 % (day 9); if both go
@@ -1741,10 +1825,10 @@ the order below. Each is shippable; "days" is the unit above.
 
 | Order | Milestone | Scope (what remains after the MVP) | Days | Done when |
 |---|---|---|---|---|
-| 1 | M4 Voice, and the bot's finish | The bot's finish, as M4's first slice (ADR-0017, FR-19): the button that copies a reservation code, FR-21's openers as a reply keyboard under the greeting, the button that opens the trace; FR-11 voice notes with the ADR-0005 measurement recorded as ADR-0014; the portable QR card for profiles | 2.5 | J2 works with a voice note on the demo bot, and the bot's buttons do their work on the owner's phone |
-| 2 | M2 Pharmacy work, complete | SR-39 Turnstile (the first slice, ADR-0012); FR-20 guardrail with the two must-not-replace cases and the fixed-reply unit suite (SR-18); FR-08 + bookings list + `calendar` stream, FR-15's slot step, on Telegram the offered slots as a reply keyboard, and whether the booked time carries a date entity (ADR-0017); FR-10 state machine with presence toggle + push (SR-35), the operator's alert through the bot weighed against a push service (ADR-0017); FR-16 console with auth, lockout, block list, "copy trace as JSON" and "turn into eval case"; FR-09 on the economy model and `economy_allowed` committed; `injection` suite at 10 cases in the seven families; the first full eval run (`workflow_dispatch`, the `evals` environment) and committed scorecard with the unstable count; `bin/traceability` report at milestone close | 10 | J3 works; boundary suite at 100 % on both models |
-| 3 | M3 Operation | FR-13 status page + live strip (cached), with the sources the drawing still lacks (§10, note 2026-11-12); FR-14 modes + daily slice + kill switch + operator notification; FR-17 in-process canary; resource limits in Kamal; nightly `pg_dump` and one restore drill into a throwaway container in the operator account, and the privacy page's lines on the backups (§10, note 2026-11-14, PR-17); runbook completed (operator checklist with SR-37, the SR-38 deploy-path review and SR-27's kamal-proxy put on the host by its digest before `kamal deploy`, as `bin/deploy` does, roll back, rotations, modes, restore, reset, canary failure, the per-slice rehearsal flow with the Certificate Transparency count, which also checks that every certificate logged for the domain's names came from Let's Encrypt, since the domain's DNS service offers no CAA record); the visitor cookie renamed `__Host-balcao_visitor` (threat model R7), a clean cut with no migration, since the MVP host's data dies with it; `docs/traceability.yml`; threat-model verification table filled; the two-account deploy of ADR-0011: production host created by the owner from `ops/cloud-init.yml`, the demo name moved to it, the MVP host destroyed, `ensaio.rafasouza.dev.br` on the reserved IP, the bot token reissued for the production set; the CI furniture: `bin/evals --recorded` over the `fast` subset with recordings, the NFR-10 gate, the SimpleCov ratchet, actionlint, the static secrets check, the `.kamal/hooks` absence check, rswag OpenAPI | 10 | Shipped on the production host, then the soak passes after 7 consecutive days with canary success ≥ 99 % (NFR-04), no manual restart or deploy, spend within projection, a nightly dump present every night, and one restore drill from a production dump into a throwaway container in the operator account; a failed day restarts the week |
-| 4 | M5 Polish | FR-22 static exhibits (three committed trace files); FR-23 referrers, the bot's deep-link parameter among them; landing copy in both registers and three languages with FR-25; Spanish review pass; README sixty-second tour with links to five files (webhook secret check, reservation idempotency test, model policy, boundary eval cases, deploy config), 8-second GIF, social preview image, 30-second video; scorecard at 60 cases (15 `injection`); NFR-10 gate over all six public pages; traceability gate on in CI; an "OWASP LLM Top 10" column in the threat model's SR table; ADR review; the review policy revisited with the PR records (ADR-0013) | 5 | A stranger completes J1 without help |
+| 1 | M4 Voice, and the bot's finish | The bot's finish, as M4's first slice (ADR-0017, FR-19): the button that copies a reservation code, FR-21's openers as a reply keyboard under the greeting, the button that opens the trace; FR-11 voice notes with the ADR-0005 measurement recorded as ADR-0014; the portable QR card for profiles. What the owner's round gave this milestone is listed below the table (2026-11-15) | 2.5 | J2 works with a voice note on the demo bot, up to its booking, which is M2's (FR-08), and the bot's buttons do their work on the owner's phone |
+| 2 | M2 Pharmacy work, complete | SR-39 Turnstile (the first slice, ADR-0012); FR-20 guardrail with the two must-not-replace cases and the fixed-reply unit suite (SR-18); FR-08 + bookings list + `calendar` stream, FR-15's slot step, on Telegram the offered slots as a reply keyboard, and whether the booked time carries a date entity (ADR-0017); FR-10 state machine with presence toggle + push (SR-35), the operator's alert through the bot weighed against a push service (ADR-0017); FR-16 console with auth, lockout, block list, "copy trace as JSON" and "turn into eval case"; FR-09 on the economy model and `economy_allowed` committed; `injection` suite at 10 cases in the seven families; the first full eval run (`workflow_dispatch`, the `evals` environment) and committed scorecard with the unstable count; `bin/traceability` report at milestone close. What the owner's round gave this milestone is listed below the table (2026-11-15) | 10 | J3 works; boundary suite at 100 % on both models |
+| 3 | M3 Operation | FR-13 status page + live strip (cached), with the sources the drawing still lacks (§10, note 2026-11-12); FR-14 modes + daily slice + kill switch + operator notification; FR-17 in-process canary; resource limits in Kamal; nightly `pg_dump` and one restore drill into a throwaway container in the operator account, and the privacy page's lines on the backups (§10, note 2026-11-14, PR-17); runbook completed (operator checklist with SR-37, the SR-38 deploy-path review and SR-27's kamal-proxy put on the host by its digest before `kamal deploy`, as `bin/deploy` does, roll back, rotations, modes, restore, reset, canary failure, the per-slice rehearsal flow with the Certificate Transparency count, which also checks that every certificate logged for the domain's names came from Let's Encrypt, since the domain's DNS service offers no CAA record); the visitor cookie renamed `__Host-balcao_visitor` (threat model R7), a clean cut with no migration, since the MVP host's data dies with it; `docs/traceability.yml`; threat-model verification table filled; the two-account deploy of ADR-0011: production host created by the owner from `ops/cloud-init.yml`, the demo name moved to it, the MVP host destroyed, `ensaio.rafasouza.dev.br` on the reserved IP, the bot token reissued for the production set; the CI furniture: `bin/evals --recorded` over the `fast` subset with recordings, the NFR-10 gate, the SimpleCov ratchet, actionlint, the static secrets check, the `.kamal/hooks` absence check, rswag OpenAPI. What the owner's round gave this milestone is listed below the table (2026-11-15) | 10 | Shipped on the production host, then the soak passes after 7 consecutive days with canary success ≥ 99 % (NFR-04), no manual restart or deploy, spend within projection, a nightly dump present every night, and one restore drill from a production dump into a throwaway container in the operator account; a failed day restarts the week |
+| 4 | M5 Polish | FR-22 static exhibits (three committed trace files); FR-23 referrers, the bot's deep-link parameter among them; landing copy in both registers and three languages with FR-25; Spanish review pass; README sixty-second tour with links to five files (webhook secret check, reservation idempotency test, model policy, boundary eval cases, deploy config), 8-second GIF, social preview image, 30-second video; scorecard at 60 cases (15 `injection`); NFR-10 gate over all six public pages; traceability gate on in CI; an "OWASP LLM Top 10" column in the threat model's SR table; ADR review; the review policy revisited with the PR records (ADR-0013). What the owner's round gave this milestone is listed below the table (2026-11-15) | 5 | A stranger completes J1 without help |
 
 Total: 12 + 2.5 + 10 + 10 + 5 = 39.5 days, plus the soak's calendar week.
 Before day 11 the owner creates the bot in BotFather, keeps it out of
@@ -1752,11 +1836,179 @@ groups, sets `/privacy` (live since day 10) as its privacy policy and its
 photo, and pastes the token into the env file. Meta's lane (number
 registered, display name, Live mode) closed on 2026-11-14 (ADR-0016).
 
+**What the owner's round at the MVP close gave each milestone
+(2026-11-15).** The reviews of the MVP's pull requests left these items for
+a later milestone, and until the round most of them had no line in this
+plan (§10's note of that day). They are part of each row's scope above. The
+slice that opens a milestone copies its lines into its brief and answers
+each in its pull request's Review section, done or with the reason it was
+not (the rule ADR-0019 writes at the close). In brackets: the pull request
+and the review line an item came from; `docs/reviews/mvp-close-round.md`,
+written at the close, has every line of the round.
+
+*M4, the first slice (the bot's finish).*
+- NFR-03's sweep: a Telegram update left unread and a turn left without
+  any reply, stopped for more than five minutes, are run again or given up
+  with a fixed line; a later update no longer spends its attempts waiting
+  for an earlier one that keeps breaking (#33, H6; #32, H1 and H3; #18,
+  V3).
+- The turn's loose ends that the sweep meets: a turn's runs are counted,
+  bounded from the usage records, and it fails after three (#11's review;
+  #18, R4); the reply and the turn's state are written in one transaction
+  (#11, V2).
+- `Telegram::Chat` hides its chat id from `to_s`, `to_h` and
+  `pretty_print` too (#33, C5); the client rescues network errors by name,
+  so a local bug or a certificate failure is not taken for the network
+  (#33, H7).
+
+*M2.*
+- FR-21's fourth chip with its one-line hint, after the `injection` suite
+  and FR-20 (FR-21's note; the close's interface review).
+- With FR-08, after the data-contract ADR (§10, the list that waits for
+  it): a booking keyed by turn and service, or NFR-02's no-re-run rule
+  (#7, RS3); the eval cases that name a day or an hour run with the clock
+  set (the close's eval audit).
+- With FR-10 and FR-16: an operator's reply is not stamped as the
+  attendant's (#19's review).
+- With the economy model: `formatMoney` by significant digits (#29, C5);
+  anything but a mapping with `economy_allowed: true` is "not allowed"
+  (#29, S6).
+
+*M3.*
+- The fourth chip's link to the injection score, with FR-13 (FR-21's
+  note).
+- SR-20's exception closed: no run passes its 60 s, a retry of the
+  provider's call included (#9, C2's sister).
+- The advisory lock checked after a reconnect, before the turn and before
+  the reply, with a non-transactional test, and connection errors
+  re-raised from `run_earlier` (#11, C3; #18's review; #32, L7).
+- The budget's two loose ends: the spend incremented first and alone, with
+  a log line of the turn and the amount when the records cannot be written
+  (#29, S1); an answer whose usage the SDK cannot read charged an estimate
+  at the route's prices, and logged (#29, S2).
+- One SR-30 sweep with the log review: Solid Cache's failsafe line, Solid
+  Queue's "Error enqueuing recurring task" line, Action Cable's own error
+  lines and its "Started GET /cable" line (#29, V4 and its review; the
+  round's triage); threat model R10 looked at again (#23, V2 and V6).
+- The canary's system visitor carries a marker and both purges leave it
+  (#7, RS1); the app connects with a least-privilege role, not the image's
+  superuser (#4's review).
+- The CI furniture: whole-tree scanners on a schedule, gating a pull
+  request only on what it introduces, weighed against SR-27 as written; a
+  workflow linter beside actionlint; actionlint in CI, installed by
+  `bin/setup`, and the audit's database refreshed by `bin/bundler-audit`
+  itself (#1's review, the three). NFR-10's gate measure set from the
+  build's size: on 2026-11-15 the landing's first visit without fonts is
+  about 457 kB as built and 141 kB compressed, the script 419 and 132 of
+  them (319 and 99 when pull request #14 measured it), so which of the two
+  the 300 KB reads is settled with the gate.
+- The runbook: never run `bin/setup` in the operator checkout, since it
+  would turn on the repository's hooks (#1's review, SR-38); `bin/deploy`
+  fails when the local registry's container is still there after `kamal
+  registry remove` (#4, R4).
+
+*M5.*
+- Before the demo is publicised: the invented name, address and phone
+  looked at again against real businesses (SR-33; #8's review).
+- The Spanish review pass confirms "tú" or changes the register
+  everywhere at once, the boundary phrase lists with it (FR-02).
+- The evals' growth to 60: English and Spanish cases that must not be
+  refused; the judge calibrated against a few dozen replies labelled by
+  hand, about 90 % agreement on the clear ones (the close's eval audit).
+- With FR-25's offer, which brings "R$" into a page's text: the build
+  plugin inserts rendered text through replacer functions (#14, C9); the
+  shell's description and `og:` tags from the locale files, with the
+  social preview image (#4, FR2).
+- Under forced colours the QR keeps a margin of 4 modules (#33, R4).
+
 ---
 
 ## 10. Open decisions
 
-Tracked here until resolved; each resolution becomes an ADR or an edit.
+Tracked here until resolved; each resolution becomes an ADR or an edit. Two
+standing lists come first and stay at the top; the notes follow, the newest
+first.
+
+**Standing triggers.** Read when a slice opens; the slice that pulls a
+trigger does the item and removes the line.
+- The first spec that requires `spec_helper` alone: WebMock moves there
+  from `rails_helper` (review of pull request #1, F6).
+- The first `eslint-disable` in the code of `web/`: unnamed disables are
+  forbidden by rule (#1's review).
+- The next slice that touches the Dockerfile: the image spec's guard reads
+  the whole leading directive block, case-insensitive (#4, FR4).
+- The next migration: a check constraint that an inbound message has its
+  id, `direction = outbound OR external_id IS NOT NULL` (#7, RN5).
+- The next slice that touches the static files' headers:
+  `public/robots.txt` and its year of cache, pinned on purpose (#22, C1's
+  sister).
+
+**Waiting for the data-contract ADR.** The ADR on the data a pharmacy
+would hand Balcão is the owner's to write (number 0018, reserved in the
+index; the study behind it is the catalogue search note's, below). With the
+slice that follows it: delivery areas checked for unique names in the
+store sheet (#8, N10); the catalogue search's pair subquery fenced,
+measured (#31, V2); the sku as the last sort key when a real catalogue
+arrives (#31's review). By the owner's word of 2026-11-15 the round below
+fixes two defects of what exists without changing the contract, in its
+first server pull request: the search with a dose in the query, and the
+error for a YAML key that is not text.
+
+- Note 2026-11-15 (the owner's round at the MVP close, ADR-0013; FR-02,
+  FR-05, FR-09, FR-12, FR-14, FR-18's note, FR-19, FR-21, NFR-03, NFR-10,
+  §6.3, §6.7, §6.8, §9; threat model SR-03, SR-19, SR-20, SR-27, SR-39,
+  R10). The lines "For the owner" and the dismissals of 28 pull requests,
+  326 of them, with what the close's own instruments added (the interface
+  review, the eval audit, the docs reader test), were triaged against the
+  code, weighed against the documents and decided by the owner in one
+  round: 51 questions and four lots. The record, one row per line with its
+  outcome, is `docs/reviews/mvp-close-round.md`; the method and what it
+  changes in the review policy is ADR-0019. Both are written by the pull
+  request that closes the MVP.
+  - **What the round changed in this document:** FR-02 (money and hours as
+    the store writes them; "tú" in Spanish; the system's own texts in the
+    message's language), FR-05 (what counts as the deletion command; the
+    confirmation before the deletion on Telegram), FR-09 (CVV's 188 in the
+    emergency line; a refused message ends with that line; three runs of
+    the boundary at a close), FR-12 (the refused seventh call, the rate's
+    date, whose conversations), FR-14 (the forced pause's own text), FR-18's
+    note (Turnstile in M2's first slice, by name), FR-19 (the task's exit
+    status, "logged", a 5xx tried again, attempts per part), FR-21 (the
+    fourth chip at M2), NFR-03 (what "never a silent drop" covers, the
+    sweep at M4), NFR-10 (forced colours), §6.3 (the order of turns holds
+    for one break), §6.7 and §6.8 (the trace link's form), §9.1 and §9.2
+    (day 12's cell and M4's "done when" worded by what J2 holds there; a
+    home in the plan for the 38 deferred items that had none and for what
+    the answers sent to a milestone), §12 (FR-21's row and the NFRs') and
+    the two standing lists above.
+  - **The sentences come first, the code after.** When this note was
+    written the code did not yet do what these amendments ask: FR-02's
+    "tú" and the language of the system's own texts, FR-05's two, FR-09's
+    three, FR-14's text, FR-19's exit status, its 5xx and its count per
+    part, and, in the threat model, SR-19's emergency line and SR-27's
+    reading of the scores. Each arrives with one of the round's pull
+    requests (the evals and checks, then two of the server) before the MVP
+    closes; the page's fixes come in a pull request of their own, with the
+    drawings that follow them. What a sentence sends to a milestone waits
+    for it (§9.2).
+  - **One amendment is narrower than the round's answer.** The answer on
+    SR-03 was that it covers every answer the application writes, not a
+    controller's alone, since the Telegram webhook, a Rack endpoint, has
+    carried the headers since pull request #33. A probe of the production
+    configuration on the day found four kinds of answer written outside a
+    controller that carry the policy alone, or nothing: the cable gate's
+    refusals, the edge's refusals (413, 429), the redirect of a trace link
+    in its old form, and the error page of an unknown path. None carries a
+    page: each is an `{error}` code, a few plain words or no body at all.
+    SR-03 now names the controllers' answers and the webhook's, which is
+    what the code does; whether the four gain the headers, and SR-03 its
+    wider sentence, is the owner's to say.
+  - **Three details go one step past the owner's words** and stand unless
+    he says otherwise: that the message's language is read by the evals'
+    function-word detector, moved into the application (FR-02); that the
+    third attempt at the deletion's confirmation deletes whether or not its
+    send left (FR-05); and which three fields the bot's task compares
+    (FR-19).
 
 - Note 2026-11-14 (the landing's layout, a side slice outside §9.1's day
   table, asked by the owner; FR-19, FR-21, NFR-10, §6.8). Screenshots from
@@ -2404,7 +2656,8 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     answers, and on WhatsApp it asks a visitor who is already writing to the
     pharmacy to call another number; M2's handoff in the same chat is the
     answer. A refusal still answers in the conversation's language rather
-    than the message's (FR-02's gap from PR-14's review), for the MVP close.
+    than the message's (FR-02's gap from PR-14's review), for the MVP close
+    (answered there, 2026-11-15: FR-02's last scenario).
   - **The review of pull request #27** found (reach as triaged in the pull
     request): C1 (`cliente`), a reply that was its tag alone ("[pt]
     [emergency]") was empty, so the visitor got the fallback and no emergency
@@ -2859,7 +3112,7 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     crash, an out-of-memory kill) or a container killed outright leaves its
     job failed by Solid Queue without its retries; its turn is answered by
     the conversation's next message or a resend (FR-18), and nothing sweeps
-    it.
+    it (the sweep is M4's: NFR-03, as amended on 2026-11-15).
   - **What the review of pull request #18 settled** (its Review section has
     each finding). The job that holds a conversation's lock runs an earlier
     turn that failed before its own, as it runs one still waiting or
@@ -2880,7 +3133,9 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     header rule of ProcessTurnJob, that the model reads the earlier
     replies, holds only for one break (R3, V4); and nothing bounds how
     often the next messages' jobs run again a turn left without any reply
-    (R4).
+    (R4). (All three answered in the owner's round, 2026-11-15: the limits
+    hold per attempt, SR-20; the order holds for one break, §6.3; the
+    bound is M4's, §9.2.)
 
 - Note 2026-11-12 (PR-11, the glass box, the trace page and the cable). What
   the drawings asked of the server, the panel, the trace page and the live
@@ -3018,7 +3273,7 @@ Tracked here until resolved; each resolution becomes an ADR or an edit.
     (`web/src/openers.json`); spec/models/web_openers_spec.rb keeps the two
     equal (FR-21, SR-34), and an opener's change is a change to both files
     (FR-26). The fourth chip, "tente me enganar", stays out until the owner
-    decides what it does (2026-11-12).
+    decides what it does (2026-11-12; decided 2026-11-15, FR-21's note).
   - **Left out until their source exists**, as the drawings' notes say: the
     live numbers, the status link, the WhatsApp QR, the example
     conversations, the offer's tags and exclusions, the scorecard's rows,
@@ -3779,11 +4034,11 @@ Telegram the stop button is one more kind of update (threat model SR-42).
 | FR-18 | Web channel | MVP (Turnstile at M2, first slice) |
 | FR-19 | Telegram channel (ADR-0016, ADR-0017) | MVP (the bot's finish at M4) |
 | FR-20 | Guardrail check | M2 |
-| FR-21 | Prefilled openers | MVP (on Telegram at M4) |
+| FR-21 | Prefilled openers | MVP (the fourth chip at M2, its link at M3; on Telegram at M4) |
 | FR-22 | Exhibit traces (committed files) | M5 |
 | FR-23 | Referrer counting | M5 |
 | FR-24 | Intent mix (retired, §11 V2-5) | — |
 | FR-25 | Offer and contact | M5 |
 | FR-26 | The business is one file | MVP |
-| NFR-01..10 | Cross-cutting | MVP onward (NFR-08's CI furniture and NFR-10's gate at M3) |
+| NFR-01..10 | Cross-cutting | MVP onward (NFR-03's sweep at M4; NFR-08's CI furniture and NFR-10's gate at M3) |
 | SR-* | Security (threat-model.md) | MVP onward (its §6) |

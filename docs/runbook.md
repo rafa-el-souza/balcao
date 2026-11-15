@@ -12,6 +12,14 @@ the demo itself at `https://balcao.rafasouza.dev.br` and is deployed from
 the development account with `bin/deploy -d ensaio` (ADR-0011's MVP
 amendment, threat model R5). Nothing here deploys production.
 
+Two roles appear below. The **development account** is where the code is
+written and from where the MVP host is deployed, on a **workstation** with
+rootless Docker; its cloud project, the **rehearsal project**, holds the MVP
+host until M3 and only rehearsal hosts after it. The **operator account**,
+from M3, deploys production and holds its secrets, and the development
+account can neither read nor enter it (SR-37). "Both accounts" means these
+two.
+
 ## Pinned tools
 
 | Tool | Version | Where it is pinned |
@@ -19,7 +27,7 @@ amendment, threat model R5). Nothing here deploys production.
 | Kamal | 2.12.0 | A global gem in each deploying account, the same version in both; not in the Gemfile, no `bin/kamal`. `bin/deploy` prints `kamal version` first. |
 | kamal-proxy | v0.10.2 | `proxy.run.version` in `config/deploy.yml`, by tag: Kamal reads the running version back from the image tag, so a digest there stops every deploy. A tag can be pushed again, so the digest it resolved to when pinned is written beside it, and a host gets the image by that digest, under the tag, before Kamal boots the proxy (the swap below). Kamal 2.12 alone boots v0.9.2, which GHSA-g8jf-9mcc-x4f2 (high) affects. A deploy never swaps a running proxy. |
 | Docker on the workstation | rootless | Kamal builds with the engine's own builder (`builder.driver: docker` in `config/deploy.yml`), which fetches no BuildKit image. |
-| Base images | by digest | `Dockerfile` and the Postgres accessory in `config/deploy.yml`; Dependabot proposes new digests. |
+| Base images | by digest | Those of the `Dockerfile`, which Dependabot proposes, and the Postgres accessory's in `config/deploy.yml`, checked by hand on bump day. |
 
 ## The host contract
 
@@ -142,14 +150,25 @@ Only a green `main` is deployed to the MVP host.
      `proxy.run.version` pins: a deploy starts the proxy that is already
      there, so another tag means a swap is due ("Swapping the proxy's
      release", below);
-   - a conversation runs over the API (since PR-09): with a cookie jar,
-     `POST /api/session` with the header
-     `Origin: https://balcao.rafasouza.dev.br` and the body `{}` answers
-     `201`; `POST /api/messages` with the same origin and
-     `{"id": "<a new UUID>", "say": "stock_pt"}` answers `202`; within a
-     minute `GET /api/conversations/current` shows the reply and
-     `"pending":false`. Each such turn spends a cent or so of the dev/eval
-     key. Since PR-16 the session's answer also carries `"mode":"normal"`
+   - a conversation runs over the API (since PR-09), with a cookie jar, the
+     public origin in the `Origin` header and a new id for the message:
+
+     ```
+     ORIGIN=https://balcao.rafasouza.dev.br; JAR=$(mktemp)
+     curl -s -o /dev/null -w '%{http_code}\n' -c "$JAR" -H "Origin: $ORIGIN" \
+       -H 'Content-Type: application/json' -d '{}' "$ORIGIN/api/session"
+     curl -s -o /dev/null -w '%{http_code}\n' -b "$JAR" -H "Origin: $ORIGIN" \
+       -H 'Content-Type: application/json' \
+       -d "{\"id\": \"$(uuidgen)\", \"say\": \"stock_pt\"}" "$ORIGIN/api/messages"
+     curl -s -b "$JAR" "$ORIGIN/api/conversations/current"
+     rm "$JAR"
+     ```
+
+     The session answers `201` and the message `202`; the third request,
+     repeated for up to a minute (the reply took five to ten seconds on
+     2026-11-15), shows the reply to "tem dipirona?" and `"pending":false`.
+     Each such turn spends about two cents of the dev/eval key (US$ 0.019
+     that day). Since PR-16 the same answer also carries `"mode":"normal"`
      and the rate of the real (`"brl"`), and the reply's spans carry each
      model call's cost (`balcao.cost.usd`).
 5. The catalogue: after the first deploy that runs turns (PR-09) and after
@@ -256,7 +275,7 @@ the host around the answer.
   keeps the automatic one as last read, and the log has one `budget:` line
   each time it changes. The ledger began on the day PR-16 shipped; the model
   console's usage page has the whole month.
-- **Pausing by hand** (FR-14's kill switch, until the console of M2):
+- **Pausing by hand** (FR-14's kill switch, until the console has it at M3):
   `kamal app exec -d ensaio --roles=web --reuse "bin/rails runner 'BudgetState.for_month!.update!(forced_mode: :paused.to_s)'"`;
   releasing: the same with `forced_mode: nil`. A forced mode holds into
   the next month until released.
@@ -350,23 +369,86 @@ the env file loaded in the same call.
   `kamal app exec -d ensaio --roles=job --reuse "bin/rails runner 'Visitor.where(channel: :telegram.to_s).find_each { |visitor| TelegramReplyJob.perform_later(visitor.id) }'"`.
   A reply marked `failed` is never sent again.
 
+## When the monitor says the demo is down
+
+The alert is the external monitor's e-mail (Monitoring, above): `/up` did
+not answer `200`. Every command here is one the MVP deploy flow already
+gives; this section only puts them in the order of a bad day.
+
+1. Ask `/up` by hand, the first line of the smoke (deploy flow, step 4).
+   A `200` means the demo is back: the monitor writes again on recovery,
+   and the logs of step 3 say what happened meanwhile.
+2. No answer at all, or a refused connection: see whether the host and its
+   containers are there, with `kamal app details -d ensaio` and
+   `kamal proxy details -d ensaio` (the destination's env file loaded, as
+   for a deploy). When SSH does not answer either, the host itself is down,
+   and the cloud provider's console says whether the server runs.
+3. An answer that is an error (the proxy is up and the app behind it is
+   not): read `kamal app logs -d ensaio`,
+   `kamal proxy logs -d ensaio` and `kamal accessory logs db -d ensaio`
+   (deploy flow, step 6). An error is logged by its class, never its message
+   (SR-30).
+4. The way forward is a new deploy of a green `main` (the deploy flow from
+   its first step), fixed first when the logs name a fault of the code;
+   then the smoke, whole.
+5. The proxy is swapped only when its release is the cause ("Swapping the
+   proxy's release", above).
+
+When `/up` answers and the chat does not, the monitor says nothing: the
+first things to read are the mode that serves (the budget, above: a paused
+month answers with its fixed text) and whether the `job` container runs
+(`kamal app details -d ensaio` lists one `web` and one `job`).
+
 ## Bump day (monthly)
 
-- Dependabot's pull requests (gems, npm, base-image digests, Actions).
-- The pinned Kamal gem: the same new version in both accounts, and this
-  file's table.
-- The pinned kamal-proxy, against the advisories kamal-proxy publishes
-  (`gh api repos/basecamp/kamal-proxy/security-advisories --jq '.[] | [.ghsa_id, .severity, .summary] | @tsv'`
-  and its releases); a release that fixes one is pinned, with its digest,
-  and swapped as above.
-- The Postgres accessory's digest: a new image is a deliberate
-  `kamal accessory reboot db -d ensaio`, never a side effect of a deploy.
-- `registry:3`, the image Kamal runs for its local registry on the
-  workstation: Kamal pulls it by tag, outside the digest pins, so the tag
-  Kamal names is checked against its release notes.
-- Docker's repository signing key in `ops/cloud-init.yml`: its fingerprint
-  is checked again against Docker's documentation.
-- The price table and the rate of the real in `config/prices.yml`: the
-  prices against the provider's price page and the fallback models against
-  `allowed_fallback_models` (design §6.4), the rate against the Banco
-  Central's PTAX; each date moves only when its figures were read again.
+In this order, from the workstation, with the destination's env file
+loaded as for a deploy. Steps 3 and 4 interrupt the demo, so they are done
+only when there is something to change; the others never do.
+
+1. **Dependabot's pull requests** (gems, npm, the base images of the
+   `Dockerfile`, Actions): read, merged when CI is green, then the MVP
+   deploy flow above.
+2. **The pinned Kamal gem:** the same new version in both accounts, and
+   this file's table.
+3. **The pinned kamal-proxy**, against the advisories kamal-proxy publishes
+   (`gh api repos/basecamp/kamal-proxy/security-advisories --jq '.[] | [.ghsa_id, .severity, .summary] | @tsv'`
+   and its releases); a release that fixes one is pinned, with its digest,
+   and swapped as above. *Interrupts the demo for the seconds of the swap.*
+4. **The Postgres accessory's digest**, which Dependabot does not propose
+   (it reads the `Dockerfile`, not `config/deploy.yml`): checked by hand
+   against the image's releases. A new image is a pull request that changes
+   the digest and then a deliberate reboot from that `main`, never a side
+   effect of a deploy, and the jobs stop first:
+
+   ```
+   RUNNING=$(kamal app version -d ensaio -q | grep -E '^[0-9a-f]{40}$')
+   kamal app stop -d ensaio --roles=job
+   kamal accessory reboot db -d ensaio
+   kamal accessory exec db -d ensaio --reuse "pg_isready -U balcao -d balcao_production"
+   kamal app start -d ensaio --roles=job --version="$RUNNING"
+   kamal app details -d ensaio --roles=job
+   ```
+
+   The first line reads the version that runs: `kamal app start` names the
+   container by a version and, given none, takes the checkout's commit, so
+   on a checkout that moved since the last deploy it would start nothing
+   and still end without an error. (The variable is not named `VERSION`,
+   which Kamal itself reads from the environment.) The fourth line is
+   repeated until it says "accepting connections"; only then do the jobs
+   start, and the last line must list the `job` container, up.
+   *Interrupts the demo:* while Postgres is down a message gets "not sent"
+   on the page and Telegram sends its update again later; with the jobs
+   stopped no turn is cut in the middle, and what was waiting runs when
+   they start. Rebooted with the jobs running, a turn can lose its lock, a
+   turn can be left without a reply and an update unread (the verifier of
+   the owner's round at the MVP close, 2026-11-15). The downtime is written
+   here at the first bump day that measures it.
+5. **`registry:3`**, the image Kamal runs for its local registry on the
+   workstation: Kamal pulls it by tag, outside the digest pins, so the tag
+   Kamal names is checked against its release notes.
+6. **Docker's repository signing key** in `ops/cloud-init.yml`: its
+   fingerprint is checked again against Docker's documentation.
+7. **The price table and the rate of the real** in `config/prices.yml`: the
+   prices against the provider's price page and the fallback models against
+   `allowed_fallback_models` (design §6.4), the rate against the Banco
+   Central's PTAX; each date moves only when its figures were read again.

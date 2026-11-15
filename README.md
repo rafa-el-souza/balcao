@@ -7,18 +7,20 @@
 > An AI attendant for a neighbourhood pharmacy, on the web and on Telegram,
 > built to be used, watched and audited.
 
-**Try it:** [balcao.rafasouza.dev.br](https://balcao.rafasouza.dev.br) (live
-from the MVP, about two weeks of work after the first commit) — talk to the
-attendant of *Farmácia Vida Longa* (a fictional pharmacy) and watch, beside
-the chat, every model call, tool call, token and cent it took to answer you.
+**Try it:** [balcao.rafasouza.dev.br](https://balcao.rafasouza.dev.br), live
+— talk to the attendant of *Farmácia Vida Longa* (a fictional pharmacy) and
+watch, beside the chat, every model call, tool call, token and cent it took
+to answer you. On Telegram the same attendant is
+[@BalcaoDemoBot](https://t.me/BalcaoDemoBot).
 
 *Português:* Balcão é um atendente de IA para uma farmácia de bairro
-fictícia. Ele consulta estoque, reserva produtos, agenda serviços, encaminha
-para o farmacêutico quando a pergunta é clínica, e mostra ao lado da
-conversa tudo o que fez para responder. *Español:* Balcão es un asistente de
-IA para una farmacia de barrio ficticia: consulta stock, reserva productos,
-agenda servicios, deriva al farmacéutico cuando la pregunta es clínica y
-muestra junto al chat todo lo que hizo para responder.
+fictícia. Ele consulta estoque, reserva produtos, encaminha para o
+farmacêutico quando a pergunta é clínica, e mostra ao lado da conversa tudo
+o que fez para responder (agendamento de serviços, em breve). *Español:*
+Balcão es un asistente de IA para una farmacia de barrio ficticia: consulta
+stock, reserva productos, deriva al farmacéutico cuando la pregunta es
+clínica y muestra junto al chat todo lo que hizo para responder (reserva de
+servicios, próximamente).
 
 ## A sixty-second tour of the code
 
@@ -39,9 +41,11 @@ whose opening comment says what it does and why.
 2. **A job takes it.**
    [`app/jobs/process_turn_job.rb`](app/jobs/process_turn_job.rb) runs the
    turn (a message and everything done to answer it), one at a time per
-   conversation, in order. When something breaks it tries three times in
-   all, then sends a fallback reply: the visitor is never left waiting. On
-   Telegram,
+   conversation, in order, through
+   [`app/models/turn_processor.rb`](app/models/turn_processor.rb), which
+   answers a command itself and hands anything else to the model's runner
+   (the next stop). When something breaks it tries three times in all, then
+   sends a fallback reply: the visitor is never left waiting. On Telegram,
    [`app/transports/telegram/outbound.rb`](app/transports/telegram/outbound.rb)
    then sends the stored reply to the chat, as plain text and in order.
 3. **The model is called.**
@@ -54,9 +58,10 @@ whose opening comment says what it does and why.
    [`app/agent/system_prompt.rb`](app/agent/system_prompt.rb) holds the
    attendant's instructions, nothing secret among them, and the rule that
    matters most: no clinical advice, which is the pharmacist's to give. The
-   `boundary` cases of [`evals/cases.yaml`](evals/cases.yaml) put that rule
-   to the real model in three languages, and the
-   [scorecard](evals/scorecard.md) is the last run's result.
+   `boundary` cases of [`evals/cases.yaml`](evals/cases.yaml) are evals
+   (evaluations: a scripted message, with what a right reply must and must
+   not say). They put that rule to the real model in three languages, and
+   the [scorecard](evals/scorecard.md) is the last run's result.
 5. **A tool does the work.**
    [`app/agent/tools/create_reservation.rb`](app/agent/tools/create_reservation.rb)
    takes nothing on the model's word: it checks every argument itself, and
@@ -66,8 +71,11 @@ whose opening comment says what it does and why.
    [`app/models/trace_recorder.rb`](app/models/trace_recorder.rb) stores each
    model call, tool call and reply as a span in OpenTelemetry's shape, with
    attributes from an allow-list only, so no secret and no identity can ride
-   along. [`web/src/chat/GlassBox.tsx`](web/src/chat/GlassBox.tsx) draws the
-   spans as they happen in the glass box, the panel beside the chat.
+   along. The way back to the page is a WebSocket:
+   [`app/channels/conversation_channel.rb`](app/channels/conversation_channel.rb)
+   streams the reply and each span to the conversation's own visitor, and
+   [`web/src/chat/GlassBox.tsx`](web/src/chat/GlassBox.tsx) draws the spans
+   as they happen in the glass box, the panel beside the chat.
 7. **Every call is paid for, and capped.**
    [`app/models/budget.rb`](app/models/budget.rb) charges each model call to
    the month at the dated prices of
@@ -89,7 +97,8 @@ what each folder holds.
 
 - Answers in Portuguese, English or Spanish, whichever you write.
 - Looks up stock and prices, reserves products for pickup, books in-store
-  services into a live calendar (bookings after the MVP).
+  services into a live calendar (bookings after the MVP, the minimum viable
+  product: the first version, which is the one live now).
 - Refuses clinical advice (doses, interactions, diagnoses) and points to
   the store's pharmacist with a fixed line of phone and counter hours, or,
   when a message may be an emergency, to SAMU's 192 and the poison line —
@@ -135,8 +144,11 @@ little about this one; `app/agent/`, `app/transports/`, `evals/`, `ops/`,
   under `api/`, and the controller that sends the web app's pages.
   [`config/routes.rb`](config/routes.rb) lists every URL and the code behind
   it.
-- [`app/jobs/`](app/jobs) — work done after a request is answered; here, the
-  job that answers a message and the one that reads a Telegram update.
+- [`app/jobs/`](app/jobs) — work done outside a request, four jobs: the one
+  that answers a message (`process_turn_job.rb`), the Telegram bot's two,
+  which read an update and send a reply that had to wait
+  (`telegram_update_job.rb`, `telegram_reply_job.rb`), and the nightly reset
+  of the demo's data (`nightly_reset_job.rb`).
 - [`app/transports/`](app/transports) — the Telegram bot's side: the
   webhook, the Bot API client, what an update makes of the conversation, how
   a reply leaves for the chat, and the task that sets the bot's webhook,
@@ -231,10 +243,14 @@ See the delivery plan in the design document.
 
 You need Ruby and Node.js at the versions in `.tool-versions` (mise or asdf
 read that file), PostgreSQL 18 running locally and reachable by your own
-user (no password, no `DATABASE_URL`), and Git. No secret: the test suite
-never calls the model or any outside service. A conversation in development
-calls the real model, with the `ANTHROPIC_API_KEY` of the shell that starts
-`bin/dev`.
+user (no password, no `DATABASE_URL`), and Git. The test suite needs no
+secret: it never calls the model or any outside service. A conversation in
+development calls the real model, with the `ANTHROPIC_API_KEY` of the shell
+that starts `bin/dev`: a paid Anthropic API key of your own, a cent or two
+a turn. `bin/setup` ends by starting `bin/dev`, so export the key first, or
+run `bin/setup --skip-server` and start `bin/dev` once it is set. Without
+the key the chat still opens, and every turn ends, after its three attempts
+(some twenty seconds), in the fallback reply.
 
 ```sh
 bin/setup   # installs gems and npm packages, enables the secret-scan
@@ -246,9 +262,8 @@ bin/ci      # the CI set, locally: RuboCop, bundler-audit, Brakeman,
             # web build, actionlint and gitleaks
 ```
 
-`bin/setup --skip-server` prepares without starting the servers. One suite
-at a time: `bundle exec rspec`, and `npm test` inside `web/`. `bin/ci`
-expects `actionlint` and `gitleaks` on your `PATH`.
+One suite at a time: `bundle exec rspec`, and `npm test` inside `web/`.
+`bin/ci` expects `actionlint` and `gitleaks` on your `PATH`.
 
 `bin/deploy -d ensaio` deploys the demo host and nothing else; it needs that
 destination's env file and SSH key, and production is never deployed from
