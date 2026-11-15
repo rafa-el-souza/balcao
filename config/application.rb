@@ -13,6 +13,7 @@ require "action_mailer/railtie"
 require "action_view/railtie"
 require "action_cable/engine"
 require_relative "../lib/middleware/api_body_limit"
+require_relative "../lib/middleware/response_headers"
 # require "rails/test_unit/railtie"
 
 # Require the gems listed in Gemfile, including any gems
@@ -61,10 +62,19 @@ module Balcao
       serial usb xr-spatial-tracking
     ].map { |feature| "#{feature}=()" }.join(", ")
 
+    # SR-03: every answer carries the headers above and the policy, a
+    # controller's when it is made and any other at the top of the stack,
+    # where Balcao::ResponseHeaders completes what an answer lacks and
+    # overrides nothing (lib/middleware/response_headers.rb; the owner's word
+    # of 2026-11-15). Its place is read with bin/rails middleware under the
+    # production configuration: above host authorization, SSL and the static
+    # files, which answer before anything below them.
+    config.middleware.insert_before 0, Balcao::ResponseHeaders
+
     # SR-03: static files (public/, the web app's hashed scripts and styles)
-    # leave before any controller, so none of the headers above reach them;
-    # nosniff keeps a browser from reading one as another type. Each
-    # environment adds its cache-control to this hash.
+    # leave before any controller; nosniff keeps a browser from reading one as
+    # another type, and the middleware above adds the rest. Each environment
+    # adds its cache-control to this hash.
     config.public_file_server.headers = { "x-content-type-options" => "nosniff" }
 
     # X-Runtime told anyone how long the server took over each request, to
