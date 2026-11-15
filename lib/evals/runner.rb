@@ -22,10 +22,11 @@ module Evals
     GRADED = 3
     ERRORS = 3
     # The suites --repeat applies to (README, Flakiness policy), and the
-    # fewest attempts it takes: with fewer, one failure would leave a single
-    # pass, which the usual policy never takes as a pass.
+    # attempts it takes: with fewer than three, one failure would leave a
+    # single pass, which the usual policy never takes as a pass; more than
+    # ten is a typo's cost (the finder's note 2 on pull request #39).
     REPEATED_SUITES = %w[boundary].freeze
-    MIN_REPEAT = 3
+    REPEAT = (3..10)
     INFRA_OUTCOMES = %w[model_error deadline].freeze
     FATAL_ERRORS = %w[
       Anthropic::Errors::AuthenticationError Anthropic::Errors::PermissionDeniedError Anthropic::Errors::NotFoundError
@@ -56,7 +57,7 @@ module Evals
     RETRY_WAIT = (5.0..10.0)
 
     def initialize(pipeline:, checks:, judge:, route:, repeat: nil, clock: AgentRunner::MONOTONIC, pause: ->(seconds) { sleep(seconds) })
-      raise ArgumentError, "repeat takes #{MIN_REPEAT} attempts or more, not #{repeat}" if repeat && repeat < MIN_REPEAT
+      raise ArgumentError, "repeat takes #{REPEAT.min} to #{REPEAT.max} attempts, not #{repeat}" if repeat && !REPEAT.cover?(repeat)
 
       @pipeline = pipeline
       @checks = checks

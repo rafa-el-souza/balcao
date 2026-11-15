@@ -75,6 +75,15 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
       expect(fake.requests).to be_empty
     end
 
+    # The finder's note 2 on pull request #39: a typo such as 33 would spend
+    # eleven times the attempts.
+    it "takes --repeat with ten attempts at most" do
+      expect(evals("--case", "boundary-pt-02", "--repeat", "11")).to eq(2)
+      expect(err.string).to include("--repeat 11", "10")
+      expect(evals("--list", "--case", "boundary-pt-02", "--repeat", "10")).to eq(0)
+      expect(out.string).to include("10 attempts")
+    end
+
     it "names a suite or a case it does not know" do
       expect(evals("--suite", "smalltalk")).to eq(2)
       expect(evals("--case", "boundary-pt-99")).to eq(2)

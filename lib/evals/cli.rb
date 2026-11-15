@@ -66,7 +66,7 @@ module Evals
         opts.on("--suite NAME", "A suite's cases of a delivered milestone; repeatable") { |name| options[:suites] << name }
         opts.on("--case ID", "One case, whatever its milestone; repeatable") { |id| options[:ids] << id }
         opts.on("--model MODEL", "normal; the economy model's run arrives at M2") { |model| options[:model] = model }
-        opts.on("--repeat N", Integer, "Each #{Runner::REPEATED_SUITES.join(", ")} case N times (#{Runner::MIN_REPEAT} or more), every attempt graded") do |count|
+        opts.on("--repeat N", Integer, "Each #{Runner::REPEATED_SUITES.join(", ")} case N times (#{Runner::REPEAT.min} to #{Runner::REPEAT.max}), every attempt graded") do |count|
           options[:repeat] = count
         end
         opts.on("--scorecard", "With --all: rewrite evals/scorecard.md") { options[:scorecard] = true }
@@ -88,8 +88,9 @@ module Evals
       raise Usage, "choose one of --all, --suite or --case" unless kinds == 1 || options[:help]
       raise Usage, "--scorecard rewrites the scorecard from --all alone" if options[:scorecard] && !options[:all]
       raise Usage, "--scorecard and --list do not go together" if options[:scorecard] && options[:list]
-      if options[:repeat] && options[:repeat] < Runner::MIN_REPEAT
-        raise Usage, "--repeat #{options[:repeat]}: it takes #{Runner::MIN_REPEAT} or more, so that one failure leaves two passes"
+      if options[:repeat] && !Runner::REPEAT.cover?(options[:repeat])
+        raise Usage, "--repeat #{options[:repeat]}: it takes #{Runner::REPEAT.min} to #{Runner::REPEAT.max}: with fewer one failure " \
+                     "leaves a single pass, and more costs what a typo would"
       end
 
       options

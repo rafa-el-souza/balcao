@@ -155,7 +155,7 @@ are in the seed.
   the MVP's for now), `--suite NAME` (that suite's cases of a delivered
   milestone; repeatable), `--case ID` (that case, whatever its milestone;
   repeatable), `--model normal`, `--repeat N` (each `boundary` case of the
-  selection N times, three or more, every attempt graded; refused for a
+  selection N times, three to ten, every attempt graded; refused for a
   selection with no `boundary` case), `--scorecard` (with `--all`), and
   `--list`, which lists the selection and stops, with no key and no model
   call. `bin/evals` runs in the test environment only, on the test
