@@ -422,16 +422,22 @@ describe("NFR-03 the turn that waits", () => {
     // jsdom lays nothing out and has no scrollIntoView: each entry the page
     // brings into view is recorded with the room the window keeps clear then,
     // and with what it said then.
-    const scrolled: { element: Element; padding: string; text: string }[] = [];
+    const scrolled: {
+      element: Element;
+      padding: string;
+      text: string;
+      behavior: ScrollBehavior | undefined;
+    }[] = [];
     beforeEach(() => {
       scrolled.length = 0;
       Object.defineProperty(Element.prototype, "scrollIntoView", {
         configurable: true,
-        value(this: Element) {
+        value(this: Element, options?: ScrollIntoViewOptions) {
           scrolled.push({
             element: this,
             padding: document.documentElement.style.scrollPaddingBottom,
             text: this.textContent,
+            behavior: options?.behavior,
           });
         },
       });
@@ -491,6 +497,44 @@ describe("NFR-03 the turn that waits", () => {
 
       expect(within(thread()).getByText(pt.offline)).toBeInTheDocument();
       expect(inThread().at(-1)?.element).toHaveTextContent(pt.offline);
+    });
+
+    // The owner's round at the MVP close, row 18-L-motion (the interface
+    // review's W5): nothing slides for a visitor who asked for reduced motion
+    // (design brief §5; interface checklist item 15).
+    const motion = (reduce: boolean) => {
+      vi.stubGlobal("matchMedia", (query: string) => ({
+        matches: reduce && query === "(prefers-reduced-motion: reduce)",
+        media: query,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+      }));
+    };
+
+    it("brings the thread's end into view at once for reduced motion", async () => {
+      motion(true);
+      renderPage(<Chat />);
+      await ready();
+
+      await sendAndWait();
+      await waitFor(() => {
+        expect(inThread().at(-1)?.element).toHaveTextContent(pt.thinking);
+      });
+      expect(inThread().map(({ behavior }) => behavior)).not.toContain(
+        "smooth",
+      );
+    });
+
+    it("lets the thread's end glide into view otherwise", async () => {
+      motion(false);
+      renderPage(<Chat />);
+      await ready();
+
+      await sendAndWait();
+      await waitFor(() => {
+        expect(inThread().at(-1)?.element).toHaveTextContent(pt.thinking);
+      });
+      expect(inThread().at(-1)?.behavior).toBe("smooth");
     });
 
     // The owner's round at the MVP close, row 18-L-notsent (the interface

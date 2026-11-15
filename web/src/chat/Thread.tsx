@@ -79,6 +79,12 @@ export function Text({
     ));
 }
 
+// The visitor's preference, read at each scroll, so a change made while the
+// page is open holds at once.
+const reducedMotion = () =>
+  typeof window.matchMedia === "function" &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
 // NFR-03: past ten seconds of waiting (NFR-01's p95), the attendant says the
 // answer is taking longer.
 export const SLOW_MS = 10_000;
@@ -225,13 +231,18 @@ export function Thread({
   // #18), for this scroll alone: left on the root, the padding would move the
   // window whenever a control in the foot takes the focus, and outlive the
   // layout it measured (R2 and V4). The scroll keeps the destination it was
-  // given when the padding goes.
+  // given when the padding goes. It glides, unless the visitor asked for
+  // reduced motion: then nothing slides (design brief §5; the owner's round
+  // at the MVP close, row 18-L-motion).
   const reveal = useCallback(
     (element: Element | null | undefined) => {
       if (!element || !("scrollIntoView" in element)) return;
       const root = document.documentElement.style;
       root.scrollPaddingBottom = `${String(covered())}px`;
-      element.scrollIntoView({ block: "end", behavior: "smooth" });
+      element.scrollIntoView({
+        block: "end",
+        behavior: reducedMotion() ? "instant" : "smooth",
+      });
       root.scrollPaddingBottom = "";
     },
     [covered],
