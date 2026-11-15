@@ -743,6 +743,26 @@ describe("FR-12 the glass box at 390 px", () => {
     expect(screen.getByRole("main")).not.toHaveAttribute("data-drawer");
   });
 
+  // The owner's round at the MVP close, row IR-S2: while the drawer is open
+  // the line's button closes it, and its name still said "open".
+  it("names the line's button by what a press does: open, then close", async () => {
+    renderPage(<Chat />);
+    await ready();
+    const line = await screen.findByRole("button", { name: /0 eventos/ });
+    expect(line).toHaveAccessibleName(new RegExp(pt.chat.glass.open));
+
+    fireEvent.click(line);
+
+    expect(line).toHaveAttribute("aria-expanded", "true");
+    expect(line).not.toHaveAccessibleName(new RegExp(pt.chat.glass.open));
+    expect(line).toHaveAccessibleName(new RegExp(pt.chat.glass.hide));
+
+    fireEvent.click(line);
+
+    expect(line).toHaveAttribute("aria-expanded", "false");
+    expect(line).toHaveAccessibleName(new RegExp(pt.chat.glass.open));
+  });
+
   it("says there is nothing yet on a first visit", async () => {
     renderPage(<Chat />);
     await ready();

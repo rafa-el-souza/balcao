@@ -89,6 +89,7 @@
       "delete": "delete data",
       "deleteCommand": "/delete",
       "open": "open the glass box",
+      "hide": "close the glass box",
       "close": "close",
       "openTrace": "open the trace as a page"
     }

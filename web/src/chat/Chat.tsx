@@ -170,8 +170,10 @@ export function Chat() {
                 </span>
               </span>
               <span className={styles.summaryOpen}>
+                {/* What a press does, as the drawer stands (the owner's round
+                    at the MVP close, row IR-S2). */}
                 <span className={parts.visuallyHidden}>
-                  {t("chat.glass.open")}
+                  {t(drawer ? "chat.glass.hide" : "chat.glass.open")}
                 </span>
               </span>
             </button>

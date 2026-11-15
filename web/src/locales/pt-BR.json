@@ -89,6 +89,7 @@
       "delete": "apagar dados",
       "deleteCommand": "/apagar",
       "open": "abrir a caixa de vidro",
+      "hide": "fechar a caixa de vidro",
       "close": "fechar",
       "openTrace": "abrir trace em página"
     }

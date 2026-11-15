@@ -89,6 +89,7 @@
       "delete": "borrar datos",
       "deleteCommand": "/borrar",
       "open": "abrir la caja de cristal",
+      "hide": "cerrar la caja de cristal",
       "close": "cerrar",
       "openTrace": "abrir el trace en una página"
     }
