@@ -247,6 +247,38 @@ describe("FR-12 the glass box's rows, one per model call, from the spans", () =>
       }
     });
 
+    // The fix review's R1 on pull request #45: a command's runs start at the
+    // message's receipt, as the dead letter's run does, and the tie drew the
+    // turn as a command, with a nameless row and no outcome.
+    it("draws a command the job gave up on with the dead letter's outcome, every run from the receipt", () => {
+      const command = (until: string) =>
+        span("balcao.command", {
+          span_id: `command-${until}`,
+          parent_span_id: null,
+          at: T("41"),
+          until,
+          attributes: {
+            "balcao.command.name": "trace",
+            "error.type": "RuntimeError",
+          },
+        });
+
+      const [turn] = turnsOf([
+        command(T("42")),
+        command(T("45")),
+        command(T("49")),
+        ...gaveUp,
+      ]);
+
+      expect(turn?.rows.at(-1)).toMatchObject({
+        kind: "sent",
+        outcome: "dead_letter",
+      });
+      expect(turn?.rows).not.toContainEqual(
+        expect.objectContaining({ kind: "command", name: "" }),
+      );
+    });
+
     it("counts a run still going as the last, so the turn runs", () => {
       const [turn] = turnsOf([
         span("balcao.turn", { span_id: "again", at: T("41"), until: null }),

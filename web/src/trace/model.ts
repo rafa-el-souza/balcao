@@ -215,7 +215,11 @@ function turnOf(id: string, spans: Span[]): Omit<Turn, "number"> | null {
   // gives the receipt, and the run that ended last, or still runs, the
   // outcome and the time (review finding C7 of pull request #17).
   const roots = sorted.filter((span) => ROOTS.has(span.name));
-  const first = roots[0];
+  // A command's runs start at the message's receipt, as a dead letter's run
+  // does: that run is a turn's root, so a command the job gave up on is drawn
+  // as a turn, with the dead letter's outcome (review finding R1 of pull
+  // request #45).
+  const first = roots.find((span) => span.name === "balcao.turn") ?? roots[0];
   const last = [...roots].sort(byEnd).at(-1);
   if (!first || !last) return null;
 
