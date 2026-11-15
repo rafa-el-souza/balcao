@@ -137,7 +137,15 @@ RSpec.describe "FR-03 FR-26 the store fact sheet" do
         /topics\.services\.list keys must be unique/
       ],
       "a contact without a phone" => [ ->(data) { data["topics"]["contact"].delete("phone") }, /topics\.contact\.phone/ ],
-      "no pharmacy name" => [ ->(data) { data["identity"]["name"] = " " }, /identity\.name/ ]
+      "no pharmacy name" => [ ->(data) { data["identity"]["name"] = " " }, /identity\.name/ ],
+      # Review finding N2 of pull request #8: YAML reads an unquoted on, yes,
+      # no or number as another type, and the key's comparison raised
+      # ArgumentError, which named nothing (the owner's word of 2026-11-15).
+      "a key of the hours that is not text" => [ ->(data) { data["hours"][1] = "closed" }, /hours has a key that is not text: 1\b/ ],
+      "a key of a day that is not text" => [
+        ->(data) { data["hours"]["monday"][true] = "08:00" }, /hours\.monday has a key that is not text: true/
+      ],
+      "a key of the topics that is not text" => [ ->(data) { data["topics"][nil] = {} }, /topics has a key that is not text: nil/ ]
     }.each do |label, (change, message)|
       it "refuses #{label}" do
         expect { sheet_with(change) }.to raise_error(StoreSheet::Invalid, message)
@@ -150,6 +158,15 @@ RSpec.describe "FR-03 FR-26 the store fact sheet" do
         file.flush
 
         expect { StoreSheet.load(file.path) }.to raise_error(StoreSheet::Invalid, /must be a mapping/)
+      end
+    end
+
+    it "names the key YAML read as another type, as an edit of the file would write it" do
+      Tempfile.create([ "store", ".yml" ]) do |file|
+        file.write(Rails.root.join("config/store.yml").read.sub(/^  sunday: .*$/, "  sunday: closed\n  yes: closed"))
+        file.flush
+
+        expect { StoreSheet.load(file.path) }.to raise_error(StoreSheet::Invalid, /hours has a key that is not text: true/)
       end
     end
   end

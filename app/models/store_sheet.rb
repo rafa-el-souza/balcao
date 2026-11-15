@@ -67,6 +67,7 @@ class StoreSheet
 
   def check_hours(hours)
     require_mapping(hours, "hours")
+    require_text_keys(hours, "hours")
     raise Invalid, "hours must name the seven days, #{WEEKDAYS.join(", ")}" unless hours.keys.sort == WEEKDAYS.sort
 
     week = WEEKDAYS.map { |day| check_day(hours[day], "hours.#{day}") }
@@ -78,7 +79,12 @@ class StoreSheet
 
   def check_day(day, path)
     return if day == CLOSED
-    raise Invalid, "#{path} must be { opens: HH:MM, closes: HH:MM } or #{CLOSED}" unless day.is_a?(Hash) && day.keys.sort == %w[closes opens]
+
+    shape = "#{path} must be { opens: HH:MM, closes: HH:MM } or #{CLOSED}"
+    raise Invalid, shape unless day.is_a?(Hash)
+
+    require_text_keys(day, path)
+    raise Invalid, shape unless day.keys.sort == %w[closes opens]
 
     %w[opens closes].each do |key|
       raise Invalid, "#{path}.#{key} must be HH:MM, got #{day[key].inspect}" unless day[key].is_a?(String) && day[key].match?(TIME)
@@ -90,6 +96,7 @@ class StoreSheet
 
   def check_topics(topics)
     require_mapping(topics, "topics")
+    require_text_keys(topics, "topics")
     raise Invalid, "topics must be exactly #{TOPICS.join(", ")}" unless topics.keys.sort == TOPICS.sort
 
     TOPICS.each { |name| require_mapping(topics[name], "topics.#{name}") }
@@ -124,6 +131,16 @@ class StoreSheet
 
   def require_mapping(value, path)
     raise Invalid, "#{path} must be a mapping" unless value.is_a?(Hash)
+  end
+
+  # YAML reads an unquoted on, yes, no, null or number as another type; a
+  # mapping whose keys are compared must name such a key rather than fail
+  # the comparison (review finding N2 of pull request #8).
+  def require_text_keys(mapping, path)
+    return if mapping.keys.all?(String)
+
+    key = mapping.keys.find { |name| !name.is_a?(String) }
+    raise Invalid, "#{path} has a key that is not text: #{key.inspect} (quote it)"
   end
 
   def require_text(value, path)
