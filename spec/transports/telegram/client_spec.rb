@@ -145,6 +145,24 @@ RSpec.describe "SR-22 FR-19 the Telegram Bot API client" do
       }
     end
 
+    # FR-19 as the owner decided it on 2026-11-15 (the MVP review, rows
+    # 33-H3 and Q29): a 5xx in Telegram's own JSON was a refusal, failed at
+    # once, while the same status on a proxy's page was tried again.
+    it "takes an answer of 5xx as a failure of the way there, whatever its body" do
+      [ 500, 502, 503 ].each do |status|
+        stub_request(:post, "#{base}/sendMessage").to_return(
+          status:, body: { ok: false, error_code: status, description: "Internal Server Error" }.to_json
+        )
+
+        expect { client.send_message(chat_id: 1, text: "Oi") }.to raise_error(Telegram::Client::Error) { |error|
+          expect(error).to have_attributes(code: nil, failure: "HTTP #{status}", retry_after: nil)
+          expect(error).not_to be_refused
+          expect(error).not_to be_rate_limited
+          expect(error.message).to eq("sendMessage: HTTP #{status}")
+        }
+      end
+    end
+
     # Review finding L1 of pull request #32: Rake, and anything that prints
     # an error whole, prints its causes too, and a library's message may
     # carry what this class keeps out of its own.

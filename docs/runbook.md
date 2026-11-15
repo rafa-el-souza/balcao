@@ -361,9 +361,10 @@ the env file loaded in the same call.
   log has one `telegram reply <id>: failed after N attempts` line naming the
   error by its class and Telegram's code (a 403 is a visitor who blocked the
   bot), the wait a 429 named and, for a reply cut in parts, the part that
-  failed. A reply Telegram asked to wait for, or that failed on the way,
-  stays `pending` with its time (`next_attempt_at`) until `TelegramReplyJob`
-  tries it again, three attempts in all.
+  failed. A reply Telegram asked to wait for, or that failed on the way (a
+  timeout, a broken connection, an answer of 5xx, whose line names it
+  `HTTP 5xx`), stays `pending` with its time (`next_attempt_at`) until
+  `TelegramReplyJob` tries it again, three attempts in all.
 - **A reply that is never stored** (the ask, `/help` and the deletion
   before the agreement, the fixed lines) is tried once, since nothing keeps
   its chat to try again; one that could not be sent has a `telegram fixed
