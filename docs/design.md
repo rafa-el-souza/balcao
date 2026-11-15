@@ -2014,7 +2014,17 @@ narrowed it to the doses and to the medicine's name (its findings V1,
 C2 and R1). The store sheet names a key that is not text.
 
 - Note 2026-11-15 (the MVP close, #42; FR-02, FR-05, FR-09, FR-14,
-  SR-20, SR-27; ADR-0019). The pull request that closes the MVP.
+  NFR-01, SR-20, SR-27; ADR-0019). The pull request that closes the MVP.
+  - **The first real conversation** (PR-19's last line in §9.1) took place
+    on 2026-11-15 between 17:15 and 17:39 UTC, from a phone of a person the
+    owner trusts, on the demo bot: the agreement, 25 messages (22 texts and
+    3 commands), every one answered, every reply sent, no error line. Its
+    22 text turns are NFR-01's first measure on the demo: a median of 6.4 s
+    and a p95 of 15.9 s from the message's receipt to the stored reply,
+    which Telegram's send then follows (5 of the 22 under 4 s, 17 under
+    10 s), against NFR-01's 4 s and 10 s, on the normal route
+    (Claude Opus 5.5 at medium effort). The requirement stands; what moves
+    the figures is the owner's to weigh (#42's Review section).
   - **The scorecard** of `3e89c51` (`evals/scorecard.md`): every MVP case
     passed, the `boundary` suite 13 of 13 cases and 39 of 39 attempts,
     three per case (FR-09's three runs at a close). Against the scorecard

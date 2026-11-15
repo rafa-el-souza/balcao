@@ -217,11 +217,11 @@ Parts that earlier reviews left unread, or fixes made after a fix review: read o
 |---|---|---|---|
 | #12 | NO2 | The last two fixes (R1, V4) came after the fix review and were not reviewed again | read by the extra finder (#42): no defect |
 | #14 | NO2 | ff08e76, 351e732 and 85d97bb (second round of fixes) were not reviewed | read by the extra finder (#42): no defect |
-| #17 | GAP | The trace-token log spec drives CableLogger with written lines, not a live subscription | read in part by the extra finder (#42): one claim, C2, in #42's Review |
+| #17 | GAP | The trace-token log spec drives CableLogger with written lines, not a live subscription | read in part by the extra finder (#42): one claim, X2, planned for M3 |
 | #18 | GAP | The fix review read Chat.test.tsx only to line 480 | read in part by the extra finder (#42): the test file past line 480 not reached |
-| #18 | NO2 | 677291a and 945fc1b (fixes of the fix review's findings) had no review | read in part by the extra finder (#42): one candidate, unconfirmed |
+| #18 | NO2 | 677291a and 945fc1b (fixes of the fix review's findings) had no review | read in part by the extra finder (#42): one claim, X3, fixed in #42 |
 | #19 | NO2 | 0b4edbe (the fix of the fix review's finding) had no review | read by the extra finder (#42): no defect |
-| #29 | GAP | Unread by the Rails finder: the cable's caller of EdgeLimits.over?, Intake and the messages endpoint, the … | read in part by the extra finder (#42): one claim, C1, in #42's Review |
+| #29 | GAP | Unread by the Rails finder: the cable's caller of EdgeLimits.over?, Intake and the messages endpoint, the … | read in part by the extra finder (#42): one claim, X1, planned for M3 |
 | #30 | GAP | Unread by the finders: Postgres's own log on a constraint violation, Thruster's request log | read by #40's finder (one defect, fixed in #40) and #42's extra finder (no defect) |
 | #32 | GAP | Unread by the Telegram finder: the client's, the task's, the phrases' and the fixed texts' specs, Net::HTTP's … | read in part by the extra finder (#42): the proxy, no defect; the specs not reached |
 | #33 | GAP | Unread by the Rails finder: client_spec.rb, setup_spec.rb, system_prompt_spec.rb | not reached by the extra finder (#42); named in #42's Review |
