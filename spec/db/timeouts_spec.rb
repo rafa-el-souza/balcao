@@ -12,6 +12,20 @@ RSpec.describe "SR-20 database connections give up on a stuck statement or lock 
     expect(setting("lock_timeout")).to eq "2s"
   end
 
+  # An eval attempt runs a turn inside a transaction of its own
+  # (lib/evals/pipeline.rb), where an advisory lock's wait is a savepoint: a
+  # savepoint released kept the wait's SET LOCAL until the attempt ended, so
+  # the turn ran with neither timeout (#39's line for the owner, 39-lock).
+  it "keeps both inside a transaction, in an advisory lock's block and after it" do
+    settings = -> { %w[statement_timeout lock_timeout].map { |name| setting(name) } }
+
+    inside, after = ApplicationRecord.transaction(requires_new: true, joinable: false) do
+      [ AdvisoryLock.hold("timeouts-spec") { settings.call }, settings.call ]
+    end
+
+    expect([ inside, after ]).to eq [ %w[5s 2s], %w[5s 2s] ]
+  end
+
   it "applies them to every database of the production configuration" do
     configs = ActiveRecord::Base.configurations.configs_for(env_name: "production", include_hidden: true)
 

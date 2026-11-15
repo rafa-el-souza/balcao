@@ -26,11 +26,18 @@ module AdvisoryLock
   # short transaction of its own with neither timeout, which SET LOCAL lifts
   # until that transaction ends; the lock is the session's, so it outlives the
   # transaction and the timeouts are back for the block.
+  #
+  # The transaction is rolled back, not committed: it writes nothing, and
+  # inside an open transaction (an eval attempt's, lib/evals/pipeline.rb) it
+  # is a savepoint, whose release would keep the SET LOCAL until the outer
+  # transaction ended, while a rollback to it undoes the SET LOCAL there and
+  # then (#39's line for the owner). A session's lock survives a rollback.
   def acquire(connection, key)
     connection.transaction(requires_new: true) do
       connection.execute("SET LOCAL statement_timeout = 0")
       connection.execute("SET LOCAL lock_timeout = 0")
       connection.execute(ApplicationRecord.sanitize_sql_array([ "SELECT pg_advisory_lock(hashtextextended(?, 0))", key ]))
+      raise ActiveRecord::Rollback
     end
   end
 
