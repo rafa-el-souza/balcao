@@ -2149,16 +2149,26 @@ database's JIT compiler off, which changes no result of the search
     chat can never raise.
   - **H7:** the Bot API client takes for a failure of the way there only
     the network's own errors, by name (`Telegram::Client::NETWORK`: the
-    timeouts, a name that does not resolve, a connection refused, reset,
-    cut or unreachable, an answer cut short or not HTTP). A local bug, the
-    request's body included, which is now built before a connection opens,
-    and a certificate that does not prove the host are raised as
-    themselves: a reply stays pending with its attempts untouched, and the
-    job that sends tries it again with its own backoff (a turn's delivery a
-    minute later through `TelegramReplyJob`), logging the class (SR-30). No
-    TLS error is in the list, since Net::HTTP raises a certificate's failure
-    and a TLS read cut short with the same class; the cut read is so tried
-    again by the job rather than by the reply's three attempts.
+    timeouts, a name that does not resolve, a system call on the socket that
+    failed, an answer cut short or not HTTP, and OpenSSL's error unless a
+    certificate was refused). A local bug, the request's body included,
+    which is now built before a connection opens, and a certificate that
+    does not prove the host are raised as themselves: a reply stays pending
+    with its attempts untouched, and the job that sends tries it again with
+    its own backoff (a turn's delivery a minute later through
+    `TelegramReplyJob`), logging the class (SR-30). OpenSSL raises its one
+    error class for both a refused certificate and a connection cut during
+    the handshake or the answer, measured on the session's machine against
+    local servers ("certificate verify failed" against "unexpected eof while
+    reading"); only the certificate's check, whose callback answers false,
+    tells them apart, so the client notes that answer (the review's C1; a
+    first version left every TLS error out, which took a cut for a
+    certificate).
+  - **The review's other two fixes:** a send that breaks while an update is
+    read is one line, and the read goes on, its stored replies tried again a
+    minute later, since reading the update again counted its message again
+    in FR-14's limits and sent its line again (C2); the deletion's
+    confirmation takes the reply keyboard away (C3).
   - **The owner's check on his phone** (M4's "done when"): the runbook's
     smoke lists the three buttons beside the bot's profile, menu and ask.
 

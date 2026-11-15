@@ -399,15 +399,18 @@ the env file loaded in the same call.
   failed. A reply Telegram asked to wait for, or that failed on the way (a
   timeout, a broken connection, an answer of 5xx, whose line names it
   `HTTP 5xx`), stays `pending` with its time (`next_attempt_at`) until
-  `TelegramReplyJob` tries it again, three attempts in all. An error that is
-  not the network's (a certificate the host does not prove, which names
-  `OpenSSL::SSL::SSLError`, or a bug) is no failure of the way there: the
-  reply stays `pending` with its attempts untouched, and the job that sends
-  logs the error's class and tries again with its own backoff (a turn's
-  job logs `telegram replies of visitor <id>: not sent, <class>`, and
-  `TelegramReplyJob` tries again a minute later). A certificate that fails
-  every time is the host's certificate store or something between the host
-  and Telegram, not Telegram.
+  `TelegramReplyJob` tries it again, three attempts in all; a connection cut
+  during TLS is one of those, named `Telegram::Client::Error
+  (OpenSSL::SSL::SSLError)`. An error that is not the network's (a
+  certificate the host does not prove, named `OpenSSL::SSL::SSLError` alone,
+  or a bug) is no failure of the way there: the reply stays `pending` with
+  its attempts untouched, and the job that sends logs the error's class
+  (`telegram replies of visitor <id>: not sent, <class>` after a turn,
+  `telegram update <update_id>: replies not sent, <class>` while an update
+  is read) and `TelegramReplyJob` tries again a minute later. A certificate
+  that fails every time is the host's certificate store or something
+  between the host and Telegram, not Telegram; `telegram:setup` stops at its
+  first call with OpenSSL's reason.
 - **A reply that is never stored** (the ask, `/help` and the deletion
   before the agreement, the fixed lines) is tried once, since nothing keeps
   its chat to try again; one that could not be sent has a `telegram fixed
