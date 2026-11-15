@@ -17,7 +17,10 @@
 #    reservations hold (CatalogueSeed), counted after the purge;
 # 4. a message body an image before PR-18 wrote in plain text is encrypted
 #    (threat model SR-41; review finding V1 of pull request #32);
-# 5. on the cache's database, the limits' counters, which live there under
+# 5. on the other databases: the failed jobs older than seven days, whose
+#    stored error may quote what a visitor wrote (the dead letter of
+#    ProcessTurnJob; review finding C4 of pull request #30, the owner's word
+#    of 2026-11-15), and the limits' counters, which live in the cache under
 #    an IP address or an identity's hash (EdgeLimits.purge; design §10, note
 #    of 2026-11-14, PR-17).
 #
@@ -50,7 +53,7 @@ class NightlyResetJob < ApplicationJob
   }.freeze
   # The order of the log line.
   DELETED = [ "visitors", "conversations", "messages", "turns", "spans", "usage records", "reservations",
-              "stored updates", "limit counters" ].freeze
+              "stored updates", "failed jobs", "limit counters" ].freeze
 
   queue_as :default
 
@@ -64,6 +67,7 @@ class NightlyResetJob < ApplicationJob
     deleted = PURGE.to_h { |name, scope| [ name, step(name) { scope.call(before).in_batches(of: BATCH).delete_all } ] }
     reset = step("resetting products") { CatalogueSeed.seed! }
     encrypted = step("encrypting plain bodies") { Message.encrypt_plain_bodies }
+    deleted["failed jobs"] = step("failed jobs") { failed_jobs(before) }
     deleted["limit counters"] = step("limit counters") { EdgeLimits.purge(before, batch: BATCH) }
     Rails.logger.info(line(expired, reset, deleted, encrypted))
     raise @failures.values.first if @failures.any?
@@ -77,6 +81,19 @@ class NightlyResetJob < ApplicationJob
   rescue StandardError => e
     @failures[name] = e
     nil
+  end
+
+  # Solid Queue keeps a job's last error as a failed execution (the dead
+  # letter the console reads, FR-16), with the error's message, which may
+  # quote what a visitor wrote; such a job goes with it, as Solid Queue's own
+  # discard does. Any other adapter (development's, the specs') keeps none.
+  def failed_jobs(before)
+    return 0 unless self.class.queue_adapter.is_a?(ActiveJob::QueueAdapters::SolidQueueAdapter)
+
+    old = SolidQueue::FailedExecution.where(created_at: ...before)
+    count = old.count
+    old.discard_all_in_batches(batch_size: BATCH)
+    count
   end
 
   def line(expired, reset, deleted, encrypted)

@@ -181,6 +181,40 @@ RSpec.describe "FR-15 SR-31 the nightly reset and the seven-day purge" do
     # deletion takes (FR-05), and kept by Solid Cache alone two weeks or more.
     # The test database has only the primary's tables: the cache's are made
     # in the example's transaction, as Solid Cache writes there in test.
+    # Review finding C4 of pull request #30, the owner's word of 2026-11-15
+    # (question 21): a turn that fails for good leaves a failed execution in
+    # Solid Queue, the dead letter, whose stored error may quote what the
+    # visitor wrote; it goes at seven days, with its job. The test database
+    # has only the primary's tables: the queue's are made inside the
+    # example's transaction, which takes them away again.
+    describe "the failed jobs" do
+      before do
+        ActiveRecord::Migration.suppress_messages { load Rails.root.join("db/queue_schema.rb") }
+        [ SolidQueue::Job, SolidQueue::FailedExecution ].each(&:reset_column_information)
+        allow(NightlyResetJob).to receive(:queue_adapter).and_return(ActiveJob::QueueAdapters::SolidQueueAdapter.new)
+      end
+
+      def failed_job(at:)
+        job = SolidQueue::Job.create!(queue_name: "default", class_name: "ProcessTurnJob", arguments: "{}",
+                                      active_job_id: SecureRandom.uuid, scheduled_at: at, created_at: at)
+        SolidQueue::FailedExecution.where(job_id: job.id).delete_all
+        SolidQueue::ReadyExecution.where(job_id: job.id).delete_all
+        SolidQueue::FailedExecution.create!(job:, error: { exception_class: "PG::CheckViolation", message: "Failing row contains (oi)" }, created_at: at)
+        job
+      end
+
+      it "deletes the failed jobs older than seven days with their stored errors, and keeps the newer" do
+        old = failed_job(at: three_am - 8.days)
+        recent = failed_job(at: three_am - 6.days)
+
+        run
+
+        expect(SolidQueue::Job.pluck(:id)).to eq([ recent.id ])
+        expect(SolidQueue::FailedExecution.pluck(:job_id)).to eq([ recent.id ])
+        expect(SolidQueue::Job.where(id: old.id)).to be_empty
+      end
+    end
+
     describe "the limits' counters" do
       let(:store) { SolidCache::Store.new(namespace: "test") }
 
@@ -305,7 +339,7 @@ RSpec.describe "FR-15 SR-31 the nightly reset and the seven-day purge" do
     run
 
     expect(Rails.logger).to have_received(:info).with(
-      /\Anightly reset: expired 1 reservations, reset \d+ products; deleted 0 visitors, 0 conversations, 0 messages, 0 turns, 0 spans, 0 usage records, 0 reservations, 0 stored updates, 0 limit counters; encrypted 0 plain bodies\z/
+      /\Anightly reset: expired 1 reservations, reset \d+ products; deleted 0 visitors, 0 conversations, 0 messages, 0 turns, 0 spans, 0 usage records, 0 reservations, 0 stored updates, 0 failed jobs, 0 limit counters; encrypted 0 plain bodies\z/
     )
   end
 
