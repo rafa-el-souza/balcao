@@ -11,6 +11,8 @@ require "rake"
 # a run after the secret's rotation must register the new one. It ends by
 # printing getWebhookInfo, which the runbook's smoke reads.
 RSpec.describe "FR-19 SR-06 SR-09 SR-42 the task that sets the bot" do
+  include TelegramBotApi
+
   let(:client) { instance_double(Telegram::Client) }
   let(:out) { StringIO.new }
   # What Telegram reports after a webhook that took: the four fields the task
@@ -106,6 +108,26 @@ RSpec.describe "FR-19 SR-06 SR-09 SR-42 the task that sets the bot" do
     expect(result.failed).to eq([ "name (default)", "name en", "name es" ])
     expect(out.string).to include("name en: not written, setMyName: 429 Too Many Requests: retry after 80000")
     expect(held[[ :description, "en" ]]).to be_present
+  end
+
+  # Review finding C4 of pull request #47: a connection cut is OpenSSL's error
+  # too, and the client raised it as itself, so the task stopped at that
+  # write with a backtrace, the later settings unwritten. Through the real
+  # client, over WebMock.
+  it "goes on past a write whose connection is cut, says which, and ends with getWebhookInfo" do
+    {
+      "setWebhook" => true, "getWebhookInfo" => info, "getMyCommands" => [], "setMyCommands" => true,
+      "getMyName" => { "name" => "" }, "setMyName" => true, "getMyDescription" => { "description" => "" },
+      "getMyShortDescription" => { "short_description" => "" }, "setMyShortDescription" => true
+    }.each { |method, result| stub_request(:post, bot_api_url(method)).to_return(bot_api_answer(result)) }
+    stub_request(:post, bot_api_url("setMyDescription"))
+      .to_raise(OpenSSL::SSL::SSLError.new("SSL_read: unexpected eof while reading")).then.to_return(bot_api_answer(true))
+
+    result = Telegram::Setup.new(client: Telegram::Client.new, out:).call
+
+    expect(result.failed).to eq([ "description (default)" ])
+    expect(out.string).to include("description (default): not written, setMyDescription: OpenSSL::SSL::SSLError", "description es: written",
+                                  "getWebhookInfo:")
   end
 
   it "ends by printing what Telegram holds of the webhook, and never the secret or the token" do

@@ -177,6 +177,45 @@ RSpec.describe "SR-22 FR-19 the Telegram Bot API client" do
       }
     end
 
+    # Review finding H7 of pull request #33: every error was a failure of the
+    # way there, tried again as the network, a local bug and a certificate
+    # that does not prove the host among them.
+    it "takes for the way there only the network's own failures, each by its name" do
+      [ Net::OpenTimeout, Net::ReadTimeout, Net::WriteTimeout, SocketError, Errno::ECONNREFUSED, Errno::ECONNRESET,
+        Errno::ECONNABORTED, Errno::EPIPE, Errno::EHOSTUNREACH, Errno::ENETUNREACH, Errno::ENETDOWN, Errno::ETIMEDOUT,
+        Errno::EPROTO, Errno::ENETRESET, Errno::EHOSTDOWN, Errno::EADDRNOTAVAIL,
+        EOFError, IOError, Net::HTTPBadResponse, Net::HTTPHeaderSyntaxError ].each do |failure|
+        stub_request(:post, "#{base}/sendMessage").to_raise(failure)
+
+        expect { client.send_message(chat_id: 1, text: "Oi") }.to raise_error(Telegram::Client::Error) { |error|
+          expect(error).to have_attributes(code: nil, failure: failure.name, message: "sendMessage: #{failure.name}")
+          expect(error.cause).to be_nil
+        }
+      end
+    end
+
+    # Review finding C1 of pull request #47: OpenSSL's error is also a
+    # connection cut during the handshake or the answer.
+    it "takes OpenSSL's error for the way there when no certificate was refused" do
+      stub_request(:post, "#{base}/sendMessage").to_raise(OpenSSL::SSL::SSLError.new("SSL_read: unexpected eof while reading"))
+
+      expect { client.send_message(chat_id: 1, text: "Oi") }.to raise_error(Telegram::Client::Error) { |error|
+        expect(error).to have_attributes(code: nil, failure: "OpenSSL::SSL::SSLError", message: "sendMessage: OpenSSL::SSL::SSLError")
+        expect(error.cause).to be_nil
+      }
+    end
+
+    it "raises a local bug as itself, and one in the request's body before any connection is opened" do
+      stub_request(:post, "#{base}/sendMessage").to_raise(NoMethodError.new("undefined method 'bytesize' for nil"))
+
+      expect { client.send_message(chat_id: 1, text: "Oi") }.to raise_error(NoMethodError)
+      WebMock.reset!
+      allow(Net::HTTP).to receive(:new).and_call_original
+
+      expect { client.send_message(chat_id: 1, text: "a\xffb".dup.force_encoding(Encoding::UTF_8)) }.to raise_error(JSON::GeneratorError)
+      expect(Net::HTTP).not_to have_received(:new)
+    end
+
     it "on a timeout, a broken connection or an answer that is not JSON, by the error's class" do
       [ -> { stub_request(:post, "#{base}/getWebhookInfo").to_timeout },
         -> { stub_request(:post, "#{base}/getWebhookInfo").to_raise(SocketError.new("getaddrinfo: #{token}")) },
@@ -190,6 +229,78 @@ RSpec.describe "SR-22 FR-19 the Telegram Bot API client" do
           expect(error.code).to be_nil
         }
       end
+    end
+  end
+
+  # Review finding C1 of pull request #47: OpenSSL raises one error class for
+  # a certificate that does not prove the host and for a connection cut
+  # during the handshake, and only the certificate's check tells them apart.
+  # Real handshakes under the name api.telegram.org, against a server on this
+  # machine, with WebMock off for the example.
+  describe "over TLS, against a server on this machine" do
+    around do |example|
+      WebMock.disable!
+      example.run
+    ensure
+      WebMock.enable!
+    end
+
+    let(:listener) { TCPServer.new("127.0.0.1", 0) }
+
+    # The client's one host, reached at the listener: the name it checks the
+    # certificate against stays api.telegram.org.
+    before do
+      port = listener.addr[1]
+      allow(Net::HTTP).to receive(:new).and_wrap_original do |original, host, _port|
+        original.call(host, port).tap { |http| http.ipaddr = "127.0.0.1" }
+      end
+    end
+
+    after { listener.close }
+
+    def serve
+      Thread.new do
+        socket = listener.accept
+        yield socket
+      rescue StandardError
+        nil
+      ensure
+        socket&.close
+      end
+    end
+
+    it "raises a certificate that does not prove api.telegram.org as itself, never as the network" do
+      key = OpenSSL::PKey::EC.generate("prime256v1")
+      certificate = OpenSSL::X509::Certificate.new
+      certificate.version = 2
+      certificate.serial = 1
+      certificate.subject = certificate.issuer = OpenSSL::X509::Name.parse("/CN=api.telegram.org")
+      certificate.public_key = key
+      certificate.not_before = 1.minute.ago
+      certificate.not_after = 1.hour.from_now
+      certificate.sign(key, OpenSSL::Digest.new("SHA256"))
+      context = OpenSSL::SSL::SSLContext.new
+      context.cert = certificate
+      context.key = key
+      server = serve { |socket| OpenSSL::SSL::SSLSocket.new(socket, context).accept }
+
+      expect { client.send_message(chat_id: 1, text: "Oi") }.to raise_error(OpenSSL::SSL::SSLError, /certificate verify failed/)
+      server.join(5)
+    end
+
+    it "takes a connection the peer closes during the handshake for the way there" do
+      server = serve do |socket|
+        socket.wait_readable(5)
+        sleep 0.1
+        loop { break unless socket.read_nonblock(16_384, exception: false).is_a?(String) }
+        socket.close_write
+        sleep 0.5
+      end
+
+      expect { client.send_message(chat_id: 1, text: "Oi") }.to raise_error(Telegram::Client::Error) { |error|
+        expect(error).to have_attributes(code: nil, failure: "OpenSSL::SSL::SSLError")
+      }
+      server.join(5)
     end
   end
 end

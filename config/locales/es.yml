@@ -41,6 +41,9 @@ es:
     not_text: "Por aquí solo leo texto: escribe tu pregunta en un mensaje."
     too_long: "Tu mensaje pasa de 1.000 caracteres, el límite de la demo. ¿Puedes escribir uno más corto?"
     own_copy: "Los mensajes que siguen en este chat son tu copia, en tu Telegram: la opción de borrar el historial, en el propio Telegram, los borra."
+    buttons:
+      copy_code: "Copiar el código %{code}"
+      trace: "Abrir el trace"
     menu:
       reset: "empieza la conversación de nuevo"
       trace: "muestra cómo funciono en esta conversación"

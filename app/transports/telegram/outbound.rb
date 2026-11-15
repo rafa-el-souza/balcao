@@ -21,7 +21,9 @@ module Telegram
   # person's replies leave one at a time and in order: a reply that is not
   # stored goes after the person's stored replies still pending, in the same
   # hold of the lock (review finding C2 of pull request #33), unless one of
-  # them waits for its time. Nothing here waits:
+  # them waits for its time or their sending breaks, whose error is raised
+  # once the reply has left (the fix review's R1 on pull request #47).
+  # Nothing here waits:
   # each call tries each part once, so neither the lock nor a worker's thread
   # is held through a wait (review finding C3 of pull request #33).
   # - A stored reply Telegram asked to wait for (a 429) or that failed on the
@@ -36,10 +38,20 @@ module Telegram
   #   job tries it again (TurnProcessor, FR-05).
   # Any other answer that is not ok fails a reply at once. A failed reply is
   # marked failed with one line that names the error by its class (NFR-03,
-  # SR-30); the chat and the text never reach a line.
+  # SR-30); the chat and the text never reach a line. What the client raises
+  # as itself, not being the network (a local bug, a certificate that does
+  # not prove the host; Client::NETWORK, review finding H7 of pull request
+  # #33), is no answer of Telegram's: it leaves the reply pending, its
+  # attempts untouched, and breaks the job that sends, whose own retries
+  # carry it (ProcessTurnJob's delivery tries again a minute later).
   #
-  # A reply to a person who agreed takes the agreement's keyboard away, the
-  # greeting first; the ask shows it (FR-19).
+  # The ask shows the agreement's button (FR-19). A stored reply carries the
+  # buttons of what it writes (Telegram::Buttons): the greeting FR-21's
+  # openers, in the agreement's button's place; a reservation's code its copy
+  # button; /trace's link its button; any other reply, and a fixed line to a
+  # person who agreed, take the reply keyboard away. A reply cut in parts
+  # carries its buttons on its last part, the parts before it taking the
+  # keyboard away.
   class Outbound
     LIMIT = 4_096
     ATTEMPTS = 3
@@ -99,22 +111,43 @@ module Telegram
     # pending replies of the visitor given; answers whether it left. The
     # attempt, when the caller tries it again (the deletion's confirmation,
     # by the turn's job, FR-05), is named in the line of a send that failed.
+    # A drain that breaks (the database, or what the client raises as itself)
+    # does not hold the reply back: it leaves, and the drain's error is raised
+    # after it, for the caller's line and its retry of the stored replies
+    # (TelegramUpdateJob; the fix review's R1 on pull request #47).
     def send_fixed(chat, text, keyboard: nil, name: :reply, visitor: nil, attempt: nil)
       AdvisoryLock.hold(lock(chat)) do
         stored = visitor && Chat.of(visitor)
-        drain(visitor, stored) if stored
-        parts = self.class.parts(text)
-        parts.each_with_index do |part, index|
-          error = send_part(chat, part, keyboard) or next
-          return failed("telegram fixed reply #{name}", error, 1, part: [ index + 1, parts.size ], at: attempt)
-        end
-        true
+        broken = drained(visitor, stored) if stored
+        left = send_parts(chat, text, keyboard, name, attempt)
+        raise broken if broken
+
+        left
       end
     end
 
     private
 
     def lock(chat) = "telegram-send:#{chat.identity}"
+
+    # The drain's error when it broke, else nil.
+    def drained(visitor, chat)
+      drain(visitor, chat)
+      nil
+    rescue StandardError => e
+      e
+    end
+
+    # A reply that is not stored, each part tried once; false at the first
+    # part that fails, with its line.
+    def send_parts(chat, text, keyboard, name, attempt)
+      parts = self.class.parts(text)
+      parts.each_with_index do |part, index|
+        error = send_part(chat, part, keyboard) or next
+        return failed("telegram fixed reply #{name}", error, 1, part: [ index + 1, parts.size ], at: attempt)
+      end
+      true
+    end
 
     def drain(visitor, chat)
       pending(visitor).each do |message|
@@ -134,8 +167,9 @@ module Telegram
     # 2026-11-15).
     def deliver(message, chat, visitor)
       parts = self.class.parts(message.body)
+      buttons = Buttons.for(message)
       parts.drop(message.parts_sent).each do |part|
-        error = send_part(chat, part, REMOVE_KEYBOARD)
+        error = send_part(chat, part, message.parts_sent == parts.size - 1 ? buttons : REMOVE_KEYBOARD)
         next message.update_columns(parts_sent: message.parts_sent + 1, send_attempts: 0, updated_at: Time.current) unless error
 
         return again_or_failed(message, error, visitor, [ message.parts_sent + 1, parts.size ])

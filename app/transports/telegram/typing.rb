@@ -44,12 +44,19 @@ module Telegram
         begin
           @client.send_chat_action(chat_id: @chat.id)
         rescue StandardError => e
-          Rails.logger.warn("telegram typing: not sent, #{e.class} (#{e.try(:code) || e.try(:failure)})") unless logged
+          Rails.logger.warn("telegram typing: not sent, #{e.class}#{reason(e)}") unless logged
           logged = true
         end
         stop.pop(timeout: @interval)
         break if stop.closed?
       end
+    end
+
+    # Telegram's code or the failure of the way there, for the client's own
+    # error; nothing for one the client raises as itself (Client::NETWORK).
+    def reason(error)
+      reason = error.try(:code) || error.try(:failure)
+      " (#{reason})" if reason
     end
   end
 end

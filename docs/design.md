@@ -1,6 +1,6 @@
 # Balcão — design document
 
-**Status:** v1.13, 2026-11-15 (M4-2: NFR-01 at 7 s and 12 s, measured from a Telegram update's receipt to its reply's send; §6.4's normal route at low effort, ADR-0021; M3's list charges an abandoned call, see §10); v1.12, 2026-11-15 (the plan after the MVP: §9.2 lists its slices in order, behind the data-contract gate where it holds, and ADR-0020 says what V1 leaves out; §2.2, J3, FR-10, FR-14, NFR-03, NFR-08, §6.1, §6.6, §6.9, §8 and OD-2 follow it, see §10); v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
+**Status:** v1.14, 2026-11-15 (M4-3: the bot's buttons as built in FR-19, FR-12 and FR-21, see §10); v1.13, 2026-11-15 (M4-2: NFR-01 at 7 s and 12 s, measured from a Telegram update's receipt to its reply's send; §6.4's normal route at low effort, ADR-0021; M3's list charges an abandoned call, see §10); v1.12, 2026-11-15 (the plan after the MVP: §9.2 lists its slices in order, behind the data-contract gate where it holds, and ADR-0020 says what V1 leaves out; §2.2, J3, FR-10, FR-14, NFR-03, NFR-08, §6.1, §6.6, §6.9, §8 and OD-2 follow it, see §10); v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
 coding session, reading this file top to bottom.
 
 Balcão ("the counter", where a pharmacist serves customers) is an AI attendant
@@ -458,8 +458,8 @@ conversation in real time.
   one second of occurring.
 - Given a Telegram conversation, When the visitor asks "como você funciona?"
   or sends `/trace`, Then the reply contains a link to a trace page for that
-  conversation; the link carries a 128-bit random token and shows only that
-  conversation.
+  conversation, and from M4 a button that opens it (FR-19); the link
+  carries a 128-bit random token and shows only that conversation.
 - The trace never shows the system prompt verbatim, secrets, another
   visitor's conversations, a raw phone number or a Telegram id. A visitor's
   own open reservations, which a reply at FR-07's cap lists from any
@@ -769,11 +769,21 @@ revocable consent" (ADR-0016).
   was lost may arrive twice; one marked sent is never sent again (NFR-02).
 
 *After the MVP (ADR-0017); none of these adds a kind of update.*
-- **M4, the bot's finish:** a reply that carries a reservation code has a
-  button that copies it (`copy_text`; FR-07); the greeting carries FR-21's
-  three openers as a reply keyboard, whose tap sends the text as an
-  ordinary message; the `/trace` reply opens the trace page from a button
-  (FR-12).
+- **M4, the bot's finish** (built in M4-3, 2026-11-15; §10's note): a
+  stored reply carries the buttons of what it writes, read when it is sent
+  (`Telegram::Buttons`), so both channels send the same text. Each code of
+  the visitor's own reservations that the reply writes, as a word of its
+  own, has a button that copies it (`copy_text`; FR-07); a reply that
+  writes the conversation's trace link (`/trace`) has a button that opens
+  it (FR-12); the greeting, the agreement's and `/start`'s, carries FR-21's
+  three openers as a reply keyboard in the agreement's button's place,
+  whose tap sends the text as an ordinary message, hidden once tapped. Any
+  other reply, and a fixed line to a person who agreed, take the reply
+  keyboard away. A message carries one keyboard, so a reply with a button
+  leaves the openers in place until the next reply without one; a reply
+  cut in parts carries its buttons on its last part. No button carries the
+  model's words (SR-43): a code that is no reservation of the visitor's,
+  and any other link, get none.
 - **M2:** the slots FR-08 offers come as a reply keyboard, settled with
   FR-08.
 - **M5:** the deep link's parameter counts the visit's source (FR-23).
@@ -822,7 +832,8 @@ of 2026-11-12 had left it for him).
   sent and the chat opens empty (threat model SR-34).
 - On Telegram, from M4, the same three texts come as a reply keyboard
   under the greeting (FR-19): a tap sends the text as an ordinary message,
-  so only a listed text has a button.
+  so only a listed text has a button. The keyboard hides once tapped, and
+  the next reply without a button of its own takes it away.
 
 **FR-22 Exhibit traces.** Three example traces are committed files, not
 live conversations: a Portuguese reservation, a Spanish booking, an
@@ -2075,6 +2086,13 @@ trigger does the item and removes the line.
 - The next failure of `GlassBox.test.tsx`'s example "stops 'pensando…' and
   lights the tab's cross again": its timing is fixed, not run again (#38's
   review; it failed once in a parallel run).
+- The next failure of `spec/jobs/nightly_reset_job_spec.rb`, or the next
+  slice that touches it: the limits' counters group builds its Solid Cache
+  store with `expiry_method: :job`. The default expiry thread outlives the
+  example, and once (M4-3's session, seed 9419) it queried the cache table
+  after the example's transaction had dropped it, deadlocked the shared
+  connection and left 1,079 later examples on an aborted transaction; the
+  same seed passed when run again.
 
 **Waiting for the data-contract ADR.** The ADR on the data a pharmacy
 would hand Balcão is the owner's to write (number 0018, reserved in the
@@ -2105,6 +2123,61 @@ C2 and R1). The store sheet names a key that is not text. A third
 exception, the same day: the application's connections run with the
 database's JIT compiler off, which changes no result of the search
 (M4-1; the note below).
+
+- Note 2026-11-15 (M4-3, the bot's finish; FR-19, FR-07, FR-12, FR-21,
+  SR-10, SR-43, ADR-0017; findings C5 and H7 of pull request #33, which the
+  MVP review gave this slice).
+  - **A reply's buttons are read from what it writes, when it is sent**
+    (`Telegram::Buttons`), not stored with it: the web chat stamps the codes
+    a reply writes the same way (`Message#stream_payload`), the reply's text
+    stays the one both channels send (ADR-0017's fifth test), and no
+    migration was needed. A code counts when it is one of the visitor's own
+    reservations, in any state, as on the web; the trace's button needs the
+    conversation's own link; the greeting is told by its stored text, alone
+    or after the notice. What it costs: a greeting stored before a deploy
+    that changes its words, or the store's name in it, leaves without the
+    openers and takes the keyboard away instead.
+  - **One keyboard a message.** `sendMessage` takes one `reply_markup`: an
+    inline keyboard (the copy and trace buttons, which act on the visitor's
+    own device and add no kind of update), a reply keyboard (the openers,
+    the agreement's button) or the keyboard's removal. A reply with a copy
+    or trace button cannot take the openers away, so they stay until the
+    next reply without a button; they hide once tapped
+    (`one_time_keyboard`). A reply cut in parts carries its buttons on its
+    last part, the parts before it taking the keyboard away.
+  - **The openers keep their languages**: the greeting's keyboard holds
+    FR-21's three texts as the landing shows them, two in Portuguese and
+    one in Spanish, whatever the conversation's language; the buttons'
+    labels follow the conversation's.
+  - **C5:** `Telegram::Chat` writes neither the chat's id nor the person's
+    identity through `to_s`, a string's interpolation, `pp`, `to_h`,
+    `as_json` or `to_json`; Data's `to_s` was its own `inspect`, not the
+    class's. `to_h` gives an empty hash, so a log line that serialises a
+    chat can never raise.
+  - **H7:** the Bot API client takes for a failure of the way there only
+    the network's own errors, by name (`Telegram::Client::NETWORK`: the
+    timeouts, a name that does not resolve, a system call on the socket that
+    failed, an answer cut short or not HTTP, and OpenSSL's error unless a
+    certificate was refused). A local bug, the request's body included,
+    which is now built before a connection opens, and a certificate that
+    does not prove the host are raised as themselves: a reply stays pending
+    with its attempts untouched, and the job that sends tries it again with
+    its own backoff (a turn's delivery a minute later through
+    `TelegramReplyJob`), logging the class (SR-30). OpenSSL raises its one
+    error class for both a refused certificate and a connection cut during
+    the handshake or the answer, measured on the session's machine against
+    local servers ("certificate verify failed" against "unexpected eof while
+    reading"); only the certificate's check, whose callback answers false,
+    tells them apart, so the client notes that answer (the review's C1; a
+    first version left every TLS error out, which took a cut for a
+    certificate).
+  - **The review's other two fixes:** a send that breaks while an update is
+    read is one line, and the read goes on, its stored replies tried again a
+    minute later, since reading the update again counted its message again
+    in FR-14's limits and sent its line again (C2); the deletion's
+    confirmation takes the reply keyboard away (C3).
+  - **The owner's check on his phone** (M4's "done when"): the runbook's
+    smoke lists the three buttons beside the bot's profile, menu and ask.
 
 - Note 2026-11-15 (M4-2, a turn's latency measured by what moves it;
   NFR-01, FR-12, FR-19, ADR-0003). The figures are the session's, read from

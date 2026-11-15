@@ -22,7 +22,17 @@ module Telegram
       nil
     end
 
-    # Written in a log line as the person's place, never the chat.
+    # Written in a log line as the person's place, never the chat, however it
+    # is printed or serialised: Data's to_s is its own inspect, not this one,
+    # and pp, to_h and so as_json list the members (review finding C5 of pull
+    # request #33). The code that sends reads id and identity; equality and
+    # with read the members themselves.
     def inspect = "#<Telegram::Chat>"
+
+    alias_method :to_s, :inspect
+
+    def pretty_print(printer) = printer.text(inspect)
+
+    def to_h(*) = {}
   end
 end

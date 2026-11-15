@@ -145,10 +145,13 @@ class TurnProcessor
   # #33: a send that broke after the deletion was lost with no line). A later
   # turn's job runs the deletion with its own attempt. A confirmation may
   # arrive twice when a run is repeated: sendMessage takes no idempotency key
-  # (NFR-02's accepted duplicate).
+  # (NFR-02's accepted duplicate). It takes the reply keyboard away, as any
+  # fixed line to a person who agreed: FR-21's openers would outlive the
+  # data (FR-19; review finding C3 of pull request #47).
   def confirm_deletion(chat, language)
     left = begin
-      Telegram::Outbound.new.send_fixed(chat, FixedReply.telegram_deleted(language), name: :deleted, attempt: @attempt)
+      Telegram::Outbound.new.send_fixed(chat, FixedReply.telegram_deleted(language), keyboard: Telegram::Outbound::REMOVE_KEYBOARD,
+                                                                                   name: :deleted, attempt: @attempt)
     rescue StandardError => e
       return Rails.logger.error("telegram fixed reply deleted: broke at #{@attempt}, #{e.class}, the data deleted all the same") if @attempt&.last?
 
@@ -200,13 +203,10 @@ class TurnProcessor
     Message.where(id: later.map(&:last)).update_all(conversation_id: current.id, updated_at: Time.current)
   end
 
-  # FR-12: the link to this conversation's trace page. The token follows the
-  # "#", which no browser sends, so no request line carries it, in Rails' log
-  # or in kamal-proxy's (review finding V3 of pull request #17, SR-30).
+  # FR-12: the link to this conversation's trace page (Conversation#trace_url).
   def trace
     language = command_language
-    url = "#{Rails.configuration.x.public_origin}/trace##{@conversation.trace_token}"
-    command(:trace) { store_reply(FixedReply.command(:trace, language, url:), language:) }
+    command(:trace) { store_reply(FixedReply.command(:trace, language, url: @conversation.trace_url), language:) }
   end
 
   # FR-19, FR-18: /start's greeting and /help's list, fixed texts on every

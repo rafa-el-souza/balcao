@@ -337,6 +337,38 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
       stored_nothing
     end
 
+    # Review finding C2 of pull request #47: a send the client raised as
+    # itself broke the read after the update was read, so the update was read
+    # again, its message counted again and its line sent again, and at the
+    # third attempt it was given up.
+    it "logs a send that breaks by its class and goes on with the read, which counts the message once" do
+      stub_request(:post, bot_api_url("sendMessage")).to_raise(NoMethodError.new("undefined method 'bytesize' for nil"))
+      lines = []
+      allow(Rails.logger).to receive(:error) { |line| lines << line }
+
+      deliver(fixture("start"))
+      perform_enqueued_jobs(only: TelegramUpdateJob)
+
+      expect(@event.reload).to have_attributes(status: "processed", payload: nil)
+      expect(Rack::Attack.cache.store.read("limits:visitor/minute:#{identity}").to_i).to eq 1
+      expect(a_request(:post, bot_api_url("sendMessage"))).to have_been_made.once
+      expect(lines).to eq([ "telegram update #{@event.update_id}: replies not sent, NoMethodError" ])
+    end
+
+    it "tries a stored reply that a send left pending again a minute later" do
+      agreed!
+      visitor = Visitor.sole
+      Message.outbound.sole.update_columns(status: "pending", parts_sent: 0)
+      stub_request(:post, bot_api_url("sendMessage")).to_raise(NoMethodError.new("undefined method 'bytesize' for nil"))
+      allow(Rails.logger).to receive(:error)
+
+      deliver(fixture("photo"))
+
+      expect(@event.reload.status).to eq "processed"
+      expect(Message.outbound.sole.status).to eq "pending"
+      expect(TelegramReplyJob).to have_been_enqueued.with(visitor.id).at(be_within(1.second).of(1.minute.from_now))
+    end
+
     it "says the day's limit after 40 messages in a day, in the visitor's language" do
       agreed!
       Conversation.sole.update!(language: "en")
@@ -367,12 +399,62 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
       stored_nothing
     end
 
-    it "sends the greeting the agreement stored, taking the button away, and marks it sent" do
+    # FR-21 on Telegram (M4): the openers take the agreement's button's place.
+    it "sends the greeting the agreement stored with FR-21's openers in the button's place, and marks it sent" do
       agreed!
 
       expect(sent.sole).to include("chat_id" => sender_id, "text" => FixedReply.greeting("pt-BR"),
-                                   "reply_markup" => { "remove_keyboard" => true })
+                                   "reply_markup" => { "keyboard" => Openers.current.all.map { |opener| [ { "text" => opener.text } ] },
+                                                       "resize_keyboard" => true, "one_time_keyboard" => true })
       expect(Message.outbound.sole).to have_attributes(status: "sent", parts_sent: 1)
+    end
+
+    # The fix review's R1 on pull request #47: a drain that broke before the
+    # update's fixed line kept the line from leaving, where the read's retry
+    # had sent it before C2's fix.
+    it "sends the fixed line when the drain before it breaks once" do
+      agreed!
+      Message.outbound.sole.update_columns(status: "pending", parts_sent: 0)
+      broke = false
+      allow(Telegram::Buttons).to receive(:for).and_wrap_original do |original, message|
+        next original.call(message) if broke
+
+        broke = true
+        raise ActiveRecord::QueryCanceled, "canceling statement due to statement timeout"
+      end
+      allow(Rails.logger).to receive(:error)
+
+      deliver(fixture("photo"))
+      perform_enqueued_jobs
+
+      expect(sent.map { |body| body["text"] }).to include(FixedReply.not_text("pt-BR"))
+    end
+
+    # Review finding C3 of pull request #47: the openers outlived the
+    # person's data when the deletion's confirmation came with no keyboard.
+    it "takes the openers away with the deletion's confirmation" do
+      agreed!
+
+      deliver(variant("text") { |message| message["text"] = "/apagar" })
+      perform_enqueued_jobs(only: ProcessTurnJob)
+
+      expect(Visitor.count).to eq 0
+      expect(sent.find { |body| body["text"] == FixedReply.telegram_deleted("pt-BR") })
+        .to include("reply_markup" => { "remove_keyboard" => true })
+    end
+
+    # FR-21 on Telegram: a tap on an opener sends its text as an ordinary
+    # message, a turn like any other, and the reply takes the openers away.
+    it "takes a tapped opener's text as a turn, and its reply takes the openers away" do
+      allow(AgentRunner).to receive(:default_client) { FakeModel.new([ reply("[pt] Temos, sim: Dipirona 500 mg, R$ 7,90.") ]).client }
+      agreed!
+      opener = Openers.current.fetch("stock_pt")
+
+      deliver(variant("text") { |message| message["text"] = opener.text })
+      perform_enqueued_jobs(only: ProcessTurnJob)
+
+      expect(Message.inbound.where(source: "text").sole.body).to eq(opener.text)
+      expect(sent.last).to include("text" => "Temos, sim: Dipirona 500 mg, R$ 7,90.", "reply_markup" => { "remove_keyboard" => true })
     end
 
     # Review finding T5 of pull request #32: an agreement read again (its

@@ -44,6 +44,17 @@ RSpec.describe "FR-19 NFR-03 Telegram::Typing, the typing status while the model
     expect(Rails.logger).to have_received(:warn).once.with("telegram typing: not sent, Telegram::Client::Error (403)")
   end
 
+  # The client raises what is not the network as itself (review finding H7 of
+  # pull request #33), an error with no code of Telegram's and no failure.
+  it "names a failure that is not Telegram's by its class alone" do
+    stub_request(:post, bot_api_url("sendChatAction")).to_raise(NoMethodError.new("undefined method 'bytesize' for nil"))
+    allow(Rails.logger).to receive(:warn)
+
+    Telegram::Typing.new(chat, interval: 0.02).during { sleep 0.05 }
+
+    expect(Rails.logger).to have_received(:warn).once.with("telegram typing: not sent, NoMethodError")
+  end
+
   # Review finding H10 of pull request #33: log tags are a thread's, so the
   # status thread's line carried no conversation_id (NFR-05).
   it "writes its line with the caller's tags, the conversation's id among them" do

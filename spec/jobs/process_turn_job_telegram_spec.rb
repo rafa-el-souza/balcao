@@ -184,7 +184,16 @@ RSpec.describe "FR-19 FR-05 NFR-03 ProcessTurnJob on Telegram, the reply on its 
       expect(Visitor.exists?(visitor.id)).to be(false)
       expect(Message.count).to eq 0
       expect(sent.sole).to include("chat_id" => chat_id, "text" => FixedReply.telegram_deleted("pt-BR"))
-      expect(sent.sole).not_to have_key("reply_markup")
+    end
+
+    # Review finding C3 of pull request #47: the greeting leaves FR-21's
+    # openers in the chat, and the confirmation, sent with no keyboard, left
+    # them there after the person's data was gone (FR-19's part for M4: a
+    # fixed line to a person who agreed takes the reply keyboard away).
+    it "takes the reply keyboard away with the confirmation" do
+      perform(inbound("/apagar"))
+
+      expect(sent.sole).to include("text" => FixedReply.telegram_deleted("pt-BR"), "reply_markup" => { "remove_keyboard" => true })
     end
 
     # FR-05 as the owner decided it on 2026-11-15 (the MVP review, rows
