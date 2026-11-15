@@ -2025,9 +2025,10 @@ nothing to the product; the store sheet names a key that is not text.
     built as Rails builds it for an answer that crosses its middleware,
     with no nonce, since the app sets none; one policy on every answer,
     whose `frame-ancestors 'none'` is what a non-page answer needs, rather
-    than a second, stricter one for bodiless answers. A 304 gets none, as
-    Rails gives it none. The same catalogue against the rehearsal host is
-    M3's (§9.2).
+    than a second, stricter one for bodiless answers. A 304 that reaches it
+    with no policy gets none, as Rails' middleware leaves a 304 it sees; a
+    controller's answer turned into a 304 above that middleware keeps its
+    own. The same catalogue against the rehearsal host is M3's (§9.2).
   - **Three details go one step past the owner's words** and stand unless
     he says otherwise: that the message's language is read by the evals'
     function-word detector, moved into the application (FR-02); that the

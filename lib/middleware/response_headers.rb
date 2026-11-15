@@ -18,9 +18,11 @@ module Balcao
   # 2026-11-15, question 31). An answer with no policy gets the app's own,
   # built as Rails' middleware builds it for an answer that crosses that one
   # (ActionDispatch::ContentSecurityPolicy::Middleware), which the app gives
-  # no nonce; a 304 gets none, as Rails gives it none, since a nonce may not
-  # match the page the browser kept (design §10, the note of the first server
-  # pull request of the MVP review). spec/requests/response_headers_spec.rb
+  # no nonce. A 304 that reaches it with no policy gets none, as Rails'
+  # middleware leaves a 304 it sees, since a nonce may not match the page the
+  # browser kept; a controller's answer that Rack::ConditionalGet, above that
+  # middleware, turns into a 304 keeps the policy it was given (design §10,
+  # the MVP review's note on SR-03). spec/requests/response_headers_spec.rb
   # walks every route and a catalogue of the rest.
   class ResponseHeaders
     POLICY = ActionDispatch::Constants::CONTENT_SECURITY_POLICY
