@@ -234,6 +234,16 @@ RSpec.describe "SR-38 bin/deploy deploys only the rehearsal destination" do
       expect(docker_calls.grep(/\Adocker volume /)).to be_empty
     end
 
+    # Review finding C2 of pull request #42 (teorico, fixed for its few
+    # lines): the volume is read first, inside the ensure, and nothing that
+    # read raises may keep the registry from being removed.
+    it "removes the registry even when reading its volume raises" do
+      write_shim("docker", output: '"\\xFF /var/lib/registry\\n"')
+      _status, _err = deploy("-d", "ensaio")
+
+      expect(kamal_calls.last).to eq "kamal registry remove -d ensaio"
+    end
+
     it "removes nothing when there is no registry container" do
       status, _err = deploy("-d", "ensaio")
 

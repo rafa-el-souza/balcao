@@ -91,10 +91,16 @@ end
 
 # Removes the local registry, then the volume Kamal's removal leaves, read
 # while the container still existed; a registry still there keeps its
-# volume, and the two commands to run are printed.
+# volume, and the two commands to run are printed. Nothing the volume's
+# read raises keeps the registry from being removed (review finding C2 of
+# pull request #42).
 def remove_registry
-  volumes = registry_volumes
-  kamal("registry", "remove", "-d", DESTINATION)
+  volumes = []
+  begin
+    volumes = registry_volumes
+  ensure
+    kamal("registry", "remove", "-d", DESTINATION)
+  end
   if registry_left?
     volume_step = volumes.any? ? ", then `docker volume rm #{volumes.join(" ")}`" : ""
     warn "bin/deploy: the local registry is still there; run `kamal registry remove -d #{DESTINATION}`#{volume_step}."
