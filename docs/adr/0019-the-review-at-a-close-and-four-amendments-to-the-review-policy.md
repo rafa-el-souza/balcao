@@ -41,7 +41,7 @@ What the MVP close found, counted on 2026-11-15:
   verifying), the eval audit 8 findings, and the docs reader test, five of
   whose five answers were inferred rather than read.
 - **The numbers ADR-0013 asks for**, from the descriptions of pull requests
-  #1 to #41 (35 merged, 9 of them with nothing to review): 377 findings,
+  #1 to #41 (39 merged, 9 of them with nothing to review): 377 findings,
   `cliente` 97, `dono` 81, `atacante` 30, `teorico` 165 and 4 that could
   not be told; by the instrument that raised each first, the finder 182,
   the verifier's own finds 89, the fix review 62, the silent-failure hunter
