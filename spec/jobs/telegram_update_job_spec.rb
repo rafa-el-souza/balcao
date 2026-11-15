@@ -409,6 +409,27 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
       expect(Message.outbound.sole).to have_attributes(status: "sent", parts_sent: 1)
     end
 
+    # The fix review's R1 on pull request #47: a drain that broke before the
+    # update's fixed line kept the line from leaving, where the read's retry
+    # had sent it before C2's fix.
+    it "sends the fixed line when the drain before it breaks once" do
+      agreed!
+      Message.outbound.sole.update_columns(status: "pending", parts_sent: 0)
+      broke = false
+      allow(Telegram::Buttons).to receive(:for).and_wrap_original do |original, message|
+        next original.call(message) if broke
+
+        broke = true
+        raise ActiveRecord::QueryCanceled, "canceling statement due to statement timeout"
+      end
+      allow(Rails.logger).to receive(:error)
+
+      deliver(fixture("photo"))
+      perform_enqueued_jobs
+
+      expect(sent.map { |body| body["text"] }).to include(FixedReply.not_text("pt-BR"))
+    end
+
     # Review finding C3 of pull request #47: the openers outlived the
     # person's data when the deletion's confirmation came with no keyboard.
     it "takes the openers away with the deletion's confirmation" do
