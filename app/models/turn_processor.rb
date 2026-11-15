@@ -53,12 +53,24 @@ class TurnProcessor
   # job gave up on.
   OUTCOMES = [ *AgentRunner::OUTCOMES.map(&:to_s), "reservations", "paused", "dead_letter" ].freeze
 
-  def initialize(turn, commands: CommandPhrases.current, typing: nil)
+  # The attempt of the job that runs the turn as its own (ProcessTurnJob),
+  # which the deletion's confirmation counts (FR-05).
+  Attempt = Data.define(:number, :of) do
+    def last? = number >= of
+    def to_s = "attempt #{number} of #{of}"
+  end
+
+  # The deletion's confirmation did not leave and the job has another
+  # attempt, so the data waits for it (FR-05).
+  class ConfirmationNotSent < StandardError; end
+
+  def initialize(turn, commands: CommandPhrases.current, typing: nil, attempt: nil)
     @turn = turn
     @conversation = turn.conversation
     @inbound = turn.inbound_message
     @commands = commands
     @typing = typing
+    @attempt = attempt
   end
 
   def call
@@ -107,18 +119,41 @@ class TurnProcessor
   # Nothing is traced: the trace would be deleted with the rest. A trace page
   # open on any of the visitor's conversations is told too, so it drops what
   # it showed (review finding G2 of pull request #17). On Telegram the
-  # confirmation goes to the chat, read before the deletion takes the row
-  # that holds it, and says that the chat in the visitor's app is their own
-  # copy (FR-19).
+  # confirmation goes to the chat first, since the row the deletion takes
+  # holds it, and says that the chat in the visitor's app is their own copy
+  # (FR-19).
   def delete
     language = command_language
     visitor = @conversation.visitor
     tokens = visitor.conversations.pluck(:trace_token)
     chat = Telegram::Chat.of(visitor)
+    confirm_deletion(chat, language) if chat
     visitor.erase!
     broadcast(type: "deleted", text: FixedReply.command(:delete, language))
     tokens.each { |token| broadcast({ type: "deleted" }, "trace:#{token}") }
-    Telegram::Outbound.new.send_fixed(chat, FixedReply.telegram_deleted(language), name: :deleted) if chat
+  end
+
+  # FR-05 on Telegram (the owner, 2026-11-15): the confirmation leaves before
+  # the rows go. One that did not leave, or whose send broke, raises, so the
+  # job tries the turn again with its backoff, three attempts in all; at its
+  # last the data goes whether or not the confirmation left, and the log says
+  # so (review finding C8 of pull request #33: a send that broke after the
+  # deletion was lost with no line). A turn another turn's job runs has no
+  # attempt of its own here, so it waits for its own job's. A confirmation may
+  # arrive twice when a run is repeated: sendMessage takes no idempotency key
+  # (NFR-02's accepted duplicate).
+  def confirm_deletion(chat, language)
+    left = begin
+      Telegram::Outbound.new.send_fixed(chat, FixedReply.telegram_deleted(language), name: :deleted, attempt: @attempt&.number || 1)
+    rescue StandardError => e
+      raise unless @attempt&.last?
+
+      return Rails.logger.error("telegram fixed reply deleted: broke at #{@attempt}, #{e.class}, the data deleted all the same")
+    end
+    return if left
+    raise ConfirmationNotSent, "the deletion's confirmation did not leave; the job tries the turn again" unless @attempt&.last?
+
+    Rails.logger.error("telegram fixed reply deleted: not sent, the data deleted all the same")
   end
 
   # FR-04: the conversation closes and the reply opens the next one, so its

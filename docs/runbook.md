@@ -365,9 +365,17 @@ the env file loaded in the same call.
   stays `pending` with its time (`next_attempt_at`) until `TelegramReplyJob`
   tries it again, three attempts in all.
 - **A reply that is never stored** (the ask, `/help` and the deletion
-  before the agreement, the fixed lines, the deletion's confirmation) is
-  tried once, since nothing keeps its chat to try again; one that could not
-  be sent has a `telegram fixed reply <name>: failed after 1 attempt` line.
+  before the agreement, the fixed lines) is tried once, since nothing keeps
+  its chat to try again; one that could not be sent has a `telegram fixed
+  reply <name>: failed after 1 attempt` line.
+- **The deletion's confirmation** leaves before the visitor's rows go, and
+  the turn's job tries it again with its backoff, three attempts in all,
+  each failed one with a `telegram fixed reply deleted: failed after N
+  attempts` line (FR-05). The third deletes whether or not it left: then
+  the log has `telegram fixed reply deleted: not sent, the data deleted all
+  the same`, or `broke at attempt 3 of 3, <class>, the data deleted all the
+  same` when the send broke rather than failed. A confirmation can arrive
+  twice when a run is repeated.
 - **Replies left pending** (after a stop, an outage, or the replies PR-18
   stored before day 12) leave before the person's next reply, or at once
   with:

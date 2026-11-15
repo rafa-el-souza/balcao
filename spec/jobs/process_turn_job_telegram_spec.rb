@@ -123,6 +123,115 @@ RSpec.describe "FR-19 FR-05 NFR-03 ProcessTurnJob on Telegram, the reply on its 
       expect(sent.sole).not_to have_key("reply_markup")
     end
 
+    # FR-05 as the owner decided it on 2026-11-15 (the MVP review, rows
+    # 33-R1 and Q25): the confirmation leaves before the rows go, since the
+    # chat lives on the visitor's row; a send that fails is tried again with
+    # the job's backoff, three attempts in all, and the third deletes whether
+    # or not its send left (review finding C8 of pull request #33: a send that
+    # broke was lost with no line).
+    describe "the confirmation before the deletion (the owner, 2026-11-15)" do
+      let(:lines) { [] }
+
+      before { allow(Rails.logger).to receive(:error) { |line| lines << line } }
+
+      # Each send's answer in turn, 200 or a proxy's 502 page; answers the
+      # list of whether the visitor's row was there at each send.
+      def answers(*statuses)
+        attempts = []
+        stub_request(:post, bot_api_url("sendMessage")).to_return do |request|
+          attempts << Visitor.exists?(visitor.id)
+          sent << JSON.parse(request.body)
+          status = statuses.fetch(attempts.size - 1, 200)
+          status == 200 ? bot_api_answer({ "message_id" => sent.size }) : { status:, body: "<html>Bad Gateway</html>" }
+        end
+        attempts
+      end
+
+      it "sends it while the visitor's row is still there" do
+        rows_at_send = answers(200)
+
+        perform(inbound("/apagar"))
+
+        expect(rows_at_send).to eq([ true ])
+        expect(Visitor.exists?(visitor.id)).to be(false)
+      end
+
+      it "deletes nothing while a send that failed waits for the job's next attempt, and deletes once one leaves" do
+        rows_at_send = answers(502, 200)
+        turn = inbound("/apagar")
+
+        ProcessTurnJob.perform_later(turn.id)
+        perform_enqueued_jobs(only: ProcessTurnJob)
+
+        expect(Visitor.exists?(visitor.id)).to be(true)
+        expect(enqueued_jobs.sole).to include(job: ProcessTurnJob, args: [ turn.id ])
+
+        perform_enqueued_jobs(only: ProcessTurnJob)
+
+        expect(rows_at_send).to eq([ true, true ])
+        expect(Visitor.exists?(visitor.id)).to be(false)
+        expect(sent.map { |body| body["text"] }).to all(eq(FixedReply.telegram_deleted("pt-BR")))
+      end
+
+      it "deletes at the third attempt though its send failed too, and the log says so" do
+        rows_at_send = answers(502, 502, 502)
+        ProcessTurnJob.perform_later(inbound("/apagar").id)
+
+        perform_enqueued_jobs(only: ProcessTurnJob) until enqueued_jobs.empty?
+
+        expect(rows_at_send).to eq([ true, true, true ])
+        expect(Visitor.exists?(visitor.id)).to be(false)
+        expect(lines).to eq([ "telegram fixed reply deleted: failed after 1 attempt, Telegram::Client::Error (HTTP 502)",
+                              "telegram fixed reply deleted: failed after 2 attempts, Telegram::Client::Error (HTTP 502)",
+                              "telegram fixed reply deleted: failed after 3 attempts, Telegram::Client::Error (HTTP 502)",
+                              "telegram fixed reply deleted: not sent, the data deleted all the same" ])
+      end
+
+      it "deletes at the third attempt when its send broke, with a line that names the error" do
+        allow_any_instance_of(Telegram::Outbound).to receive(:send_fixed).and_raise(ActiveRecord::ConnectionFailed)
+        ProcessTurnJob.perform_later(inbound("/apagar").id)
+
+        perform_enqueued_jobs(only: ProcessTurnJob) until enqueued_jobs.empty?
+
+        expect(Visitor.exists?(visitor.id)).to be(false)
+        expect(lines).to eq([ "telegram fixed reply deleted: broke at attempt 3 of 3, ActiveRecord::ConnectionFailed, " \
+                              "the data deleted all the same" ])
+      end
+
+      # A later turn's job answers the earlier turns first (design §6.3); a
+      # deletion it runs that way has no attempt of its own there.
+      it "leaves a deletion that a later turn's job runs to its own job's attempts" do
+        answers(502)
+        deletion = inbound("/apagar")
+        later = inbound("oi")
+
+        perform(later)
+
+        expect(Visitor.exists?(visitor.id)).to be(true)
+        expect(lines).to include("earlier turn #{deletion.id} failed: TurnProcessor::ConfirmationNotSent")
+
+        perform(deletion)
+
+        expect(Visitor.exists?(visitor.id)).to be(false)
+      end
+
+      # NFR-02's accepted duplicate: sendMessage takes no idempotency key.
+      it "sends it again when the deletion broke after it left, since the job runs again" do
+        answers(200, 200)
+        calls = 0
+        allow_any_instance_of(Visitor).to receive(:erase!).and_wrap_original do |original|
+          calls += 1
+          calls == 1 ? raise(ActiveRecord::ConnectionFailed) : original.call
+        end
+        ProcessTurnJob.perform_later(inbound("/apagar").id)
+
+        perform_enqueued_jobs(only: ProcessTurnJob) until enqueued_jobs.empty?
+
+        expect(Visitor.exists?(visitor.id)).to be(false)
+        expect(sent.size).to eq 2
+      end
+    end
+
     it "keeps the web's confirmation as it was" do
       web = create(:conversation, visitor: create(:visitor), language: "pt-BR")
       turn = Turn.for_inbound!(Message.record_inbound!(conversation: web, external_id: SecureRandom.uuid, body: "/apagar"))

@@ -27,6 +27,11 @@
 # and sending, when the job runs again. No send waits: a reply Telegram asks
 # to wait for is tried again by TelegramReplyJob at its time.
 #
+# FR-05 on Telegram: the delete command's confirmation leaves before the
+# deletion, and one that did not leave raises, so this job's attempts carry
+# it; at the last the data goes whether or not it left (TurnProcessor, the
+# owner, 2026-11-15).
+#
 # NFR-03: a turn the model cannot answer ends with the fallback text inside
 # its run, so the job has nothing to try again (the three attempts of a model
 # call are the SDK's, AgentRunner::MAX_RETRIES). A turn that breaks outside
@@ -54,7 +59,7 @@ class ProcessTurnJob < ApplicationJob
       end
       # An earlier turn may have been a deletion that took this one (FR-05),
       # or a reset that moved it.
-      settled(turn) { |own| TurnProcessor.new(own).call }
+      settled(turn) { |own| TurnProcessor.new(own, attempt: TurnProcessor::Attempt.new(executions, ATTEMPTS)).call }
     end
     deliver(visitor_id)
   end

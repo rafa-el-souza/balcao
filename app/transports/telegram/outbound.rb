@@ -12,9 +12,9 @@ module Telegram
   #   takes no idempotency key.
   # - A reply that is not stored (the ask, /help and the deletion before the
   #   agreement, the fixed lines, the deletion's confirmation) is sent where
-  #   it is made, to the chat of the update or of the row read before the
-  #   deletion: the chat id is kept on the visitor's row alone (SR-10, SR-41),
-  #   so it never goes into a job's arguments.
+  #   it is made, to the chat of the update or of the row, before the
+  #   deletion takes it: the chat id is kept on the visitor's row alone
+  #   (SR-10, SR-41), so it never goes into a job's arguments.
   #
   # Both are sent under a lock keyed by the person's hashed identity, so one
   # person's replies leave one at a time and in order: a reply that is not
@@ -30,7 +30,9 @@ module Telegram
   #   it and the person's later replies stay pending, in order, and a drain
   #   meanwhile leaves them be.
   # - A reply that is not stored is tried once: nothing keeps its chat to try
-  #   it again.
+  #   it again. The deletion's confirmation is the exception: it leaves
+  #   before the deletion, from the row that keeps the chat, and the turn's
+  #   job tries it again (TurnProcessor, FR-05).
   # Any other answer that is not ok fails a reply at once. A failed reply is
   # marked failed with one line that names the error by its class (NFR-03,
   # SR-30); the chat and the text never reach a line.
@@ -93,15 +95,17 @@ module Telegram
     end
 
     # Sends a reply that is not stored, trying each part once, after the
-    # pending replies of the visitor given; answers whether it left.
-    def send_fixed(chat, text, keyboard: nil, name: :reply, visitor: nil)
+    # pending replies of the visitor given; answers whether it left. The
+    # attempt is the caller's count, for the line of a send that failed (the
+    # deletion's confirmation is tried again by the turn's job, FR-05).
+    def send_fixed(chat, text, keyboard: nil, name: :reply, visitor: nil, attempt: 1)
       AdvisoryLock.hold(lock(chat)) do
         stored = visitor && Chat.of(visitor)
         drain(visitor, stored) if stored
         parts = self.class.parts(text)
         parts.each_with_index do |part, index|
           error = send_part(chat, part, keyboard) or next
-          return failed("telegram fixed reply #{name}", error, 1, part: [ index + 1, parts.size ])
+          return failed("telegram fixed reply #{name}", error, attempt, part: [ index + 1, parts.size ])
         end
         true
       end
