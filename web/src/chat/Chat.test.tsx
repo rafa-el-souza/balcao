@@ -937,6 +937,18 @@ describe("NFR-10 the chat for assistive technology", () => {
       thread(),
     );
   });
+
+  // The owner's round at the MVP close, row 18-axe (the interface review's
+  // W6; axe's scrollable-region-focusable, WCAG 2.1.1): beside the glass box
+  // the thread scrolls on its own, and a browser that does not focus a
+  // scroller by itself (Safari) left a keyboard no way to scroll it.
+  it("lets the keyboard take the conversation, which scrolls on its own beside the glass box", async () => {
+    renderPage(<Chat />);
+    await ready();
+
+    expect(thread()).toHaveAttribute("tabindex", "0");
+    expect(thread()).toHaveAccessibleName(pt.conversation);
+  });
 });
 
 // Review finding C1 of pull request #14: the thread followed where the page

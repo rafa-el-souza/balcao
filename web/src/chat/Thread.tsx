@@ -251,12 +251,19 @@ export function Thread({
   }, [reveal]);
   useEffect(revealEnd, [tail, revealEnd]);
 
+  // Beside the glass box the thread scrolls on its own: it takes the focus,
+  // so a keyboard can scroll it where the browser does not focus a scroller
+  // by itself, as Safari does not (the owner's round at the MVP close, row
+  // 18-axe; axe's scrollable-region-focusable, WCAG 2.1.1). The lint rule's
+  // own documentation names a scroll container as its exception.
   return (
     <ol
       ref={list}
       className={styles.thread}
       aria-label={t("chat.conversation")}
       aria-live="polite"
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scroll container
+      tabIndex={0}
     >
       {state.phase === "failed" && (
         <li className={cx(styles.msg, VOICE_CLASS.stamp)} data-voice="stamp">
