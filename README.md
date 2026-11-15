@@ -211,33 +211,46 @@ and each pull request's Review section is the record.
 
 Design complete and independently reviewed (2026-11-02, 30 findings;
 2026-11-04, the amended deploy model, the bot gap and the testing strategy;
-2026-11-09, the twelve-day MVP plan, all applied). The MVP is being built
-(design §9.1): since day 2 the demo host answers at the address above, with
-TLS; since day 5 a conversation runs there over the HTTP API; since day 6 the
-landing and the chat page are there, in three languages; since day 7 the reply
-and the glass box's rows arrive live over the cable, polling only when the
-socket is down, and each conversation has its trace page, the chat says
-"pensando…" while a turn runs and that the answer is taking longer past ten
-seconds, and a turn that breaks is tried again twice and then answered with
-the fallback, never left waiting; since day 8 the attendant reserves products
-for pickup until the end of the next business day, once per turn and product
-however often the turn runs, and refuses a prescription product, more than
-ten units, a fourth open reservation and more than the stock, each refusal
-worded in the glass box, while the reply stamps the reservation's code; since
-day 9 the clinical boundary holds at 100% of its eval cases, the offer of the
-pharmacist is a fixed line with the store's phone and hours, every model
-call is charged to the month at a dated price table and shown in the glass
-box in dollars and reais, the demo pauses with a fixed reply at its monthly
-cap, and every night at 03:00 the demo's stock is reset and whatever is older
-than seven days is deleted; since day 10 a privacy page, which is also the
-Telegram bot's own policy, says what is kept and what for, for how long, how
-to delete it sooner and who processes it; since day 11 the demo's Telegram
-bot takes in messages, asks a new person to agree before it keeps anything
-of theirs and makes a text after that a turn, traced like the web chat's,
-and what visitors send is encrypted at rest; since day 12 it answers, in
-plain text, with the typing status while the model works, it sets its own
-command menu and profile in three languages, and the landing's QR opens it.
-See the delivery plan in the design document.
+2026-11-09, the twelve-day MVP plan, all applied). **The MVP is complete**
+(design §9.1), closed on 2026-11-15 after a review of all its pull requests
+([`docs/reviews/mvp-review.md`](docs/reviews/mvp-review.md),
+[ADR-0019](docs/adr/0019-the-review-at-a-close-and-four-amendments-to-the-review-policy.md)):
+the demo answers at the address above, on the web and on Telegram. What
+each day brought:
+
+- **Day 2:** the demo host at the address above, with TLS.
+- **Day 5:** a conversation over the HTTP API.
+- **Day 6:** the landing and the chat page, in three languages.
+- **Day 7:** the reply and the glass box's rows live over the cable, a
+  trace page per conversation, "pensando…" while a turn runs, and a turn
+  that breaks tried again twice, then answered with the fallback, never
+  left waiting.
+- **Day 8:** reservations for pickup until the end of the next business
+  day, once per turn and product however often the turn runs, refused for
+  a prescription product, more than ten units, a fourth open reservation
+  or more than the stock.
+- **Day 9:** the clinical boundary at 100% of its eval cases, the
+  pharmacist's offer as a fixed line, every model call charged to the month
+  at a dated price table, a fixed reply at the monthly cap, and the nightly
+  reset of the stock and deletion of what is older than seven days.
+- **Day 10:** the privacy page, which is also the bot's own policy.
+- **Day 11:** the Telegram bot takes messages in, asks a new person to
+  agree before it keeps anything of theirs, and what visitors send is
+  encrypted at rest.
+- **Day 12:** the bot answers in plain text, with the typing status, its
+  own command menu and profile in three languages, and the landing's QR
+  opens it.
+
+Next, in the plan's order (design §9.2):
+
+- **M4, voice and the bot's finish:** buttons for a reservation's code and
+  the trace, the openers as a keyboard, voice notes.
+- **M2, pharmacy work:** Turnstile, a second model checking every reply,
+  service bookings, the handoff to a person and the operator console.
+- **M3, operation:** the status page, the budget's modes and kill switch,
+  the canary, nightly backups, and production on its own host.
+- **M5, polish:** the exhibit traces, referrer counts, the landing's final
+  copy, the Spanish review and the README's tour.
 
 ## Running locally
 
