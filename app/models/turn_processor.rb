@@ -174,11 +174,17 @@ class TurnProcessor
     command(name) { store_reply(yield(language), language:) }
   end
 
+  # A command that breaks is marked failed with its span closed by the error,
+  # as a turn that breaks outside the model is, for the job's retry (review
+  # finding C4 of pull request #11).
   def command(name)
     @inbound.update_columns(source: "command")
     span = @recorder.start_span("balcao.command", attributes: { "balcao.command.name" => name.to_s })
     yield
     @turn.update!(state: "replied", latency_ms:)
+  rescue StandardError => e
+    broken(e)
+    raise
   ensure
     span&.finish
   end
