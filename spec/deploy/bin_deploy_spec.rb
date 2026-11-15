@@ -181,4 +181,61 @@ RSpec.describe "SR-38 bin/deploy deploys only the rehearsal destination" do
     expect(status).not_to be_success
     expect(kamal_calls.last).to eq "kamal registry remove -d ensaio"
   end
+
+  # The MVP close (the session's own line, not a review's): Kamal 2.12 runs
+  # its local registry from registry:3, whose image declares a volume for
+  # /var/lib/registry, and removes the container without it, so every deploy
+  # left an anonymous volume of about 158 MB on the deploying machine.
+  # bin/deploy reads that volume's name before the registry goes and removes
+  # it afterwards; it touches no other volume.
+  describe "the local registry's volume" do
+    let(:anonymous) { "7a184fc7a3d580358d7359cfeae92ab2cdbf407e58683a2624a081d46824a413" }
+
+    before do
+      write_shim("docker",
+                 exit_status: "ARGV[0, 2] == %w[container inspect] && !ENV.key?('DOCKER_SHIM_MOUNTS') ? 1 : 0",
+                 output: "ARGV[0, 2] == %w[container inspect] ? ENV.fetch('DOCKER_SHIM_MOUNTS', '') : ''")
+    end
+
+    def docker_calls = calls.grep(/\Adocker /)
+    def with_mounts(mounts, **more) = rehearsal_env.merge("DOCKER_SHIM_MOUNTS" => mounts, **more)
+
+    it "removes the registry container's anonymous volume after kamal registry remove" do
+      status, _err = deploy("-d", "ensaio", env: with_mounts("#{anonymous} /var/lib/registry\n\n"))
+
+      expect(status).to be_success
+      inspect = calls.index { |call| call.start_with?("docker container inspect ") && call.end_with?(" kamal-docker-registry") }
+      expect(inspect).to be < calls.index("kamal registry remove -d ensaio")
+      expect(calls.last(2)).to eq [ "kamal registry remove -d ensaio", "docker volume rm #{anonymous}" ]
+    end
+
+    it "removes it when the deploy fails too" do
+      status, _err = deploy("-d", "ensaio", env: with_mounts("#{anonymous} /var/lib/registry\n", "KAMAL_SHIM_FAIL_ON" => "setup"))
+
+      expect(status).not_to be_success
+      expect(calls.last).to eq "docker volume rm #{anonymous}"
+    end
+
+    it "leaves a named volume, and an anonymous one mounted elsewhere, alone" do
+      status, _err = deploy("-d", "ensaio", env: with_mounts("registry-data /var/lib/registry\n#{anonymous} /srv/other\n"))
+
+      expect(status).to be_success
+      expect(docker_calls.grep(/\Adocker volume /)).to be_empty
+    end
+
+    it "removes nothing when there is no registry container" do
+      status, _err = deploy("-d", "ensaio")
+
+      expect(status).to be_success
+      expect(docker_calls.grep(/\Adocker volume /)).to be_empty
+    end
+
+    it "keeps the volume, and says how to remove it, when the registry itself could not be removed" do
+      status, err = deploy("-d", "ensaio", env: with_mounts("#{anonymous} /var/lib/registry\n", "KAMAL_SHIM_FAIL_ON" => "registry"))
+
+      expect(status).to be_success
+      expect(docker_calls.grep(/\Adocker volume /)).to be_empty
+      expect(err).to include("kamal registry remove -d ensaio", "docker volume rm #{anonymous}")
+    end
+  end
 end

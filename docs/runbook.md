@@ -135,8 +135,10 @@ Only a green `main` is deployed to the MVP host.
    refusing an image whose own version label names another release (a
    digest a bump left behind), runs `kamal setup` (on a fresh host it boots the
    accessory first; afterwards it deploys like `kamal deploy`), and always
-   ends with `kamal registry remove -d ensaio`. The first run on a fresh
-   host took about two and a half minutes.
+   ends with `kamal registry remove -d ensaio` and the removal of the
+   registry's anonymous volume, which Kamal's own removal leaves (about
+   158 MB a deploy; the MVP close). The first run on a fresh host took about
+   two and a half minutes.
 4. Smoke, from the workstation:
    - `curl -s -o /dev/null -w '%{http_code}\n' https://balcao.rafasouza.dev.br/up`
      answers `200`;
@@ -242,7 +244,9 @@ before `kamal deploy`, as `bin/deploy` does.
 ## End of a deploy session
 
 - **No registry left behind:** `docker ps -a --filter name=kamal-docker-registry`
-  on the workstation lists nothing.
+  on the workstation lists nothing, and `docker volume ls --filter dangling=true`
+  lists no volume the deploy left (`bin/deploy` removes the registry's; when it
+  could not, it printed the `docker volume rm` to run).
 - **Build cache under 4 GB:** `docker system df` on the workstation; when the
   build cache is above 4 GB, `docker builder prune --max-used-space 4GB -f`
   (the engine's own builder holds the deploy cache).
