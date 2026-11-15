@@ -29,10 +29,12 @@
 #
 # Every step runs even when one before it failed, so one that breaks (a
 # delete past the statement timeout, the cache's database down) stops
-# neither the catalogue's reset nor the purge of the rest; the log line
-# names the step that failed by its error's class, and the job raises that
-# error at the end, for its retry (review findings S5 of pull request #29,
-# V2 and M5 of #32, and the triage's A-V1). Each delete goes in batches, so
+# neither the catalogue's reset nor the purge of the rest; each step that
+# fails writes an error line with its error's class and backtrace, never its
+# message (SR-30), the summary names it in place of its count and goes at
+# WARN, and the job raises the first error at the end, for its retry (review
+# findings S5 of pull request #29, V2 and M5 of #32, the triage's A-V1, and
+# H3 of #40). Each delete goes in batches, so
 # no one statement grows with a week of a busy demo past the statement
 # timeout (SR-20).
 #
@@ -73,17 +75,20 @@ class NightlyResetJob < ApplicationJob
     encrypted = step("encrypting plain bodies") { Message.encrypt_plain_bodies }
     deleted["failed jobs"] = step("failed jobs") { failed_jobs(before) }
     deleted["limit counters"] = step("limit counters") { EdgeLimits.purge(before, batch: BATCH) }
-    Rails.logger.info(line(expired, reset, deleted, encrypted))
+    Rails.logger.public_send(@failures.any? ? :warn : :info, line(expired, reset, deleted, encrypted))
     raise @failures.values.first if @failures.any?
   end
 
   private
 
-  # The step's count, or nil when it raised; the error is kept for the end.
+  # The step's count, or nil when it raised; the error is kept for the end,
+  # and its line names it by its class with the backtrace's frames of the
+  # app, which name only code.
   def step(name)
     yield
   rescue StandardError => e
     @failures[name] = e
+    Rails.logger.error("nightly reset: #{name} failed: #{e.class}\n#{Rails.backtrace_cleaner.clean(Array(e.backtrace)).first(8).join("\n")}")
     nil
   end
 

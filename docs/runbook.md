@@ -283,10 +283,11 @@ the host around the answer.
   writes one line, `nightly reset: expired N reservations, reset N
   products; deleted ...`. To run it by hand (it is safe to run again):
   `kamal app exec -d ensaio --roles=job --reuse "bin/rails runner 'NightlyResetJob.perform_now'"`.
-  A step that fails stops none of the others: the line names it by its
-  error's class in place of its count (`messages failed:
-  ActiveRecord::StatementTimeout`), and the job raises that error at the
-  end. The command still ends with status 0: its output then has a
+  A step that fails stops none of the others: it writes an error line,
+  `nightly reset: <step> failed: <class>` with its backtrace, the summary
+  goes at warn and names it in place of its count (`messages failed:
+  ActiveRecord::StatementTimeout`), and the job raises the first failure's
+  error at the end. The command still ends with status 0: its output then has a
   `Retrying NightlyResetJob` line naming the same class, and Solid Queue
   runs the job again in the `job` container a few seconds later; a third
   failed attempt there ends with `Stopped retrying` and `Error performing

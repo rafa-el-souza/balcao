@@ -281,7 +281,8 @@ RSpec.describe "FR-15 SR-31 the nightly reset and the seven-day purge" do
   # down) stopped every step after it, the catalogue's reset and the
   # plain-body sweep among them.
   it "runs every step when one fails, names that one in its line, and raises at the end for the retry" do
-    allow(Rails.logger).to receive(:info)
+    allow(Rails.logger).to receive(:warn)
+    allow(Rails.logger).to receive(:error)
     visitor = create(:visitor, last_seen_at: three_am - 8.days)
     dipirona.update!(stock: 1)
     allow(Message).to receive(:where).and_call_original
@@ -294,7 +295,7 @@ RSpec.describe "FR-15 SR-31 the nightly reset and the seven-day purge" do
     expect(Visitor.where(id: visitor.id)).to be_empty
     expect(dipirona.reload.stock).to eq(seed_stock)
     expect(Message).to have_received(:encrypt_plain_bodies)
-    expect(Rails.logger).to have_received(:info).with(
+    expect(Rails.logger).to have_received(:warn).with(
       a_string_including("deleted 1 visitors", "messages failed: ActiveRecord::StatementTimeout", "3 limit counters",
                          "encrypted 2 plain bodies")
     )
@@ -304,7 +305,8 @@ RSpec.describe "FR-15 SR-31 the nightly reset and the seven-day purge" do
   # the cache's database before the catalogue's reset, so a cache down at
   # 03:00 stopped the reset; it runs after the reset, its failure apart.
   it "resets the catalogue before it purges the limits' counters, and a failed purge of them stops nothing" do
-    allow(Rails.logger).to receive(:info)
+    allow(Rails.logger).to receive(:warn)
+    allow(Rails.logger).to receive(:error)
     dipirona.update!(stock: 1)
     allow(CatalogueSeed).to receive(:seed!).and_call_original
     allow(EdgeLimits).to receive(:purge).and_raise(ActiveRecord::ConnectionNotEstablished, "cache down")
@@ -314,7 +316,27 @@ RSpec.describe "FR-15 SR-31 the nightly reset and the seven-day purge" do
     expect(dipirona.reload.stock).to eq(seed_stock)
     expect(CatalogueSeed).to have_received(:seed!).ordered
     expect(EdgeLimits).to have_received(:purge).ordered
-    expect(Rails.logger).to have_received(:info).with(a_string_including("limit counters failed: ActiveRecord::ConnectionNotEstablished"))
+    expect(Rails.logger).to have_received(:warn).with(a_string_including("limit counters failed: ActiveRecord::ConnectionNotEstablished"))
+  end
+
+  # Review finding H3 of pull request #40 (the silent-failure hunter, reach
+  # dono): a step that failed after the first was named only inside the
+  # summary, which went at INFO, with no backtrace, and only the first error
+  # was raised; until the third attempt nothing reached WARN.
+  it "logs each failed step at ERROR by its class with its backtrace, never its message, and its summary at WARN" do
+    allow(Rails.logger).to receive(:error)
+    allow(Rails.logger).to receive(:warn)
+    allow(TraceEvent).to receive(:where).and_call_original
+    allow(TraceEvent).to receive(:where).with(created_at: ...(three_am - 7.days)).and_raise(ActiveRecord::StatementTimeout, "secret words")
+    allow(EdgeLimits).to receive(:purge).and_raise(NoMethodError, "secret method")
+
+    expect { run }.to have_enqueued_job(NightlyResetJob)
+
+    expect(Rails.logger).to have_received(:error).with(%r{\Anightly reset: spans failed: ActiveRecord::StatementTimeout\n.*app/jobs/nightly_reset_job\.rb}m)
+    expect(Rails.logger).to have_received(:error).with(%r{\Anightly reset: limit counters failed: NoMethodError\n.*app/jobs/nightly_reset_job\.rb}m)
+    expect(Rails.logger).to have_received(:warn).with(a_string_including("spans failed: ActiveRecord::StatementTimeout", "limit counters failed: NoMethodError"))
+    expect(Rails.logger).not_to have_received(:error).with(/secret/)
+    expect(Rails.logger).not_to have_received(:warn).with(/secret/)
   end
 
   # The finder's note on pull request #40: a batch of 1,000 visitors deleted
