@@ -166,6 +166,24 @@ RSpec.describe "FR-14 SR-01 SR-36 per-IP and per-visitor limits", type: :request
       expect(Rails.logger).not_to have_received(:warn).with(/203\.0\.113/)
     end
 
+    # Review finding M4 of pull request #32, and the owner's word of
+    # 2026-11-15 (question 30): the decision of 2026-11-14 holds for every
+    # error of the cache, not only the six its failsafe answers nil for. Any
+    # other raised out of the edge, and every API request answered 500.
+    it "lets a request through uncounted when the cache raises, and names the error's class, never the source" do
+      store = Rack::Attack.cache.store
+      allow(store).to receive(:increment)
+        .and_raise(ActiveRecord::StatementInvalid, "PG::ReadOnlySqlTransaction: INSERT ... limits:ip/requests:203.0.113.9")
+      allow(Rails.logger).to receive(:warn)
+
+      session_from("203.0.113.9")
+
+      expect(response).to have_http_status(:created)
+      expect(Rails.logger).to have_received(:warn).with("limits: ip/requests not counted: the cache raised ActiveRecord::StatementInvalid")
+      expect(Rails.logger).to have_received(:warn).with("limits: ip/sessions not counted: the cache raised ActiveRecord::StatementInvalid")
+      expect(Rails.logger).not_to have_received(:warn).with(/203\.0\.113|ReadOnly/)
+    end
+
     # Review finding S4 of pull request #29: an increment the cache failed
     # must not be followed by a write that starts the window over.
     it "never starts a live counter over when an increment fails" do

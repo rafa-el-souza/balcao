@@ -61,14 +61,20 @@ module EdgeLimits
   # bounds the spend (FR-14; review finding C4 of pull request #12, the
   # owner's decision of 2026-11-14). Before, every API request answered 500;
   # and a write after a failed increment started a live counter over
-  # (review finding S4 of pull request #29).
+  # (review finding S4 of pull request #29). The decision holds for every
+  # error of the cache, not only those its failsafe answers nil for: one it
+  # raises is let through the same way, named by its class alone, never by
+  # its message, which may quote the key (SR-30; review finding M4 of pull
+  # request #32, the owner's word of 2026-11-15).
   def count(limit, discriminator)
     store = Rack::Attack.cache.store
     store.increment("limits:#{limit.name}:#{discriminator}", 1, expires_in: limit.period) || uncounted(limit)
+  rescue StandardError => e
+    uncounted(limit, "the cache raised #{e.class}")
   end
 
-  def uncounted(limit)
-    Rails.logger.warn("limits: #{limit.name} not counted: the cache did not answer")
+  def uncounted(limit, why = "the cache did not answer")
+    Rails.logger.warn("limits: #{limit.name} not counted: #{why}")
     0
   end
 
