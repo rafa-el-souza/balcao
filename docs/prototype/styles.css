@@ -908,11 +908,12 @@ body {
   align-items: flex-end;
   gap: var(--space-2);
   padding: var(--space-2);
-  border: 1px solid var(--color-rule);
+  border: 1px solid var(--color-rule-strong);
   background: var(--color-paper-2);
 }
 
-/* At rest the sheet has a quiet edge; in use it takes the ink. */
+/* At rest the sheet has the strong rule (3.9:1 on the paper: the brief's 3:1 for a control); in use
+   it takes the ink. */
 .composer-row:focus-within {
   border-color: var(--color-ink);
   outline: 2px solid var(--color-accent);
@@ -968,6 +969,7 @@ body {
   height: 1.1em;
 }
 
+/* A field that takes nothing keeps its difference from the one at rest: it has no sheet. */
 .composer-row:has(textarea:disabled) {
   border-color: var(--color-rule-strong);
   background: none;
