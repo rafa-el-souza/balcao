@@ -82,6 +82,24 @@ RSpec.describe "FR-19 SR-43 NFR-02 Telegram::Outbound, a reply on its way to the
       expect([ first.reload, second.reload ]).to all(have_attributes(status: "sent"))
     end
 
+    # The bot's finish (FR-19's part for M4; Telegram::Buttons): a reply
+    # carries its buttons, a reply cut in parts on its last part.
+    it "sends a reply with the buttons of what it writes, on its last part, the parts before it taking the reply keyboard away" do
+      create(:reservation, turn: nil, visitor:, code: "K7M2Q9")
+      short = reply("Reservado: K7M2Q9, até 16/11 às 20:00.", at: 2.seconds.ago)
+      long = reply([ "Reserva K7M2Q9.", "x" * 4_000, "y" * 4_000 ].join("\n\n"), at: 1.second.ago)
+      copy = { "inline_keyboard" => [ [ { "text" => "Copiar o código K7M2Q9", "copy_text" => { "text" => "K7M2Q9" } } ] ] }
+
+      parts = Telegram::Outbound.parts(long.body)
+
+      outbound.deliver_pending(visitor)
+
+      expect(parts.size).to eq 2
+      expect(sent.map { |body| body["text"] }).to eq([ short.body, *parts ])
+      expect(sent.map { |body| body["reply_markup"] }).to eq([ copy, { "remove_keyboard" => true }, copy ])
+      expect([ short.reload.status, long.reload.status ]).to eq(%w[sent sent])
+    end
+
     it "sends what the model wrote as it was written, markup and links included (SR-43)" do
       reply("**Dipirona** <b>R$ 7,90</b> [veja](https://evil.example)")
 

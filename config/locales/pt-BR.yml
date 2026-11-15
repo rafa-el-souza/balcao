@@ -72,6 +72,13 @@ pt-BR:
     # does not reach, the copy of the chat in the visitor's own app, as
     # /privacy says it (FixedReply.telegram_deleted).
     own_copy: "As mensagens que continuam neste chat são a sua cópia, no seu Telegram: a opção de limpar o histórico, no próprio Telegram, as apaga."
+    # FR-19's buttons (M4, ADR-0017; Telegram::Buttons): the label of the
+    # one that copies a reservation's code (FR-07) and of the one that opens
+    # the conversation's trace page (FR-12); the openers' buttons are their
+    # own texts (config/openers.yml).
+    buttons:
+      copy_code: "Copiar o código %{code}"
+      trace: "Abrir o trace"
     # FR-19, written by bin/rails telegram:setup (Telegram::Setup): the command
     # menu of private chats, each command named by its first phrase with a
     # slash in config/commands.yml, the deletion last (Telegram allows 1 to

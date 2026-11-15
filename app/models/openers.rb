@@ -29,6 +29,10 @@ class Openers
 
   def keys = @openers.keys
 
+  # Every opener, in the file's order, as the greeting's reply keyboard
+  # shows them on Telegram (FR-21, Telegram::Buttons).
+  def all = @openers.values
+
   # The opener of an allow-listed key, or nil.
   def fetch(key) = key.is_a?(String) ? @openers[key] : nil
 

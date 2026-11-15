@@ -12,6 +12,11 @@ RSpec.describe "FR-21 SR-34 the landing's openers, resolved on the server" do
     expect(openers.fetch("stock_pt")).to have_attributes(key: "stock_pt", lang: "pt", text: "tem dipirona?")
   end
 
+  # On Telegram the greeting's reply keyboard shows them all (FR-19, M4).
+  it "lists every opener in the file's order" do
+    expect(openers.all).to eq(openers.keys.map { |key| openers.fetch(key) })
+  end
+
   [
     "anything-else", "", "STOCK_PT", " stock_pt", "stock_pt\n", "stock_pt.text", "lang", "__proto__",
     nil, :stock_pt, [ "stock_pt" ], { "stock_pt" => "x" }, 1

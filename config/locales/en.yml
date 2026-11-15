@@ -41,6 +41,9 @@ en:
     not_text: "Here I read text only: write your question in a message."
     too_long: "Your message is over 1,000 characters, the demo's limit. Could you write a shorter one?"
     own_copy: "The messages still in this chat are your own copy, in your Telegram: Telegram's own option to clear the history deletes them."
+    buttons:
+      copy_code: "Copy the code %{code}"
+      trace: "Open the trace"
     menu:
       reset: "starts the conversation over"
       trace: "shows how I work in this conversation"

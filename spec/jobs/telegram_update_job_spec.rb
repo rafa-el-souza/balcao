@@ -367,12 +367,28 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
       stored_nothing
     end
 
-    it "sends the greeting the agreement stored, taking the button away, and marks it sent" do
+    # FR-21 on Telegram (M4): the openers take the agreement's button's place.
+    it "sends the greeting the agreement stored with FR-21's openers in the button's place, and marks it sent" do
       agreed!
 
       expect(sent.sole).to include("chat_id" => sender_id, "text" => FixedReply.greeting("pt-BR"),
-                                   "reply_markup" => { "remove_keyboard" => true })
+                                   "reply_markup" => { "keyboard" => Openers.current.all.map { |opener| [ { "text" => opener.text } ] },
+                                                       "resize_keyboard" => true, "one_time_keyboard" => true })
       expect(Message.outbound.sole).to have_attributes(status: "sent", parts_sent: 1)
+    end
+
+    # FR-21 on Telegram: a tap on an opener sends its text as an ordinary
+    # message, a turn like any other, and the reply takes the openers away.
+    it "takes a tapped opener's text as a turn, and its reply takes the openers away" do
+      allow(AgentRunner).to receive(:default_client) { FakeModel.new([ reply("[pt] Temos, sim: Dipirona 500 mg, R$ 7,90.") ]).client }
+      agreed!
+      opener = Openers.current.fetch("stock_pt")
+
+      deliver(variant("text") { |message| message["text"] = opener.text })
+      perform_enqueued_jobs(only: ProcessTurnJob)
+
+      expect(Message.inbound.where(source: "text").sole.body).to eq(opener.text)
+      expect(sent.last).to include("text" => "Temos, sim: Dipirona 500 mg, R$ 7,90.", "reply_markup" => { "remove_keyboard" => true })
     end
 
     # Review finding T5 of pull request #32: an agreement read again (its

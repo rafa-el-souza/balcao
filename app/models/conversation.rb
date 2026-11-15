@@ -18,6 +18,13 @@ class Conversation < ApplicationRecord
     find_by(trace_token: token.force_encoding(Encoding::UTF_8)) if token.match?(TRACE_TOKEN)
   end
 
+  # FR-12: the link to this conversation's trace page, which /trace's reply
+  # writes and, on Telegram, a button opens (Telegram::Buttons). The token
+  # follows the "#", which no browser sends, so no request line carries it,
+  # in Rails' log or in kamal-proxy's (review finding V3 of pull request #17,
+  # SR-30).
+  def trace_url = "#{Rails.configuration.x.public_origin}/trace##{trace_token}"
+
   # The conversation states of FR-10; the handoff ones arrive at M2.
   enum :state, { active: "active", handoff_online: "handoff_online",
                  handoff_offline: "handoff_offline", paused: "paused" }, validate: true
