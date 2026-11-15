@@ -1979,7 +1979,8 @@ error for a YAML key that is not text.
     for one break), §6.7 and §6.8 (the trace link's form), §9.1 and §9.2
     (day 12's cell and M4's "done when" worded by what J2 holds there; a
     home in the plan for the 38 deferred items that had none and for what
-    the answers sent to a milestone) and the two standing lists above.
+    the answers sent to a milestone), §12 (FR-21's row and the NFRs') and
+    the two standing lists above.
   - **The sentences come first, the code after.** When this note was
     written the code did not yet do what these amendments ask: FR-02's
     "tú" and the language of the system's own texts, FR-05's two, FR-09's
@@ -4033,11 +4034,11 @@ Telegram the stop button is one more kind of update (threat model SR-42).
 | FR-18 | Web channel | MVP (Turnstile at M2, first slice) |
 | FR-19 | Telegram channel (ADR-0016, ADR-0017) | MVP (the bot's finish at M4) |
 | FR-20 | Guardrail check | M2 |
-| FR-21 | Prefilled openers | MVP (on Telegram at M4) |
+| FR-21 | Prefilled openers | MVP (the fourth chip at M2, its link at M3; on Telegram at M4) |
 | FR-22 | Exhibit traces (committed files) | M5 |
 | FR-23 | Referrer counting | M5 |
 | FR-24 | Intent mix (retired, §11 V2-5) | — |
 | FR-25 | Offer and contact | M5 |
 | FR-26 | The business is one file | MVP |
-| NFR-01..10 | Cross-cutting | MVP onward (NFR-08's CI furniture and NFR-10's gate at M3) |
+| NFR-01..10 | Cross-cutting | MVP onward (NFR-03's sweep at M4; NFR-08's CI furniture and NFR-10's gate at M3) |
 | SR-* | Security (threat-model.md) | MVP onward (its §6) |
