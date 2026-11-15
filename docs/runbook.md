@@ -390,10 +390,13 @@ the env file loaded in the same call.
   turn's job that runs the deletion first names its own turn. The third
   deletes whether or not it left: then the log has `telegram fixed reply
   deleted: not sent, the data deleted all the same`, or `broke at attempt 3
-  of 3 of turn <id>'s job, <class>, the data deleted all the same`. Meanwhile the visitor's later messages wait behind the deletion
-  (`earlier turn <id>: a deletion waits for its confirmation, and the turns
-  after it`), and none reaches the model. A confirmation can arrive twice
-  when a run is repeated.
+  of 3 of turn <id>'s job, <class>, the data deleted all the same`. While
+  the confirmation has not left, the visitor's later messages wait behind
+  the deletion (`earlier turn <id>: a deletion waits for its confirmation,
+  and the turns after it`), and none reaches the model; a deletion that
+  breaks after its confirmation left (a database error in the erase) does
+  not hold them, a line for the owner in pull request #41's review (R1). A
+  confirmation can arrive twice when a run is repeated.
 - **Replies left pending** (after a stop, an outage, or the replies PR-18
   stored before day 12) leave before the person's next reply, or at once
   with:
