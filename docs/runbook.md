@@ -245,8 +245,10 @@ before `kamal deploy`, as `bin/deploy` does.
 
 - **No registry left behind:** `docker ps -a --filter name=kamal-docker-registry`
   on the workstation lists nothing, and `docker volume ls --filter dangling=true`
-  lists no volume the deploy left (`bin/deploy` removes the registry's; when it
-  could not, it printed the `docker volume rm` to run).
+  lists no volume the deploy left (`bin/deploy` removes the registry's once
+  docker says the container is gone, since Kamal's removal exits 0 even when
+  docker's failed; a registry still there is named, with the two commands to
+  run).
 - **Build cache under 4 GiB:** `docker system df` on the workstation prints
   decimal units, so 4 GiB reads 4.29 GB there; when the build cache is above
   it, `docker builder prune --max-used-space 4GB -f`, whose flag reads "GB"

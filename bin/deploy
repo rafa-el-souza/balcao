@@ -81,6 +81,33 @@ rescue Errno::ENOENT # no docker on the PATH: no registry either, and its remova
   []
 end
 
+# Kamal 2.12 runs the registry's `docker stop` and `docker rm` without
+# raising on their exit status (lib/kamal/cli/registry.rb), so its own exit
+# says nothing of them: whether the container is gone is docker's to say
+# (review finding C1 of pull request #42).
+def registry_left?
+  system("docker", "container", "inspect", REGISTRY_CONTAINER, out: File::NULL, err: File::NULL) == true
+end
+
+# Removes the local registry, then the volume Kamal's removal leaves, read
+# while the container still existed; a registry still there keeps its
+# volume, and the two commands to run are printed.
+def remove_registry
+  volumes = registry_volumes
+  kamal("registry", "remove", "-d", DESTINATION)
+  if registry_left?
+    volume_step = volumes.any? ? ", then `docker volume rm #{volumes.join(" ")}`" : ""
+    warn "bin/deploy: the local registry is still there; run `kamal registry remove -d #{DESTINATION}`#{volume_step}."
+    return
+  end
+
+  volumes.each do |volume|
+    next if system("docker", "volume", "rm", volume, out: File::NULL)
+
+    warn "bin/deploy: the local registry's volume could not be removed; run `docker volume rm #{volume}`."
+  end
+end
+
 kamal("version") || refuse("kamal is not installed (the pinned global gem, see the runbook).")
 kamal("server", "exec", "-d", DESTINATION, put_proxy) ||
   refuse("the pinned kamal-proxy could not be put on the host by its digest; see kamal's output above (threat model SR-27).")
@@ -89,17 +116,7 @@ deployed = false
 begin
   deployed = kamal("setup", "-d", DESTINATION)
 ensure
-  volumes = registry_volumes
-  if kamal("registry", "remove", "-d", DESTINATION)
-    volumes.each do |volume|
-      next if system("docker", "volume", "rm", volume, out: File::NULL)
-
-      warn "bin/deploy: the local registry's volume could not be removed; run `docker volume rm #{volume}`."
-    end
-  else
-    volume_step = volumes.any? ? ", then `docker volume rm #{volumes.join(" ")}`" : ""
-    warn "bin/deploy: the local registry could not be removed; run `kamal registry remove -d #{DESTINATION}`#{volume_step}."
-  end
+  remove_registry
 end
 
 refuse "kamal setup failed; see its output above." unless deployed
