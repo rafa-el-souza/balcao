@@ -138,6 +138,12 @@ export type Outcome<T> =
   | { kind: "session" }
   // What was asked for does not exist (a trace link that expired).
   | { kind: "missing" }
+  // The server refused the request itself, an answer of 4xx other than the
+  // cookie's (401), the missing (404) and the edge's (429): the same request
+  // is refused again, as an opener the server no longer knows (422) or a
+  // message id another visitor holds (409) is (the owner's round at the MVP
+  // close, rows 14-V2V3 and IR-V2).
+  | { kind: "refused" }
   // The network, a server error, or an answer the page did not expect.
   | { kind: "failed" };
 
@@ -233,6 +239,12 @@ export function createApi(locale: () => Locale): Api {
     if (response.status === 404) return { kind: "missing" };
     if (response.status === 429 && isLimit(json))
       return { kind: "limit", text: json.text };
+    if (
+      response.status >= 400 &&
+      response.status < 500 &&
+      response.status !== 429
+    )
+      return { kind: "refused" };
     return { kind: "failed" };
   }
 

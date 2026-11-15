@@ -52,8 +52,10 @@ export interface Entry {
   // An opener's language, when it is not the page's.
   lang?: string;
   // The page's own message: the id it generated, its state and its content.
+  // A message that failed may be sent again; one the server refused may not,
+  // since the server would refuse it again (rows 14-V2V3 and IR-V2).
   clientId?: string;
-  status?: "sending" | "sent" | "failed" | "limited";
+  status?: "sending" | "sent" | "failed" | "refused" | "limited";
   content?: Content;
   // The turn the server opened for it (the 202's answer), and when the
   // server accepted it or the edge refused it, for the glass box's own rows.
@@ -120,6 +122,7 @@ export type Action =
       message?: ServerMessage;
     }
   | { type: "failed"; clientId: string }
+  | { type: "refused"; clientId: string }
   | { type: "limited"; clientId: string | null; text: string; at?: string }
   | { type: "retrying"; clientId: string }
   | { type: "snapshot"; answer: Snapshot | Deleted }
@@ -305,8 +308,9 @@ export function reduce(state: State, action: Action): State {
         : accepted;
     }
     case "failed":
+    case "refused":
       return update(state, action.clientId, {
-        status: "failed",
+        status: action.type,
         after: lastDrawn(state, action.clientId),
       });
     case "retrying":

@@ -184,6 +184,11 @@ function Message({
           </button>
         </p>
       )}
+      {entry.status === "refused" && (
+        <p className={styles.failed}>
+          {t("chat.failed")} · {t("chat.refused")}
+        </p>
+      )}
     </li>
   );
 }
@@ -237,8 +242,10 @@ export function Thread({
   // stamps of a limit or a lost connection (V2), and the line a message that
   // could not be sent gains (the owner's round at the MVP close, row
   // 18-L-notsent).
-  const failed = entries.filter((entry) => entry.status === "failed").length;
-  const tail = `${String(entries.length)}:${String(failed)}:${String(waiting)}:${String(offline)}:${refused ?? ""}`;
+  const unsent = entries.filter(
+    (entry) => entry.status === "failed" || entry.status === "refused",
+  ).length;
+  const tail = `${String(entries.length)}:${String(unsent)}:${String(waiting)}:${String(offline)}:${refused ?? ""}`;
   const revealEnd = useCallback(() => {
     reveal(list.current?.lastElementChild);
   }, [reveal]);

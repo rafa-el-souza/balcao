@@ -711,6 +711,61 @@ describe("NFR-02 a message that could not be sent", () => {
   });
 });
 
+// The owner's round at the MVP close, rows 14-V2V3 and IR-V2 (the interface
+// review's W3, the verifier's V2): a request the server refuses is refused
+// again when it is sent again, so the page offers no retry for it.
+describe("FR-18 NFR-02 a message the server refuses", () => {
+  const refused = `${pt.failed} · ${pt.refused}`;
+
+  it("offers no retry for an opener the server no longer knows", async () => {
+    server.answers.messages.push({ status: 422, body: { error: "say" } });
+    renderPage(<Chat />);
+    await ready();
+
+    fireEvent.click(
+      within(thread()).getByRole("button", { name: openers.stock_pt.text }),
+    );
+
+    expect(await within(thread()).findByText(refused)).toBeInTheDocument();
+    expect(within(thread()).queryByRole("button", { name: pt.retry })).toBe(
+      null,
+    );
+    expect(server.sent()).toHaveLength(1);
+  });
+
+  it("offers no retry once a message sent again meets an id another visitor holds", async () => {
+    server.answers.messages.push(
+      "network",
+      { status: 401, body: { error: "session" } },
+      { status: 409, body: { error: "id" } },
+    );
+    renderPage(<Chat />);
+    await ready();
+    type("tem dipirona?");
+    fireEvent.keyDown(field(), { key: "Enter" });
+
+    fireEvent.click(await screen.findByRole("button", { name: pt.retry }));
+
+    expect(await within(thread()).findByText(refused)).toBeInTheDocument();
+    expect(within(thread()).queryByRole("button", { name: pt.retry })).toBe(
+      null,
+    );
+    expect(server.sent()).toHaveLength(3);
+  });
+
+  it("still offers a retry for a refusal at the edge that is not its limit", async () => {
+    server.answers.messages.push({ status: 429, body: {} });
+    renderPage(<Chat />);
+    await ready();
+    type("tem dipirona?");
+    fireEvent.keyDown(field(), { key: "Enter" });
+
+    expect(
+      await screen.findByRole("button", { name: pt.retry }),
+    ).toBeInTheDocument();
+  });
+});
+
 describe("FR-18 the chat that cannot open", () => {
   it("says so when the session cannot be had", async () => {
     server.answers.session.push({ status: 500, body: {} });

@@ -67,6 +67,7 @@
     "offline": "No connection to the server right now. Still trying.",
     "failed": "not sent",
     "retry": "send again",
+    "refused": "reload the page and write it again",
     "thinking": "thinking…",
     "slow": "taking longer than usual",
     "composer": {

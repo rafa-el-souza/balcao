@@ -164,9 +164,12 @@ export function useConversation() {
       setPollDelay((delay) =>
         answer.kind === "ok" ? POLL_MS : Math.min(delay * 2, POLL_MAX_MS),
       );
-      // An answer that finds nothing is no answer either (review finding C11).
+      // An answer that finds nothing, or that the server refuses, is no answer
+      // either (review finding C11).
       setPollFailures((failures) =>
-        answer.kind === "failed" || answer.kind === "missing"
+        answer.kind === "failed" ||
+        answer.kind === "missing" ||
+        answer.kind === "refused"
           ? failures + 1
           : 0,
       );
@@ -317,6 +320,10 @@ export function useConversation() {
           void queryClient.invalidateQueries({ queryKey: CURRENT });
       } else if (outcome.kind === "limit")
         dispatch({ type: "limited", clientId, text: outcome.text, at });
+      // Refused, or answered as missing, the same request would be again: no
+      // retry is offered (rows 14-V2V3 and IR-V2).
+      else if (outcome.kind === "refused" || outcome.kind === "missing")
+        dispatch({ type: "refused", clientId });
       else dispatch({ type: "failed", clientId });
     },
     [api, language, session, queryClient],
