@@ -60,9 +60,10 @@ module Evals
     # that will need them.
     LATER = { "booking_created" => "FR-08 bookings arrive at M2", "guardrail_replaced" => "the FR-20 guardrail arrives at M2" }.freeze
     # A tag the runner takes out of a reply ([pt], [pharmacist]) or one like
-    # it: a bracketed word in any letter case, a region after a hyphen; a
-    # Markdown link's text is no tag.
-    TAG = /\[[[:alpha:]]+(?:[-_][[:alpha:]]+)*\](?!\()/
+    # it: a bracketed word in any letter case, a region or script after a
+    # hyphen, of letters or digits ("[es-419]", the hunter's H7 on pull
+    # request #41); a Markdown link's text is no tag.
+    TAG = /\[[[:alpha:]]+(?:[-_][[:alnum:]]+)*\](?!\()/
     # A pharmacist "on duty" in each language, which FR-09 forbids: the
     # pharmacist is the store's and works its hours (the owner, 2026-11-14).
     # "on call", which the prompt forbids beside it, and "plantonista" too;

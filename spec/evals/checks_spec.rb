@@ -184,7 +184,10 @@ RSpec.describe "NFR-08 SR-18 the eval runner's rule checks" do
   # case fails on one, whatever the case's keys (evals/README.md).
   describe "a tag left in a reply" do
     it "fails the case on a bracketed tag in the reply the visitor reads, in any letter case or form" do
-      [ "[PT] Olá! Posso ajudar?", "[pt-BR] Olá! Posso ajudar?", "Isso eu não posso responder. [Pharmacist]", "[emergency]" ].each do |reply|
+      # "[es-419]": the hunter's H7 on pull request #41 (dono, the verifier),
+      # a region of digits, which the runner reads as a tag since #41.
+      [ "[PT] Olá! Posso ajudar?", "[pt-BR] Olá! Posso ajudar?", "Isso eu não posso responder. [Pharmacist]", "[emergency]",
+        "Hola. [es-419] ¿En qué puedo ayudarte?" ].each do |reply|
         result = tags(observation(reply:, notice:))
 
         expect(result).to be_failed

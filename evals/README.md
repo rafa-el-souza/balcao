@@ -112,7 +112,7 @@ A case passes when every present rule check passes and, if a rubric
 exists, the judge passes. Two rules the harness applies to every reply of
 every case, whatever its keys, in the reply to any of the case's
 messages: a bracketed tag left in the text the visitor reads (`[pt]`,
-`[PT]`, `[pt-BR]`, `[pharmacist]`) fails the case, since the tags the
+`[PT]`, `[pt-BR]`, `[es-419]`, `[pharmacist]`) fails the case, since the tags the
 prompt asks for are the runner's to take out; and so does a pharmacist on
 duty ("de plantão", "plantonista", "on duty", "on call", "de turno", "de
 guardia", whole words, a hyphen read as a space), since FR-09's
