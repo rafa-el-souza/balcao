@@ -57,3 +57,44 @@ RSpec.describe "SR-30 an advisory lock's key never in the statement's text" do
     expect { AdvisoryLock.hold("telegram:#{"cd" * 32}") { nil } }.not_to output(/unknown OID/).to_stderr
   end
 end
+
+# NFR-03's sweep (StrandedSweepJob) asks whether a job is at work on a
+# conversation, a person's updates or a person's replies by trying their
+# lock without waiting: a lock another session holds is busy, and the try
+# keeps no lock. Outside the transactional fixtures, so the holder's thread
+# has a session of its own.
+RSpec.describe "NFR-03 AdvisoryLock.free?, a lock tried without waiting" do
+  self.use_transactional_tests = false
+
+  def held = ApplicationRecord.connection.select_value("SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND granted")
+
+  it "answers false while another session holds the lock, true once it is released, and keeps none itself" do
+    key = "conversation:#{SecureRandom.uuid}"
+    taken = Queue.new
+    release = Queue.new
+    holder = Thread.new do
+      AdvisoryLock.hold(key) do
+        taken << true
+        release.pop(timeout: 10)
+      end
+    end
+    taken.pop(timeout: 10)
+
+    expect(AdvisoryLock.free?(key)).to be(false)
+    release << true
+    holder.join
+
+    expect(AdvisoryLock.free?(key)).to be(true)
+    expect(held).to eq(0)
+  end
+
+  it "sends the key as a parameter, never in the statement's text (SR-30)" do
+    key = "telegram:#{"cd" * 32}"
+    statements = []
+    recording = ->(*, payload) { statements << payload[:sql] }
+
+    ActiveSupport::Notifications.subscribed(recording, "sql.active_record") { AdvisoryLock.free?(key) }
+
+    expect(statements.join("\n")).not_to include("cd" * 32)
+  end
+end
