@@ -413,7 +413,11 @@ the env file loaded in the same call.
   A certificate that fails every time is the host's certificate store or
   something between the host and Telegram, not Telegram; `telegram:setup`
   stops at its first call with OpenSSL's reason. The trace page of the
-  conversation says `mensagem não enviada` for a reply marked `failed`.
+  conversation says `mensagem não enviada` for a reply marked `failed`. A
+  visitor whose chat does not decrypt (encryption keys other than the
+  row's) can be sent nothing: each pending reply of theirs is marked
+  `failed` with `telegram reply <id>: failed, the visitor's chat cannot be
+  read`.
 - **A reply that is never stored** (the ask, `/help` and the deletion
   before the agreement, the fixed lines) is tried once, since nothing keeps
   its chat to try again; one that could not be sent has a `telegram fixed

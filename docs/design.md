@@ -475,9 +475,9 @@ conversation in real time.
 - On Telegram a reply leaves after its run, so its trace shows it sent at
   the moment Telegram took it, and "mensagem não enviada" for one Telegram
   refused or that failed after its attempts, which a command's reply shows
-  too; while a reply is on its way the row waits. Since M4-4 (#45's
-  verifier, V4): before it the page read "mensagem enviada" for every
-  stored reply.
+  too, a fixed reply's reason under either; while a reply is on its way the
+  row waits. Since M4-4 (#45's verifier, V4): before it the page read
+  "mensagem enviada" for every stored reply.
 - The trace never shows the system prompt verbatim, secrets, another
   visitor's conversations, a raw phone number or a Telegram id. A visitor's
   own open reservations, which a reply at FR-07's cap lists from any
@@ -790,7 +790,9 @@ revocable consent" (ADR-0016).
   buttons) counts among the three too, so a reply that breaks every time
   is marked failed at the third and no longer holds the visitor's later
   replies (review finding C6 of pull request #47; the owner, 2026-11-15).
-  A reply left pending past its time is sent again by NFR-03's sweep.
+  A reply left pending past its time is sent again by NFR-03's sweep. A
+  visitor whose chat cannot be read (it does not decrypt) can be sent
+  nothing, so their pending replies are marked failed, each with a line.
 - An update whose reading is given up, after three reads counted on its
   row, gets the fallback's line in the language a reply would have, so no
   message the application accepted is dropped in silence (NFR-03), unless
@@ -2208,18 +2210,29 @@ database's JIT compiler off, which changes no result of the search
     too (#47's C6, the owner's word), so one that breaks every time fails at
     the third instead of holding the visitor's later replies for good.
   - **A Telegram reply's way to the chat is a span** (`balcao.delivery`,
-    #45's V4): the run opens it under its root as it stores the reply and
-    leaves it open (the recorder does not abandon it), and
-    `Telegram::Outbound` closes it at the moment Telegram took the last
-    part, or with the error's class when the reply failed. The page draws
-    the reply sent at that moment, "mensagem não enviada" in the error's
-    colour for a failed one, and nothing while it is on its way; a reply
+    #45's V4): the run opens it under its root in the transaction that
+    stores the reply, so it is there before anything can see the reply (the
+    review's V4: opened after the commit, a drain of the person's replies in
+    between sent the reply with no span to close), and leaves it open (the
+    recorder does not abandon it); `Telegram::Outbound` closes it at the
+    moment Telegram took the last part, or with the error's class when the
+    reply failed. The page draws the reply sent at that moment, "mensagem
+    não enviada" in the error's colour for a failed one, a fixed reply's
+    reason under either (the review's C8), and nothing while it is on its
+    way, nor while a Telegram run is still storing its reply (C9); a reply
     traced before the span existed keeps the stored reply's row, and a
-    command's reply is drawn only when it never left. The turn's time on
-    the page is still its run's, receipt to storage; on Telegram NFR-01's
-    figure is the turn's `latency_ms`, receipt to send (M4-2's note).
-  - **The reply and the turn's state are one transaction** (#11's V2), and
-    the stream hears of the reply after it commits.
+    command's reply is drawn only when it never left. The page reads a
+    turn's last way, since a run undone at its commit leaves its own open
+    on a live page. The turn's time on the page is still its run's, receipt
+    to storage; on Telegram NFR-01's figure is the turn's `latency_ms`,
+    receipt to send (M4-2's note).
+  - **The reply, the turn's state and that span are one transaction**
+    (#11's V2), and the stream hears of the reply after it commits.
+  - **A visitor whose chat cannot be read** (it does not decrypt) can be
+    sent nothing: their pending replies fail, each with a line, instead of
+    staying pending for the sweep to take up every minute (the review's
+    V3). The sweep's look at a lock takes it and gives it back in a `CASE`,
+    whose order PostgreSQL promises, where an `AND`'s it does not.
   - **The standing trigger for the next migration is pulled**: the
     database refuses an inbound message without its channel's id
     (`messages_inbound_has_id`; #7's RN5); the inbound messages stored
