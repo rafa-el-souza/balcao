@@ -148,9 +148,9 @@ RSpec.describe "FR-15 SR-31 the nightly reset and the seven-day purge" do
     it "encrypts the bodies an image before PR-18 wrote in plain text, and leaves the encrypted ones as they were" do
       conversation = create(:conversation)
       plain = SecureRandom.uuid
-      Message.connection.execute(Message.sanitize_sql([ <<~SQL.squish, plain, conversation.id ]))
-        INSERT INTO messages (id, conversation_id, channel, direction, author, source, body, created_at, updated_at)
-        VALUES (?, ?, 'web', 'inbound', 'visitor', 'text', 'escrito em texto puro', now(), now())
+      Message.connection.execute(Message.sanitize_sql([ <<~SQL.squish, plain, conversation.id, SecureRandom.uuid ]))
+        INSERT INTO messages (id, conversation_id, channel, direction, author, source, body, external_id, created_at, updated_at)
+        VALUES (?, ?, 'web', 'inbound', 'visitor', 'text', 'escrito em texto puro', ?, now(), now())
       SQL
       encrypted = message(conversation, at: three_am - 1.hour, text: "cifrado")
       stored = ->(id) { Message.connection.select_value(Message.sanitize_sql([ "SELECT body FROM messages WHERE id = ?", id ])) }
@@ -216,7 +216,12 @@ RSpec.describe "FR-15 SR-31 the nightly reset and the seven-day purge" do
     end
 
     describe "the limits' counters" do
-      let(:store) { SolidCache::Store.new(namespace: "test") }
+      # Expiry by job, not by Solid Cache's default thread, which outlived its
+      # example and once (M4-3's session, seed 9419) queried the cache table
+      # after the example's transaction had dropped it, deadlocking the shared
+      # connection for the 1,079 examples after it (design §10's standing
+      # trigger, pulled by M4-4, which touched this file).
+      let(:store) { SolidCache::Store.new(namespace: "test", expiry_method: :job) }
 
       before do
         ActiveRecord::Migration.suppress_messages { load Rails.root.join("db/cache_schema.rb") }
