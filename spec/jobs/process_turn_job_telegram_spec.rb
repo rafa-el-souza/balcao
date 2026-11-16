@@ -174,6 +174,45 @@ RSpec.describe "FR-19 FR-05 NFR-03 ProcessTurnJob on Telegram, the reply on its 
       expect(delivery(turn).finished_at).to be_present
     end
 
+    # Review finding V4 of pull request #48 (the web verifier; C2 of the Rails
+    # finder): the span opened after the reply's commit, so a drain of the
+    # person's replies in that window (their next message's read, a
+    # TelegramReplyJob) sent the reply while no span was open, and the span
+    # opened after it stayed open for good.
+    describe "a drain right after the reply's commit (review finding V4 of pull request #48)" do
+      def drain_after_commit
+        allow_any_instance_of(TurnProcessor).to receive(:broadcast_reply).and_wrap_original do |original, *arguments|
+          original.call(*arguments)
+          Telegram::Outbound.new.deliver_pending(visitor)
+        end
+      end
+
+      it "finds the reply's way open, and closes it as the reply leaves" do
+        drain_after_commit
+        turn = inbound("Vocês têm dipirona?")
+
+        perform(turn)
+
+        expect(sent.size).to eq 1
+        expect(TraceEvent.where(turn_id: turn.id, name: "balcao.delivery").pluck(:finished_at)).to all(be_present)
+        expect(delivery(turn)).to be_present
+      end
+
+      it "closes it with the error when Telegram refuses the reply in that window, a command's too" do
+        stub_request(:post, bot_api_url("sendMessage")).to_return(bot_api_error(403, "Forbidden: bot was blocked by the user"))
+        allow(Rails.logger).to receive(:error)
+        drain_after_commit
+        turns = [ inbound("Vocês têm dipirona?"), inbound("/trace") ]
+
+        turns.each { |turn| perform(turn) }
+
+        turns.each do |turn|
+          expect(TraceEvent.where(turn_id: turn.id, name: "balcao.delivery").pluck(:finished_at)).to all(be_present)
+          expect(delivery(turn).span_attributes).to include("error.type" => "Telegram::Client::Error")
+        end
+      end
+    end
+
     it "opens it under a command's span too, and under the fallback of a turn the job gave up on" do
       command = inbound("/trace")
       perform(command)

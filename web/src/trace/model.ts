@@ -231,8 +231,11 @@ function turnOf(id: string, spans: Span[]): Omit<Turn, "number"> | null {
   if (!first || !last) return null;
 
   // A Telegram reply's way, which a web reply and a reply traced before it
-  // had a span lack: then the stored reply is the one sent.
-  const delivery = sorted.find((span) => span.name === DELIVERY);
+  // had a span lack: then the stored reply is the one sent. The last one
+  // opened is the way of the run that stored the reply: a run undone at its
+  // commit leaves its own open on a live page (review finding V4 of pull
+  // request #48).
+  const delivery = sorted.filter((span) => span.name === DELIVERY).at(-1);
   const named = str(last.attributes, "balcao.turn.outcome");
   const outcome = named === null || OK_OUTCOMES.has(named) ? null : named;
   // A Telegram run still going opens its reply's way as it stores the reply:
@@ -263,7 +266,7 @@ function turnOf(id: string, spans: Span[]): Omit<Turn, "number"> | null {
     for (const span of sorted) {
       if (span.name === MODEL_CALL) rows.push(modelRow(span));
       else if (span.name.startsWith(TOOL_CALL)) rows.push(toolRow(span));
-      else if (span.name === DELIVERY) {
+      else if (span === delivery) {
         const reply = deliveryRow(span, outcome);
         if (reply) rows.push(reply);
       }

@@ -259,8 +259,7 @@ class TurnProcessor
     @inbound.update_columns(source: "command")
     span = @recorder.start_span("balcao.command", started_at: @inbound.received_at,
                                                   attributes: { "balcao.command.name" => name.to_s })
-    broadcast_reply(replied("replied") { yield })
-    delivery(span)
+    broadcast_reply(replied("replied", span) { yield })
   rescue StandardError => e
     broken(e)
     raise
@@ -386,10 +385,9 @@ class TurnProcessor
     raise ArgumentError, "#{outcome} is not in TurnProcessor::OUTCOMES" unless OUTCOMES.include?(outcome.to_s)
 
     outbound = @recorder.start_span("balcao.outbound", parent: @root, attributes: { "balcao.message.author" => "bot" })
-    message = replied(state) { record_reply(text, conversation: @conversation, language: @conversation.language) }
+    message = replied(state, @root) { record_reply(text, conversation: @conversation, language: @conversation.language) }
     broadcast_reply(message)
     outbound.finish(attributes: { "balcao.message.characters" => message.body.length })
-    delivery(@root)
     @root.finish(attributes: { "balcao.turn.mode" => @root.attributes["balcao.turn.mode"],
                                "balcao.turn.outcome" => outcome.to_s, "error.type" => error&.class&.name,
                                "balcao.budget.mode" => month_mode })
@@ -415,13 +413,20 @@ class TurnProcessor
 
   # --- The reply --------------------------------------------------------------
 
-  # The reply the block stores and the turn's state, in one transaction, so a
-  # run that breaks between the two leaves neither (review finding V2 of pull
-  # request #11): the turn is failed with no reply, for the job's retry. The
-  # caller sends the reply to the stream once both are there.
-  def replied(state)
+  # The reply the block stores, the turn's state and, on Telegram, the span
+  # of the reply's way to the chat (delivery), under the parent given, in one
+  # transaction: a run that breaks between them leaves none (review finding
+  # V2 of pull request #11), the turn failed with no reply, for the job's
+  # retry; and the span is there before anything else can see the reply, so
+  # a drain of the person's replies that sends it at once finds the span to
+  # close (review finding V4 of pull request #48). The caller sends the reply
+  # to the stream once it is committed.
+  def replied(state, parent)
     ApplicationRecord.transaction do
-      yield.tap { @turn.update!(state:, **latency) }
+      yield.tap do
+        @turn.update!(state:, **latency)
+        delivery(parent)
+      end
     end
   end
 

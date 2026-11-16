@@ -378,6 +378,44 @@ describe("FR-12 the glass box's rows, one per model call, from the spans", () =>
       expect(replies(running(T("44")))).toEqual([]);
     });
 
+    // Review finding V4 of pull request #48: the run opens its reply's way
+    // inside the transaction that stores the reply, so a run undone at its
+    // commit leaves a way open on a live page, before the one that counts.
+    it("takes the reply's way from the run that stored it, not from a run that was undone", () => {
+      const undone = span("balcao.delivery", {
+        span_id: "undone",
+        at: T("42"),
+        until: null,
+      });
+
+      expect(replies([...answered(), undone, delivery(T("47"))])).toEqual([
+        { kind: "sent", key: "delivery", at: T("47"), outcome: null },
+      ]);
+    });
+
+    it("takes a command's way from the run that stored its reply too", () => {
+      const command = span("balcao.command", {
+        span_id: "root",
+        parent_span_id: null,
+        at: T("10"),
+        until: T("10"),
+        attributes: { "balcao.command.name": "trace" },
+      });
+      const undone = span("balcao.delivery", {
+        span_id: "undone",
+        at: T("10"),
+        until: null,
+      });
+
+      expect(
+        turnsOf([
+          command,
+          undone,
+          delivery(T("12"), "Telegram::Client::Error"),
+        ])[0]?.rows.map((row) => row.kind),
+      ).toEqual(["command", "unsent"]);
+    });
+
     it("draws neither while the reply is on its way", () => {
       expect(replies([...answered(), delivery(null)])).toEqual([]);
     });
