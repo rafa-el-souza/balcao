@@ -393,12 +393,19 @@ RSpec.describe "FR-19 SR-43 NFR-02 Telegram::Outbound, a reply on its way to the
       allow(Rails.logger).to receive(:error) { |line| lines << line }
       other_keys = ActiveRecord::Encryption::DerivedSecretKeyProvider.new("another-primary-key-for-the-spec")
 
+      way = TraceEvent.create!(turn_id: message.turn_id, trace_id: "a" * 32, span_id: "b" * 16, name: "balcao.delivery",
+                               started_at: 1.second.ago)
+
       ActiveRecord::Encryption.with_encryption_context(key_provider: other_keys) { outbound.deliver_pending(Visitor.find(visitor.id)) }
 
       expect([ message.reload.status, later.reload.status ]).to eq(%w[failed failed])
       expect(sent).to be_empty
       expect(lines).to include("telegram reply #{message.id}: failed, the visitor's chat cannot be read",
                                "telegram reply #{later.id}: failed, the visitor's chat cannot be read")
+      # The reply's way in its trace closes with the error, so the page says
+      # "mensagem não enviada" (FR-12; the fix review's note on #48).
+      expect(way.reload).to have_attributes(finished_at: be_present,
+                                            span_attributes: { "error.type" => "Telegram::Chat::Unreadable" })
     end
 
     it "goes on to the person's next reply after one that failed" do
