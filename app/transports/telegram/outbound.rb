@@ -110,9 +110,15 @@ module Telegram
     end
 
     # Sends a Telegram visitor's pending replies, oldest first, up to the
-    # first one that waits for its time.
+    # first one that waits for its time. A Telegram visitor whose chat cannot
+    # be read (Chat.of: it does not decrypt) can be sent nothing, so their
+    # pending replies fail, each with a line, rather than stay pending for
+    # NFR-03's sweep to take up every minute (review finding V3 of pull
+    # request #48).
     def deliver_pending(visitor)
-      chat = Chat.of(visitor) or return
+      chat = Chat.of(visitor)
+      return unreadable(visitor) if chat.nil? && visitor&.channel == "telegram"
+      return unless chat
 
       AdvisoryLock.hold(lock(chat)) { drain(visitor, chat) }
     end
@@ -139,6 +145,18 @@ module Telegram
     private
 
     def lock(chat) = "telegram-send:#{chat.identity}"
+
+    # The pending replies of a visitor whose chat cannot be read, failed under
+    # the person's lock, each with its line and its trace's way closed.
+    def unreadable(visitor)
+      AdvisoryLock.hold("telegram-send:#{visitor.identity_hash}") do
+        pending(visitor).each do |message|
+          message.update_columns(status: "failed", next_attempt_at: nil, updated_at: Time.current)
+          Rails.logger.error("telegram reply #{message.id}: failed, the visitor's chat cannot be read")
+          TraceRecorder.delivered(message.turn, error: "Telegram::Chat::Unreadable")
+        end
+      end
+    end
 
     # The drain's error when it broke, else nil.
     def drained(visitor, chat)

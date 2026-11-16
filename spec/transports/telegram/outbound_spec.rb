@@ -383,6 +383,24 @@ RSpec.describe "FR-19 SR-43 NFR-02 Telegram::Outbound, a reply on its way to the
       end
     end
 
+    # Review finding V3 of pull request #48 (dono): a reply whose visitor's
+    # chat does not decrypt (encryption keys other than the row's) stayed
+    # pending for good, so NFR-03's sweep took it up again every minute, each
+    # time with the chat's error line. Nothing can be sent to that person.
+    it "fails the pending replies of a visitor whose chat does not decrypt, each with a line" do
+      later = reply("Depois.", at: 1.minute.from_now)
+      lines = []
+      allow(Rails.logger).to receive(:error) { |line| lines << line }
+      other_keys = ActiveRecord::Encryption::DerivedSecretKeyProvider.new("another-primary-key-for-the-spec")
+
+      ActiveRecord::Encryption.with_encryption_context(key_provider: other_keys) { outbound.deliver_pending(Visitor.find(visitor.id)) }
+
+      expect([ message.reload.status, later.reload.status ]).to eq(%w[failed failed])
+      expect(sent).to be_empty
+      expect(lines).to include("telegram reply #{message.id}: failed, the visitor's chat cannot be read",
+                               "telegram reply #{later.id}: failed, the visitor's chat cannot be read")
+    end
+
     it "goes on to the person's next reply after one that failed" do
       later = reply("Depois.", at: 1.minute.from_now)
       stub_request(:post, bot_api_url("sendMessage"))

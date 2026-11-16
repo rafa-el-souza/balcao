@@ -158,6 +158,24 @@ RSpec.describe "NFR-03 StrandedSweepJob, nothing left without an answer" do
       expect(sent.map { |body| body["text"] }).to eq([ "Olá!" ])
     end
 
+    # Review finding V3 of pull request #48: a reply whose visitor's chat
+    # does not decrypt stayed pending, taken up again at every pass.
+    it "is taken up once when its visitor's chat cannot be read: it fails, and the next pass leaves it" do
+      reply = pending
+      allow(Rails.logger).to receive(:error)
+      other_keys = ActiveRecord::Encryption::DerivedSecretKeyProvider.new("another-primary-key-for-the-spec")
+
+      ActiveRecord::Encryption.with_encryption_context(key_provider: other_keys) do
+        sweep
+        perform_enqueued_jobs(only: TelegramReplyJob)
+      end
+      clear_enqueued_jobs
+      sweep
+
+      expect(reply.reload.status).to eq "failed"
+      expect(enqueued(TelegramReplyJob)).to be_empty
+    end
+
     it "is left while it waits for its next attempt's time, or when its person's send lock is held" do
       pending(next_attempt_at: 1.minute.from_now)
       busy = create(:visitor, channel: "telegram", identity_hash: Digest::SHA256.hexdigest("busy"), telegram_chat_id: "7341200002",
