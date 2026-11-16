@@ -55,6 +55,9 @@ export type Row =
     }
   // A fixed reply's sent row carries the turn's outcome.
   | { kind: "sent"; key: string; at: string; outcome: string | null }
+  // A Telegram reply that never left: Telegram refused it, or it failed
+  // after its attempts (FR-19; #45's verifier, V4).
+  | { kind: "unsent"; key: string; at: string }
   | {
       kind: "command";
       key: string;
@@ -94,6 +97,9 @@ export const MAX_RESULT = 500;
 const MODEL_CALL = "anthropic.messages.create";
 const TOOL_CALL = "anthropic.custom_tool_use ";
 const ROOTS = new Set(["balcao.turn", "balcao.command"]);
+// A Telegram reply's way to the chat, open from its storage to Telegram's
+// answer (app/models/trace_recorder.rb, start_delivery and delivered).
+const DELIVERY = "balcao.delivery";
 const OK_OUTCOMES = new Set(["replied"]);
 
 const str = (attributes: Record<string, unknown>, key: string) => {
@@ -223,6 +229,9 @@ function turnOf(id: string, spans: Span[]): Omit<Turn, "number"> | null {
   const last = [...roots].sort(byEnd).at(-1);
   if (!first || !last) return null;
 
+  // A Telegram reply's way, which a web reply and a reply traced before it
+  // had a span lack: then the stored reply is the one sent.
+  const delivery = sorted.find((span) => span.name === DELIVERY);
   const rows: Row[] = [];
   if (first.name === "balcao.command") {
     for (const root of roots)
@@ -233,27 +242,35 @@ function turnOf(id: string, spans: Span[]): Omit<Turn, "number"> | null {
         name: str(root.attributes, "balcao.command.name") ?? "",
         durationMs: between(root.started_at, root.finished_at),
       });
+    // A command's reply is drawn only when it never left.
+    const reply = delivery && deliveryRow(delivery, null);
+    if (reply?.kind === "unsent") rows.push(reply);
   } else {
     rows.push({
       kind: "received",
       key: `${id}-received`,
       at: first.started_at,
     });
-    const outcome = str(last.attributes, "balcao.turn.outcome");
+    const named = str(last.attributes, "balcao.turn.outcome");
+    const outcome = named === null || OK_OUTCOMES.has(named) ? null : named;
     for (const span of sorted) {
       if (span.name === MODEL_CALL) rows.push(modelRow(span));
       else if (span.name.startsWith(TOOL_CALL)) rows.push(toolRow(span));
+      else if (span.name === DELIVERY) {
+        const reply = deliveryRow(span, outcome);
+        if (reply) rows.push(reply);
+      }
       // A run that broke while it stored its reply sent nothing.
       else if (
         span.name === "balcao.outbound" &&
+        !delivery &&
         str(span.attributes, "error.type") === null
       )
         rows.push({
           kind: "sent",
           key: span.span_id,
           at: span.finished_at ?? span.started_at,
-          outcome:
-            outcome === null || OK_OUTCOMES.has(outcome) ? null : outcome,
+          outcome,
         });
     }
   }
@@ -273,6 +290,15 @@ function turnOf(id: string, spans: Span[]): Omit<Turn, "number"> | null {
     output: sum("gen_ai.usage.output_tokens"),
     cost: costOf(calls),
   };
+}
+
+// A Telegram reply's row once its way ended: sent when Telegram took it,
+// not sent when it failed; none while it is on its way.
+function deliveryRow(span: Span, outcome: string | null): Row | null {
+  if (span.finished_at === null) return null;
+  if (str(span.attributes, "error.type") !== null)
+    return { kind: "unsent", key: span.span_id, at: span.finished_at };
+  return { kind: "sent", key: span.span_id, at: span.finished_at, outcome };
 }
 
 // The turns of a conversation's spans, in the order they started, numbered

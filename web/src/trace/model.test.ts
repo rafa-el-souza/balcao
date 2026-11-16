@@ -306,6 +306,88 @@ describe("FR-12 the glass box's rows, one per model call, from the spans", () =>
     });
   });
 
+  // #45's verifier, V4 (FR-12, FR-19; M4-4): the page read "mensagem
+  // enviada" for every stored Telegram reply, one Telegram refused or that
+  // failed after its attempts included. A Telegram reply's way to the chat
+  // is a span of its own, open from its storage to Telegram's answer
+  // (app/models/trace_recorder.rb, start_delivery and delivered).
+  describe("a Telegram reply's way to the chat", () => {
+    const delivery = (until: string | null, error?: string) =>
+      span("balcao.delivery", {
+        span_id: "delivery",
+        at: T("44"),
+        until,
+        attributes: error === undefined ? {} : { "error.type": error },
+      });
+    const replies = (spans: Span[]) =>
+      turnsOf(spans)[0]?.rows.filter(
+        (row) => row.kind === "sent" || row.kind === "unsent",
+      );
+
+    it("draws the reply sent at the moment Telegram took it", () => {
+      expect(replies([...answered(), delivery(T("47"))])).toEqual([
+        { kind: "sent", key: "delivery", at: T("47"), outcome: null },
+      ]);
+    });
+
+    it("draws the reply not sent when Telegram refused it or it failed after its attempts", () => {
+      expect(
+        replies([
+          ...answered("t1", "fallback"),
+          delivery(T("49"), "Telegram::Client::Error"),
+        ]),
+      ).toEqual([{ kind: "unsent", key: "delivery", at: T("49") }]);
+    });
+
+    it("draws neither while the reply is on its way", () => {
+      expect(replies([...answered(), delivery(null)])).toEqual([]);
+    });
+
+    it("keeps a fixed reply's outcome on the sent row", () => {
+      expect(
+        replies([...answered("t1", "fallback"), delivery(T("47"))]),
+      ).toEqual([
+        { kind: "sent", key: "delivery", at: T("47"), outcome: "fallback" },
+      ]);
+    });
+
+    it("keeps the stored reply's row for a reply traced before its way had a span, as the web's", () => {
+      expect(replies(answered())).toEqual([
+        {
+          kind: "sent",
+          key: `balcao.outbound-${T("44")}`,
+          at: T("44"),
+          outcome: null,
+        },
+      ]);
+    });
+
+    it("adds to a command the row of its reply when it was not sent, and nothing when it was", () => {
+      const command = span("balcao.command", {
+        span_id: "root",
+        parent_span_id: null,
+        at: T("10"),
+        until: T("10"),
+        attributes: { "balcao.command.name": "trace" },
+      });
+
+      expect(
+        turnsOf([command, delivery(T("12"), "Telegram::Client::Error")])[0]
+          ?.rows,
+      ).toEqual([
+        {
+          kind: "command",
+          key: "root",
+          at: T("10"),
+          name: "trace",
+          durationMs: 0,
+        },
+        { kind: "unsent", key: "delivery", at: T("12") },
+      ]);
+      expect(turnsOf([command, delivery(T("12"))])[0]?.rows).toHaveLength(1);
+    });
+  });
+
   it("draws a command as a turn of one row, with no receipt and no reply", () => {
     const [turn] = turnsOf([
       span("balcao.command", {

@@ -392,6 +392,15 @@ export function EventRow({
           </div>
         </li>
       );
+    case "unsent":
+      return (
+        <li className={cx(styles.event, className)} data-state="error">
+          <Time at={row.at} />
+          <div className={styles.what}>
+            <span className={styles.name}>{t("instrument.unsent")}</span>
+          </div>
+        </li>
+      );
     case "command":
       return (
         <li className={cx(styles.event, className)}>

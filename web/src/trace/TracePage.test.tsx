@@ -187,6 +187,38 @@ describe("FR-12 the trace page, the glass box at full length", () => {
     expect(second.getByText("trace")).toBeInTheDocument();
   });
 
+  // #45's verifier, V4 (FR-12, FR-19; M4-4): the page read "mensagem
+  // enviada" for every stored Telegram reply, one that never left included.
+  it("says a Telegram reply that never left was not sent, where it said it was", async () => {
+    const delivery = (finished: string | null, attributes = {}) => ({
+      turn_id: "t1",
+      trace_id: "f".repeat(32),
+      span_id: "d".repeat(16),
+      parent_span_id: "0".repeat(15) + "1",
+      name: "balcao.delivery",
+      attributes,
+      started_at: "2026-11-12T15:03:44.000Z",
+      finished_at: finished,
+    });
+    server.answers.trace.push(
+      trace([
+        ...answeredTurn("t1"),
+        delivery("2026-11-12T15:03:52.000Z", {
+          "error.type": "Telegram::Client::Error",
+        }),
+      ]),
+    );
+    renderPage(<TracePage />);
+    await screen.findByRole("region", { name: pt.roll });
+
+    const unsent = within(turn(1)).getByText(ptBR.instrument.unsent);
+    expect(unsent.closest("li")).toHaveAttribute("data-state", "error");
+    expect(unsent.closest("li")).toHaveTextContent("12:03:52");
+    expect(
+      within(turn(1)).queryByText(ptBR.instrument.sent),
+    ).not.toBeInTheDocument();
+  });
+
   // The finder's sisters of row IR-V1 on pull request #38: the visitor's
   // words in a turn's heading are a message's text too, so a price in them
   // keeps "R$" with its figure, as the reply under them does.

@@ -98,6 +98,7 @@
   "instrument": {
     "received": "message received",
     "sent": "message sent",
+    "unsent": "message not sent",
     "model": "model",
     "stop": "stopped at {{reason}}",
     "command": "command",
