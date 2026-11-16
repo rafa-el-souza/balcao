@@ -403,14 +403,17 @@ the env file loaded in the same call.
   during TLS is one of those, named `Telegram::Client::Error
   (OpenSSL::SSL::SSLError)`. An error that is not the network's (a
   certificate the host does not prove, named `OpenSSL::SSL::SSLError` alone,
-  or a bug) is no failure of the way there: the reply stays `pending` with
-  its attempts untouched, and the job that sends logs the error's class
+  or a bug) is no failure of the way there: the reply stays `pending`, the
+  attempt counted, and the job that sends logs the error's class
   (`telegram replies of visitor <id>: not sent, <class>` after a turn,
   `telegram update <update_id>: replies not sent, <class>` while an update
-  is read) and `TelegramReplyJob` tries again a minute later. A certificate
-  that fails every time is the host's certificate store or something
-  between the host and Telegram, not Telegram; `telegram:setup` stops at its
-  first call with OpenSSL's reason.
+  is read) and `TelegramReplyJob` tries again a minute later; the third
+  such attempt marks it `failed`, with `telegram reply <id>: failed after 3
+  attempts that broke, <class>`, so the visitor's later replies go (M4-4).
+  A certificate that fails every time is the host's certificate store or
+  something between the host and Telegram, not Telegram; `telegram:setup`
+  stops at its first call with OpenSSL's reason. The trace page of the
+  conversation says `mensagem não enviada` for a reply marked `failed`.
 - **A reply that is never stored** (the ask, `/help` and the deletion
   before the agreement, the fixed lines) is tried once, since nothing keeps
   its chat to try again; one that could not be sent has a `telegram fixed
@@ -421,20 +424,37 @@ the env file loaded in the same call.
   of 3 of turn <id>'s job` line, or `broke at attempt N of 3 of turn <id>'s
   job, <class>` when the send broke rather than failed (FR-05); a later
   turn's job that runs the deletion first names its own turn. The third
-  deletes whether or not it left: then the log has `telegram fixed reply
-  deleted: not sent, the data deleted all the same`, or `broke at attempt 3
-  of 3 of turn <id>'s job, <class>, the data deleted all the same`. While
-  the confirmation has not left, the visitor's later messages wait behind
-  the deletion (`earlier turn <id>: a deletion waits for its confirmation,
-  and the turns after it`), and none reaches the model; a deletion that
-  breaks after its confirmation left (a database error in the erase) does
-  not hold them, a line for the owner in pull request #41's review (R1). A
-  confirmation can arrive twice when a run is repeated.
-- **Replies left pending** (after a stop, an outage, or the replies PR-18
-  stored before day 12) leave before the person's next reply, or at once
-  with:
+  run deletes whether or not it left, and once the data went the log has
+  `telegram fixed reply deleted: not sent, the data deleted all the same`.
+  While the deletion has not gone, whatever broke it, the visitor's later
+  messages wait behind it (`earlier turn <id>: a deletion that did not go
+  holds the turns after it, <class>`), and none reaches the model. A
+  deletion whose job ends in the dead letter keeps no reply (`dead letter:
+  turn <id> is a deletion that did not go, <class>: no reply, the sweep or
+  the next message runs it again`), nor does a turn it held (`... is held by
+  an earlier deletion ...`); the sweep runs it again within about six
+  minutes, and past its third run it deletes without sending the
+  confirmation again (`not sent again after the turn's 3 runs, the data
+  deleted all the same`). A confirmation can arrive twice when a run is
+  repeated.
+- **Replies left pending** (after a stop, an outage) leave before the
+  person's next reply, or with the sweep below within about six minutes of
+  their time, or at once with:
   `kamal app exec -d ensaio --roles=job --reuse "bin/rails runner 'Visitor.where(channel: :telegram.to_s).find_each { |visitor| TelegramReplyJob.perform_later(visitor.id) }'"`.
   A reply marked `failed` is never sent again.
+- **The sweep** (NFR-03, M4-4) runs every minute in the `job` container and
+  takes up again what was left stopped for more than five minutes with no
+  job at work on it: an update left unread, a turn left without a reply, a
+  reply left pending past its time. A pass that took something up writes
+  one line, `sweep: taken up again N updates, N conversations, N visitors'
+  replies`; a look that broke writes `sweep: <what> not looked at,
+  <class>`. The job it starts decides: an update read three times is given
+  up with the fallback's line to the person (`telegram update <update_id>:
+  given up after 3 reads`), and a turn run three times gets the fallback
+  with no model call (its trace's outcome `dead_letter`, error
+  `TurnProcessor::RunsSpent`). Something taken up again pass after pass,
+  every five or six minutes, keeps breaking (a deletion whose erase fails,
+  the database): its own lines say why.
 
 ## When the monitor says the demo is down
 

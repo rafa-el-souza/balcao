@@ -253,9 +253,10 @@ Next, in the plan's order (design §9.2, where a milestone's number is a
 label for its content, not its place in the order):
 
 - **M4, voice and the bot's finish:** a turn's latency, which the first
-  real conversation measured above its target, is measured and cut, and
-  the bot has its buttons (design §10); next, a sweep that answers a turn
-  left without a reply, then voice notes.
+  real conversation measured above its target, is measured and cut; the
+  bot has its buttons; and a sweep, every minute, answers a message left
+  without a reply, or gives it a fixed line (design §10); next, voice
+  notes.
 - **M2, pharmacy work:** Cloudflare Turnstile, a check that a visitor is a
   person, before a session opens; a second model checking every reply;
   service bookings; a conversation handed over to a person; and the
