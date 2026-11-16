@@ -235,6 +235,12 @@ function turnOf(id: string, spans: Span[]): Omit<Turn, "number"> | null {
   const delivery = sorted.find((span) => span.name === DELIVERY);
   const named = str(last.attributes, "balcao.turn.outcome");
   const outcome = named === null || OK_OUTCOMES.has(named) ? null : named;
+  // A Telegram run still going opens its reply's way as it stores the reply:
+  // until that span is here, the stored reply is no sign that it left
+  // (review finding C9 of pull request #48).
+  const storing =
+    last.finished_at === null &&
+    str(last.attributes, "balcao.channel") === "telegram";
   const rows: Row[] = [];
   if (first.name === "balcao.command") {
     for (const root of roots)
@@ -265,6 +271,7 @@ function turnOf(id: string, spans: Span[]): Omit<Turn, "number"> | null {
       else if (
         span.name === "balcao.outbound" &&
         !delivery &&
+        !storing &&
         str(span.attributes, "error.type") === null
       )
         rows.push({

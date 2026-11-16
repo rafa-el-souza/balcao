@@ -355,6 +355,29 @@ describe("FR-12 the glass box's rows, one per model call, from the spans", () =>
       ]);
     });
 
+    // Review finding C9 of pull request #48 (the web finder's C2): until the
+    // delivery span reached the page, the stored reply's row said "sent" for
+    // a Telegram reply still on its way.
+    it("draws no sent row while a Telegram run that stores its reply still goes", () => {
+      const running = (outbound: string | null) => [
+        span("balcao.turn", {
+          span_id: "t1-root",
+          at: T("41"),
+          until: null,
+          attributes: { "balcao.channel": "telegram" },
+        }),
+        span("anthropic.messages.create", {
+          at: T("41"),
+          until: T("43"),
+          attributes: { "anthropic.message.stop_reason": "end_turn" },
+        }),
+        span("balcao.outbound", { at: T("44"), until: outbound }),
+      ];
+
+      expect(replies(running(null))).toEqual([]);
+      expect(replies(running(T("44")))).toEqual([]);
+    });
+
     it("draws neither while the reply is on its way", () => {
       expect(replies([...answered(), delivery(null)])).toEqual([]);
     });
