@@ -79,6 +79,15 @@ module Telegram
     # sender's own chat (SR-42), held in memory while the update is read.
     def chat = (Chat.new(identity:, id: sender_id) if usable?)
 
+    # NFR-03: where the line of a given-up update goes and what it says, the
+    # fallback in the language a reply would have, for a message the bot
+    # answers (a person's, with content; SR-42); nil for any other.
+    def given_up
+      return unless usable? && content?
+
+      [ chat, FixedReply.fallback(known_language || app_language) ]
+    end
+
     def call(event)
       return Outcome.drop(:dropped) unless usable?
       return Outcome.drop(:service) unless content?
@@ -164,6 +173,7 @@ module Telegram
                                                        attributes: { "balcao.command.name" => "agree" })
           Message.record_outbound!(turn:, body: greeting)
           turn.update!(state: "replied")
+          recorder.start_delivery(span)
           span.finish
         end
       end

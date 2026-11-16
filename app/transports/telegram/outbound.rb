@@ -38,12 +38,22 @@ module Telegram
   #   job tries it again (TurnProcessor, FR-05).
   # Any other answer that is not ok fails a reply at once. A failed reply is
   # marked failed with one line that names the error by its class (NFR-03,
-  # SR-30); the chat and the text never reach a line. What the client raises
-  # as itself, not being the network (a local bug, a certificate that does
-  # not prove the host; Client::NETWORK, review finding H7 of pull request
-  # #33), is no answer of Telegram's: it leaves the reply pending, its
-  # attempts untouched, and breaks the job that sends, whose own retries
-  # carry it (ProcessTurnJob's delivery tries again a minute later).
+  # SR-30); the chat and the text never reach a line. What breaks a stored
+  # reply's attempt and is no answer of Telegram's (what the client raises as
+  # itself, not being the network: a local bug, a certificate that does not
+  # prove the host, Client::NETWORK, review finding H7 of pull request #33;
+  # or the reply's buttons) leaves it pending and breaks the job that sends,
+  # whose own retries carry it (ProcessTurnJob's delivery tries again a
+  # minute later), and counts among its three attempts, so one that breaks
+  # every time fails at the third and holds the person's later replies no
+  # longer (review finding C6 of pull request #47; the owner, 2026-11-15).
+  # NFR-03's sweep (StrandedSweepJob) sends again a reply left pending past
+  # its time, whatever stranded it.
+  #
+  # A stored reply's way to the chat is a span of its turn's trace, which its
+  # run opened: it closes when Telegram takes the reply's last part, or with
+  # the error that failed the reply (TraceRecorder.delivered; FR-12, #45's
+  # verifier, V4).
   #
   # The ask shows the agreement's button (FR-19). A stored reply carries the
   # buttons of what it writes (Telegram::Buttons): the greeting FR-21's
@@ -177,6 +187,25 @@ module Telegram
       sent_at = Time.current
       message.update_columns(status: "sent", next_attempt_at: nil, updated_at: sent_at)
       latency(message, sent_at)
+      TraceRecorder.delivered(message.turn, at: sent_at)
+      true
+    rescue StandardError => e
+      broke(message, e)
+    end
+
+    # An attempt that broke with what is no answer of Telegram's: counted, and
+    # raised for the job that sends; at the third the reply fails, so the
+    # person's next one may go (review finding C6 of pull request #47).
+    def broke(message, error)
+      attempts = message.send_attempts + 1
+      if attempts < ATTEMPTS
+        message.update_columns(send_attempts: attempts, updated_at: Time.current)
+        raise error
+      end
+
+      message.update_columns(status: "failed", send_attempts: attempts, next_attempt_at: nil, updated_at: Time.current)
+      Rails.logger.error("telegram reply #{message.id}: failed after #{attempts} attempts that broke, #{error.class}")
+      TraceRecorder.delivered(message.turn, error: error.class.name)
       true
     end
 
@@ -203,6 +232,7 @@ module Telegram
       attempts = message.send_attempts + 1
       if error.refused? || attempts >= ATTEMPTS
         message.update_columns(status: "failed", send_attempts: attempts, next_attempt_at: nil, updated_at: Time.current)
+        TraceRecorder.delivered(message.turn, error: error.class.name)
         return !failed("telegram reply #{message.id}", error, attempts, part:)
       end
 
