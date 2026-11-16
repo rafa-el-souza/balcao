@@ -119,6 +119,112 @@ RSpec.describe "FR-19 FR-05 NFR-03 ProcessTurnJob on Telegram, the reply on its 
     end
   end
 
+  # #45's verifier, V4 (cliente, since PR-19; M4-4 by the owner's word): the
+  # trace page read "mensagem enviada" for every stored Telegram reply, one
+  # Telegram refused or that failed after its attempts included. The run
+  # opens the reply's delivery span as it stores the reply, and
+  # Telegram::Outbound closes it as the reply leaves or fails.
+  describe "the reply's way to the chat in the trace (FR-12; #45's verifier, V4)" do
+    def delivery(turn) = TraceEvent.find_by(turn_id: turn.id, name: "balcao.delivery")
+
+    it "opens it under the turn's root as the reply is stored, and closes it when Telegram takes the reply" do
+      stub_request(:post, bot_api_url("sendMessage")).to_return do |request|
+        travel(2.seconds)
+        sent << JSON.parse(request.body)
+        bot_api_answer({ "message_id" => sent.size })
+      end
+      turn = inbound("Vocês têm dipirona?")
+
+      perform(turn)
+
+      root = TraceEvent.find_by!(turn_id: turn.id, name: "balcao.turn")
+      stored = TraceEvent.find_by!(turn_id: turn.id, name: "balcao.outbound")
+      expect(delivery(turn)).to have_attributes(parent_span_id: root.span_id, trace_id: root.trace_id)
+      expect(delivery(turn).started_at).to be_within(0.5).of(stored.finished_at)
+      expect(delivery(turn).finished_at).to be_within(0.001).of(turn.outbound_message.reload.updated_at)
+      expect(delivery(turn).finished_at).to be > stored.finished_at + 1
+      expect(delivery(turn).span_attributes).not_to have_key("error.type")
+    end
+
+    it "closes it with the error's class when Telegram refuses the reply" do
+      stub_request(:post, bot_api_url("sendMessage")).to_return(bot_api_error(403, "Forbidden: bot was blocked by the user"))
+      allow(Rails.logger).to receive(:error)
+      turn = inbound("Vocês têm dipirona?")
+
+      perform(turn)
+
+      expect(turn.outbound_message.reload.status).to eq "failed"
+      expect(delivery(turn).finished_at).to be_present
+      expect(delivery(turn).span_attributes).to include("error.type" => "Telegram::Client::Error")
+    end
+
+    it "leaves it open while the reply waits for its next attempt, and the trace's stream hears when it closes" do
+      stub_request(:post, bot_api_url("sendMessage"))
+        .to_return({ status: 502, body: "<html>Bad Gateway</html>" }).then.to_return(bot_api_answer({ "message_id" => 1 }))
+      allow(Rails.logger).to receive(:error)
+      turn = inbound("Vocês têm dipirona?")
+
+      perform(turn)
+
+      expect(delivery(turn).finished_at).to be_nil
+      travel_to(turn.outbound_message.reload.next_attempt_at + 1.second) do
+        expect { TelegramReplyJob.perform_now(visitor.id) }.to have_broadcasted_to("trace:#{conversation.trace_token}")
+          .with(a_hash_including(type: "span", span: a_hash_including(name: "balcao.delivery", finished_at: a_kind_of(String))))
+      end
+      expect(delivery(turn).finished_at).to be_present
+    end
+
+    # Review finding V4 of pull request #48 (the web verifier; C2 of the Rails
+    # finder): the span opened after the reply's commit, so a drain of the
+    # person's replies in that window (their next message's read, a
+    # TelegramReplyJob) sent the reply while no span was open, and the span
+    # opened after it stayed open for good.
+    describe "a drain right after the reply's commit (review finding V4 of pull request #48)" do
+      def drain_after_commit
+        allow_any_instance_of(TurnProcessor).to receive(:broadcast_reply).and_wrap_original do |original, *arguments|
+          original.call(*arguments)
+          Telegram::Outbound.new.deliver_pending(visitor)
+        end
+      end
+
+      it "finds the reply's way open, and closes it as the reply leaves" do
+        drain_after_commit
+        turn = inbound("Vocês têm dipirona?")
+
+        perform(turn)
+
+        expect(sent.size).to eq 1
+        expect(TraceEvent.where(turn_id: turn.id, name: "balcao.delivery").pluck(:finished_at)).to all(be_present)
+        expect(delivery(turn)).to be_present
+      end
+
+      it "closes it with the error when Telegram refuses the reply in that window, a command's too" do
+        stub_request(:post, bot_api_url("sendMessage")).to_return(bot_api_error(403, "Forbidden: bot was blocked by the user"))
+        allow(Rails.logger).to receive(:error)
+        drain_after_commit
+        turns = [ inbound("Vocês têm dipirona?"), inbound("/trace") ]
+
+        turns.each { |turn| perform(turn) }
+
+        turns.each do |turn|
+          expect(TraceEvent.where(turn_id: turn.id, name: "balcao.delivery").pluck(:finished_at)).to all(be_present)
+          expect(delivery(turn).span_attributes).to include("error.type" => "Telegram::Client::Error")
+        end
+      end
+    end
+
+    it "opens it under a command's span too, and under the fallback of a turn the job gave up on" do
+      command = inbound("/trace")
+      perform(command)
+      allow(Rails.logger).to receive(:error)
+      given_up = inbound("Vocês têm dipirona?")
+      TurnProcessor.new(given_up).give_up(RuntimeError.new("a bug"))
+
+      expect(delivery(command).parent_span_id).to eq(TraceEvent.find_by!(turn_id: command.id, name: "balcao.command").span_id)
+      expect(delivery(given_up).parent_span_id).to eq(TraceEvent.find_by!(turn_id: given_up.id, name: "balcao.turn").span_id)
+    end
+  end
+
   it "shows no typing status for a command, whose reply is at once" do
     turn = inbound("/trace")
 
@@ -268,10 +374,9 @@ RSpec.describe "FR-19 FR-05 NFR-03 ProcessTurnJob on Telegram, the reply on its 
         perform_enqueued_jobs(only: ProcessTurnJob) until enqueued_jobs.empty?
 
         expect(Visitor.exists?(visitor.id)).to be(false)
-        expect(lines).to eq([ "telegram fixed reply deleted: broke at attempt 1 of 3 of turn #{deletion.id}'s job, ActiveRecord::ConnectionFailed",
-                              "telegram fixed reply deleted: broke at attempt 2 of 3 of turn #{deletion.id}'s job, ActiveRecord::ConnectionFailed",
-                              "telegram fixed reply deleted: broke at attempt 3 of 3 of turn #{deletion.id}'s job, " \
-                              "ActiveRecord::ConnectionFailed, the data deleted all the same" ])
+        expect(lines).to eq([ *(1..3).map do |n|
+          "telegram fixed reply deleted: broke at attempt #{n} of 3 of turn #{deletion.id}'s job, ActiveRecord::ConnectionFailed"
+        end, "telegram fixed reply deleted: not sent, the data deleted all the same" ])
       end
 
       # A later turn's job answers the earlier turns first (design §6.3).
@@ -292,7 +397,8 @@ RSpec.describe "FR-19 FR-05 NFR-03 ProcessTurnJob on Telegram, the reply on its 
           expect(later.reload.outbound_message).to be_nil
           expect(Visitor.exists?(visitor.id)).to be(true)
           expect(enqueued_jobs.sole).to include(job: ProcessTurnJob, args: [ later.id ])
-          expect(lines).to include("earlier turn #{deletion.id}: a deletion waits for its confirmation, and the turns after it")
+          expect(lines).to include("earlier turn #{deletion.id}: a deletion that did not go holds the turns after it, " \
+                                   "TurnProcessor::ConfirmationNotSent")
 
           perform(deletion)
 
@@ -409,6 +515,100 @@ RSpec.describe "FR-19 FR-05 NFR-03 ProcessTurnJob on Telegram, the reply on its 
         expect(Visitor.exists?(visitor.id)).to be(false)
         expect(sent.size).to eq 2
       end
+
+      # Review finding R1 of the fix review on pull request #41: the hold was
+      # keyed on a confirmation that did not leave, so a deletion whose
+      # confirmation left and whose rows then failed to go let a later message
+      # reach the model after the visitor read "deleted".
+      it "holds the later turns when the deletion broke after its confirmation left" do
+        answers(200, 200)
+        calls = 0
+        allow_any_instance_of(Visitor).to receive(:erase!).and_wrap_original do |original|
+          calls += 1
+          calls == 1 ? raise(ActiveRecord::StatementInvalid, "canceling statement due to lock timeout") : original.call
+        end
+        deletion = inbound("/apagar")
+        later = inbound("oi")
+        expect_any_instance_of(AgentRunner).not_to receive(:run)
+
+        perform(later)
+
+        expect(later.reload.outbound_message).to be_nil
+        expect(Visitor.exists?(visitor.id)).to be(true)
+        expect(enqueued_jobs.sole).to include(job: ProcessTurnJob, args: [ later.id ])
+        expect(lines).to include("earlier turn #{deletion.id}: a deletion that did not go holds the turns after it, " \
+                                 "ActiveRecord::StatementInvalid")
+
+        perform(deletion)
+
+        expect(Visitor.exists?(visitor.id)).to be(false)
+        expect(Turn.exists?(later.id)).to be(false)
+      end
+
+      # The hunter's H2 on pull request #41: the line was written before the
+      # rows went, so a deletion that then failed was logged as done.
+      it "says the data went without the confirmation only once it went" do
+        answers(502, 502, 502)
+        allow_any_instance_of(Visitor).to receive(:erase!).and_raise(ActiveRecord::StatementInvalid, "canceling statement")
+        ProcessTurnJob.perform_later(inbound("/apagar").id)
+
+        expect { perform_enqueued_jobs(only: ProcessTurnJob) until enqueued_jobs.empty? }.to raise_error(ActiveRecord::StatementInvalid)
+
+        expect(Visitor.exists?(visitor.id)).to be(true)
+        expect(lines.grep(/deleted all the same/)).to be_empty
+      end
+
+      # Review findings C3 and H1 of pull request #41: a deletion that reached
+      # the dead letter got the generic fallback after "deleted", so nothing
+      # ran it again, and no line said the turn was a deletion.
+      describe "a deletion that reaches the dead letter (review findings C3 and H1 of pull request #41)" do
+        def erase_breaks(times)
+          calls = 0
+          allow_any_instance_of(Visitor).to receive(:erase!).and_wrap_original do |original|
+            calls += 1
+            calls <= times ? raise(ActiveRecord::StatementInvalid, "canceling statement due to lock timeout") : original.call
+          end
+        end
+
+        it "keeps no reply, with a line naming it, and the next message's job runs it again, its confirmation not again" do
+          answers(200, 200, 200)
+          erase_breaks(3)
+          deletion = inbound("/apagar")
+          ProcessTurnJob.perform_later(deletion.id)
+
+          expect { perform_enqueued_jobs(only: ProcessTurnJob) until enqueued_jobs.empty? }.to raise_error(ActiveRecord::StatementInvalid)
+
+          expect(Message.where(turn_id: deletion.id)).to be_empty
+          expect(Visitor.exists?(visitor.id)).to be(true)
+          expect(lines).to include("dead letter: turn #{deletion.id} is a deletion that did not go, ActiveRecord::StatementInvalid: " \
+                                   "no reply, the sweep or the next message runs it again")
+          expect(sent.map { |body| body["text"] }).to eq(Array.new(3, FixedReply.telegram_deleted("pt-BR")))
+
+          later = inbound("oi")
+          expect_any_instance_of(AgentRunner).not_to receive(:run)
+          perform(later)
+
+          expect(Visitor.exists?(visitor.id)).to be(false)
+          expect(sent.size).to eq(3)
+          expect(lines).to include("telegram fixed reply deleted: not sent again after the turn's 3 runs, the data deleted all the same")
+        end
+
+        it "keeps no reply for a later turn it held through that turn's last attempt" do
+          answers(200, 200, 200)
+          erase_breaks(3)
+          deletion = inbound("/apagar")
+          later = inbound("oi")
+          expect_any_instance_of(AgentRunner).not_to receive(:run)
+          ProcessTurnJob.perform_later(later.id)
+
+          expect { perform_enqueued_jobs(only: ProcessTurnJob) until enqueued_jobs.empty? }.to raise_error(ProcessTurnJob::HeldByDeletion)
+
+          expect(Message.where(turn_id: [ deletion.id, later.id ])).to be_empty
+          expect(sent.map { |body| body["text"] }).not_to include(end_with(FixedReply.fallback("pt-BR")))
+          expect(lines).to include("dead letter: turn #{later.id} is held by an earlier deletion: no reply, " \
+                                   "the sweep or the next message runs the deletion again")
+        end
+      end
     end
 
     it "keeps the web's confirmation as it was" do
@@ -459,5 +659,6 @@ RSpec.describe "FR-19 FR-05 NFR-03 ProcessTurnJob on Telegram, the reply on its 
 
     expect([ sent, actions ]).to all(be_empty)
     expect(turn.outbound_message.status).to eq "pending"
+    expect(TraceEvent.where(turn_id: turn.id, name: "balcao.delivery")).to be_empty
   end
 end

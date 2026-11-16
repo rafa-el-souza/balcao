@@ -39,7 +39,8 @@ RSpec.describe "NFR-02 SR-07 FR-19 a stored Telegram update, keyed by its update
 
   # Review finding RN3 of pull request #7, in its Telegram form (design §10,
   # note of 2026-11-14): once read, the update keeps its id and its kind, and
-  # nothing of the person or of what they wrote, no digest included.
+  # nothing of the person or of what they wrote, no digest included. Its
+  # count of reads (NFR-03's sweep, M4-4) is the application's, not theirs.
   it "keeps only its update_id and its kind once read (SR-10)" do
     event = WebhookEvent.record!(update_id: 734_120_001, kind: "message", payload: raw,
                                  identity_hash: Digest::SHA256.hexdigest("pepper734120"))
@@ -49,7 +50,7 @@ RSpec.describe "NFR-02 SR-07 FR-19 a stored Telegram update, keyed by its update
     expect(event.reload).to have_attributes(update_id: 734_120_001, kind: "message", payload: nil, status: "ignored")
     expect(event.update_hash).to be_nil
     row = WebhookEvent.connection.select_one(WebhookEvent.sanitize_sql([ "SELECT * FROM webhook_events WHERE id = ?", event.id ]))
-    expect(row.keys).to match_array(%w[id update_id kind payload status received_at created_at updated_at identity_hash])
+    expect(row.keys).to match_array(%w[id update_id kind payload status received_at created_at updated_at identity_hash reads])
     expect(row["identity_hash"]).to be_nil
   end
 

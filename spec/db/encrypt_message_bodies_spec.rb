@@ -5,11 +5,13 @@ require Rails.root.join("db/migrate/20261114120100_encrypt_message_bodies")
 # plain text, and a model that encrypts the column cannot read them. The
 # migration encrypts each one where it is.
 RSpec.describe "SR-41 the messages stored in plain text before PR-18 are encrypted in place" do
+  # As those images wrote one: with its channel's id, which every inbound
+  # message has had since PR-07 (messages_inbound_has_id).
   def insert_plain(conversation, body)
     id = SecureRandom.uuid
-    Message.connection.execute(Message.sanitize_sql([ <<~SQL.squish, id, conversation.id, body ]))
-      INSERT INTO messages (id, conversation_id, channel, direction, author, source, body, created_at, updated_at)
-      VALUES (?, ?, 'web', 'inbound', 'visitor', 'text', ?, now(), now())
+    Message.connection.execute(Message.sanitize_sql([ <<~SQL.squish, id, conversation.id, body, SecureRandom.uuid ]))
+      INSERT INTO messages (id, conversation_id, channel, direction, author, source, body, external_id, created_at, updated_at)
+      VALUES (?, ?, 'web', 'inbound', 'visitor', 'text', ?, ?, now(), now())
     SQL
     id
   end

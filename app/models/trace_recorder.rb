@@ -38,6 +38,9 @@ class TraceRecorder
   ]).freeze
   MAX_TEXT = 500
   INTERRUPTED = "interrupted".freeze
+  # A Telegram reply's way to the chat, from its storage to Telegram's answer
+  # (start_delivery, delivered).
+  DELIVERY = "balcao.delivery".freeze
 
   attr_reader :trace_id
 
@@ -48,6 +51,22 @@ class TraceRecorder
       event.update!(finished_at: Time.current, span_attributes: event.span_attributes.merge("error.type" => INTERRUPTED))
       broadcast(turn.conversation, payload(event.attributes.symbolize_keys.merge(attributes: event.span_attributes)))
     end
+  end
+
+  # FR-12, FR-19: closes the turn's open delivery span when its Telegram
+  # reply left (at the moment Telegram took its last part) or failed (with the
+  # error's class), from Telegram::Outbound, after the run that opened it.
+  # Like any span, it never fails what it records: a write that breaks is a
+  # line naming the span and the error's class.
+  def self.delivered(turn, at: Time.current, error: nil)
+    return unless turn
+
+    TraceEvent.where(turn_id: turn.id, name: DELIVERY, finished_at: nil).find_each do |event|
+      event.update!(finished_at: at, span_attributes: event.span_attributes.merge(clean("error.type" => error)))
+      broadcast(turn.conversation, payload(event.attributes.symbolize_keys.merge(attributes: event.span_attributes)))
+    end
+  rescue StandardError => e
+    Rails.logger.error("trace: span #{DELIVERY} not recorded: #{e.class}")
   end
 
   def self.streams(conversation) = [ "conversation:#{conversation.id}", "trace:#{conversation.trace_token}" ]
@@ -118,6 +137,14 @@ class TraceRecorder
     self.class.broadcast(@conversation, span.payload)
     @open << span
     span
+  end
+
+  # A Telegram reply's delivery span (DELIVERY), opened as the run stores the
+  # reply and left open when the run ends: Telegram::Outbound closes it
+  # (TraceRecorder.delivered), and a run that breaks after it does not, since
+  # the reply is stored and its way to the chat goes on.
+  def start_delivery(parent)
+    start_span(DELIVERY, parent:).tap { |span| @open.delete(span) }
   end
 
   # Span#finish calls this; a span finishes once.

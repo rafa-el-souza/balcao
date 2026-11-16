@@ -155,7 +155,12 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
                                          external_id: "#{visitor.id}:3", webhook_event_id: @event.id)
       expect(outbound).to have_attributes(body: FixedReply.greeting("pt-BR"), status: "sent")
       expect(Turn.sole).to have_attributes(state: "replied", inbound_message: inbound)
-      expect(TraceEvent.sole.span_attributes).to eq("balcao.command.name" => "agree")
+      command = TraceEvent.find_by!(name: "balcao.command")
+      expect(command.span_attributes).to eq("balcao.command.name" => "agree")
+      # The greeting's way to the chat (FR-12; #45's verifier, V4): open as it
+      # is stored, closed as it leaves.
+      expect(TraceEvent.find_by!(name: "balcao.delivery"))
+        .to have_attributes(parent_span_id: command.span_id, finished_at: be_present, span_attributes: {})
       expect(enqueued_jobs.map { |job| job["job_class"] }).not_to include("ProcessTurnJob")
     end
 
@@ -174,7 +179,7 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
       expect(Message.outbound.sole.status).to eq "sent"
       expect(Turn.sole.latency_ms).to be_within(1_000).of(8_000)
       # The verifier's V2 on #45: the agreement's span starts at the receipt too.
-      expect(TraceEvent.sole.started_at).to be_within(0.001).of(event.received_at)
+      expect(TraceEvent.find_by!(name: "balcao.command").started_at).to be_within(0.001).of(event.received_at)
     end
 
     it "starts the first conversation in English for an English app, and the greeting follows" do
@@ -596,9 +601,101 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
       TelegramUpdateJob.perform_later(event.id)
       expect { perform_enqueued_jobs until enqueued_jobs.empty? }.to raise_error(ActiveRecord::StatementInvalid)
 
-      expect(event.reload).to have_attributes(status: "failed", payload: nil)
+      expect(event.reload).to have_attributes(status: "failed", payload: nil, reads: 3)
       expect(errors).to include(match(/telegram update 734120102: given up after 3 attempts, ActiveRecord::StatementInvalid/))
       expect(errors.join).not_to include("dipirona")
+    end
+
+    # NFR-03 (M4-4; review findings H1 and H3 of pull request #32, H6 of #33):
+    # an update given up got no reply, a silent drop of a message the
+    # application had accepted. It gets the fallback's line, in the language a
+    # reply would have, unless what it stored answers it.
+    describe "given up (NFR-03)" do
+      let(:lines) { [] }
+
+      before { allow(Rails.logger).to receive(:error) { |line| lines << line } }
+
+      def read_to_the_end(event)
+        TelegramUpdateJob.perform_later(event.id)
+        perform_enqueued_jobs(only: TelegramUpdateJob) while enqueued_jobs.any? { |job| job[:job] == TelegramUpdateJob }
+      end
+
+      it "sends the person the fallback's line, in the language of the person's app, and strips the update" do
+        event = store(variant("text") { |message| message["from"] = message["from"].merge("language_code" => "es") })
+        allow_any_instance_of(Telegram::Inbound).to receive(:call).and_raise(ActiveRecord::StatementInvalid)
+
+        expect { read_to_the_end(event) }.to raise_error(ActiveRecord::StatementInvalid)
+
+        expect(event.reload).to have_attributes(status: "failed", payload: nil)
+        expect(sent.map { |body| body["text"] }).to eq([ FixedReply.fallback("es") ])
+        expect(sent.sole).not_to have_key("reply_markup")
+      end
+
+      it "sends a visitor's line in the conversation's language, taking the reply keyboard away" do
+        agreed!
+        Conversation.sole.update!(language: "en")
+        sent.clear
+        event = store(fixture("text"))
+        allow_any_instance_of(Telegram::Inbound).to receive(:call).and_raise(ActiveRecord::StatementInvalid)
+
+        expect { read_to_the_end(event) }.to raise_error(ActiveRecord::StatementInvalid)
+
+        expect(sent.sole).to include("text" => FixedReply.fallback("en"), "reply_markup" => { "remove_keyboard" => true })
+      end
+
+      it "counts a read as it starts, on the update's row" do
+        event = store(fixture("text"))
+        seen = nil
+        allow_any_instance_of(Telegram::Inbound).to receive(:call) do
+          seen = WebhookEvent.find(event.id).reads
+          raise ActiveRecord::StatementInvalid
+        end
+
+        TelegramUpdateJob.perform_now(event.id)
+
+        expect(seen).to eq 1
+        expect(event.reload).to have_attributes(status: "received", reads: 1)
+      end
+
+      # A killed worker runs no Ruby: no retry, no give-up, and Solid Queue
+      # fails the job it held, so the sweep (StrandedSweepJob) is what reads
+      # the update again.
+      it "gives up at once, reading nothing, an update read three times already, a read that killed its worker among them" do
+        event = store(fixture("text"))
+        event.update_columns(reads: 3)
+        expect_any_instance_of(Telegram::Inbound).not_to receive(:call)
+
+        TelegramUpdateJob.perform_now(event.id)
+
+        expect(event.reload).to have_attributes(status: "failed", payload: nil, reads: 3)
+        expect(sent.map { |body| body["text"] }).to eq([ FixedReply.fallback("pt-BR") ])
+        expect(lines).to include("telegram update #{event.update_id}: given up after 3 reads")
+      end
+
+      it "sends no line for an update whose message it stored, since the message's turn answers it" do
+        agreed!
+        sent.clear
+        event = store(fixture("text"))
+        allow_any_instance_of(WebhookEvent).to receive(:strip!).and_wrap_original do |original, status|
+          status == "failed" ? original.call(status) : raise(ActiveRecord::ConnectionFailed)
+        end
+
+        expect { read_to_the_end(event) }.to raise_error(ActiveRecord::ConnectionFailed)
+
+        expect(event.reload.status).to eq "failed"
+        expect(Turn.joins(:inbound_message).where(messages: { webhook_event_id: event.id })).to exist
+        expect(sent).to be_empty
+      end
+
+      it "sends no line for an update the bot does not answer" do
+        event = store(variant("text") { |message| message["chat"] = { "id" => -100_734_120, "title" => "Grupo", "type" => "group" } })
+        allow_any_instance_of(Telegram::Inbound).to receive(:call).and_raise(ActiveRecord::StatementInvalid)
+
+        expect { read_to_the_end(event) }.to raise_error(ActiveRecord::StatementInvalid)
+
+        expect(event.reload.status).to eq "failed"
+        expect(sent).to be_empty
+      end
     end
 
     # Review finding T2 of pull request #32: the lock kept a person's updates
@@ -630,27 +727,55 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
 
     # Review finding R1 of pull request #32: when the earlier update's read
     # broke, the later one was read first, so a question right after the
-    # agreement got the ask.
-    it "waits for its own retry while an earlier update of the person is still unread, and reads itself at its last attempt" do
+    # agreement got the ask. Review finding H6 of pull request #33: the wait
+    # spent the later update's own attempts, so a read of its own that broke
+    # once was given up. The wait has a budget of its own (WAITS), and the
+    # earlier update, read once more at each pass and counted on its row, is
+    # given up after its three reads, with its line; then the later is read.
+    it "waits for an earlier unread update of the person on a budget of its own, and reads itself once the earlier is given up" do
       agree = store(variant("agree") { |message| message["message_id"] = 10 })
       question = store(variant("text") { |message| message["message_id"] = 11 })
-      allow(Telegram::Inbound).to receive(:new).and_wrap_original do |original, update, **kwargs|
-        raise ActiveRecord::ConnectionFailed if update["update_id"] == agree.update_id
+      allow_any_instance_of(Telegram::Inbound).to receive(:call).and_wrap_original do |original, event|
+        raise ActiveRecord::ConnectionFailed if event.id == agree.id
 
-        original.call(update, **kwargs)
+        original.call(event)
+      end
+      allow(Rails.logger).to receive(:error)
+      waits = []
+      record = ->(event) { waits << event.payload[:job].arguments }
+
+      ActiveSupport::Notifications.subscribed(record, /\Aenqueue(_at)?\.active_job\z/) do
+        TelegramUpdateJob.perform_later(question.id)
+        3.times do
+          perform_enqueued_jobs(only: TelegramUpdateJob) # each pass reads the agreement, which breaks, and waits
+          expect(question.reload).to have_attributes(status: "received", reads: 0)
+        end
+        perform_enqueued_jobs(only: TelegramUpdateJob) # the agreement is given up, then the question is read
+      end
+
+      expect(waits).to eq([ [ question.id ], [ question.id, 1 ], [ question.id, 2 ], [ question.id, 3 ] ])
+      expect(agree.reload).to have_attributes(status: "failed", payload: nil, reads: 3)
+      expect(question.reload).to have_attributes(status: "processed", payload: nil, reads: 1)
+      expect(sent.map { |body| body["text"] }).to eq([ FixedReply.fallback("pt-BR"), FixedReply.ask("pt-BR") ])
+    end
+
+    it "reads itself after its waits all the same, should the earlier one still be unread" do
+      agree = store(variant("agree") { |message| message["message_id"] = 10 })
+      question = store(variant("text") { |message| message["message_id"] = 11 })
+      allow_any_instance_of(Telegram::Inbound).to receive(:call).and_wrap_original do |original, event|
+        raise ActiveRecord::ConnectionFailed if event.id == agree.id
+
+        original.call(event)
+      end
+      allow_any_instance_of(WebhookEvent).to receive(:strip!).and_wrap_original do |original, status|
+        status == "failed" ? raise(ActiveRecord::ConnectionFailed) : original.call(status)
       end
       allow(Rails.logger).to receive(:error)
 
-      TelegramUpdateJob.perform_later(question.id)
-      perform_enqueued_jobs(only: TelegramUpdateJob) # the first attempt waits
-      expect(question.reload.status).to eq "received"
-      perform_enqueued_jobs(only: TelegramUpdateJob) # the second waits too
+      TelegramUpdateJob.perform_now(question.id, TelegramUpdateJob::WAITS)
 
-      expect(question.reload.status).to eq "received"
-      perform_enqueued_jobs(only: TelegramUpdateJob) # the last reads it, the order lost to the broken one
-
-      expect(question.reload).to have_attributes(status: "processed", payload: nil)
       expect(agree.reload.status).to eq "received"
+      expect(question.reload.status).to eq "processed"
     end
 
     # Review finding M1 of pull request #32.

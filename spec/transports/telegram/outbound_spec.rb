@@ -325,13 +325,34 @@ RSpec.describe "FR-19 SR-43 NFR-02 Telegram::Outbound, a reply on its way to the
     # Review finding H7 of pull request #33: the client raises what is not the
     # network as itself, and nothing here takes it for a failure of the way
     # there; the job that sends tries again with its own backoff.
-    it "leaves the reply pending, its attempts untouched, when the client raises what is not the network" do
+    it "leaves the reply pending, its attempt counted, when the client raises what is not the network" do
       stub_request(:post, bot_api_url("sendMessage")).to_raise(NoMethodError.new("undefined method 'bytesize' for nil"))
 
       expect { outbound.deliver_pending(visitor) }.to raise_error(NoMethodError)
 
-      expect(message.reload).to have_attributes(status: "pending", send_attempts: 0, next_attempt_at: nil)
+      expect(message.reload).to have_attributes(status: "pending", send_attempts: 1, next_attempt_at: nil)
       expect(enqueued_jobs).to be_empty
+    end
+
+    # Review finding C6 of pull request #47 (the owner, 2026-11-15): a reply
+    # whose every attempt broke with what is no answer of Telegram's never
+    # reached its attempts, so it stayed pending and held the person's later
+    # replies for good.
+    it "fails a reply at the third attempt that broke, with a line naming the error's class, and the person's next reply goes" do
+      later = reply("Depois.", at: 1.minute.from_now)
+      lines = []
+      allow(Rails.logger).to receive(:error) { |line| lines << line }
+      allow(Telegram::Buttons).to receive(:for).and_call_original
+      allow(Telegram::Buttons).to receive(:for).with(message).and_raise(I18n::MissingTranslationData.new(:pt, "telegram.x"))
+
+      2.times { expect { outbound.deliver_pending(visitor) }.to raise_error(I18n::MissingTranslationData) }
+      expect([ message.reload.status, later.reload.status ]).to eq(%w[pending pending])
+      outbound.deliver_pending(visitor)
+
+      expect(message.reload).to have_attributes(status: "failed", send_attempts: 3)
+      expect(later.reload.status).to eq "sent"
+      expect(sent.map { |body| body["text"] }).to eq([ "Depois." ])
+      expect(lines).to eq([ "telegram reply #{message.id}: failed after 3 attempts that broke, I18n::MissingTranslationData" ])
     end
 
     # Review finding C1 of pull request #47: OpenSSL raises its one error for a
@@ -360,6 +381,31 @@ RSpec.describe "FR-19 SR-43 NFR-02 Telegram::Outbound, a reply on its way to the
         expect(lines).to eq([ "telegram reply #{message.id}: failed after 3 attempts, Telegram::Client::Error (OpenSSL::SSL::SSLError)" ])
         travel_back
       end
+    end
+
+    # Review finding V3 of pull request #48 (dono): a reply whose visitor's
+    # chat does not decrypt (encryption keys other than the row's) stayed
+    # pending for good, so NFR-03's sweep took it up again every minute, each
+    # time with the chat's error line. Nothing can be sent to that person.
+    it "fails the pending replies of a visitor whose chat does not decrypt, each with a line" do
+      later = reply("Depois.", at: 1.minute.from_now)
+      lines = []
+      allow(Rails.logger).to receive(:error) { |line| lines << line }
+      other_keys = ActiveRecord::Encryption::DerivedSecretKeyProvider.new("another-primary-key-for-the-spec")
+
+      way = TraceEvent.create!(turn_id: message.turn_id, trace_id: "a" * 32, span_id: "b" * 16, name: "balcao.delivery",
+                               started_at: 1.second.ago)
+
+      ActiveRecord::Encryption.with_encryption_context(key_provider: other_keys) { outbound.deliver_pending(Visitor.find(visitor.id)) }
+
+      expect([ message.reload.status, later.reload.status ]).to eq(%w[failed failed])
+      expect(sent).to be_empty
+      expect(lines).to include("telegram reply #{message.id}: failed, the visitor's chat cannot be read",
+                               "telegram reply #{later.id}: failed, the visitor's chat cannot be read")
+      # The reply's way in its trace closes with the error, so the page says
+      # "mensagem não enviada" (FR-12; the fix review's note on #48).
+      expect(way.reload).to have_attributes(finished_at: be_present,
+                                            span_attributes: { "error.type" => "Telegram::Chat::Unreadable" })
     end
 
     it "goes on to the person's next reply after one that failed" do

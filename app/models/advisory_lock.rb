@@ -17,8 +17,22 @@ module AdvisoryLock
   # statement answers 1 instead (review finding R2 of the same pull request).
   LOCK = "SELECT 1 FROM (SELECT pg_advisory_lock(hashtextextended($1, 0))) AS locked".freeze
   UNLOCK = "SELECT pg_advisory_unlock(hashtextextended($1, 0))".freeze
+  # Takes the lock and gives it back at once, answering whether it was free.
+  # A CASE, since PostgreSQL promises the order of a CASE's branches and not
+  # of an AND's operands: the unlock runs only after a try that took the lock,
+  # and an unlock run first would leave the try's lock held (the Rails
+  # finder's note on pull request #48).
+  TRY = "SELECT CASE WHEN pg_try_advisory_lock(hashtextextended($1, 0)) " \
+        "THEN pg_advisory_unlock(hashtextextended($1, 0)) ELSE false END".freeze
 
   module_function
+
+  # Whether no session holds the lock now (NFR-03's sweep asks it before it
+  # takes up what may still be at work): tried without waiting, and given
+  # back in the same statement, so the caller keeps no lock. A session that
+  # holds the lock itself is told it is free, as PostgreSQL's advisory locks
+  # are its own to take again.
+  def free?(key) = ApplicationRecord.connection.select_value(TRY, "AdvisoryLock", [ key ]) == true
 
   def hold(key)
     ApplicationRecord.connection_pool.with_connection do |connection|

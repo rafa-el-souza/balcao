@@ -15,6 +15,12 @@ production:
   nightly_reset:
     class: NightlyResetJob
     schedule: "0 3 * * * America/Sao_Paulo"
+  # NFR-03's sweep (app/jobs/stranded_sweep_job.rb): an update left unread, a
+  # turn left without a reply and a Telegram reply left pending, stopped for
+  # more than five minutes, taken up again.
+  stranded_sweep:
+    class: StrandedSweepJob
+    schedule: every minute
   clear_solid_queue_finished_jobs:
     command: "SolidQueue::Job.clear_finished_in_batches(sleep_between_batches: 0.3)"
     schedule: every hour at minute 12

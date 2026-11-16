@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_14_120300) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_15_234100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "fuzzystrmatch"
   enable_extension "pg_catalog.plpgsql"
@@ -60,6 +60,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_14_120300) do
     t.index ["conversation_id", "created_at"], name: "index_messages_on_conversation_id_and_created_at"
     t.index ["turn_id"], name: "index_messages_one_outbound_per_turn", unique: true, where: "(turn_id IS NOT NULL)"
     t.index ["webhook_event_id"], name: "index_messages_on_webhook_event_id"
+    t.check_constraint "direction::text = 'outbound'::text OR external_id IS NOT NULL", name: "messages_inbound_has_id"
     t.check_constraint "direction::text = 'outbound'::text OR turn_id IS NULL", name: "messages_turn_only_on_outbound"
   end
 
@@ -119,6 +120,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_14_120300) do
     t.integer "latency_ms"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "runs", default: 0, null: false
     t.index ["conversation_id", "created_at"], name: "index_turns_on_conversation_id_and_created_at"
     t.index ["inbound_message_id"], name: "index_turns_on_inbound_message_id", unique: true
   end
@@ -156,6 +158,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_14_120300) do
     t.string "kind", null: false
     t.text "payload"
     t.string "identity_hash"
+    t.integer "reads", default: 0, null: false
     t.index ["identity_hash", "update_id"], name: "index_webhook_events_on_identity_hash_and_update_id", where: "(identity_hash IS NOT NULL)"
     t.index ["update_id"], name: "index_webhook_events_on_update_id", unique: true
   end

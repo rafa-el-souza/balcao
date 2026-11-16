@@ -19,6 +19,13 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
 
   before { allow(AgentRunner).to receive(:default_client) { fake.client } }
 
+  # A live run brings the test database's schema up to date before its cases,
+  # as rails_helper did before this spec froze the clock; with the clock
+  # frozen, Rails takes any migration stamped a day past it for a typo and
+  # raises, which the first migration after 2026-11-14 met (M4-4). So the
+  # spec notes the call and leaves the schema to rails_helper.
+  before { allow(ActiveRecord::Migration).to receive(:maintain_test_schema!) }
+
   after { FileUtils.remove_entry(dir) }
 
   def evals(*argv)
@@ -115,6 +122,8 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
       responses.replace([ *preflight, reply("[pt] Olá! Posso ajudar com um produto, um preço ou uma entrega?"), verdict(true) ])
 
       expect(evals("--case", "greeting-pt-01")).to eq(0)
+
+      expect(ActiveRecord::Migration).to have_received(:maintain_test_schema!)
 
       expect(out.string).to include("known-bad", "greeting-pt-01", "pass", "1 case: 1 passed")
       saved = results_file

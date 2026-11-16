@@ -14,6 +14,16 @@ RSpec.describe "NFR-02 SR-07 inbound message, keyed by the channel's message id"
     )
   end
 
+  # Review finding RN5 of pull request #7, design §10's standing trigger for
+  # the next migration (M4-4): the rule that every inbound message has its
+  # channel's id lived in record_inbound! alone; the database holds it too.
+  it "is refused by the database without its channel's id, while a reply needs none" do
+    row = { conversation_id: conversation.id, channel: "telegram", author: "visitor", source: "text", body: "oi" }
+
+    expect { Message.insert!(row.merge(direction: "outbound", author: "bot")) }.not_to raise_error
+    expect { Message.insert!(row.merge(direction: "inbound")) }.to raise_error(ActiveRecord::CheckViolation, /messages_inbound_has_id/)
+  end
+
   it "keeps the same id on two channels apart" do
     web_conversation = create(:conversation, visitor: create(:visitor, channel: "web"))
     Message.record_inbound!(conversation: web_conversation, external_id: "id-1", body: "oi")
@@ -39,8 +49,8 @@ RSpec.describe "NFR-02 SR-07 inbound message, keyed by the channel's message id"
     end
   end
 
-  it "does not key messages that carry no channel id" do
-    2.times { create(:message, conversation:, external_id: nil) }
+  it "does not key the replies, which carry no channel id" do
+    2.times { create(:outbound_message, conversation:) }
 
     expect(conversation.messages.count).to eq(2)
   end

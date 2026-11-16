@@ -267,6 +267,18 @@ never through a tool, so no prompt injection can trigger it.
   or not its send left, so a request to delete is always carried out. A
   confirmation may arrive twice when a run is repeated (NFR-02's accepted
   duplicate). (The owner, 2026-11-15.)
+- A deletion that has not gone holds the visitor's later messages, whatever
+  broke it, its confirmation or the deletion itself after the confirmation
+  left: none reaches the model before the data goes. A deletion whose job
+  ends in the dead letter keeps no reply, never the generic fallback after
+  "deleted", and a line names it; NFR-03's sweep or the visitor's next
+  message runs it again, and the turns it held keep no reply either. The
+  three attempts count the deletion's runs, whoever runs it: at its third
+  run the data goes whether or not the confirmation left, and past its
+  third it sends the confirmation no more, so a deletion that keeps
+  breaking does not write "deleted" to the chat at every run. The line that
+  the data went without the confirmation is written once it went. (M4-4;
+  review findings C3, H1, H2, H3's third part and R1 of pull request #41.)
 
 ### 4.2 Pharmacy work (tools)
 
@@ -460,6 +472,12 @@ conversation in real time.
   or sends `/trace`, Then the reply contains a link to a trace page for that
   conversation, and from M4 a button that opens it (FR-19); the link
   carries a 128-bit random token and shows only that conversation.
+- On Telegram a reply leaves after its run, so its trace shows it sent at
+  the moment Telegram took it, and "mensagem não enviada" for one Telegram
+  refused or that failed after its attempts, which a command's reply shows
+  too, a fixed reply's reason under either; while a reply is on its way the
+  row waits. Since M4-4 (#45's verifier, V4): before it the page read
+  "mensagem enviada" for every stored reply.
 - The trace never shows the system prompt verbatim, secrets, another
   visitor's conversations, a raw phone number or a Telegram id. A visitor's
   own open reservations, which a reply at FR-07's cap lists from any
@@ -767,6 +785,22 @@ revocable consent" (ADR-0016).
   other answer that is not `ok` (a 4xx) marks it failed at once (the 5xx
   and the count per part: the owner, 2026-11-15). `sendMessage` takes no idempotency key, so a send whose answer
   was lost may arrive twice; one marked sent is never sent again (NFR-02).
+- An attempt that breaks with what is no answer of Telegram's (a local
+  bug, a certificate that does not prove Telegram's host, the reply's
+  buttons) counts among the three too, so a reply that breaks every time
+  is marked failed at the third and no longer holds the visitor's later
+  replies (review finding C6 of pull request #47; the owner, 2026-11-15).
+  A reply left pending past its time is sent again by NFR-03's sweep. A
+  visitor whose chat cannot be read (it does not decrypt) can be sent
+  nothing, so their pending replies are marked failed, each with a line.
+- An update whose reading is given up, after three reads counted on its
+  row, gets the fallback's line in the language a reply would have, so no
+  message the application accepted is dropped in silence (NFR-03), unless
+  the update stored a message, whose turn answers it, or is one the bot
+  does not answer. While a person's earlier update is still unread, a later
+  one waits on a budget of its own, three waits of 3 s, 18 s and 83 s, and
+  then is read all the same; the earlier one is read again at each wait,
+  so it is given up within them (review finding H6 of pull request #33).
 
 *After the MVP (ADR-0017); none of these adds a kind of update.*
 - **M4, the bot's finish** (built in M4-3, 2026-11-15; §10's note): a
@@ -940,10 +974,18 @@ then land in a dead-letter state visible in the console. "Never a silent
 drop" covers every message the application accepted, not only a turn the
 model failed: a Telegram update left unread and a turn left without any
 reply are found by a sweep (those stopped for more than five minutes) and
-answered, or given up with a fixed line. The sweep ships at M4,
-in the slice §9.2 names (the owner, 2026-11-15); until then the one known way to strand them
-is a database restart with the jobs running, which the runbook's bump day
-no longer does. While a turn runs, the web client shows a "pensando…" state and,
+answered, or given up with a fixed line (the owner, 2026-11-15). Built in
+M4-4 (§10's note): `StrandedSweepJob`, every minute, takes up again an
+update left unread, a turn left without a reply and a stored Telegram
+reply left pending past its time, each stopped for more than five minutes
+by its row's own clock and with no job at work on it (its lock is free).
+The job that runs it decides: an update is read three times at most and a
+turn runs three times at most, whoever reads or runs it, each counted on
+its row as it starts, so a read or a run that kills its worker counts
+too; the fourth gives the update the fallback's line (FR-19) and the turn
+the fallback, with no model call and no charge. A deletion is never given
+up (FR-05). A Telegram reply that never left says so in its trace (FR-12).
+While a turn runs, the web client shows a "pensando…" state and,
 after 12 s (NFR-01's p95), a visible note that the answer is taking longer; on Telegram
 the chat shows the typing status meanwhile (FR-19); the turn's
 wall clock is 60 s (SR-20).
@@ -2075,8 +2117,6 @@ trigger does the item and removes the line.
   forbidden by rule (#1's review).
 - The next slice that touches the Dockerfile: the image spec's guard reads
   the whole leading directive block, case-insensitive (#4, FR4).
-- The next migration: a check constraint that an inbound message has its
-  id, `direction = outbound OR external_id IS NOT NULL` (#7, RN5).
 - The next slice that touches the static files' headers:
   `public/robots.txt` and its year of cache, pinned on purpose (#22, C1's
   sister).
@@ -2086,13 +2126,6 @@ trigger does the item and removes the line.
 - The next failure of `GlassBox.test.tsx`'s example "stops 'pensando…' and
   lights the tab's cross again": its timing is fixed, not run again (#38's
   review; it failed once in a parallel run).
-- The next failure of `spec/jobs/nightly_reset_job_spec.rb`, or the next
-  slice that touches it: the limits' counters group builds its Solid Cache
-  store with `expiry_method: :job`. The default expiry thread outlives the
-  example, and once (M4-3's session, seed 9419) it queried the cache table
-  after the example's transaction had dropped it, deadlocked the shared
-  connection and left 1,079 later examples on an aborted transaction; the
-  same seed passed when run again.
 
 **Waiting for the data-contract ADR.** The ADR on the data a pharmacy
 would hand Balcão is the owner's to write (number 0018, reserved in the
@@ -2124,6 +2157,97 @@ exception, the same day: the application's connections run with the
 database's JIT compiler off, which changes no result of the search
 (M4-1; the note below).
 
+- Note 2026-11-16 (M4-4, NFR-03's sweep; NFR-02, NFR-03, FR-05, FR-12,
+  FR-19, SR-20, SR-30; the MVP review's lines for this slice: #11's two,
+  #18's R4 and V3, #32's H1 and H3, #33's H6, #41's C3, H1, H2, H3's third
+  part and R1, #45's V4; and, by the owner's word of 2026-11-15, #47's C6
+  and its fix review's sister on the person's lock).
+  - **The sweep** is `StrandedSweepJob`, every minute in the `job`
+    container. It takes up again an update left unread, a turn left
+    without a reply and a stored Telegram reply left pending past its time,
+    each stopped for more than five minutes by its row's own clock (a read,
+    a run, an attempt moves it) and with its lock free: one statement takes
+    the lock and gives it back (`AdvisoryLock.free?`), so a burst that keeps
+    a conversation busy past five minutes gets no second job. One job a
+    conversation (its latest such turn, which answers the earlier ones
+    first), a person (the latest unread update) and a visitor (the pending
+    replies, in order), at most a hundred of each a pass. A thing waits five
+    to six minutes; the pass reads three tables the nightly job keeps to
+    seven days. The demo had nothing for it on the day (87 turns of 87
+    replied, no update unread, no reply pending, no failed job), so its
+    first pass took up nothing old.
+  - **Counted on the row, not from the usage records.** §9.2's line asked
+    for a turn's runs "bounded from the usage records"; a run that kills its
+    worker dies before its model's answer is charged and leaves no record,
+    which is #11's very case. So `turns.runs` and `webhook_events.reads`
+    count each run and read as it starts, whoever runs it, and the bound is
+    three: a fourth run answers with the fallback and calls no model (the
+    trace's outcome `dead_letter`, error `TurnProcessor::RunsSpent`), a
+    command's too, so a reset run three times resets nothing; a fourth read
+    gives the update up. A killed worker runs no Ruby, and Solid Queue fails
+    the job it held without a retry, so the sweep is what runs it again. An
+    exception that is no `StandardError` is another thing: Rails 8.1's
+    `perform_now` runs the job's `after_discard` for it at once, so it lands
+    in the dead letter at its first attempt.
+  - **The deletion** (FR-05) is never given up: a deletion that has not
+    gone holds the turns after it whatever broke it (`run_earlier` raises
+    `ProcessTurnJob::HeldByDeletion`), its dead letter and a held turn's
+    keep no reply, with a line, and the sweep or the next message runs it
+    again. Its runs count its three attempts across jobs: the third is its
+    last try (the data goes whether or not the confirmation left), and past
+    the third it sends the confirmation no more, so an erase that keeps
+    failing does not write "deleted" to the chat every few minutes. The line
+    that the data went without its confirmation is written once it went.
+  - **An update's wait** for an earlier unread one is a job of its own,
+    after 3 s, 18 s and 83 s, so it spends none of the update's attempts
+    (#33's H6); the earlier one is read again at each pass, so it is given
+    up within the wait, and after the third the later one is read all the
+    same. A given-up update gets the fallback's line in the language a reply
+    would have, unless it stored a message (its turn answers) or the bot
+    does not answer it; the give-up after the job's last attempt now runs
+    under the person's lock, as a read does.
+  - **A stored reply's attempts** count what is no answer of Telegram's
+    too (#47's C6, the owner's word), so one that breaks every time fails at
+    the third instead of holding the visitor's later replies for good.
+  - **A Telegram reply's way to the chat is a span** (`balcao.delivery`,
+    #45's V4): the run opens it under its root in the transaction that
+    stores the reply, so it is there before anything can see the reply (the
+    review's V4: opened after the commit, a drain of the person's replies in
+    between sent the reply with no span to close), and leaves it open (the
+    recorder does not abandon it); `Telegram::Outbound` closes it at the
+    moment Telegram took the last part, or with the error's class when the
+    reply failed. The page draws the reply sent at that moment, "mensagem
+    não enviada" in the error's colour for a failed one, a fixed reply's
+    reason under either (the review's C8), and nothing while it is on its
+    way, nor while a Telegram run is still storing its reply (C9); a reply
+    traced before the span existed keeps the stored reply's row, and a
+    command's reply is drawn only when it never left. The page reads a
+    turn's last way, since a run undone at its commit leaves its own open
+    on a live page. The turn's time on the page is still its run's, receipt
+    to storage; on Telegram NFR-01's figure is the turn's `latency_ms`,
+    receipt to send (M4-2's note).
+  - **The reply, the turn's state and that span are one transaction**
+    (#11's V2), and the stream hears of the reply after it commits.
+  - **A visitor whose chat cannot be read** (it does not decrypt) can be
+    sent nothing: their pending replies fail, each with a line, instead of
+    staying pending for the sweep to take up every minute (the review's
+    V3). The sweep's look at a lock takes it and gives it back in a `CASE`,
+    whose order PostgreSQL promises, where an `AND`'s it does not.
+  - **The standing trigger for the next migration is pulled**: the
+    database refuses an inbound message without its channel's id
+    (`messages_inbound_has_id`; #7's RN5); the inbound messages stored
+    before PR-07 made the id required, which only a development database
+    held, take their own row's id. The evals' CLI spec froze the clock on
+    2026-11-13, so Rails took any migration stamped a day past it for a
+    typo; the spec now notes the schema's upkeep and leaves it to
+    `rails_helper`. Two specs that write an old image's message by hand in
+    SQL now give it its id; one is the nightly job's, whose own trigger this
+    pulled: the limits' counters build their Solid Cache store with
+    `expiry_method: :job`, so no expiry thread outlives an example.
+  - **Left as they are:** a turn left in a conversation that closed since is
+    answered in it; the sweep has no age ceiling, the seven-day purge being
+    one; a person's lock lost with its connection inside an update job's
+    send is threat model R11's, by the owner's word.
 - Note 2026-11-15 (M4-3, the bot's finish; FR-19, FR-07, FR-12, FR-21,
   SR-10, SR-43, ADR-0017; findings C5 and H7 of pull request #33, which the
   MVP review gave this slice).

@@ -62,9 +62,21 @@ class TurnProcessor
     def to_s = "attempt #{number} of #{of} of turn #{turn_id}'s job"
   end
 
-  # The deletion's confirmation did not leave and the job has another
-  # attempt, so the data waits for it (FR-05).
+  # The deletion's confirmation did not leave and the turn has another try,
+  # so the data waits for it (FR-05).
   class ConfirmationNotSent < StandardError; end
+
+  # A turn runs three times at most, whoever runs it: its own job's attempts,
+  # a later turn's job, NFR-03's sweep (StrandedSweepJob). The runs are
+  # counted on the turn's row as each starts, so a run that kills its worker
+  # counts too, which a count of the usage records would miss: such a run
+  # dies before the model's answer is charged (review findings of pull
+  # requests #11 and #18).
+  RUNS = 3
+
+  # A fourth run: the turn is given up with the fallback, and no model is
+  # called (NFR-03).
+  class RunsSpent < StandardError; end
 
   def initialize(turn, commands: CommandPhrases.current, typing: nil, attempt: nil)
     @turn = turn
@@ -79,10 +91,13 @@ class TurnProcessor
     return if Message.exists?(turn_id: @turn.id)
 
     command = @commands.match(@inbound.body)
+    @turn.increment!(:runs, touch: true)
+    return delete if command == :delete
+    return give_up(RunsSpent.new("the turn ran #{RUNS} times")) if @turn.runs > RUNS
+
     TraceRecorder.close_interrupted(@turn)
     @recorder = TraceRecorder.new(@turn)
     case command
-    when :delete then delete
     when :reset then reset
     when :trace then trace
     when :start then fixed(:start) { |language| FixedReply.greeting(language) }
@@ -91,14 +106,22 @@ class TurnProcessor
     end
   end
 
-  # NFR-03: the job's last attempt failed (ProcessTurnJob's dead letter), so
-  # the turn is answered with the fallback, followed by the line of any
-  # reservation it stored (NFR-02), rather than left waiting for good. It is a
-  # run of its own in the trace, with no model call: the root from the
-  # message's receipt, the reply, the outcome dead_letter and the error's
-  # class.
+  # NFR-03: the job's last attempt failed (ProcessTurnJob's dead letter), or
+  # the turn ran three times (RUNS), so the turn is answered with the
+  # fallback, followed by the line of any reservation it stored (NFR-02),
+  # rather than left waiting for good. It is a run of its own in the trace,
+  # with no model call: the root from the message's receipt, the reply, the
+  # outcome dead_letter and the error's class.
+  #
+  # A deletion is never given up (FR-05; review findings C3 and H1 of pull
+  # request #41): it keeps no reply, since a fallback after "deleted" would
+  # say the opposite of what the visitor read, and a line names it, so the
+  # sweep or the visitor's next message runs it again (ProcessTurnJob holds
+  # the turns after it meanwhile).
   def give_up(error)
     return if Message.exists?(turn_id: @turn.id)
+    return Rails.logger.error("dead letter: turn #{@turn.id} is a deletion that did not go, #{error.class}: no reply, " \
+                              "the sweep or the next message runs it again") if deletion?
 
     TraceRecorder.close_interrupted(@turn)
     @recorder = TraceRecorder.new(@turn)
@@ -112,6 +135,10 @@ class TurnProcessor
     raise
   end
 
+  # FR-05: the turn asks to delete the visitor's data, which ProcessTurnJob
+  # lets no later turn pass while it has not gone.
+  def deletion? = @commands.match(@inbound.body) == :delete
+
   private
 
   # --- Commands -------------------------------------------------------------
@@ -123,14 +150,16 @@ class TurnProcessor
   # it showed (review finding G2 of pull request #17). On Telegram the
   # confirmation goes to the chat first, since the row the deletion takes
   # holds it, and says that the chat in the visitor's app is their own copy
-  # (FR-19).
+  # (FR-19). The line that the data went without the confirmation is written
+  # once it went (the hunter's H2 on pull request #41).
   def delete
     language = command_language
     visitor = @conversation.visitor
     tokens = visitor.conversations.pluck(:trace_token)
     chat = Telegram::Chat.of(visitor)
-    confirm_deletion(chat, language) if chat
+    unsent = confirm_deletion(chat, language) if chat
     visitor.erase!
+    Rails.logger.error("telegram fixed reply deleted: #{unsent}, the data deleted all the same") if unsent
     broadcast(type: "deleted", text: FixedReply.command(:delete, language))
     tokens.each { |token| broadcast({ type: "deleted" }, "trace:#{token}") }
   end
@@ -138,31 +167,39 @@ class TurnProcessor
   # FR-05 on Telegram (the owner, 2026-11-15): the confirmation leaves before
   # the rows go. One that did not leave, or whose send broke (a line names
   # the error's class), raises ConfirmationNotSent, so the job tries the turn
-  # again with its backoff, three attempts in all, and the turns after it
-  # wait for it (ProcessTurnJob#run_earlier, review finding C1 of pull
-  # request #41); at the last attempt the data goes whether or not the
-  # confirmation left, and the log says so (review finding C8 of pull request
-  # #33: a send that broke after the deletion was lost with no line). A later
-  # turn's job runs the deletion with its own attempt. A confirmation may
-  # arrive twice when a run is repeated: sendMessage takes no idempotency key
-  # (NFR-02's accepted duplicate). It takes the reply keyboard away, as any
-  # fixed line to a person who agreed: FR-21's openers would outlive the
-  # data (FR-19; review finding C3 of pull request #47).
+  # again with its backoff, and the turns after it wait for it
+  # (ProcessTurnJob#run_earlier, review finding C1 of pull request #41); at
+  # the turn's last try, its job's last attempt or its third run, the data
+  # goes whether or not the confirmation left, and the log says so once it
+  # went (review finding C8 of pull request #33: a send that broke after the
+  # deletion was lost with no line). A later turn's job runs the deletion
+  # with its own attempt. Past its three runs (the sweep, a later message), a
+  # deletion that still did not go sends its confirmation no more, so a
+  # deletion that keeps breaking does not write "deleted" to the chat at
+  # every run. A confirmation may arrive twice when a run is repeated:
+  # sendMessage takes no idempotency key (NFR-02's accepted duplicate). It
+  # takes the reply keyboard away, as any fixed line to a person who agreed:
+  # FR-21's openers would outlive the data (FR-19; review finding C3 of pull
+  # request #47).
+  #
+  # Answers nil once it left, else what the line after the deletion says.
   def confirm_deletion(chat, language)
+    return "not sent again after the turn's #{RUNS} runs" if @turn.runs > RUNS
+
     left = begin
       Telegram::Outbound.new.send_fixed(chat, FixedReply.telegram_deleted(language), keyboard: Telegram::Outbound::REMOVE_KEYBOARD,
                                                                                    name: :deleted, attempt: @attempt)
     rescue StandardError => e
-      return Rails.logger.error("telegram fixed reply deleted: broke at #{@attempt}, #{e.class}, the data deleted all the same") if @attempt&.last?
-
       Rails.logger.error("telegram fixed reply deleted: broke#{" at #{@attempt}" if @attempt}, #{e.class}")
       false
     end
     return if left
-    raise ConfirmationNotSent, "the deletion's confirmation did not leave; the job tries the turn again" unless @attempt&.last?
+    raise ConfirmationNotSent, "the deletion's confirmation did not leave; the job tries the turn again" unless last_try?
 
-    Rails.logger.error("telegram fixed reply deleted: not sent, the data deleted all the same")
+    "not sent"
   end
+
+  def last_try? = @attempt&.last? || @turn.runs >= RUNS
 
   # FR-04: the conversation closes and the reply opens the next one, so its
   # confirmation carries the notice.
@@ -173,20 +210,18 @@ class TurnProcessor
   # the conversation the reset opens, and its model never reads what came
   # before (review findings V1 and R2 of pull request #11); a second reset
   # among those messages starts over again in its turn. One transaction
-  # closes, opens, moves and confirms, so a moved turn's job, which runs it
-  # under the new conversation's lock (ProcessTurnJob), finds the
-  # confirmation already there and gives no second notice.
+  # closes, opens, moves and confirms, and marks the turn replied (command),
+  # so a moved turn's job, which runs it under the new conversation's lock
+  # (ProcessTurnJob), finds the confirmation already there and gives no
+  # second notice.
   def reset
     language = command_language
     command(:reset) do
-      message = ApplicationRecord.transaction do
-        @conversation.update!(closed_at: Time.current) if @conversation.closed_at.nil?
-        current = Conversation.current_for!(@conversation.visitor)
-        current.update!(language:) unless current.messages.outbound.exists?
-        move_later_turns(current)
-        record_reply(FixedReply.command(:reset, language), conversation: current, language:)
-      end
-      broadcast_reply(message)
+      @conversation.update!(closed_at: Time.current) if @conversation.closed_at.nil?
+      current = Conversation.current_for!(@conversation.visitor)
+      current.update!(language:) unless current.messages.outbound.exists?
+      move_later_turns(current)
+      record_reply(FixedReply.command(:reset, language), conversation: current, language:)
     end
   end
 
@@ -206,25 +241,25 @@ class TurnProcessor
   # FR-12: the link to this conversation's trace page (Conversation#trace_url).
   def trace
     language = command_language
-    command(:trace) { store_reply(FixedReply.command(:trace, language, url: @conversation.trace_url), language:) }
+    command(:trace) { record_reply(FixedReply.command(:trace, language, url: @conversation.trace_url), conversation: @conversation, language:) }
   end
 
   # FR-19, FR-18: /start's greeting and /help's list, fixed texts on every
   # channel; the first reply of a conversation carries the notice before them.
   def fixed(name)
     language = command_language
-    command(name) { store_reply(yield(language), language:) }
+    command(name) { record_reply(yield(language), conversation: @conversation, language:) }
   end
 
-  # A command that breaks is marked failed with its span closed by the error,
-  # as a turn that breaks outside the model is, for the job's retry (review
-  # finding C4 of pull request #11).
+  # The block stores the command's reply, which the turn's state joins in one
+  # transaction (replied). A command that breaks is marked failed with its
+  # span closed by the error, as a turn that breaks outside the model is, for
+  # the job's retry (review finding C4 of pull request #11).
   def command(name)
     @inbound.update_columns(source: "command")
     span = @recorder.start_span("balcao.command", started_at: @inbound.received_at,
                                                   attributes: { "balcao.command.name" => name.to_s })
-    yield
-    @turn.update!(state: "replied", **latency)
+    broadcast_reply(replied("replied", span) { yield })
   rescue StandardError => e
     broken(e)
     raise
@@ -350,9 +385,9 @@ class TurnProcessor
     raise ArgumentError, "#{outcome} is not in TurnProcessor::OUTCOMES" unless OUTCOMES.include?(outcome.to_s)
 
     outbound = @recorder.start_span("balcao.outbound", parent: @root, attributes: { "balcao.message.author" => "bot" })
-    message = store_reply(text, language: @conversation.language)
+    message = replied(state, @root) { record_reply(text, conversation: @conversation, language: @conversation.language) }
+    broadcast_reply(message)
     outbound.finish(attributes: { "balcao.message.characters" => message.body.length })
-    @turn.update!(state:, **latency)
     @root.finish(attributes: { "balcao.turn.mode" => @root.attributes["balcao.turn.mode"],
                                "balcao.turn.outcome" => outcome.to_s, "error.type" => error&.class&.name,
                                "balcao.budget.mode" => month_mode })
@@ -378,11 +413,30 @@ class TurnProcessor
 
   # --- The reply --------------------------------------------------------------
 
-  def store_reply(text, language:, conversation: @conversation)
-    message = record_reply(text, conversation:, language:)
-    broadcast_reply(message)
-    message
+  # The reply the block stores, the turn's state and, on Telegram, the span
+  # of the reply's way to the chat (delivery), under the parent given, in one
+  # transaction: a run that breaks between them leaves none (review finding
+  # V2 of pull request #11), the turn failed with no reply, for the job's
+  # retry; and the span is there before anything else can see the reply, so
+  # a drain of the person's replies that sends it at once finds the span to
+  # close (review finding V4 of pull request #48). The caller sends the reply
+  # to the stream once it is committed.
+  def replied(state, parent)
+    ApplicationRecord.transaction do
+      yield.tap do
+        @turn.update!(state:, **latency)
+        delivery(parent)
+      end
+    end
   end
+
+  # FR-12, FR-19: a Telegram reply leaves after its run, by its status
+  # (Telegram::Outbound), so the run opens its delivery's span and leaves it
+  # open, and Outbound closes it when Telegram takes the reply, or with the
+  # error that failed it (TraceRecorder.delivered): the trace says whether the
+  # reply left, and when (#45's verifier, V4). A web reply is sent as it is
+  # stored, to the page's stream.
+  def delivery(parent) = (@recorder.start_delivery(parent) if @inbound.channel == "telegram")
 
   def record_reply(text, conversation:, language:)
     body = conversation.messages.outbound.exists? ? text : FixedReply.with_notice(text, language)
