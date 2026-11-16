@@ -592,6 +592,130 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
 
       expect(turn.reload.outbound_message).to have_attributes(conversation_id: opened.id)
     end
+
+    # NFR-03 (M4-4; review findings of pull requests #11 and #18): a turn's
+    # runs are counted on its row as each starts, so a run that kills its
+    # worker counts too, and a turn runs three times at most, whoever runs it
+    # (its own job, a later turn's, the sweep): the fourth answers it with the
+    # fallback and calls no model.
+    describe "a turn's runs, counted and bounded at three" do
+      before { stub_const("WorkerKilled", Class.new(Exception)) } # rubocop:disable Lint/InheritException
+
+      it "counts a run as it starts, so one that kills its worker counts too" do
+        turn = inbound("oi")
+        seen = nil
+        allow(AgentRunner).to receive(:new) do
+          seen = Turn.find(turn.id).runs
+          raise WorkerKilled
+        end
+
+        expect { perform(turn) }.to raise_error(WorkerKilled)
+
+        expect(seen).to eq(1)
+        expect(turn.reload.runs).to eq(1)
+      end
+
+      it "answers a turn run three times already with the fallback, calling and billing nothing" do
+        product = create(:product, sku: "DIP-500")
+        turn = inbound("reserva duas dipironas")
+        reservation = create(:reservation, turn:, product:)
+        turn.update_columns(runs: 3, state: "running")
+
+        perform(turn)
+
+        expect(fake.requests).to be_empty
+        expect(UsageRecord.where(turn_id: turn.id)).to be_empty
+        expect(turn.reload).to have_attributes(state: "failed", runs: 4)
+        expect(turn.outbound_message.body)
+          .to eq(FixedReply.with_notice(FixedReply.with_reservations(FixedReply.fallback("pt-BR"), [ reservation ], "pt-BR"), "pt-BR"))
+        expect(roots(turn).last.span_attributes).to include("balcao.turn.outcome" => "dead_letter",
+                                                            "error.type" => "TurnProcessor::RunsSpent")
+      end
+
+      it "gives a command run three times already the fallback too, and runs it no more" do
+        turn = inbound("/reiniciar")
+        turn.update_columns(runs: 3)
+
+        perform(turn)
+
+        expect(conversation.reload.closed_at).to be_nil
+        expect(turn.reload.outbound_message.body).to eq(FixedReply.with_notice(FixedReply.fallback("pt-BR"), "pt-BR"))
+      end
+
+      # Review finding R4 of pull request #18: a turn its dead letter could not
+      # answer was run again, model billed, before every later turn of its
+      # conversation, for as long as the conversation lived.
+      it "does not bill again, before every later turn, an earlier turn its dead letter could not answer" do
+        allow(Rails.logger).to receive(:error)
+        responses.replace(Array.new(8) { reply("[pt] Temos, sim.") })
+        first = inbound("tem dipirona?", at: 1.minute.ago)
+        original = Message.method(:record_outbound!)
+        allow(Message).to receive(:record_outbound!) do |turn:, **rest|
+          raise ActiveRecord::StatementInvalid, "broken" if turn.id == first.id
+
+          original.call(turn:, **rest)
+        end
+        expect { run_to_the_end(first) }.to raise_error(ActiveRecord::StatementInvalid)
+        expect(fake.requests.size).to eq(3)
+
+        3.times { |i| perform(inbound("mensagem #{i}")) }
+
+        expect(fake.requests.size).to eq(6)
+        expect(first.reload.outbound_message).to be_nil
+      end
+
+      # Review finding of pull request #11: a turn that killed its worker on
+      # every run held its conversation, since every later job ran it first.
+      # A killed worker runs no Ruby: no rescue, no dead letter, no retry, and
+      # Solid Queue fails the job it held. Three such runs leave the turn so.
+      it "lets the conversation go on past a turn that killed its worker on each of its three runs" do
+        responses.replace([ reply("[pt] Temos, sim.") ])
+        first = inbound("tem dipirona?", at: 1.minute.ago)
+        first.update_columns(runs: 3, state: "running")
+        later = inbound("e paracetamol?")
+
+        perform(later)
+
+        expect(fake.requests.size).to eq(1)
+        expect(first.reload.outbound_message.body).to end_with(FixedReply.fallback("pt-BR"))
+        expect(later.reload.outbound_message.body).to eq("Temos, sim.")
+      end
+    end
+  end
+
+  # Review finding V2 of pull request #11: the reply was stored before the
+  # turn's state, so a run that broke between the two left a turn with its
+  # reply marked running. The two are written in one transaction, and the
+  # reply goes to the stream once both are there.
+  describe "the reply and the turn's state, written together (NFR-02, NFR-03)" do
+    def failing_state(state)
+      allow_any_instance_of(Turn).to receive(:update!).and_wrap_original do |original, *arguments|
+        raise ActiveRecord::ConnectionFailed, "gone" if arguments.first.is_a?(Hash) && arguments.first[:state] == state
+
+        original.call(*arguments)
+      end
+    end
+
+    it "stores no reply, and sends none to the stream, when the turn's state cannot be written; the job tries again" do
+      failing_state("replied")
+      turn = inbound("oi")
+
+      expect { perform(turn) }.not_to have_broadcasted_to("conversation:#{conversation.id}").with(a_hash_including(type: "message"))
+
+      expect(turn.reload.outbound_message).to be_nil
+      expect(turn.state).to eq("failed")
+      expect(enqueued_jobs.sole).to include(job: ProcessTurnJob, args: [ turn.id ])
+    end
+
+    it "stores no command's reply when the turn's state cannot be written" do
+      failing_state("replied")
+      turn = inbound("/trace")
+
+      perform(turn)
+
+      expect(turn.reload.outbound_message).to be_nil
+      expect(enqueued_jobs.sole).to include(job: ProcessTurnJob, args: [ turn.id ])
+    end
   end
 
   describe "the trace (FR-12, ADR-0010)" do
