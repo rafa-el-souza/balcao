@@ -372,11 +372,17 @@ export function EventRow({
         </li>
       );
     case "sent":
+    case "unsent":
       return (
-        <li className={cx(styles.event, className)}>
+        <li
+          className={cx(styles.event, className)}
+          {...(row.kind === "unsent" ? { "data-state": "error" } : {})}
+        >
           <Time at={row.at} />
           <div className={styles.what}>
-            <span className={styles.name}>{t("instrument.sent")}</span>
+            <span className={styles.name}>
+              {t(row.kind === "sent" ? "instrument.sent" : "instrument.unsent")}
+            </span>
             {row.outcome && (
               <dl className={styles.detail}>
                 <div>
@@ -389,15 +395,6 @@ export function EventRow({
                 </div>
               </dl>
             )}
-          </div>
-        </li>
-      );
-    case "unsent":
-      return (
-        <li className={cx(styles.event, className)} data-state="error">
-          <Time at={row.at} />
-          <div className={styles.what}>
-            <span className={styles.name}>{t("instrument.unsent")}</span>
           </div>
         </li>
       );

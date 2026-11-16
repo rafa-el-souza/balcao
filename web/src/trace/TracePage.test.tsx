@@ -219,6 +219,38 @@ describe("FR-12 the trace page, the glass box at full length", () => {
     ).not.toBeInTheDocument();
   });
 
+  // Review finding C8 of pull request #48: a fixed reply that never left
+  // still names its reason, as the sent row did (FR-12).
+  it("names the fixed reply's reason under a reply that never left", async () => {
+    server.answers.trace.push(
+      trace([
+        ...answeredTurn("t1", { outcome: "tool_limit" }),
+        {
+          turn_id: "t1",
+          trace_id: "f".repeat(32),
+          span_id: "d".repeat(16),
+          parent_span_id: "0".repeat(15) + "1",
+          name: "balcao.delivery",
+          attributes: { "error.type": "Telegram::Client::Error" },
+          started_at: "2026-11-12T15:03:44.000Z",
+          finished_at: "2026-11-12T15:03:52.000Z",
+        },
+      ]),
+    );
+    renderPage(<TracePage />);
+    await screen.findByRole("region", { name: pt.roll });
+
+    const unsent = within(turn(1))
+      .getByText(ptBR.instrument.unsent)
+      .closest("li") as HTMLElement;
+    expect(
+      within(unsent).getByText(ptBR.instrument.detail.fixedReply),
+    ).toBeInTheDocument();
+    expect(
+      within(unsent).getByText(ptBR.instrument.outcomes.tool_limit),
+    ).toBeInTheDocument();
+  });
+
   // The finder's sisters of row IR-V1 on pull request #38: the visitor's
   // words in a turn's heading are a message's text too, so a price in them
   // keeps "R$" with its figure, as the reply under them does.

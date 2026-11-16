@@ -56,8 +56,9 @@ export type Row =
   // A fixed reply's sent row carries the turn's outcome.
   | { kind: "sent"; key: string; at: string; outcome: string | null }
   // A Telegram reply that never left: Telegram refused it, or it failed
-  // after its attempts (FR-19; #45's verifier, V4).
-  | { kind: "unsent"; key: string; at: string }
+  // after its attempts (FR-19; #45's verifier, V4). A fixed reply's outcome
+  // stays with it (review finding C8 of pull request #48).
+  | { kind: "unsent"; key: string; at: string; outcome: string | null }
   | {
       kind: "command";
       key: string;
@@ -232,6 +233,8 @@ function turnOf(id: string, spans: Span[]): Omit<Turn, "number"> | null {
   // A Telegram reply's way, which a web reply and a reply traced before it
   // had a span lack: then the stored reply is the one sent.
   const delivery = sorted.find((span) => span.name === DELIVERY);
+  const named = str(last.attributes, "balcao.turn.outcome");
+  const outcome = named === null || OK_OUTCOMES.has(named) ? null : named;
   const rows: Row[] = [];
   if (first.name === "balcao.command") {
     for (const root of roots)
@@ -243,7 +246,7 @@ function turnOf(id: string, spans: Span[]): Omit<Turn, "number"> | null {
         durationMs: between(root.started_at, root.finished_at),
       });
     // A command's reply is drawn only when it never left.
-    const reply = delivery && deliveryRow(delivery, null);
+    const reply = delivery && deliveryRow(delivery, outcome);
     if (reply?.kind === "unsent") rows.push(reply);
   } else {
     rows.push({
@@ -251,8 +254,6 @@ function turnOf(id: string, spans: Span[]): Omit<Turn, "number"> | null {
       key: `${id}-received`,
       at: first.started_at,
     });
-    const named = str(last.attributes, "balcao.turn.outcome");
-    const outcome = named === null || OK_OUTCOMES.has(named) ? null : named;
     for (const span of sorted) {
       if (span.name === MODEL_CALL) rows.push(modelRow(span));
       else if (span.name.startsWith(TOOL_CALL)) rows.push(toolRow(span));
@@ -297,7 +298,7 @@ function turnOf(id: string, spans: Span[]): Omit<Turn, "number"> | null {
 function deliveryRow(span: Span, outcome: string | null): Row | null {
   if (span.finished_at === null) return null;
   if (str(span.attributes, "error.type") !== null)
-    return { kind: "unsent", key: span.span_id, at: span.finished_at };
+    return { kind: "unsent", key: span.span_id, at: span.finished_at, outcome };
   return { kind: "sent", key: span.span_id, at: span.finished_at, outcome };
 }
 

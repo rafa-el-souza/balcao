@@ -336,7 +336,23 @@ describe("FR-12 the glass box's rows, one per model call, from the spans", () =>
           ...answered("t1", "fallback"),
           delivery(T("49"), "Telegram::Client::Error"),
         ]),
-      ).toEqual([{ kind: "unsent", key: "delivery", at: T("49") }]);
+      ).toEqual([
+        { kind: "unsent", key: "delivery", at: T("49"), outcome: "fallback" },
+      ]);
+    });
+
+    // Review finding C8 of pull request #48 (the web finder's C1): the
+    // unsent row dropped the turn's outcome, the only place that names a
+    // fixed reply's reason (FR-12: the turn's outcome names the limit).
+    it("keeps the outcome of a fixed reply that never left", () => {
+      expect(
+        replies([
+          ...answered("t1", "tool_limit"),
+          delivery(T("49"), "Telegram::Client::Error"),
+        ]),
+      ).toEqual([
+        { kind: "unsent", key: "delivery", at: T("49"), outcome: "tool_limit" },
+      ]);
     });
 
     it("draws neither while the reply is on its way", () => {
@@ -382,7 +398,7 @@ describe("FR-12 the glass box's rows, one per model call, from the spans", () =>
           name: "trace",
           durationMs: 0,
         },
-        { kind: "unsent", key: "delivery", at: T("12") },
+        { kind: "unsent", key: "delivery", at: T("12"), outcome: null },
       ]);
       expect(turnsOf([command, delivery(T("12"))])[0]?.rows).toHaveLength(1);
     });
