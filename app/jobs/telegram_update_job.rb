@@ -16,9 +16,11 @@
 # scheduled after 3 s, 18 s and 83 s, so the wait spends none of this
 # update's own attempts (review finding H6 of pull request #33); after the
 # third wait it reads itself all the same. Each pass reads the earlier one
-# again, so it is given up within the wait. An update with no usable sender
-# is locked by its own row. An update read already is left alone, so a second
-# job for it (a redelivery enqueued while it waited, the sweep) does nothing.
+# again, so it is given up within the wait, and stops there: no update after
+# it is read before it (review finding C1 of pull request #48). An update
+# with no usable sender is locked by its own row. An update read already is
+# left alone, so a second job for it (a redelivery enqueued while it waited,
+# the sweep) does nothing.
 #
 # The reply an update names is not stored (the ask, /help and the deletion
 # before the agreement, the limit's line, the fixed lines), so it goes to the
@@ -77,10 +79,15 @@ class TelegramUpdateJob < ApplicationJob
 
   def earlier(event) = WebhookEvent.unread_of(event.identity_hash).where(update_id: ...event.update_id).to_a
 
-  # Reads the person's earlier unread updates, and answers whether one is
-  # still unread while this update has a wait left.
+  # Reads the person's earlier unread updates, oldest first, up to the first
+  # one still unread after its read, so none after it is read before it
+  # (review finding C1 of pull request #48); answers whether one is still
+  # unread while this update has a wait left.
   def waiting?(event, waits)
-    earlier(event).each { |unread| read_earlier(unread) }
+    earlier(event).each do |unread|
+      read_earlier(unread)
+      break if WebhookEvent.received.exists?(id: unread.id)
+    end
     waits < WAITS && earlier(event).any?
   end
 

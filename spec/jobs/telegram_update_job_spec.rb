@@ -759,6 +759,34 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
       expect(sent.map { |body| body["text"] }).to eq([ FixedReply.fallback("pt-BR"), FixedReply.ask("pt-BR") ])
     end
 
+    # Review finding C1 of pull request #48: the pass over the earlier updates
+    # went on past one whose read broke, so a question sent after the
+    # agreement was read before it, and got the ask. The pass stops at the
+    # first earlier update still unread after its read.
+    it "stops the pass over the earlier updates at the first one still unread, so none is read before it" do
+      agree = store(variant("agree") { |message| message["message_id"] = 10 })
+      first = store(variant("text") { |message| message.merge!("message_id" => 11, "text" => "primeira") })
+      second = store(variant("text") { |message| message.merge!("message_id" => 12, "text" => "segunda") })
+      broke = false
+      allow_any_instance_of(Telegram::Inbound).to receive(:call).and_wrap_original do |original, event|
+        if event.id == agree.id && !broke
+          broke = true
+          raise ActiveRecord::ConnectionFailed
+        end
+        original.call(event)
+      end
+      allow(Rails.logger).to receive(:error)
+
+      TelegramUpdateJob.perform_now(second.id)
+
+      expect([ agree, first, second ].map { |event| event.reload.status }).to eq(%w[received received received])
+      expect(sent).to be_empty
+
+      perform_enqueued_jobs(only: TelegramUpdateJob) # the wait's pass: the agreement reads now, then the rest in order
+
+      expect(Message.inbound.order(:created_at, :id).map(&:body)).to eq(%w[Concordo primeira segunda])
+    end
+
     it "reads itself after its waits all the same, should the earlier one still be unread" do
       agree = store(variant("agree") { |message| message["message_id"] = 10 })
       question = store(variant("text") { |message| message["message_id"] = 11 })
