@@ -290,7 +290,8 @@ the host around the answer.
   keeps the automatic one as last read, and the log has one `budget:` line
   each time it changes. The ledger began on the day PR-16 shipped; the model
   console's usage page has the whole month.
-- **Pausing by hand** (FR-14's kill switch, until the console has it at M3):
+- **Pausing by hand** (FR-14's kill switch, until the console has it in
+  M2-10, after the publication; ADR-0022):
   `kamal app exec -d ensaio --roles=web --reuse "bin/rails runner 'BudgetState.for_month!.update!(forced_mode: :paused.to_s)'"`;
   releasing: the same with `forced_mode: nil`. A forced mode holds into
   the next month until released.
