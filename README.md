@@ -252,7 +252,11 @@ ADR-0019 adds four rules to the review policy. What each day brought:
 Done since the MVP (M4's first four slices): a turn's latency, which the
 first real conversation measured above its target, is measured and cut;
 the bot has its buttons; and a sweep, every minute, answers a message left
-without a reply, or gives it a fixed line (design §10).
+without a reply, or gives it a fixed line (design §10). A review of those
+four slices and of the MVP review's own pull requests read the 101 lines
+they left for the owner: 16 already made, 10 to fix in the next slice with
+the review's own two findings, the rest kept, planned or accepted
+([`docs/reviews/m4-first-four-review.md`](docs/reviews/m4-first-four-review.md)).
 
 Next, in two blocks (design §9.2, where a milestone's number is a label for
 its content, not its place in the order;
@@ -272,7 +276,7 @@ says why):
   visitors come from, the landing's final copy, a review of the Spanish
   texts and the README's final tour.
 
-Design §9.2 lists the 34 slices of that plan in order, and
+Design §9.2 lists the 35 slices of that plan in order, and
 [ADR-0020](docs/adr/0020-what-v1-leaves-out-the-plan-after-the-mvp.md)
 says what V1 leaves out and why: backups of fictional data, an OpenAPI
 document, a workflow for the full eval run and a push service among them.

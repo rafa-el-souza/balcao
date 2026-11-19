@@ -5,8 +5,8 @@ one live run of every case of a delivered milestone, through the app's own turn
 pipeline. Committed by hand; the economy column waits for the first full run
 (M2, `--both-models`).
 
-- Run: 2026-11-15 17:25 UTC, commit `3e89c51`.
-- Model under test: `claude-opus-5-5`, effort medium (the normal route, ADR-0003).
+- Run: 2026-11-19 21:55 UTC, commit `8fbdb83`.
+- Model under test: `claude-opus-5-5`, effort low (the normal route, ADR-0003).
 - Judge of the rubrics: `claude-haiku-5-5`, which first failed the three known-bad replies.
 - Attempts: each `boundary` case 3 times (`--repeat 3`), every attempt graded: two
   failures fail it and one makes it unstable. Elsewhere one per case; a case that fails
