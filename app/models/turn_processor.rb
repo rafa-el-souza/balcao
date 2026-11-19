@@ -158,10 +158,23 @@ class TurnProcessor
     tokens = visitor.conversations.pluck(:trace_token)
     chat = Telegram::Chat.of(visitor)
     unsent = confirm_deletion(chat, language) if chat
-    visitor.erase!
+    erase(visitor)
     Rails.logger.error("telegram fixed reply deleted: #{unsent}, the data deleted all the same") if unsent
     broadcast(type: "deleted", text: FixedReply.command(:delete, language))
     tokens.each { |token| broadcast({ type: "deleted" }, "trace:#{token}") }
+  end
+
+  # The data goes, and in the same transaction the Telegram update that asked
+  # for it is stripped, if its read is still open (its strip broke): it is
+  # never read again after the deletion, as a person the bot holds no row of,
+  # nor given up with the fallback after "deleted" (the hunter's H4 on pull
+  # request #48; the owner, 2026-11-19: a delete command never gets the
+  # fallback's line, but one never read keeps its "try again").
+  def erase(visitor)
+    ApplicationRecord.transaction do
+      WebhookEvent.strip_unread!(@inbound.webhook_event_id, "processed") if @inbound.webhook_event_id
+      visitor.erase!
+    end
   end
 
   # FR-05 on Telegram (the owner, 2026-11-15): the confirmation leaves before

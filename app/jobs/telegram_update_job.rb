@@ -42,12 +42,18 @@
 # which reads again an update left unread past five minutes, a read that
 # killed its worker included. After the third the update is given up: the
 # line, written first (review finding M1 of the same review), names the error
-# by its class alone (SR-30); the person gets the fallback's line, so no
-# message is dropped in silence (NFR-03; review findings H1 and H3 of pull
-# request #32, H6 of #33), unless the update stored a message, whose turn
-# answers it; and the update is stripped all the same and marked failed. The
-# log names an update by its update_id and what it made, never by anything
-# it held.
+# by its class alone (SR-30); the update is stripped and marked failed; and
+# then the person gets the fallback's line, read before the strip and sent
+# after it, so a strip that fails never sends it twice (review findings C5
+# and H6 of pull request #48), and no message is dropped in silence (NFR-03;
+# review findings H1 and H3 of pull request #32, H6 of #33), unless the
+# update stored a message, whose turn answers it. A delete command that
+# became a turn is never given up here: its deletion strips the update with
+# the data (TurnProcessor), so "deleted" is never followed by "try again";
+# one never read gets the fallback's "try again", which is true, since the
+# person's data stays (the hunter's H4 on pull request #48; the owner,
+# 2026-11-19). The log names an update by its update_id and what it made,
+# never by anything it held.
 class TelegramUpdateJob < ApplicationJob
   ATTEMPTS = 3
   WAITS = 3

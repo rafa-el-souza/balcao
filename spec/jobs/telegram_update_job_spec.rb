@@ -754,6 +754,40 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
         expect(lines.grep(/its line not sent/)).to be_empty
         expect(TelegramReplyJob).to have_been_enqueued.with(visitor.id).at(be_within(1.second).of(1.minute.from_now))
       end
+
+      # The hunter's H4 on pull request #48 (the owner, 2026-11-19: a delete
+      # command never gets the fallback's line; the "try again" of one never
+      # read stays). A visitor's delete command whose strip failed was read
+      # again after its deletion went, as a person the bot holds no row of, and
+      # given up with "try again" after "deleted". The deletion strips the
+      # update that asked for it.
+      it "never reads again, nor gives up, a delete command whose deletion went, so no line follows the confirmation" do
+        agreed!
+        sent.clear
+        event = store(variant("text") { |message| message["text"] = "/apagar" })
+        allow_any_instance_of(WebhookEvent).to receive(:strip!).and_raise(ActiveRecord::ConnectionFailed)
+
+        TelegramUpdateJob.perform_later(event.id)
+        perform_enqueued_jobs(only: TelegramUpdateJob) # the read stores the turn, and its strip breaks
+        perform_enqueued_jobs(only: ProcessTurnJob) # "deleted", then the data goes
+        perform_enqueued_jobs(only: TelegramUpdateJob) while enqueued_jobs.any? { |job| job[:job] == TelegramUpdateJob }
+
+        expect(Visitor.count).to eq 0
+        expect(WebhookEvent.where(id: event.id).pick(:status, :payload, :identity_hash)).to eq([ "processed", nil, nil ])
+        expect(sent.map { |body| body["text"] }).to eq([ FixedReply.telegram_deleted("pt-BR") ])
+      end
+
+      it "gives a delete command never read the fallback's line, since the person's data stays and it can be sent again" do
+        agreed!
+        sent.clear
+        event = store(variant("text") { |message| message["text"] = "/apagar" })
+        allow_any_instance_of(Telegram::Inbound).to receive(:call).and_raise(ActiveRecord::StatementInvalid)
+
+        expect { read_to_the_end(event) }.to raise_error(ActiveRecord::StatementInvalid)
+
+        expect(Visitor.count).to eq 1
+        expect(sent.map { |body| body["text"] }).to eq([ FixedReply.fallback("pt-BR") ])
+      end
     end
 
     # Review finding T2 of pull request #32: the lock kept a person's updates

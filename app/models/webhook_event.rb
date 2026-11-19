@@ -50,4 +50,8 @@ class WebhookEvent < ApplicationRecord
   # on pull request #48; update! decrypted the old value to compute its
   # change); the row's clock moves with it.
   def strip!(status) = update_columns(payload: nil, identity_hash: nil, status:, updated_at: Time.current)
+
+  # The same for the update with this id, if it is still unread: a deletion
+  # strips the update that asked for it (TurnProcessor, FR-05).
+  def self.strip_unread!(id, status) = received.where(id:).update_all(payload: nil, identity_hash: nil, status:, updated_at: Time.current)
 end
