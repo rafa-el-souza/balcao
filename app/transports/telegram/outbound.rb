@@ -21,8 +21,8 @@ module Telegram
   # person's replies leave one at a time and in order: a reply that is not
   # stored goes after the person's stored replies still pending, in the same
   # hold of the lock (review finding C2 of pull request #33), unless one of
-  # them waits for its time or their sending breaks, whose error is raised
-  # once the reply has left (the fix review's R1 on pull request #47).
+  # them waits for its time or their sending breaks, which is raised once the
+  # reply has left, as StoredBroke (the fix review's R1 on pull request #47).
   # Nothing here waits:
   # each call tries each part once, so neither the lock nor a worker's thread
   # is held through a wait (review finding C3 of pull request #33).
@@ -123,12 +123,18 @@ module Telegram
       AdvisoryLock.hold(lock(chat)) { drain(visitor, chat) }
     end
 
+    # Raised by send_fixed when the person's stored replies before its reply
+    # broke, its cause the drain's error: the reply was not held back (it
+    # left, or failed with its own line), and the caller says so and tries the
+    # stored ones again (TelegramUpdateJob; the close's C2s of M4-6a).
+    class StoredBroke < StandardError; end
+
     # Sends a reply that is not stored, trying each part once, after the
     # pending replies of the visitor given; answers whether it left. The
     # attempt, when the caller tries it again (the deletion's confirmation,
     # by the turn's job, FR-05), is named in the line of a send that failed.
     # A drain that breaks (the database, or what the client raises as itself)
-    # does not hold the reply back: it leaves, and the drain's error is raised
+    # does not hold the reply back: it leaves, and StoredBroke is raised
     # after it, for the caller's line and its retry of the stored replies
     # (TelegramUpdateJob; the fix review's R1 on pull request #47).
     def send_fixed(chat, text, keyboard: nil, name: :reply, visitor: nil, attempt: nil)
@@ -136,7 +142,7 @@ module Telegram
         stored = visitor && Chat.of(visitor)
         broken = drained(visitor, stored) if stored
         left = send_parts(chat, text, keyboard, name, attempt)
-        raise broken if broken
+        raise StoredBroke, "the person's stored replies broke before a reply that is not stored", cause: broken if broken
 
         left
       end

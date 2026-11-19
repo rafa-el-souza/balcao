@@ -136,9 +136,15 @@ class TelegramUpdateJob < ApplicationJob
 
   # A send that breaks never breaks the read (the header; review finding C2
   # of pull request #47): one line naming the update and the error's class,
-  # and the person's stored replies tried again a minute later.
+  # and the person's stored replies tried again a minute later. When only
+  # the stored replies before a reply that is not stored broke, that reply
+  # having left or failed with its own line, the line names them alone
+  # (Telegram::Outbound::StoredBroke; the close's C2s of M4-6a).
   def sending(update_id, visitor)
     yield
+  rescue Telegram::Outbound::StoredBroke => e
+    Rails.logger.error("telegram update #{update_id}: stored replies not sent, #{e.cause.class}")
+    later(update_id, visitor) if visitor
   rescue StandardError => e
     Rails.logger.error("telegram update #{update_id}: replies not sent, #{e.class}")
     later(update_id, visitor) if visitor
@@ -175,27 +181,39 @@ class TelegramUpdateJob < ApplicationJob
     Rails.logger.error("telegram update #{name}: given up, not stripped: #{e.class}")
   end
 
-  # A given-up update: the person's line, then the strip.
+  # A given-up update: its line is read while the update is there to read,
+  # the update is stripped, and only then is the line sent, so a strip that
+  # fails sends nothing, the next give-up sending it once (review findings
+  # C5 and H6 of pull request #48).
   def left(event)
-    tell(event)
+    line = line_of(event)
     event.strip!("failed")
+    tell(event.update_id, *line) if line
   end
 
-  # NFR-03: the fallback's line to the person, unless the update stored a
-  # message, whose turn answers it (ProcessTurnJob, the sweep), or is none
-  # the bot answers (Telegram::Inbound#given_up). A send that fails or breaks
-  # is a line; the update is stripped all the same.
-  def tell(event)
+  # NFR-03: the fallback's line and the chat it goes to, unless the update
+  # stored a message, whose turn answers it (ProcessTurnJob, the sweep), or
+  # is none the bot answers (Telegram::Inbound#given_up). An update that
+  # cannot be read, its body no longer decrypting among them, has no line,
+  # and the log says so (H6).
+  def line_of(event)
     return if event.messages.exists?
 
-    chat, text = Telegram::Inbound.new(event.update_hash).given_up
-    return unless chat
+    Telegram::Inbound.new(event.update_hash).given_up
+  rescue StandardError => e
+    Rails.logger.error("telegram update #{event.update_id}: given up, no line: #{e.class}")
+    nil
+  end
 
+  # The line goes as a read's does, after the person's stored replies still
+  # pending, a drain that breaks said and tried again a minute later
+  # (sending; review finding C7 and the hunter's H2 of pull request #48).
+  def tell(update_id, chat, text)
     visitor = Visitor.find_by(channel: "telegram", identity_hash: chat.identity)
     keyboard = Telegram::Outbound::REMOVE_KEYBOARD if visitor
-    Telegram::Outbound.new.send_fixed(chat, text, keyboard:, name: :given_up, visitor:)
+    sending(update_id, visitor) { Telegram::Outbound.new.send_fixed(chat, text, keyboard:, name: :given_up, visitor:) }
   rescue StandardError => e
-    Rails.logger.error("telegram update #{event.update_id}: given up, its line not sent: #{e.class}")
+    Rails.logger.error("telegram update #{update_id}: given up, its line not sent: #{e.class}")
   end
 
   # The row and nil, or nil and the error that kept it from being read.

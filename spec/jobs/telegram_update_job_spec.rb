@@ -427,12 +427,16 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
         broke = true
         raise ActiveRecord::QueryCanceled, "canceling statement due to statement timeout"
       end
-      allow(Rails.logger).to receive(:error)
+      lines = []
+      allow(Rails.logger).to receive(:error) { |line| lines << line }
 
       deliver(fixture("photo"))
       perform_enqueued_jobs
 
       expect(sent.map { |body| body["text"] }).to include(FixedReply.not_text("pt-BR"))
+      # The close's C2s of M4-6a: the line said "replies not sent" for a
+      # fixed line that had left; it names the stored replies alone.
+      expect(lines).to include("telegram update #{@event.update_id}: stored replies not sent, ActiveRecord::QueryCanceled")
     end
 
     # Review finding C3 of pull request #47: the openers outlived the
@@ -695,6 +699,60 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
 
         expect(event.reload.status).to eq "failed"
         expect(sent).to be_empty
+      end
+
+      # Review finding C5 of pull request #48: the line went before the strip,
+      # and nothing marked it sent, so a strip that failed sent it again at the
+      # next give-up. The line is read, the update stripped, then the line sent.
+      it "sends the line once when the strip fails at first, since it strips before it sends" do
+        event = store(fixture("text"))
+        event.update_columns(reads: 3)
+        strips = 0
+        allow_any_instance_of(WebhookEvent).to receive(:strip!).and_wrap_original do |original, status|
+          strips += 1
+          strips == 1 ? raise(ActiveRecord::QueryCanceled) : original.call(status)
+        end
+
+        2.times { TelegramUpdateJob.perform_now(event.id) }
+
+        expect(event.reload).to have_attributes(status: "failed", payload: nil)
+        expect(sent.map { |body| body["text"] }).to eq([ FixedReply.fallback("pt-BR") ])
+      end
+
+      # The hunter's H6 on pull request #48: the strip decrypted the old payload
+      # to compute its change, so an update whose payload no longer decrypts
+      # broke each read and then the strip, stayed unread, and NFR-03's sweep
+      # took it up every minute until the seven-day purge.
+      it "gives up, with no line, and strips an update whose payload no longer decrypts" do
+        other_keys = ActiveRecord::Encryption::DerivedSecretKeyProvider.new("another-primary-key-for-the-spec")
+        event = ActiveRecord::Encryption.with_encryption_context(key_provider: other_keys) { store(fixture("text")) }
+
+        expect { read_to_the_end(event) }.to raise_error(ActiveRecord::Encryption::Errors::Decryption)
+
+        expect(WebhookEvent.where(id: event.id).pick(:status, :payload, :identity_hash, :reads)).to eq([ "failed", nil, nil, 3 ])
+        expect(sent).to be_empty
+        expect(lines).to include("telegram update #{event.update_id}: given up, no line: ActiveRecord::Encryption::Errors::Decryption")
+      end
+
+      # Review finding C7 and the hunter's H2 of pull request #48, and the
+      # close's C2 of M4-6a: the line went, then the drain's error was raised,
+      # so the log said the line was not sent and the person's stored replies
+      # waited for the sweep. It goes the way a read's line goes.
+      it "sends a visitor's line though the stored replies before it break, and tries those again a minute later" do
+        agreed!
+        visitor = Visitor.sole
+        Message.outbound.sole.update_columns(status: "pending", parts_sent: 0)
+        sent.clear
+        allow(Telegram::Buttons).to receive(:for).and_raise(I18n::MissingTranslationData.new(:pt, "telegram.x"))
+        event = store(fixture("text"))
+        event.update_columns(reads: 3)
+
+        TelegramUpdateJob.perform_now(event.id)
+
+        expect(sent.map { |body| body["text"] }).to eq([ FixedReply.fallback("pt-BR") ])
+        expect(lines).to include("telegram update #{event.update_id}: stored replies not sent, I18n::MissingTranslationData")
+        expect(lines.grep(/its line not sent/)).to be_empty
+        expect(TelegramReplyJob).to have_been_enqueued.with(visitor.id).at(be_within(1.second).of(1.minute.from_now))
       end
     end
 
