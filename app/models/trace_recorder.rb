@@ -45,12 +45,21 @@ class TraceRecorder
   attr_reader :trace_id
 
   # Finishes the spans an earlier run of the turn left open (a crash, a
-  # deploy), marked as interrupted, before the turn runs again.
+  # deploy), marked as interrupted, before the turn runs again. Like any span
+  # write, it never fails the turn: a span that cannot be closed is a line
+  # naming it and the error's class, and the turn runs (the hunter's H9 on
+  # pull request #48: one such span broke every run of its turn).
   def self.close_interrupted(turn)
     TraceEvent.where(turn_id: turn.id, finished_at: nil).find_each do |event|
-      event.update!(finished_at: Time.current, span_attributes: event.span_attributes.merge("error.type" => INTERRUPTED))
+      TraceEvent.transaction(requires_new: true) do
+        event.update!(finished_at: Time.current, span_attributes: event.span_attributes.merge("error.type" => INTERRUPTED))
+      end
       broadcast(turn.conversation, payload(event.attributes.symbolize_keys.merge(attributes: event.span_attributes)))
+    rescue StandardError => e
+      Rails.logger.error("trace: span #{event.name} of an interrupted run not closed: #{e.class}")
     end
+  rescue StandardError => e
+    Rails.logger.error("trace: the spans of an interrupted run not closed: #{e.class}")
   end
 
   # FR-12, FR-19: closes the turn's open delivery span when its Telegram

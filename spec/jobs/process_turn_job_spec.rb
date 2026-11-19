@@ -371,6 +371,26 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       expect(left_open.reload).to have_attributes(finished_at: be_present,
                                                   span_attributes: include("error.type" => "interrupted"))
     end
+
+    # The hunter's H9 on pull request #48: closing a span an interrupted run
+    # left open had no rescue, so a span that could not be closed broke every
+    # run of its turn, and NFR-03's sweep ran it again every few minutes.
+    it "runs the turn though a span an interrupted run left open cannot be closed, with a line naming it" do
+      turn = inbound("oi")
+      left_open = create(:trace_event, turn:, name: "anthropic.messages.create")
+      allow_any_instance_of(TraceEvent).to receive(:update!).and_wrap_original do |original, *arguments|
+        raise ActiveRecord::QueryCanceled if original.receiver.id == left_open.id
+
+        original.call(*arguments)
+      end
+      lines = []
+      allow(Rails.logger).to receive(:error) { |line| lines << line }
+
+      perform(turn)
+
+      expect(turn.reload.state).to eq("replied")
+      expect(lines).to include("trace: span anthropic.messages.create of an interrupted run not closed: ActiveRecord::QueryCanceled")
+    end
   end
 
   describe "a turn the model cannot answer (NFR-03, SR-19, SR-20)" do
