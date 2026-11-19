@@ -615,6 +615,34 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
         expect(turn.reload.runs).to eq(1)
       end
 
+      # The verifier's V5 on pull request #48: the run was counted after the
+      # message was read for a command, so a read that broke left it uncounted.
+      it "counts a run before it reads the message" do
+        turn = inbound("oi")
+        allow_any_instance_of(CommandPhrases).to receive(:match).and_raise(ActiveRecord::ConnectionFailed)
+        allow(Rails.logger).to receive(:error)
+
+        perform(turn)
+
+        expect(turn.reload.runs).to eq(1)
+      end
+
+      # V5's case, a message that does not decrypt, cannot break that read:
+      # Message keeps support_unencrypted_data, so such a body is read as its
+      # stored envelope, which is no command; its turn is counted, never taken
+      # for a deletion, and given up at its fourth run.
+      it "counts and gives up at its fourth run a turn whose message does not decrypt, which is no deletion" do
+        other_keys = ActiveRecord::Encryption::DerivedSecretKeyProvider.new("another-primary-key-for-the-spec")
+        turn = ActiveRecord::Encryption.with_encryption_context(key_provider: other_keys) { inbound("/apagar") }
+        turn.update_columns(runs: 3)
+
+        perform(turn)
+
+        expect(turn.reload).to have_attributes(runs: 4, state: "failed")
+        expect(turn.outbound_message.body).to end_with(FixedReply.fallback(conversation.language))
+        expect(Visitor.exists?(visitor.id)).to be(true)
+      end
+
       it "answers a turn run three times already with the fallback, calling and billing nothing" do
         product = create(:product, sku: "DIP-500")
         turn = inbound("reserva duas dipironas")

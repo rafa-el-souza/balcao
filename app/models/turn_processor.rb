@@ -87,11 +87,13 @@ class TurnProcessor
     @attempt = attempt
   end
 
+  # The run is counted before the message is read, so a read that breaks
+  # counts too (the verifier's V5 on pull request #48).
   def call
     return if Message.exists?(turn_id: @turn.id)
 
-    command = @commands.match(@inbound.body)
     @turn.increment!(:runs, touch: true)
+    command = @commands.match(@inbound.body)
     return delete if command == :delete
     return give_up(RunsSpent.new("the turn ran #{RUNS} times")) if @turn.runs > RUNS
 
