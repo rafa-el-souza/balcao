@@ -716,6 +716,33 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       expect(turn.reload.outbound_message).to be_nil
       expect(enqueued_jobs.sole).to include(job: ProcessTurnJob, args: [ turn.id ])
     end
+
+    # Review finding C6 and the hunter's H8 of pull request #48: the stream's
+    # payload was read after the commit, outside a rescue, so a database error
+    # there marked a turn with its reply stored failed and closed its spans
+    # with the error.
+    it "keeps a turn replied, its spans clean, when the reply's payload for the stream cannot be read after the commit" do
+      turn = inbound("oi")
+      allow_any_instance_of(Message).to receive(:stream_payload).and_raise(ActiveRecord::ConnectionFailed)
+      lines = []
+      allow(Rails.logger).to receive(:error) { |line| lines << line }
+
+      perform(turn)
+
+      expect(turn.reload.state).to eq("replied")
+      expect(spans(turn).filter_map { |span| span.span_attributes["error.type"] }).to be_empty
+      expect(lines).to include("turn #{turn.id}: message not broadcast: ActiveRecord::ConnectionFailed")
+    end
+
+    it "leaves a turn that has its reply replied when the run breaks after the commit, a command's too" do
+      allow_any_instance_of(TurnProcessor).to receive(:broadcast_reply).and_raise(ActiveRecord::ConnectionFailed)
+      allow(Rails.logger).to receive(:error)
+      turns = [ inbound("oi"), inbound("/trace") ]
+
+      turns.each { |turn| perform(turn) }
+
+      expect(turns.map { |turn| turn.reload.state }).to eq(%w[replied replied])
+    end
   end
 
   describe "the trace (FR-12, ADR-0010)" do

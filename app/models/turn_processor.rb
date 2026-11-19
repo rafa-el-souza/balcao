@@ -428,10 +428,12 @@ class TurnProcessor
   end
 
   # A turn that broke outside the model (the database, a bug): its spans are
-  # closed with the error and it is marked failed, for the job's retry.
+  # closed with the error and it is marked failed, for the job's retry. One
+  # whose reply is stored keeps the state its reply's transaction wrote
+  # (review finding C6 and the hunter's H8 of pull request #48).
   def broken(error)
     @recorder.abandon(error.class.name)
-    @turn.update_columns(state: "failed")
+    @turn.update_columns(state: "failed") unless Message.exists?(turn_id: @turn.id)
   rescue StandardError => e
     Rails.logger.error("turn #{@turn.id} not marked failed: #{e.class}")
   end
@@ -468,9 +470,15 @@ class TurnProcessor
     Message.record_outbound!(turn: @turn, body:, conversation:)
   end
 
+  # The stored reply to the conversation's stream, after the commit. The
+  # codes and the payload are read here, so a read that breaks is a line, as
+  # a broadcast that fails is, and never breaks a turn whose reply is stored
+  # (review finding C6 and the hunter's H8 of pull request #48).
   def broadcast_reply(message)
     codes = Reservation.where(visitor_id: @conversation.visitor_id).pluck(:code)
     broadcast(type: "message", message: message.stream_payload(reservation_codes: codes))
+  rescue StandardError => e
+    Rails.logger.error("turn #{@turn.id}: message not broadcast: #{e.class}")
   end
 
   # On the stream of the turn's conversation, the one the visitor's page
