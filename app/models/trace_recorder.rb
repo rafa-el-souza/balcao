@@ -55,15 +55,21 @@ class TraceRecorder
 
   # FR-12, FR-19: closes the turn's open delivery span when its Telegram
   # reply left (at the moment Telegram took its last part) or failed (with the
-  # error's class), from Telegram::Outbound, after the run that opened it.
-  # Like any span, it never fails what it records: a write that breaks is a
-  # line naming the span and the error's class.
-  def self.delivered(turn, at: Time.current, error: nil)
-    return unless turn
+  # error's class), from Telegram::Outbound, after the run that opened it, in
+  # the transaction that writes the reply's status (Outbound#finished). It
+  # takes the turn's id and reads the turn inside its own rescue (the
+  # hunter's H3 on pull request #48), and writes in a savepoint, so the
+  # caller's transaction goes on. Like any span, it never fails what it
+  # records: a write that breaks is a line naming the span and the error's
+  # class.
+  def self.delivered(turn_id, at: Time.current, error: nil)
+    turn = turn_id && Turn.includes(:conversation).find_by(id: turn_id) or return
 
-    TraceEvent.where(turn_id: turn.id, name: DELIVERY, finished_at: nil).find_each do |event|
-      event.update!(finished_at: at, span_attributes: event.span_attributes.merge(clean("error.type" => error)))
-      broadcast(turn.conversation, payload(event.attributes.symbolize_keys.merge(attributes: event.span_attributes)))
+    TraceEvent.transaction(requires_new: true) do
+      TraceEvent.where(turn_id:, name: DELIVERY, finished_at: nil).find_each do |event|
+        event.update!(finished_at: at, span_attributes: event.span_attributes.merge(clean("error.type" => error)))
+        broadcast(turn.conversation, payload(event.attributes.symbolize_keys.merge(attributes: event.span_attributes)))
+      end
     end
   rescue StandardError => e
     Rails.logger.error("trace: span #{DELIVERY} not recorded: #{e.class}")

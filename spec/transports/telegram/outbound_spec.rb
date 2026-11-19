@@ -408,6 +408,52 @@ RSpec.describe "FR-19 SR-43 NFR-02 Telegram::Outbound, a reply on its way to the
                                             span_attributes: { "error.type" => "Telegram::Chat::Unreadable" })
     end
 
+    # The hunter's H3 on pull request #48: the reply's turn was read for the
+    # trace outside the trace's rescue, so a database error on that read broke
+    # the delivery: a refusal's own line was lost, and an attempt was counted
+    # on a reply already failed. The fix review's sister: the same read for a
+    # visitor whose chat does not decrypt.
+    it "fails a refused reply with its line though its turn cannot be read for the trace" do
+      stub_request(:post, bot_api_url("sendMessage")).to_return(bot_api_error(403, "Forbidden: bot was blocked by the user"))
+      allow_any_instance_of(Message).to receive(:turn).and_raise(ActiveRecord::ConnectionFailed)
+      lines = []
+      allow(Rails.logger).to receive(:error) { |line| lines << line }
+
+      outbound.deliver_pending(visitor)
+
+      expect(message.reload).to have_attributes(status: "failed", send_attempts: 1)
+      expect(lines).to include("telegram reply #{message.id}: failed after 1 attempt, Telegram::Client::Error (403)")
+    end
+
+    it "fails the replies of a visitor whose chat does not decrypt though their turns cannot be read for the trace" do
+      allow_any_instance_of(Message).to receive(:turn).and_raise(ActiveRecord::ConnectionFailed)
+      allow(Rails.logger).to receive(:error)
+      other_keys = ActiveRecord::Encryption::DerivedSecretKeyProvider.new("another-primary-key-for-the-spec")
+
+      ActiveRecord::Encryption.with_encryption_context(key_provider: other_keys) { outbound.deliver_pending(Visitor.find(visitor.id)) }
+
+      expect(message.reload.status).to eq "failed"
+    end
+
+    # The fix review's sister on pull request #48: the reply's status and its
+    # way's close were two writes, so a worker stopped between them left the
+    # way open for good, the reply no longer pending for anything to close it.
+    it "writes the reply's status and closes its way together: a worker stopped between them leaves neither" do
+      way = TraceEvent.create!(turn_id: message.turn_id, trace_id: "a" * 32, span_id: "b" * 16, name: "balcao.delivery",
+                               started_at: 1.second.ago)
+      stub_const("WorkerKilled", Class.new(Exception)) # rubocop:disable Lint/InheritException
+      allow(TraceEvent).to receive(:where).and_call_original
+      allow(TraceEvent).to receive(:where).with(hash_including(name: "balcao.delivery")).and_wrap_original do |original, *arguments|
+        original.call(*arguments).tap { raise WorkerKilled }
+      end
+
+      expect { outbound.deliver_pending(visitor) }.to raise_error(WorkerKilled)
+
+      expect(message.reload.status).to eq "pending"
+      expect(way.reload.finished_at).to be_nil
+      expect(sent.size).to eq 1
+    end
+
     it "goes on to the person's next reply after one that failed" do
       later = reply("Depois.", at: 1.minute.from_now)
       stub_request(:post, bot_api_url("sendMessage"))

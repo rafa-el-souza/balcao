@@ -157,10 +157,22 @@ module Telegram
     def unreadable(visitor)
       AdvisoryLock.hold("telegram-send:#{visitor.identity_hash}") do
         pending(visitor).each do |message|
-          message.update_columns(status: "failed", next_attempt_at: nil, updated_at: Time.current)
+          finished(message, error: "Telegram::Chat::Unreadable", status: "failed", next_attempt_at: nil)
           Rails.logger.error("telegram reply #{message.id}: failed, the visitor's chat cannot be read")
-          TraceRecorder.delivered(message.turn, error: "Telegram::Chat::Unreadable")
         end
+      end
+    end
+
+    # A reply's new status and the close of its way in its turn's trace, in
+    # one transaction, so a worker stopped between them leaves neither: the
+    # reply still pending, its way still open, for the next drain (the fix
+    # review's sister on pull request #48). The trace reads the turn by its
+    # id inside its own rescue (the hunter's H3 on the same review), and
+    # writes in a savepoint, so its failure never undoes the status.
+    def finished(message, at: Time.current, error: nil, **columns)
+      Message.transaction do
+        message.update_columns(**columns, updated_at: at)
+        TraceRecorder.delivered(message.turn_id, at:, error:)
       end
     end
 
@@ -209,9 +221,8 @@ module Telegram
         return again_or_failed(message, error, visitor, [ message.parts_sent + 1, parts.size ])
       end
       sent_at = Time.current
-      message.update_columns(status: "sent", next_attempt_at: nil, updated_at: sent_at)
+      finished(message, at: sent_at, status: "sent", next_attempt_at: nil)
       latency(message, sent_at)
-      TraceRecorder.delivered(message.turn, at: sent_at)
       true
     rescue StandardError => e
       broke(message, e)
@@ -227,9 +238,8 @@ module Telegram
         raise error
       end
 
-      message.update_columns(status: "failed", send_attempts: attempts, next_attempt_at: nil, updated_at: Time.current)
+      finished(message, error: error.class.name, status: "failed", send_attempts: attempts, next_attempt_at: nil)
       Rails.logger.error("telegram reply #{message.id}: failed after #{attempts} attempts that broke, #{error.class}")
-      TraceRecorder.delivered(message.turn, error: error.class.name)
       true
     end
 
@@ -255,8 +265,7 @@ module Telegram
     def again_or_failed(message, error, visitor, part)
       attempts = message.send_attempts + 1
       if error.refused? || attempts >= ATTEMPTS
-        message.update_columns(status: "failed", send_attempts: attempts, next_attempt_at: nil, updated_at: Time.current)
-        TraceRecorder.delivered(message.turn, error: error.class.name)
+        finished(message, error: error.class.name, status: "failed", send_attempts: attempts, next_attempt_at: nil)
         return !failed("telegram reply #{message.id}", error, attempts, part:)
       end
 
