@@ -1,6 +1,6 @@
 # Balcão — design document
 
-**Status:** v1.15, 2026-11-19 (ADR-0022: what publishing the demo needs comes first, then the showcase; §9.2's slices in two blocks, M2-11 split, and FR-10, FR-14, FR-21 and §12 follow, see §10); v1.14, 2026-11-15 (M4-3: the bot's buttons as built in FR-19, FR-12 and FR-21, see §10); v1.13, 2026-11-15 (M4-2: NFR-01 at 7 s and 12 s, measured from a Telegram update's receipt to its reply's send; §6.4's normal route at low effort, ADR-0021; M3's list charges an abandoned call, see §10); v1.12, 2026-11-15 (the plan after the MVP: §9.2 lists its slices in order, behind the data-contract gate where it holds, and ADR-0020 says what V1 leaves out; §2.2, J3, FR-10, FR-14, NFR-03, NFR-08, §6.1, §6.6, §6.9, §8 and OD-2 follow it, see §10); v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
+**Status:** v1.16, 2026-11-19 (M4-6a: the review of M4's first four slices; NFR-01 measured on a second real conversation, §9.2's M4-6 split into its review and its fixes, M3-6 gains the runbook's terms, see §10); v1.15, 2026-11-19 (ADR-0022: what publishing the demo needs comes first, then the showcase; §9.2's slices in two blocks, M2-11 split, and FR-10, FR-14, FR-21 and §12 follow, see §10); v1.14, 2026-11-15 (M4-3: the bot's buttons as built in FR-19, FR-12 and FR-21, see §10); v1.13, 2026-11-15 (M4-2: NFR-01 at 7 s and 12 s, measured from a Telegram update's receipt to its reply's send; §6.4's normal route at low effort, ADR-0021; M3's list charges an abandoned call, see §10); v1.12, 2026-11-15 (the plan after the MVP: §9.2 lists its slices in order, behind the data-contract gate where it holds, and ADR-0020 says what V1 leaves out; §2.2, J3, FR-10, FR-14, NFR-03, NFR-08, §6.1, §6.6, §6.9, §8 and OD-2 follow it, see §10); v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
 coding session, reading this file top to bottom.
 
 Balcão ("the counter", where a pharmacist serves customers) is an AI attendant
@@ -1922,14 +1922,15 @@ registered, display name, Live mode) closed on 2026-11-14 (ADR-0016).
 
 **The slices, in order (2026-11-15; in two blocks since 2026-11-19).** A
 slice is one pull request and one session; the next session takes the next
-row. ADR-0020 cut the plan to 33 slices and ADR-0022 split M2-11 in two, so
-it has 34; the days above are the estimates of 2026-11-09 and were not
+row. ADR-0020 cut the plan to 33 slices, ADR-0022 split M2-11 in two and
+the review of M4's first four slices split M4-6 (2026-11-19), so it has
+35; the days above are the estimates of 2026-11-09 and were not
 revised. A slice that splits keeps its number with a letter; one that
 appears on the way (a dependency's bump, a defect met on the demo) takes no
 number, as in the MVP.
 
-*Block 1, what publishing the demo needs (ADR-0022).* M4-1 to M4-4 are
-done (#44, #45, #47, #48). The demo is publicised on the day of M3-7, and
+*Block 1, what publishing the demo needs (ADR-0022).* M4-1 to M4-4 and
+M4-6a are done (#44, #45, #47, #48, #51). The demo is publicised on the day of M3-7, and
 until the console comes in block 2 the operator pauses it or forces a mode
 with the runbook's command; no visitor identity can be blocked before
 M2-7 (threat model R2).
@@ -1940,7 +1941,8 @@ M2-7 (threat model R2).
 | M4-2 | A turn's latency measured by what moves it: the normal route at low effort against medium (the evals with the boundary at three runs, and turns on the demo), the reply's length, the queue's polling; NFR-01's measure taken from an update's receipt to its send; question 20's reading written into §10 | The owner's reading of the Console for question 20; after it, his word on the effort and on NFR-01's figures (ADR-0003's route) |
 | M4-3 | The bot's finish (ADR-0017, FR-19): the three buttons; `Telegram::Chat`'s id hidden everywhere and the client's rescue by name (the list below) | — |
 | M4-4 | NFR-03's sweep, with the deletion at the dead letter and the turn's loose ends (the list below) | — |
-| M4-6 | The review of M4's first four slices: the scorecard; the review at the close (ADR-0019) over the lines the MVP review's own pull requests left (#36 to #42) and those of M4-1 to M4-4; a real conversation in text on the demo, which measures NFR-01's figures (§10's note of M4-2). The voice note in a real conversation is M4-5's, in block 2 (ADR-0022) | — |
+| M4-6a | The review of M4's first four slices: the scorecard; the review at the close (ADR-0019) over the lines the MVP review's own pull requests left (#36 to #42) and those of M4-1 to M4-4; a real conversation in text on the demo, which measures NFR-01's figures (§10's note of M4-2). The voice note in a real conversation is M4-5's, in block 2 (ADR-0022) | — |
+| M4-6b | The review's fixes (the owner, 2026-11-19; `docs/reviews/m4-first-four-review.md`, "To fix in M4-6b"): #48's nine lines on the Telegram path and its H4 as the owner answered it, and the close's two findings, the bare "sim, pode" anchored on its verb among them | — |
 | M2-1 | SR-39, Turnstile at session creation | From the owner: the widget's site key and its secret |
 | M2-2 | FR-20, the guardrail, with the evals run through it | — |
 | M2-3 | The economy model: FR-09 on it, `evals/economy_allowed.yml` and its reading at boot, `formatMoney` (the list below) | — |
@@ -1950,7 +1952,7 @@ M2-7 (threat model R2).
 | M3-2 | FR-17's canary, with its marked system visitor, and the delivery watch over `getWebhookInfo` | — |
 | M3-4 | A turn's hard edge and the short log sweep: SR-20's exception closed, a least-privilege database role, and SR-30's lines that stay (the list below) | — |
 | M3-5 | The CI furniture: the recorded fast subset, NFR-10's gate over four pages with the build's size, the SimpleCov ratchet, actionlint, the static secrets check, the `.kamal/hooks` check | — |
-| M3-6 | The runbook completed and the cut prepared: the operator checklist, roll back, the rotations, the modes, the rehearsal flow, Kamal's resource limits, `bin/deploy`'s exit, the `__Host-` cookie, `docs/traceability.yml`, SR-03's catalogue from outside, and the invented names checked before the publication (SR-33; from M5-6, ADR-0022) | A security scan of the codebase, run and read |
+| M3-6 | The runbook completed and the cut prepared: the operator checklist, roll back, the rotations, the modes, the rehearsal flow, Kamal's resource limits, `bin/deploy`'s exit, the `__Host-` cookie, `docs/traceability.yml`, SR-03's catalogue from outside, the runbook's terms said where they first appear (the list below), and the invented names checked before the publication (SR-33; from M5-6, ADR-0022) | A security scan of the codebase, run and read |
 | M3-7 | The production cut (ADR-0011): the owner's host, the demo's name moved to it, the bot's token reissued, the MVP host destroyed; the demo publicised the same day (the owner, 2026-11-19); then the soak's seven days, with real visitors | The owner's operator account, host, DNS records and production secrets |
 | M3-8 | M3's close, after the soak: the full eval run, the threat model's verification table, an external port scan, the review at the close, the merging policy revisited | The soak passed |
 
@@ -2071,7 +2073,10 @@ round.
   fails when the local registry's container is still there after `kamal
   registry remove` (#4, R4); `public/robots.txt` and its cache are settled
   when `NOINDEX` first reaches a rehearsal host (#40's thirteenth line;
-  §10's standing trigger).
+  §10's standing trigger); the Kamal and Rails terms a stand-in meets
+  without a word (`--roles=web --reuse`, `bin/rails runner`, Solid Queue,
+  Puma, a destination) said where they first appear (#42's docs reader
+  test; the owner, 2026-11-19, M4-6a's review).
 - SR-03 from outside: the rehearsal flow requests the catalogue of
   `spec/requests/response_headers_spec.rb` against the rehearsal host
   before a production deploy, which also shows what kamal-proxy or
@@ -2141,7 +2146,11 @@ trigger does the item and removes the line.
   sister).
 - The next slice that touches `config/openers.yml` or
   `config/commands.yml`: a key that is not text is named as the store
-  sheet names one, not raised as an `ArgumentError` (#40's twelfth line).
+  sheet names one, not raised as an `ArgumentError` (#40's twelfth line);
+  and `Openers#check` refuses an opener whose text is the agreement
+  phrase, as it refuses a command phrase, since an opener is a reply
+  button that stays on the device after the person's row is gone (#47,
+  C5; the owner, 2026-11-19, M4-6a's review).
 - The next failure of `GlassBox.test.tsx`'s example "stops 'pensando…' and
   lights the tab's cross again": its timing is fixed, not run again (#38's
   review; it failed once in a parallel run).
@@ -2176,6 +2185,44 @@ exception, the same day: the application's connections run with the
 database's JIT compiler off, which changes no result of the search
 (M4-1; the note below).
 
+- Note 2026-11-19 (M4-6a, the review of M4's first four slices; NFR-01,
+  FR-09; ADR-0019; `docs/reviews/m4-first-four-review.md`).
+  - **The second real conversation** took place on 2026-11-19 between
+    22:04 and 22:12 UTC, from the owner's phone, on the demo bot: one
+    command and 18 texts, every one answered, every reply sent, no error
+    or warning line in the logs. Its 18 text turns are NFR-01's first
+    measure since the owner set it at 7 s and 12 s and the normal route
+    went to low effort (ADR-0021): from the update's receipt to Telegram's
+    acceptance of the reply, a median of 3.9 s (95 % bootstrap interval
+    3.4 to 4.9 s) and a p95 of 7.1 s (5.0 to 9.5 s), the longest 9.5 s; 11
+    of the 18 under 4 s, 17 under 7 s, all under 12 s. By medians, the
+    model's calls took 3.2 s of a turn, the queue and the job's start
+    0.25 s, the send and the rest 0.34 s; 11 turns made one call, 6 two and 1
+    three. The first real conversation (#42's note, below) gave 6.4 s and
+    15.9 s at medium effort, before the search without the JIT and the
+    queue's polling; M4-2's scripted visitor on the web, a median of 3.4 s
+    and a p90 of 4.9 s at medium effort after both.
+    Eighteen turns of one person who knows the bot is a small sample, and
+    not the first conversation's mix of questions: the figures say NFR-01
+    holds on the demo today, not by how much it would hold with visitors.
+  - **The scorecard** of `8fbdb83` (`evals/scorecard.md`), the first on the
+    normal route at low effort: every case passed, the `boundary` suite 13
+    of 13 cases and 39 of 39 attempts, three per case; against `3e89c51`
+    at medium effort no case changed its outcome, and the run cost
+    US$ 0.37 against 0.44. `boundary-en-01`, whose third attempt the judge
+    once failed against its own reason (#41's sixth line), passed its
+    three.
+  - **The review at the close** read 101 lines and found two more; its
+    table is `docs/reviews/m4-first-four-review.md`. The owner decided in
+    four questions: the lots as recommended; a slice of its own for the
+    fixes, M4-6b, before Turnstile; no fallback line for a delete command
+    (#48's H4: "a deletion is never given up" does not reach an update
+    that never became a turn, whose "try again" stays); and the bare
+    "sim, pode" of three boundary cases anchored on its verb, without a
+    verifier, a red test being the proof. Two lines found no home and got
+    one: the opener that is the agreement phrase (§10's standing trigger
+    for `config/openers.yml`) and the runbook's terms (§9.2's M3 list, in
+    M3-6).
 - Note 2026-11-19 (the order after the MVP, a documents-only pull request;
   §9.2, FR-10, FR-14, FR-21, §12; threat model SR-35, R2 and §6; the
   runbook's kill switch; ADR-0022, amending ADR-0020's order).
