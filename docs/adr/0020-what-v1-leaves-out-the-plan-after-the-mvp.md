@@ -5,7 +5,10 @@ planning session that followed the MVP close) · Amends one sentence of
 [ADR-0001](0001-rails-api-and-react-spa.md) (the OpenAPI document) and the
 place of the bot's finish in
 [ADR-0017](0017-the-telegram-bot-stays-a-text-channel.md), whose question on
-the operator's alert it answers.
+the operator's alert it answers. Its order and its words "which the
+operator links once from the console" amended by
+[ADR-0022](0022-what-publishing-the-demo-needs-first-the-showcase-after.md)
+on 2026-11-19.
 
 ## Context
 

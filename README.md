@@ -249,27 +249,30 @@ ADR-0019 adds four rules to the review policy. What each day brought:
   `/trace` sends the conversation's trace page; the bot has its own command
   menu and profile in three languages, and the landing's QR opens it.
 
-Next, in the plan's order (design §9.2, where a milestone's number is a
-label for its content, not its place in the order):
+Done since the MVP (M4's first four slices): a turn's latency, which the
+first real conversation measured above its target, is measured and cut;
+the bot has its buttons; and a sweep, every minute, answers a message left
+without a reply, or gives it a fixed line (design §10).
 
-- **M4, voice and the bot's finish:** a turn's latency, which the first
-  real conversation measured above its target, is measured and cut; the
-  bot has its buttons; and a sweep, every minute, answers a message left
-  without a reply, or gives it a fixed line (design §10); next, voice
-  notes.
-- **M2, pharmacy work:** Cloudflare Turnstile, a check that a visitor is a
-  person, before a session opens; a second model checking every reply;
-  service bookings; a conversation handed over to a person; and the
-  operator's console.
-- **M3, operation:** the status page, the budget's modes and kill switch, a
-  test conversation the app runs on a schedule (the canary), and
+Next, in two blocks (design §9.2, where a milestone's number is a label for
+its content, not its place in the order;
+[ADR-0022](docs/adr/0022-what-publishing-the-demo-needs-first-the-showcase-after.md)
+says why):
+
+- **First, what publishing the demo needs:** Cloudflare Turnstile, a check
+  that a visitor is a person, before a session opens; a second model
+  checking every reply; the cheaper model the budget falls back to, and the
+  budget's modes; ten prompt-injection eval cases; a test conversation the
+  app runs on a schedule (the canary); the CI's remaining checks; and
   production on a host of its own (until then the demo runs on the
-  rehearsal host).
-- **M5, polish:** three example traces kept as files, a count of where
+  rehearsal host). The demo is publicised the day it moves there.
+- **Then the showcase:** voice notes; service bookings and their calendar;
+  the operator's console and a conversation handed over to a person; the
+  status page; three example traces kept as files, a count of where
   visitors come from, the landing's final copy, a review of the Spanish
   texts and the README's final tour.
 
-Design §9.2 lists the 33 slices of that plan in order, and
+Design §9.2 lists the 34 slices of that plan in order, and
 [ADR-0020](docs/adr/0020-what-v1-leaves-out-the-plan-after-the-mvp.md)
 says what V1 leaves out and why: backups of fictional data, an OpenAPI
 document, a workflow for the full eval run and a push service among them.

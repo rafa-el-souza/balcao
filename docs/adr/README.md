@@ -26,8 +26,9 @@ line gains the pointer ("superseded by", "extended by").
 | [0016](0016-telegram-bot-api-as-the-messaging-channel.md) | Telegram's Bot API as the messaging channel | accepted; extended by ADR-0017 |
 | [0017](0017-the-telegram-bot-stays-a-text-channel.md) | The Telegram bot stays a text channel: one update type in, plain text out | accepted; its question on the operator's alert answered, and the place of the bot's finish in M4 amended, by ADR-0020 |
 | [0019](0019-the-review-at-a-close-and-four-amendments-to-the-review-policy.md) | The review at a close, and four amendments to the review policy | accepted |
-| [0020](0020-what-v1-leaves-out-the-plan-after-the-mvp.md) | What V1 leaves out: the plan after the MVP, cut to what the demo needs | accepted |
+| [0020](0020-what-v1-leaves-out-the-plan-after-the-mvp.md) | What V1 leaves out: the plan after the MVP, cut to what the demo needs | accepted; its order and the operator chat's link amended by ADR-0022 |
 | [0021](0021-the-normal-route-at-low-effort.md) | The normal route at low effort | accepted |
+| [0022](0022-what-publishing-the-demo-needs-first-the-showcase-after.md) | What publishing the demo needs comes first, the showcase after | accepted |
 
 Two numbers are reserved and have no file yet: 0014 for the
 transcription provider's measurement at M4 (ADR-0005), and 0018 for the
