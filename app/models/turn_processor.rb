@@ -117,11 +117,15 @@ class TurnProcessor
   # request #41): it keeps no reply, since a fallback after "deleted" would
   # say the opposite of what the visitor read, and a line names it, so the
   # sweep or the visitor's next message runs it again (ProcessTurnJob holds
-  # the turns after it meanwhile).
+  # the turns after it meanwhile). Nor is a turn an earlier deletion of its
+  # conversation holds, whatever broke its last attempt: it keeps no reply
+  # either, and goes with the deletion (the hunter's H5 on pull request #48).
   def give_up(error)
     return if Message.exists?(turn_id: @turn.id)
     return Rails.logger.error("dead letter: turn #{@turn.id} is a deletion that did not go, #{error.class}: no reply, " \
                               "the sweep or the next message runs it again") if deletion?
+    return Rails.logger.error("dead letter: turn #{@turn.id} is held by an earlier deletion that did not go, " \
+                              "#{error.class}: no reply, the sweep or the next message runs the deletion again") if held?
 
     TraceRecorder.close_interrupted(@turn)
     @recorder = TraceRecorder.new(@turn)
@@ -140,6 +144,14 @@ class TurnProcessor
   def deletion? = @commands.match(@inbound.body) == :delete
 
   private
+
+  # An earlier turn of the conversation asks to delete and has no reply, so
+  # its deletion has not gone: one that went took the conversation with it.
+  def held?
+    Turn.where(conversation_id: @turn.conversation_id).where("(turns.created_at, turns.id) < (?, ?)", @turn.created_at, @turn.id)
+        .where.missing(:outbound_message).includes(:inbound_message)
+        .any? { |earlier| @commands.match(earlier.inbound_message.body) == :delete }
+  end
 
   # --- Commands -------------------------------------------------------------
 

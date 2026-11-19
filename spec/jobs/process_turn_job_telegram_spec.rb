@@ -385,6 +385,51 @@ RSpec.describe "FR-19 FR-05 NFR-03 ProcessTurnJob on Telegram, the reply on its 
       # a message sent after the request to delete reached the model, was
       # billed and answered before the data went. A deletion that waits for
       # its confirmation now holds the turns after it.
+      # Review finding C3 and the hunter's H5 of pull request #48: the hold was
+      # decided by the earlier turn's processor, so an earlier deletion whose
+      # processor could not be built, or that could not be read at all (the
+      # database), let the later turn reach the model before the data went.
+      describe "an earlier turn that cannot be run or read (review findings C3 and H5 of pull request #48)" do
+        it "holds the later turn when the earlier deletion's processor cannot be built" do
+          deletion = inbound("/apagar")
+          later = inbound("oi")
+          allow(TurnProcessor).to receive(:new).and_call_original
+          allow(TurnProcessor).to receive(:new).with(having_attributes(id: deletion.id), any_args).and_raise(ActiveRecord::ConnectionFailed)
+          expect_any_instance_of(AgentRunner).not_to receive(:run)
+
+          perform(later)
+
+          expect(later.reload.outbound_message).to be_nil
+          expect(Visitor.exists?(visitor.id)).to be(true)
+          expect(enqueued_jobs.sole).to include(job: ProcessTurnJob, args: [ later.id ])
+        end
+
+        it "holds the later turn when the earlier one cannot be read to tell whether it is a deletion" do
+          deletion = inbound("/apagar")
+          later = inbound("oi")
+          allow(Turn).to receive(:find_by).and_call_original
+          allow(Turn).to receive(:find_by).with(id: deletion.id).and_raise(ActiveRecord::ConnectionFailed)
+          expect_any_instance_of(AgentRunner).not_to receive(:run)
+
+          perform(later)
+
+          expect(later.reload.outbound_message).to be_nil
+          expect(enqueued_jobs.sole).to include(job: ProcessTurnJob, args: [ later.id ])
+          expect(lines).to include("earlier turn #{deletion.id}: not read, so the turns after it wait, ActiveRecord::ConnectionFailed")
+        end
+
+        it "keeps no reply for a later turn given up while an earlier deletion of its conversation has not gone" do
+          deletion = inbound("/apagar")
+          later = inbound("oi")
+
+          TurnProcessor.new(later).give_up(ActiveRecord::ConnectionFailed.new)
+
+          expect(Message.where(turn_id: [ deletion.id, later.id ])).to be_empty
+          expect(lines).to include("dead letter: turn #{later.id} is held by an earlier deletion that did not go, " \
+                                   "ActiveRecord::ConnectionFailed: no reply, the sweep or the next message runs the deletion again")
+        end
+      end
+
       describe "a later turn while the deletion waits (review finding C1 of pull request #41)" do
         it "answers nothing after the deletion, calls no model, and its job waits for its next attempt" do
           answers(502)
