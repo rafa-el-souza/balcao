@@ -103,9 +103,9 @@ what each folder holds.
 - Refuses clinical advice (doses, interactions, diagnoses) and points to
   the store's pharmacist with a fixed line of phone and counter hours, or,
   when a message may be an emergency, to SAMU's 192 and the poison line —
-  a boundary checked by an eval suite at 100% and, after the MVP,
-  re-checked on every reply by a second, cheaper model (the glass box
-  shows it).
+  a boundary checked by an eval suite at 100% and re-checked on every
+  reply by a second, cheaper model, which replaces a reply that gives
+  clinical advice with that decline (the glass box shows each check).
 - Answers on Telegram too, since WhatsApp's business policy rules out a
   pharmacy without a licence
   ([ADR-0016](docs/adr/0016-telegram-bot-api-as-the-messaging-channel.md)),
@@ -257,6 +257,11 @@ four slices and of the MVP review's own pull requests read the 101 lines
 they left for the owner: 16 already made, 10 fixed in the next slice with
 the review's own two findings, the rest kept, planned or accepted
 ([`docs/reviews/m4-first-four-review.md`](docs/reviews/m4-first-four-review.md)).
+Since then a second model reads every reply the first one writes and
+replaces one that gives clinical advice with the fixed decline, keeping the
+prices and reservations the turn found (FR-20); on 464 replies of earlier
+eval runs it replaced none, and it caught all 24 clinical replies written to
+test it.
 
 Next, in two blocks (design §9.2, where a milestone's number is a label for
 its content, not its place in the order;
@@ -264,10 +269,10 @@ its content, not its place in the order;
 says why):
 
 - **First, what publishing the demo needs:** Cloudflare Turnstile, a check
-  that a visitor is a person, before a session opens; a second model
-  checking every reply; the cheaper model the budget falls back to, and the
-  budget's modes; ten prompt-injection eval cases; a test conversation the
-  app runs on a schedule (the canary); the CI's remaining checks; and
+  that a visitor is a person, before a session opens; the cheaper model the
+  budget falls back to, and the budget's modes; ten prompt-injection eval
+  cases; a test conversation the app runs on a schedule (the canary); the
+  CI's remaining checks; and
   production on a host of its own (until then the demo runs on the
   rehearsal host). The demo is publicised the day it moves there.
 - **Then the showcase:** voice notes; service bookings and their calendar;

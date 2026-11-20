@@ -313,6 +313,16 @@ the host around the answer.
   other tags in `tags`); Puma's own start-up lines are plain text. An error
   is logged by its class, never its message (SR-30): the trace of the turn
   (the glass box, the trace page) says what the visitor saw.
+- **FR-20's check of every reply** (from M2-2) is a second, cheap model
+  call per turn the model answered, a second usage record at the economy
+  model's prices (about US$ 0.0001). A check that gave no verdict lets the
+  reply go as the model wrote it (threat model R4) and writes, in the
+  `job` container's log, `turn <id>: the guardrail gave no verdict
+  (<cause>); the reply is sent as the model wrote it`, the cause an error's
+  class or `refusal`, `max_tokens` or `unreadable`; the turn's trace shows
+  the same row in the error colour. One such line is a provider's hiccup;
+  a run of them means the replies are going out unchecked, which the model
+  console's status page or a refused key explains.
 
 ## The Telegram bot (from PR-18 and PR-19)
 
