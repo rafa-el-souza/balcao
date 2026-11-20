@@ -8,7 +8,8 @@ require_relative "case_set"
 # attendant's own, live. What the visitor got is then read back from what the
 # app stored and sent: the reply (a deletion's confirmation from the stream,
 # since no conversation is left to store it in), each turn's spans (FR-12),
-# and the visitor's rows.
+# FR-20's check of the reply with the reason the check gave (Guardrail::EVENT,
+# since the trace never keeps it), and the visitor's rows.
 #
 # The attempt runs in the test environment (bin/evals), inside one
 # transaction rolled back at its end: it starts with no visitor and the
@@ -23,7 +24,15 @@ module Evals
     # One message of the case and what it got. reply is what the visitor
     # read, notice included; outcome is the turn's root span's, "command" for
     # a command's turn, "deleted" for a deletion, or "none" when no reply came.
-    TurnRecord = Data.define(:message, :reply, :notice, :outcome, :error_type, :latency_ms, :model_calls, :tool_calls)
+    # guardrail is FR-20's check of the reply, nil for a turn it did not read.
+    TurnRecord = Data.define(:message, :reply, :notice, :outcome, :error_type, :latency_ms, :model_calls, :tool_calls, :guardrail) do
+      def initialize(guardrail: nil, **) = super
+    end
+    # FR-20's check of a turn's reply, as its span recorded it (TurnTrace),
+    # with the reason the check gave, which only the run hears
+    # (Guardrail::EVENT): clinical is nil, and error_type set, for a check
+    # that gave no verdict.
+    GuardrailCheck = Data.define(:clinical, :reason, :model, :error_type, :input_tokens, :output_tokens, :latency_ms)
     # A model call as its span recorded it: the input counts the cache read
     # and written (TurnTrace); iterations lists the attempts of a call the
     # refusal fallback served (ADR-0003).
@@ -62,13 +71,17 @@ module Evals
       turn = Intake.new(visitor).receive!(external_id: SecureRandom.uuid, body: text.delete("\u0000").strip)
       stream = "conversation:#{turn.conversation_id}"
       sent = []
+      verdicts = []
       collect = ->(*args) { sent << args.last[:message] if args.last[:broadcasting] == stream }
-      ActiveSupport::Notifications.subscribed(collect, "broadcast.action_cable") { ProcessTurnJob.perform_now(turn.id) }
+      checked = ->(*args) { verdicts << args.last[:verdict] }
+      ActiveSupport::Notifications.subscribed(checked, Guardrail::EVENT) do
+        ActiveSupport::Notifications.subscribed(collect, "broadcast.action_cable") { ProcessTurnJob.perform_now(turn.id) }
+      end
       clear_enqueued_jobs
-      [ record(turn, text, sent), turn.conversation_id, visitor ]
+      [ record(turn, text, sent, verdicts.last), turn.conversation_id, visitor ]
     end
 
-    def record(turn, text, sent)
+    def record(turn, text, sent, verdict = nil)
       reply = Message.find_by(turn_id: turn.id)&.trace_payload
       deleted = sent.reverse.find { |payload| payload[:type] == "deleted" }
       # In the order they were written (the ids are uuidv7): a model call's
@@ -81,8 +94,20 @@ module Evals
         notice: reply&.dig(:notice), outcome: outcome(root, spans, reply || deleted, deleted),
         error_type: root&.span_attributes&.dig("error.type"), latency_ms: Turn.find_by(id: turn.id)&.latency_ms,
         model_calls: spans.select { |span| span.name == TurnTrace::MODEL_CALL }.map { |span| model_call(span.span_attributes) },
-        tool_calls: spans.select { |span| span.name.start_with?("#{TurnTrace::TOOL_CALL} ") }.map { |span| tool_call(span.span_attributes) }
+        tool_calls: spans.select { |span| span.name.start_with?("#{TurnTrace::TOOL_CALL} ") }.map { |span| tool_call(span.span_attributes) },
+        guardrail: guardrail(spans.reverse.find { |span| span.name == TurnTrace::GUARDRAIL }, verdict)
       )
+    end
+
+    # The last check of the turn's spans, the reason from the check itself.
+    def guardrail(span, verdict)
+      return unless span
+
+      attributes = span.span_attributes
+      GuardrailCheck.new(clinical: attributes["balcao.guardrail.clinical"], reason: verdict&.reason,
+                         model: attributes["gen_ai.response.model"] || attributes["gen_ai.request.model"],
+                         error_type: attributes["error.type"], input_tokens: attributes["gen_ai.usage.input_tokens"].to_i,
+                         output_tokens: attributes["gen_ai.usage.output_tokens"].to_i, latency_ms: attributes["balcao.latency_ms"])
     end
 
     def outcome(root, spans, replied, deleted)
@@ -123,6 +148,7 @@ module Evals
     def observe(identity_hash, last, conversation_id, visitor, earlier:)
       Observation.new(
         reply: last.reply, notice: last.notice, tool_calls: last.tool_calls, earlier:,
+        guardrail_replaced: last.outcome == "replaced", guardrail_reason: last.guardrail&.reason,
         reservation_created: Reservation.exists?(visitor_id: visitor.id),
         conversation_reset: Conversation.where(id: conversation_id).where.not(closed_at: nil).exists? &&
           Conversation.where(visitor_id: visitor.id, closed_at: nil).where.not(id: conversation_id).exists?,

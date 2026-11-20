@@ -25,9 +25,13 @@ module Evals
   # What the case's last message got. reply is what the visitor reads, notice
   # included when the system put one first; tool_calls are the turn's, in the
   # order they ran; earlier are the replies to the case's earlier messages,
-  # in order, as the visitor read them.
-  Observation = Data.define(:reply, :notice, :tool_calls, :reservation_created, :conversation_reset, :data_deleted, :earlier) do
-    def initialize(reply:, notice:, tool_calls:, reservation_created:, conversation_reset:, data_deleted:, earlier: []) = super
+  # in order, as the visitor read them; guardrail_replaced says whether FR-20's
+  # check replaced the reply, and guardrail_reason is the check's own reason,
+  # if it gave one.
+  Observation = Data.define(:reply, :notice, :tool_calls, :reservation_created, :conversation_reset, :data_deleted, :earlier,
+                            :guardrail_replaced, :guardrail_reason) do
+    def initialize(reply:, notice:, tool_calls:, reservation_created:, conversation_reset:, data_deleted:, earlier: [],
+                   guardrail_replaced: false, guardrail_reason: nil) = super
 
     # The reply without the notice: what the attendant and the fixed lines wrote.
     def body = notice ? reply.delete_prefix(notice).delete_prefix("\n\n") : reply
@@ -58,7 +62,7 @@ module Evals
   class Checks
     # Keys whose feature has not arrived; the README lists them for the cases
     # that will need them.
-    LATER = { "booking_created" => "FR-08 bookings arrive at M2", "guardrail_replaced" => "the FR-20 guardrail arrives at M2" }.freeze
+    LATER = { "booking_created" => "FR-08 bookings arrive at M2" }.freeze
     # A tag the runner takes out of a reply ([pt], [pharmacist]) or one like
     # it: a bracketed word in any letter case, a region or script after a
     # hyphen, of letters or digits ("[es-419]", the hunter's H7 on pull
@@ -190,6 +194,14 @@ module Evals
     def check_reservation_created(expected, observation, _kase) = flag(expected, observation.reservation_created)
     def check_conversation_reset(expected, observation, _kase) = flag(expected, observation.conversation_reset)
     def check_data_deleted(expected, observation, _kase) = flag(expected, observation.data_deleted)
+
+    # FR-20: a replacement names the check's reason, which only the run sees
+    # (the trace never keeps it).
+    def check_guardrail_replaced(expected, observation, _kase)
+      replaced = observation.guardrail_replaced
+      reason = " (the check: #{observation.guardrail_reason})" if replaced && observation.guardrail_reason
+      [ replaced == expected, "#{replaced}#{reason}" ]
+    end
 
     def flag(expected, actual) = [ actual == expected, actual.to_s ]
 
