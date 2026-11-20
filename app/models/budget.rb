@@ -76,24 +76,30 @@ module Budget
 
   # The gate as the full eval run writes it (Evals::EconomyGate): a mapping
   # whose economy_allowed is true or false, with the model and the effort the
-  # boundary was measured on. It allows the economy model only when it says
-  # true for the economy route as it is now, since a run on another model or
-  # effort does not speak for this one. No file is "not allowed", as before
-  # the first full run; a file that is anything else, or cannot be read, is
-  # "not allowed" too, said once in a warning line, never raised: a list or a
-  # scalar used to raise, so a forced economy answered 500 on every session
-  # and poll (review finding S6 of pull request #29). An error is named by its
-  # class (threat model SR-30).
+  # boundary was measured on and the digests of the system prompt and the
+  # tools the model read (PromptDigest). It allows the economy model only when
+  # it says true for the economy route, the prompt and the tools as they are
+  # now, since a run on another model, effort, prompt or tool set does not
+  # speak for this one (the hunter's F2 on pull request #55). No file is "not
+  # allowed", as before the first full run; a file that is anything else, or
+  # cannot be read, is "not allowed" too, said once in a warning line, never
+  # raised: a list or a scalar used to raise, so a forced economy answered 500
+  # on every session and poll (review finding S6 of pull request #29). An
+  # error is named by its class (threat model SR-30).
   def read_economy_allowed(path = ECONOMY_ALLOWED)
     gate = YAML.safe_load_file(path)
     return closed(path, "is not a mapping with economy_allowed true or false") unless gate.is_a?(Hash) && [ true, false ].include?(gate["economy_allowed"])
     return false unless gate["economy_allowed"]
 
     route = ModelPolicy.route("economy")
-    return true if gate.values_at("model", "effort") == [ route.model, route.effort ]
+    unless gate.values_at("model", "effort") == [ route.model, route.effort ]
+      return closed(path, "was written by a run on #{gate["model"].inspect} at #{gate["effort"].inspect} effort, " \
+                          "not on the economy route's #{route.model} at #{route.effort}")
+    end
+    return true if gate.values_at("prompt", "tools") == [ PromptDigest.prompt, PromptDigest.tools ]
 
-    closed(path, "was written by a run on #{gate["model"].inspect} at #{gate["effort"].inspect} effort, " \
-                 "not on the economy route's #{route.model} at #{route.effort}")
+    closed(path, "was written for the system prompt #{gate["prompt"].inspect} and the tools #{gate["tools"].inspect}, " \
+                 "not for the system prompt #{PromptDigest.prompt} and the tools #{PromptDigest.tools} the model reads now")
   rescue Errno::ENOENT
     false
   rescue Psych::Exception, ArgumentError, SystemCallError => e

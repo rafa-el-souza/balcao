@@ -78,7 +78,8 @@ RSpec.describe "FR-09 FR-14 SR-02 SR-18 the economy model's gate, as the full ev
     gate(passed).write(path)
     expect(Budget.read_economy_allowed(path)).to be(true)
     expect(YAML.safe_load_file(path)).to eq(
-      "economy_allowed" => true, "model" => route.model, "effort" => route.effort, "commit" => "ec17b12",
+      "economy_allowed" => true, "model" => route.model, "effort" => route.effort, "prompt" => PromptDigest.prompt,
+      "tools" => PromptDigest.tools, "commit" => "ec17b12",
       "run_at" => "2026-11-20T04:00:00Z", "boundary" => "13 of 13 cases passed, attempts 39 of 39 (each case 3 times)", "unstable" => 0
     )
     expect(path.read).to start_with("# ADR-0003's gate")

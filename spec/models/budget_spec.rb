@@ -216,7 +216,10 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
   describe "ADR-0003's gate, the full eval run's word, read at boot" do
     let(:dir) { Pathname(Dir.mktmpdir("economy-gate")) }
     let(:route) { ModelPolicy.route("economy") }
-    let(:run) { "model: #{route.model}\neffort: #{route.effort}\ncommit: ec17b12\nrun_at: '2026-11-20T04:00:00Z'\n" }
+    let(:run) do
+      "model: #{route.model}\neffort: #{route.effort}\nprompt: #{PromptDigest.prompt}\ntools: #{PromptDigest.tools}\n" \
+        "commit: ec17b12\nrun_at: '2026-11-20T04:00:00Z'\n"
+    end
 
     before { allow(Rails.logger).to receive(:warn) }
     after { FileUtils.remove_entry(dir) }
@@ -260,6 +263,29 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
       expect(Rails.logger).to have_received(:warn).with(/at "max" effort/)
     end
 
+    # The hunter's F2 on pull request #55: the boundary was measured on the
+    # system prompt the model read and the tools it was offered, so a gate
+    # written before either changed does not speak for the code that serves.
+    it "reads a gate written for another system prompt or tool set as not allowed, and says which" do
+      expect(Budget.read_economy_allowed(gate("economy_allowed: true\n#{run.sub(PromptDigest.prompt, "0123456789abcdef")}"))).to be(false)
+      expect(Budget.read_economy_allowed(gate("economy_allowed: true\n#{run.sub(PromptDigest.tools, "fedcba9876543210")}"))).to be(false)
+      expect(Budget.read_economy_allowed(gate("economy_allowed: true\n#{run.sub(/^prompt: .*\n/, "")}"))).to be(false)
+
+      expect(Rails.logger).to have_received(:warn).with(/system prompt "0123456789abcdef".*#{PromptDigest.prompt}/)
+      expect(Rails.logger).to have_received(:warn).with(/tools "fedcba9876543210".*#{PromptDigest.tools}/)
+      expect(Rails.logger).to have_received(:warn).with(/system prompt nil/)
+    end
+
+    # The digests follow what the model reads: a word of the prompt or of a
+    # tool's description is another digest.
+    it "digests the system prompt the model reads and the tools it is offered" do
+      expect(PromptDigest.prompt).to eq(TurnTrace.prompt_summary["balcao.system_prompt.sha256"]).and match(/\A\h{16}\z/)
+      expect(PromptDigest.tools).to match(/\A\h{16}\z/)
+
+      changed = Class.new(Tools::SearchProducts) { doc "Search the catalogue." }
+      expect(PromptDigest.tools([ Tools::GetStoreInfo, changed, Tools::CreateReservation ])).not_to eq(PromptDigest.tools)
+    end
+
     it "is read when the app boots, so the file a deploy brought serves until the next deploy" do
       boot = lambda do |answer|
         probe = <<~RUBY
@@ -277,7 +303,8 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
         Open3.capture3(env, "ruby", "-e", probe, chdir: Rails.root.to_s)
       end
 
-      out, err, status = boot.call({ "economy_allowed" => true, "model" => route.model, "effort" => route.effort })
+      out, err, status = boot.call({ "economy_allowed" => true, "model" => route.model, "effort" => route.effort,
+                                     "prompt" => PromptDigest.prompt, "tools" => PromptDigest.tools })
       expect([ status.success?, out ]).to eq([ true, "true\n" ]), err
 
       out, err, status = boot.call([ true ])
