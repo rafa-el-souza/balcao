@@ -166,10 +166,14 @@ Only a green `main` is deployed to the MVP host.
        -H 'Content-Type: application/json' -d '{}' https://balcao.rafasouza.dev.br/api/session
      ```
 
-   - a conversation runs in a person's browser: open `/chat`, which runs
-     Cloudflare's check as it loads (it shows a box to tick only when
-     Cloudflare wants one), and send "tem dipirona?"; the reply comes in
-     five to ten seconds and the glass box draws its rows. A real token
+   - a conversation runs in a person's browser, in a fresh private window:
+     open `/chat`, which runs Cloudflare's check as it loads (it shows a box
+     to tick only when Cloudflare wants one), and send "tem dipirona?"; the
+     reply comes in five to ten seconds and the glass box draws its rows. A
+     window that still holds a visitor cookie renews its session with no
+     token and would pass with a wrong site key; in a fresh one, the stamp
+     "A verificação anti-bot não passou", or a console error naming the code
+     110100, 110110 or 400020, says the site key is not the widget's. A real token
      needs a browser, so the conversation over the API with curl (PR-09 to
      M4-6b) runs only where the test keys are, a rehearsal host from M3,
      with the test site key's dummy token in the session's body, a cookie
