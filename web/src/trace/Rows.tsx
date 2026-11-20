@@ -391,7 +391,7 @@ function GuardrailRow({
         <summary>
           <span className={styles.name}>{t("instrument.guardrail")}</span>{" "}
           {row.verdict && (
-            <span className={styles.stop}>
+            <span className={cx(styles.stop, styles.verdict)}>
               {t(`instrument.guardrailVerdicts.${row.verdict}`)}
             </span>
           )}{" "}

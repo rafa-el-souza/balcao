@@ -496,7 +496,12 @@ describe("FR-20 FR-12 the guardrail's check in the glass box", () => {
       "replaced",
     );
 
-    expect(within(row).getByText("conselho clínico")).toBeInTheDocument();
+    // Review finding V5 of pull request #54: the word carries the class the
+    // refused state styles (web/test/guardrail-verdict-style.test.ts reads
+    // the rule itself).
+    expect(within(row).getByText("conselho clínico").className).toMatch(
+      /verdict/,
+    );
     expect(row).toHaveAttribute("data-state", "refused");
     expect(
       within(glass()).getByText("substituída pelo guardrail"),
