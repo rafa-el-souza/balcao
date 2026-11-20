@@ -1,4 +1,5 @@
 require "rails_helper"
+require "open3"
 
 # The budget's ledger and its gate (FR-14, threat model SR-02, ADR-0003):
 # every model call is charged to the calendar month in São Paulo at the price
@@ -201,19 +202,86 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
     end
 
     # ADR-0003: economy serves only while the boundary suite last passed at
-    # 100 % on the economy model; the full eval run records it from M2.
-    it "pauses a forced economy while the economy model is not allowed to serve" do
+    # 100 % on the economy model, the full eval run's word, which the app
+    # reads at boot (the suite starts each example with it closed).
+    it "pauses a forced economy while the gate is closed, and serves it once the eval run allowed it" do
       BudgetState.for_month!.update!(forced_mode: "economy")
-
-      allow(Budget).to receive(:economy_allowed?).and_return(false)
       expect(Budget.mode).to eq("paused")
 
-      allow(Budget).to receive(:economy_allowed?).and_return(true)
+      Rails.configuration.x.economy_allowed = true
       expect(Budget.mode).to eq("economy")
     end
+  end
 
-    it "allows the economy model only on the full eval run's word, which no file holds before M2" do
-      expect(Budget.economy_allowed?).to be(false)
+  describe "ADR-0003's gate, the full eval run's word, read at boot" do
+    let(:dir) { Pathname(Dir.mktmpdir("economy-gate")) }
+    let(:route) { ModelPolicy.route("economy") }
+    let(:run) { "model: #{route.model}\neffort: #{route.effort}\ncommit: ec17b12\nrun_at: '2026-11-20T04:00:00Z'\n" }
+
+    before { allow(Rails.logger).to receive(:warn) }
+    after { FileUtils.remove_entry(dir) }
+
+    def gate(content) = dir.join("economy_allowed.yml").tap { |path| path.binwrite(content) }
+
+    it "allows the economy model on a mapping whose economy_allowed is true, written by a run on the economy route" do
+      expect(Budget.read_economy_allowed(gate("economy_allowed: true\n#{run}"))).to be(true)
+      expect(Budget.read_economy_allowed(gate("economy_allowed: false\n#{run}"))).to be(false)
+      expect(Rails.logger).not_to have_received(:warn)
+    end
+
+    it "reads no file as not allowed, with no line, as before the first full run" do
+      expect(Budget.read_economy_allowed(dir.join("economy_allowed.yml"))).to be(false)
+      expect(Rails.logger).not_to have_received(:warn)
+    end
+
+    # Review finding S6 of pull request #29: a list raised TypeError and a
+    # scalar NoMethodError, so with economy forced every session and poll
+    # answered 500. The file is read once, at boot, and anything but the
+    # mapping the run writes reads as "not allowed", said at warn.
+    it "reads anything else as not allowed, with a warning line, and never raises" do
+      files = {
+        "a list" => "- true\n", "a scalar" => "true\n", "a string's true" => "economy_allowed: \"true\"\n#{run}",
+        "no key" => "allowed: true\n#{run}", "an empty file" => "", "an unquoted time" => "economy_allowed: true\nrun_at: 2026-11-20T04:00:00Z\n",
+        "bytes that are not text" => "\xFF\xFE\x00 economy_allowed: true".b, "an alias" => "&a [*a]\n"
+      }
+      files.each { |what, content| expect(Budget.read_economy_allowed(gate(content))).to be(false), what }
+      expect(Budget.read_economy_allowed(dir)).to be(false)
+
+      expect(Rails.logger).to have_received(:warn).with(/\Abudget: .+; the economy model may not serve\z/).exactly(files.size + 1).times
+    end
+
+    # The boundary passed on the model the run measured: a gate written
+    # before the economy route changed model or effort no longer speaks for it.
+    it "reads a gate written by a run on another model or effort as not allowed, and says which" do
+      expect(Budget.read_economy_allowed(gate("economy_allowed: true\n#{run.sub(route.model, "claude-haiku-4-5")}"))).to be(false)
+      expect(Budget.read_economy_allowed(gate("economy_allowed: true\n#{run.sub("effort: #{route.effort}", "effort: max")}"))).to be(false)
+
+      expect(Rails.logger).to have_received(:warn).with(/claude-haiku-4-5.*#{route.model}/)
+      expect(Rails.logger).to have_received(:warn).with(/at "max" effort/)
+    end
+
+    it "is read when the app boots, so the file a deploy brought serves until the next deploy" do
+      boot = lambda do |answer|
+        probe = <<~RUBY
+          require "yaml"
+          answer = #{answer.inspect}
+          YAML.singleton_class.prepend(Module.new do
+            define_method(:safe_load_file) { |path, **options| path.to_s.end_with?("evals/economy_allowed.yml") ? answer : super(path, **options) }
+          end)
+          require "./config/environment"
+          answer = nil
+          puts Budget.economy_allowed?
+        RUBY
+        env = ProductionEnv.complete
+          .merge("APP_HOST" => "demo.example", "RAILS_ENV" => "production", "DATABASE_URL" => nil, "RAILS_LOG_LEVEL" => "fatal")
+        Open3.capture3(env, "ruby", "-e", probe, chdir: Rails.root.to_s)
+      end
+
+      out, err, status = boot.call({ "economy_allowed" => true, "model" => route.model, "effort" => route.effort })
+      expect([ status.success?, out ]).to eq([ true, "true\n" ]), err
+
+      out, err, status = boot.call([ true ])
+      expect([ status.success?, out ]).to eq([ true, "false\n" ]), err
     end
   end
 end

@@ -9,9 +9,10 @@
 #   of the usage records (FR-15).
 # - The mode: a forced mode wins until it is released (the kill switch,
 #   console from M2); otherwise paused from the cap on, normal below it.
-#   Economy serves only on the full eval run's word (ADR-0003), which no file
-#   holds before M2, so a forced economy pauses. Economy at 70 %, the daily
-#   slice and the operator's notification arrive at M3 (design §9.1).
+#   Economy serves only on the full eval run's word (ADR-0003), the committed
+#   evals/economy_allowed.yml, read once at boot (config/initializers/budget.rb);
+#   without it a forced economy pauses. Economy at 70 %, the daily slice and
+#   the operator's notification arrive at M3 (design §9.2).
 # - The record: the read that finds the automatic mode changed writes it into
 #   the month's row and one log line, whatever changed it (a charge past the
 #   cap, a cap a deploy lowered or raised, the next month), saying which
@@ -70,8 +71,38 @@ module Budget
     total
   end
 
-  def economy_allowed?
-    ECONOMY_ALLOWED.exist? && YAML.safe_load_file(ECONOMY_ALLOWED)&.fetch("economy_allowed", false) == true
+  # ADR-0003's gate as the boot read it: nothing but a true lets economy serve.
+  def economy_allowed? = Rails.configuration.x.economy_allowed == true
+
+  # The gate as the full eval run writes it (Evals::EconomyGate): a mapping
+  # whose economy_allowed is true or false, with the model and the effort the
+  # boundary was measured on. It allows the economy model only when it says
+  # true for the economy route as it is now, since a run on another model or
+  # effort does not speak for this one. No file is "not allowed", as before
+  # the first full run; a file that is anything else, or cannot be read, is
+  # "not allowed" too, said once in a warning line, never raised: a list or a
+  # scalar used to raise, so a forced economy answered 500 on every session
+  # and poll (review finding S6 of pull request #29). An error is named by its
+  # class (threat model SR-30).
+  def read_economy_allowed(path = ECONOMY_ALLOWED)
+    gate = YAML.safe_load_file(path)
+    return closed(path, "is not a mapping with economy_allowed true or false") unless gate.is_a?(Hash) && [ true, false ].include?(gate["economy_allowed"])
+    return false unless gate["economy_allowed"]
+
+    route = ModelPolicy.route("economy")
+    return true if gate.values_at("model", "effort") == [ route.model, route.effort ]
+
+    closed(path, "was written by a run on #{gate["model"].inspect} at #{gate["effort"].inspect} effort, " \
+                 "not on the economy route's #{route.model} at #{route.effort}")
+  rescue Errno::ENOENT
+    false
+  rescue Psych::Exception, ArgumentError, SystemCallError => e
+    closed(path, "could not be read (#{e.class})")
+  end
+
+  def closed(path, why)
+    Rails.logger.warn("budget: #{path} #{why}; the economy model may not serve")
+    false
   end
 
   # The month's row. The call that opens it writes the month's first line,
@@ -108,5 +139,5 @@ module Budget
     Rails.logger.warn(format("budget: %s's automatic mode is %s at US$ %.2f of its cap of US$ %.2f%s",
                              state.month, automatic, state.spent_usd, cap, note))
   end
-  private_class_method :month, :write_usage, :record, :line
+  private_class_method :month, :write_usage, :record, :line, :closed
 end
