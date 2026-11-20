@@ -129,6 +129,22 @@ RSpec.describe "SR-39 FR-18 Turnstile's check of a token" do
       end
     end
 
+    # Probed on 2026-11-20: a wrong secret is answered 400, with its code,
+    # where a refused token is answered 200 (the review of pull request #53;
+    # the Rails finder's third note).
+    it "names a wrong secret as an error from the 400 Cloudflare answers it with" do
+      stub_siteverify_answer({ "success" => false, "error-codes" => [ "invalid-input-secret" ], "messages" => [] }, status: 400)
+
+      expect(check.passed?("0.token-of-the-visitor")).to be false
+      expect(lines).to eq([ [ :error, "turnstile: refused: invalid-input-secret" ] ])
+    end
+
+    it "takes no yes from an answer that is not 200, whatever its body says" do
+      stub_siteverify_answer(passed, status: 400)
+
+      expect(check.passed?("0.token-of-the-visitor")).to be false
+    end
+
     it "names Cloudflare's codes of a refusal, and a wrong secret as an error" do
       stub_siteverify_answer({ "success" => false, "error-codes" => [ "timeout-or-duplicate" ] })
       check.passed?("0.token-of-the-visitor")

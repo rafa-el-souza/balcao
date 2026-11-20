@@ -75,7 +75,10 @@ class Turnstile
 
   private
 
-  # Cloudflare's answer as a Hash, or nil (and a line) when there is none.
+  # Cloudflare's answer as a Hash, or nil (and a line) when there is none. A
+  # refused token is answered 200 and a wrong secret 400, each with its code
+  # (probed on 2026-11-20; the review of pull request #53): a 4xx that names
+  # its codes is a refusal, never a yes, whatever else it says.
   def siteverify(token)
     http = Net::HTTP.new(URL.host, URL.port)
     http.use_ssl = true
@@ -84,14 +87,23 @@ class Turnstile
     http.read_timeout = READ_TIMEOUT
     http.max_retries = 0
     response = http.post(URL.path, { secret: @secret, response: token }.to_json, "Content-Type" => "application/json")
-    return failed("siteverify answered #{response.code}") unless response.is_a?(Net::HTTPSuccess)
-
-    answer = JSON.parse(response.body.to_s)
-    answer.is_a?(Hash) ? answer : failed("siteverify answered no JSON object")
+    answer = object(response.body)
+    if response.is_a?(Net::HTTPSuccess)
+      answer || failed("siteverify answered no JSON object")
+    elsif response.is_a?(Net::HTTPClientError) && answer&.key?("error-codes")
+      answer.merge("success" => false)
+    else
+      failed("siteverify answered #{response.code}")
+    end
   rescue *NETWORK => e
     failed("siteverify failed: #{e.class}")
+  end
+
+  def object(body)
+    answer = JSON.parse(body.to_s)
+    answer if answer.is_a?(Hash)
   rescue JSON::ParserError
-    failed("siteverify answered no JSON object")
+    nil
   end
 
   def refused_by(answer)
