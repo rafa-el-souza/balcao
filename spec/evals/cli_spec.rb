@@ -238,6 +238,22 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
       expect(results_file.dig("run", "stopped")).to include("Interrupt")
     end
 
+    # The review of #62 (H1, dono): TERM and HUP (a kill, a timeout, a closed
+    # session) raised SignalException, which no rescue took, so a run lost its
+    # whole record where Ctrl-C kept it. bin/evals routes them to Interrupt.
+    it "turns TERM and HUP into an interrupt, so a run stopped by them keeps its record as Ctrl-C does" do
+      previous = %w[TERM HUP].to_h { |signal| [ signal, Signal.trap(signal, "DEFAULT") ] }
+      Evals::CLI.trap_signals!
+
+      %w[TERM HUP].each do |signal|
+        handler = Signal.trap(signal, "DEFAULT")
+        expect(handler).to respond_to(:call)
+        expect { handler.call }.to raise_error(Interrupt)
+      end
+    ensure
+      previous&.each { |signal, handler| Signal.trap(signal, handler) }
+    end
+
     # #55's L6 (the owner, 2026-11-20, M2-11a3): Ctrl-C dropped the case
     # under way's attempts from the results file, and their dollars.
     it "keeps the case under way's attempts and their tokens when the run is interrupted" do

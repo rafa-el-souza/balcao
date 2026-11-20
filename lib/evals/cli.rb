@@ -46,6 +46,14 @@ module Evals
       @pause = pause
     end
 
+    # TERM and HUP (a kill, a timeout, a closed session) as Ctrl-C: an
+    # Interrupt, which the run rescues to write what ran. Left to Ruby, they
+    # raised SignalException, which nothing rescued, and the run's record was
+    # lost whole (the review of #62, H1). bin/evals installs them.
+    def self.trap_signals!
+      %w[TERM HUP].each { |signal| Signal.trap(signal) { raise Interrupt } }
+    end
+
     # git in the directory: its output, or nil when git failed. A checkout
     # git refuses to read prints nothing, which read as a clean tree (the
     # fix review's R3 on pull request #55).
@@ -262,10 +270,13 @@ module Evals
     end
 
     # headed: the run was on more than one model, so each table names its own.
+    # The results files are written before anything is printed, so a closed
+    # terminal, whose prints raise, costs no record (the review of #62, H1).
     def finish(reports, cases, scorecard:, headed:)
-      reports.each do |report|
+      paths = reports.map { |report| report.write(@results_dir) }
+      reports.zip(paths).each do |report, path|
         @out.puts(*[ "", ("On the #{report.route.mode} model, #{report.route.model}:" if headed), *report.summary ].compact)
-        @out.puts("Results: #{report.write(@results_dir)}")
+        @out.puts("Results: #{path}")
       end
       write_scorecard(reports, cases) if scorecard
       ok = reports.all? { |report| report.stopped.nil? && report.results.all? { |result| result.status == :pass } }
