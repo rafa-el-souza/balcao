@@ -472,7 +472,7 @@ describe("FR-20 FR-12 the guardrail's check in the glass box", () => {
 
     const rows = rowsOf(events());
     expect(rows[4]).toMatch(
-      /^12:03:44 guardrail nada clínico US\$ 0,0001 · 420 ms/,
+      /^12:03:44 guardrail nada clínico US\$ 0,00008 · 420 ms/,
     );
     expect(rows[5]).toBe("12:03:44 mensagem enviada");
   });
