@@ -131,10 +131,14 @@ export function useConversation(challenge: Challenge) {
   // waits for a token of Turnstile's widget, or for the check to give none;
   // one that only names the page's language brings none (threat model SR-39).
   // The server's refusal of the check shows its hint, from any session, until
-  // a session opens (review finding C3 of pull request #53).
+  // a session opens (review finding C3 of pull request #53). Asked for while
+  // another that may mint is on its way, it is that one: the polls and a
+  // message that find the cookie gone wait on one challenge (C4).
   const sessions = useRef<Promise<unknown>>(Promise.resolve());
+  const minting = useRef<Promise<Outcome<Session>> | null>(null);
   const session = useCallback(
     (locale: Locale, mint = false): Promise<Outcome<Session>> => {
+      if (mint && minting.current) return minting.current;
       const next = sessions.current.then(
         async (): Promise<Outcome<Session>> => {
           const token = mint ? await challenge.token() : null;
@@ -152,6 +156,13 @@ export function useConversation(challenge: Challenge) {
         },
       );
       sessions.current = next.catch(() => undefined);
+      if (mint) {
+        minting.current = next;
+        const settled = () => {
+          if (minting.current === next) minting.current = null;
+        };
+        next.then(settled, settled);
+      }
       return next;
     },
     [api, challenge],

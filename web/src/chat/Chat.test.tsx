@@ -242,6 +242,38 @@ describe("SR-39 FR-18 the anti-bot check", () => {
     ]);
   });
 
+  // Review finding C4 of pull request #53: the polls that find the cookie
+  // gone while a renewal waits for its token wait on that one.
+  it("waits on one renewal however many polls find the cookie gone, with one challenge", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderPage(<Chat />);
+    await ready();
+    type("tem dipirona?");
+    fireEvent.keyDown(field(), { key: "Enter" });
+    await waitFor(() => {
+      expect(server.sent()).toHaveLength(1);
+    });
+    const visitor = server.copy();
+    turnstile().answer = "hold";
+    server.defaults.current = { status: 401, body: { error: "session" } };
+
+    await elapse(30_000);
+    const sessions = () =>
+      server.requests.filter((request) => request.path === "/api/session");
+    expect(server.polls().length).toBeGreaterThan(3);
+    expect(sessions()).toHaveLength(1);
+    expect(turnstile().resets).toEqual(["widget-1"]);
+
+    server.defaults.current = conversation(1, [visitor], true);
+    act(() => {
+      turnstile().solve();
+    });
+    await elapse(1000);
+
+    expect(sessions()).toHaveLength(2);
+    expect(turnstile().resets).toEqual(["widget-1"]);
+  });
+
   it("asks for a new session with a new token when a message finds its cookie gone, then sends it", async () => {
     renderPage(<Chat />);
     await ready();
