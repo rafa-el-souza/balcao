@@ -438,10 +438,13 @@ RSpec.describe "FR-19 SR-43 NFR-02 Telegram::Outbound, a reply on its way to the
     # trace outside the trace's rescue, so a database error on that read broke
     # the delivery: a refusal's own line was lost, and an attempt was counted
     # on a reply already failed. The fix review's sister: the same read for a
-    # visitor whose chat does not decrypt.
+    # visitor whose chat does not decrypt. The verifier's V1 on pull request
+    # #52: these examples stubbed Message#turn, which the fix no longer
+    # calls, so they passed whatever guarded the read; they break the read
+    # itself, in the database.
     it "fails a refused reply with its line though its turn cannot be read for the trace" do
       stub_request(:post, bot_api_url("sendMessage")).to_return(bot_api_error(403, "Forbidden: bot was blocked by the user"))
-      allow_any_instance_of(Message).to receive(:turn).and_raise(ActiveRecord::ConnectionFailed)
+      turn_read_breaks
       lines = []
       allow(Rails.logger).to receive(:error) { |line| lines << line }
 
@@ -452,7 +455,7 @@ RSpec.describe "FR-19 SR-43 NFR-02 Telegram::Outbound, a reply on its way to the
     end
 
     it "fails the replies of a visitor whose chat does not decrypt though their turns cannot be read for the trace" do
-      allow_any_instance_of(Message).to receive(:turn).and_raise(ActiveRecord::ConnectionFailed)
+      turn_read_breaks
       allow(Rails.logger).to receive(:error)
       other_keys = ActiveRecord::Encryption::DerivedSecretKeyProvider.new("another-primary-key-for-the-spec")
 
