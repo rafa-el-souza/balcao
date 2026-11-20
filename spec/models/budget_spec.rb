@@ -297,6 +297,22 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
       expect(Rails.logger).to have_received(:warn).with(/\Abudget: .+; the economy model may not serve\z/).exactly(files.size + 1).times
     end
 
+    # #55's F4 and #60's H-B6 (the owner, 2026-11-20, M2-11a3): the rescue
+    # of a file that cannot be read covered the route's lookup and the
+    # digests too, so a bug there read as an unreadable gate, closed, with a
+    # line that blamed the file. Only the file's read and parse are rescued;
+    # a bug raises, at boot, where CI's boot specs see it first.
+    it "raises a bug of the route's lookup or of a digest, rather than reading it as an unreadable file" do
+      file = gate("economy_allowed: true\n#{run}")
+      allow(PromptDigest).to receive(:guardrail).and_raise(ArgumentError, "a bug in the digest")
+      expect { Budget.read_economy_allowed(file) }.to raise_error(ArgumentError, "a bug in the digest")
+
+      allow(ModelPolicy).to receive(:route).and_call_original
+      allow(ModelPolicy).to receive(:route).with("economy").and_raise(ArgumentError, "a bug in the route")
+      expect { Budget.read_economy_allowed(file) }.to raise_error(ArgumentError, "a bug in the route")
+      expect(Rails.logger).not_to have_received(:warn)
+    end
+
     # The boundary passed on the model the run measured: a gate written
     # before the economy route changed model or effort no longer speaks for it.
     it "reads a gate written by a run on another model or effort as not allowed, and says which" do

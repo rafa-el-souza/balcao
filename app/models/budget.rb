@@ -102,9 +102,18 @@ module Budget
   # raise, so a forced economy answered 500 on every session and poll (review
   # finding S6 of pull request #29); and since the first full run the gate is
   # committed, so no file is a fault too (the hunter's F3). An error is named
-  # by its class (threat model SR-30).
+  # by its class (threat model SR-30). Only the file's read and parse are
+  # rescued: a bug of the route's lookup or of a digest raises, at boot,
+  # where CI's boot specs see it first, rather than reading as a file that
+  # cannot be read (#55's F4 and #60's H-B6, the owner, 2026-11-20).
   def read_economy_allowed(path = ECONOMY_ALLOWED)
-    gate = YAML.safe_load_file(path)
+    gate = begin
+      YAML.safe_load_file(path)
+    rescue Errno::ENOENT
+      return closed(path, "is missing")
+    rescue Psych::Exception, ArgumentError, SystemCallError => e
+      return closed(path, "could not be read (#{e.class})")
+    end
     return closed(path, "is not a mapping with economy_allowed true or false") unless gate.is_a?(Hash) && [ true, false ].include?(gate["economy_allowed"])
     return false unless gate["economy_allowed"]
 
@@ -118,10 +127,6 @@ module Budget
     closed(path, "was written for the system prompt #{gate["prompt"].inspect}, the tools #{gate["tools"].inspect} and " \
                  "FR-20's check #{gate["guardrail"].inspect}, not for the system prompt #{PromptDigest.prompt}, " \
                  "the tools #{PromptDigest.tools} and the check #{PromptDigest.guardrail} that serve now")
-  rescue Errno::ENOENT
-    closed(path, "is missing")
-  rescue Psych::Exception, ArgumentError, SystemCallError => e
-    closed(path, "could not be read (#{e.class})")
   end
 
   def closed(path, why)
