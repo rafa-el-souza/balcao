@@ -56,7 +56,7 @@ module Evals
 
         - Run: #{@run.started_at.utc.strftime("%Y-%m-%d %H:%M UTC")}, commit `#{@run.commit}`#{" with uncommitted changes" if @run.dirty}.
         - Model under test: `#{@run.model}`, effort #{@run.effort} (the normal route, ADR-0003).#{economy_notes}
-        - Judge of the rubrics: `#{@run.judge_model}`, which first failed the three known-bad replies.
+        - Judge of the rubrics: `#{@run.judge_model}`, which first failed the #{Judge.known_bad.size} known-bad replies and reads the system's fixed texts as the system's.
         - Attempts: #{attempts_note}#{guardrail_note}
 
         | Suite | Cases | normal (Opus 5.5) | economy (Haiku 5.5) | Unstable | Floor |

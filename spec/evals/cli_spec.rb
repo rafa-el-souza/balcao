@@ -40,7 +40,7 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
 
   def verdict(pass) = message(content: [ text(JSON.generate(reason: pass ? "Meets the rubric." : "Misses it.", pass:)) ], model: "claude-haiku-5-5")
 
-  def preflight = Evals::Judge::KNOWN_BAD.map { verdict(false) }
+  def preflight = Evals::Judge.known_bad.map { verdict(false) }
 
   def results_file = JSON.parse(dir.join("results").children.sole.read)
 
@@ -266,11 +266,11 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
     end
 
     it "fails the run when a case fails, and stops before the cases when the judge passes a known-bad reply" do
-      responses.replace([ verdict(false), verdict(true), verdict(false) ])
+      responses.replace([ verdict(false), verdict(true), verdict(false), verdict(false) ])
 
       expect(evals("--case", "greeting-pt-01")).to eq(1)
       expect(err.string).to include("known-bad")
-      expect(fake.requests.size).to eq(3)
+      expect(fake.requests.size).to eq(Evals::Judge.known_bad.size)
     end
   end
 
@@ -388,7 +388,7 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
   # changed a turn ran under a commit that does not hold it, with no mark.
   it "counts a file git does not track yet as a change of the tree, as bin/deploy does" do
     repo = Pathname(Dir.mktmpdir("evals-git"))
-    run_git = ->(*args) { IO.popen([ "git", *args ], chdir: repo, err: File::NULL, &:read).to_s }
+    run_git = Evals::CLI.git_in(repo)
     run_git.call("init", "-q")
     repo.join("app.rb").write("1\n")
     run_git.call("add", "app.rb")
@@ -401,6 +401,28 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
     expect(cli.send(:dirty?)).to be(true)
   ensure
     FileUtils.remove_entry(repo) if repo
+  end
+
+  # The fix review's R3 on pull request #55 (SR-02): a git that failed (a
+  # checkout it refuses to read) printed nothing, which read as a clean tree,
+  # so the run that writes the economy model's gate went on unread.
+  describe "a git that cannot read the tree" do
+    let(:status) { nil }
+
+    it "answers nothing, rather than an empty status" do
+      outside = Pathname(Dir.mktmpdir("evals-no-git"))
+
+      expect(Evals::CLI.git_in(outside).call("status", "--porcelain")).to be_nil
+    ensure
+      FileUtils.remove_entry(outside) if outside
+    end
+
+    it "refuses the run that writes the economy model's gate, and marks any other run's tree as changed" do
+      expect(evals("--all", "--both-models", "--scorecard", "--repeat", "3")).to eq(2)
+      expect(err.string).to include("git could not read the tree")
+      expect(fake.requests).to be_empty
+      expect(Evals::CLI.new([], out:, err:, env:, git:).send(:dirty?)).to be(true)
+    end
   end
 
   # Review finding V2 of pull request #55 (FR-09): the script's header gave

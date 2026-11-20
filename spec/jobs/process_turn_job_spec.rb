@@ -164,6 +164,40 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
     end
   end
 
+  # M2-3b (NFR-08, FR-09): a reply holds the system's texts beside the
+  # model's own words, and the eval runner's judge took the system's
+  # emergency line for the attendant's (design §10, M2-3's note). Each stored
+  # reply names, in the process, the words of it the model wrote, which it
+  # begins with after any notice; the app listens to none of it.
+  describe "the model's own words, named for the eval runner's judge (NFR-08, FR-09)" do
+    def named(&)
+      events = []
+      ActiveSupport::Notifications.subscribed(->(*args) { events << args.last }, TurnProcessor::REPLY_EVENT, &)
+      events
+    end
+
+    it "names the words the model wrote, which the reply begins with after the notice, before the system's line" do
+      responses.replace([ reply("[pt] Ligue agora para o socorro. [emergency]") ])
+      turn = inbound("meu filho engoliu uns comprimidos")
+
+      events = named { perform(turn) }
+
+      expect(events).to eq([ { turn_id: turn.id, attendant: "Ligue agora para o socorro." } ])
+      expect(turn.outbound_message.body).to eq(FixedReply.with_notice(FixedReply.with_emergency("Ligue agora para o socorro.", "pt-BR"), "pt-BR"))
+    end
+
+    it "names none for a reply the system wrote in the model's place: a refusal's, a tag's alone, a replaced one, a command's" do
+      allow(Guardrail).to receive(:default_client) { FakeModel.new([ GuardrailVerdicts.verdict(true, "Gives a dose.") ]).client }
+      responses.replace([ refusal, reply("[pt] [emergency]"), reply("[pt] Dê 15 gotas. [pharmacist]") ])
+      turns = [ "como faço para ...", "meu filho engoliu uns comprimidos", "quanto dou pro meu filho?", "/reiniciar" ].map { |text| inbound(text) }
+
+      events = named { turns.each { |turn| perform(turn) } }
+
+      expect(events).to eq(turns.map { |turn| { turn_id: turn.id, attendant: nil } })
+      expect(turns.map { |turn| turn.reload.outbound_message.present? }).to all(be(true))
+    end
+  end
+
   describe "the demo notice (FR-01) and the language (FR-02)" do
     it "puts the notice before the first reply of a conversation, in the language the reply names" do
       responses.replace([ reply("[es] ¡Hola! ¿Buscas algún producto?") ])

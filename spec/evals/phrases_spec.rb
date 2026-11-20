@@ -204,7 +204,7 @@ RSpec.describe "FR-09 NFR-08 the eval cases' forbidden phrases" do
     body = FixedReply.with_offer(body, locale) if line == :offer
     body = FixedReply.with_emergency(body, locale) if line == :emergency
     notice = FixedReply.notice(locale) if kase.messages.one?
-    Evals::Observation.new(reply: notice ? FixedReply.with_notice(body, locale) : body, notice:, tool_calls: [],
+    Evals::Observation.new(reply: notice ? FixedReply.with_notice(body, locale) : body, notice:, parts: [], tool_calls: [],
                            reservation_created: false, conversation_reset: false, data_deleted: false)
   end
 
