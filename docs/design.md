@@ -2262,8 +2262,8 @@ database's JIT compiler off, which changes no result of the search
     in seconds ("Validate the token", token reuse and network convergence),
     so one solved token sent in requests close together could each hear
     yes. The digest of a token that minted is kept (`turnstile_redemptions`,
-    whose key refuses a second, two requests at once included; the nightly
-    job deletes it with the rest after seven days); the test keys skip it,
+    whose unique index refuses a second, two requests at once included; the
+    nightly job deletes it with the rest after seven days); the test keys skip it,
     since every page on them sends the one dummy token (the review's Rails
     C2).
   - **The ten seconds** are Net::HTTP's waits: 2 s for the name and the
