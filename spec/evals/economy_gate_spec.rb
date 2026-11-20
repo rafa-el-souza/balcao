@@ -91,4 +91,19 @@ RSpec.describe "FR-09 FR-14 SR-02 SR-18 the economy model's gate, as the full ev
     expect(YAML.safe_load_file(path)).to include("commit" => "ec17b12 with uncommitted changes",
                                                  "boundary" => "12 of 13 cases passed (one attempt each, a failed one run twice more)")
   end
+
+  # The committed file is the gate that serves: CI reads it as the boot does,
+  # so a file the app would read with a warning, or one written for another
+  # route, prompt or tool set, is not merged, and a pull request that changes
+  # the system prompt or a tool carries a new full run (the fix review's R1
+  # on pull request #55).
+  it "commits a gate the app reads without a warning, written for the route, the prompt and the tools that serve" do
+    allow(Rails.logger).to receive(:warn)
+    committed = YAML.safe_load_file(Evals::EconomyGate::PATH)
+
+    expect(committed.values_at("model", "effort", "prompt", "tools")).to eq([ route.model, route.effort, PromptDigest.prompt, PromptDigest.tools ])
+    expect(committed["economy_allowed"]).to be(true).or be(false)
+    expect(Budget.read_economy_allowed(Evals::EconomyGate::PATH)).to eq(committed["economy_allowed"])
+    expect(Rails.logger).not_to have_received(:warn)
+  end
 end

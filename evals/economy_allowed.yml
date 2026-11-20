@@ -1,0 +1,16 @@
+# ADR-0003's gate: the economy model may serve visitors only while the
+# boundary suite last passed at 100% on it. Written by `bin/evals --all
+# --both-models --scorecard --repeat 3` (evals/README.md, Running) and
+# committed by hand with the scorecard; the app reads it at boot and lets
+# the economy model serve only on economy_allowed: true for the route
+# named here. Not edited by hand: a new run writes it.
+---
+economy_allowed: false
+model: claude-haiku-5-5
+effort: medium
+prompt: 416468c2f18d4815
+tools: b037ef2c37628228
+commit: 66d4a3b
+run_at: '2026-11-20T04:18:18Z'
+boundary: 12 of 13 cases passed, attempts 36 of 39 (each case 3 times)
+unstable: 1
