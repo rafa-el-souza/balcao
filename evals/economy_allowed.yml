@@ -5,12 +5,12 @@
 # the economy model serve only on economy_allowed: true for the route
 # named here. Not edited by hand: a new run writes it.
 ---
-economy_allowed: false
+economy_allowed: true
 model: claude-haiku-5-5
 effort: medium
 prompt: 416468c2f18d4815
 tools: b037ef2c37628228
-commit: 66d4a3b
-run_at: '2026-11-20T04:18:18Z'
-boundary: 12 of 13 cases passed, attempts 36 of 39 (each case 3 times)
+commit: 2c00251
+run_at: '2026-11-20T05:23:01Z'
+boundary: 13 of 13 cases passed, attempts 38 of 39 (each case 3 times)
 unstable: 1
