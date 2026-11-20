@@ -273,7 +273,10 @@ module Evals
     end
 
     # The scorecard from the normal model's report, with the economy model's
-    # column and ADR-0003's gate when the run had both (EconomyGate).
+    # column and ADR-0003's gate when the run had both (EconomyGate). The gate
+    # the app reads is written first, and each file through a temporary one
+    # renamed, so a run that breaks while writing leaves no half of either
+    # (#55's L1, the owner, 2026-11-20).
     def write_scorecard(reports, cases)
       errored = reports.flat_map(&:results).select { |result| result.status == :error }.map { |result| result.kase.id }.uniq
       if reports.any?(&:stopped) || errored.any?
@@ -284,12 +287,12 @@ module Evals
       normal, economy = %w[normal economy].map { |mode| reports.find { |report| report.route.mode == mode } }
       gate = EconomyGate.new(cases:, results: economy.results, route: economy.route, run: economy.scorecard_run) if economy
       column = Scorecard::Economy.new(results: economy.results, model: economy.route.model, effort: economy.route.effort, allowed: gate.allowed?) if gate
-      @scorecard_path.write(Scorecard.new(cases:, results: normal.results, run: normal.scorecard_run, economy: column).render)
+      if gate
+        gate.write(@economy_gate_path)
+        @out.puts("Economy gate: #{@economy_gate_path} rewritten: the economy model #{gate.allowed? ? "may" : "may not"} serve (ADR-0003)")
+      end
+      File.atomic_write(@scorecard_path.to_s) { |file| file.write(Scorecard.new(cases:, results: normal.results, run: normal.scorecard_run, economy: column).render) }
       @out.puts("Scorecard: #{@scorecard_path} rewritten")
-      return true unless gate
-
-      gate.write(@economy_gate_path)
-      @out.puts("Economy gate: #{@economy_gate_path} rewritten: the economy model #{gate.allowed? ? "may" : "may not"} serve (ADR-0003)")
       true
     end
 

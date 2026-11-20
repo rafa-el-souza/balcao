@@ -52,7 +52,9 @@ module Evals
       HEADER + YAML.dump(gate)
     end
 
-    def write(path = PATH) = Pathname(path).write(render)
+    # Through a temporary file renamed, so the boot never reads half a gate
+    # (#55's L1).
+    def write(path = PATH) = File.atomic_write(path.to_s) { |file| file.write(render) }
 
     private
 

@@ -412,6 +412,27 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
         expect(scorecard.read).to include("commit `aaaaaaa`")
       end
 
+      # #55's L1 (the owner, 2026-11-20, M2-11a3): the gate the app reads is
+      # written first, and each file through a temporary one renamed, so a
+      # run that breaks while writing leaves no half of either.
+      it "writes the gate before the scorecard, each through a temporary file renamed" do
+        responses.replace([ reply(hello), *Array.new(3) { reply(decline) }, haiku(hello), *Array.new(3) { haiku(decline) } ])
+        written = []
+        allow(File).to receive(:atomic_write).and_wrap_original do |write, path, *rest, &block|
+          written << path.to_s
+          raise Errno::ENOSPC if path.to_s == scorecard.to_s
+
+          write.call(path, *rest, &block)
+        end
+
+        expect { evals("--all", "--both-models", "--scorecard", "--repeat", "3") }.to raise_error(Errno::ENOSPC)
+
+        expect(written).to eq([ gate.to_s, scorecard.to_s ])
+        expect(YAML.safe_load_file(gate)).to include("economy_allowed" => true)
+        expect(scorecard.read).to eq("# Eval scorecard\n\nNo run yet.\n")
+        expect(dir.children.map { |path| path.basename.to_s }.grep(/economy_allowed|scorecard/)).to contain_exactly("economy_allowed.yml", "scorecard.md")
+      end
+
       it "writes neither the scorecard nor the gate when a case ended in error on the economy model" do
         responses.replace([ reply(hello), *Array.new(3) { reply(decline) }, haiku(hello), *([ error(:overloaded) ] * 9) ])
 
