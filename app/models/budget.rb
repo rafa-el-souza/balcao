@@ -91,12 +91,13 @@ module Budget
 
   # The gate as the full eval run writes it (Evals::EconomyGate): a mapping
   # whose economy_allowed is true or false, with the model and the effort the
-  # boundary was measured on and the digests of the system prompt and the
-  # tools the model read and of FR-20's check of its replies (PromptDigest).
-  # It allows the economy model only when it says true for the economy route,
-  # the prompt, the tools and the check as they are now, since a run on
-  # another model, effort, prompt, tool set or check does not speak for this
-  # one (the hunter's F2 on pull request #55; #59's M4). No file, a
+  # boundary was measured on and the digests of the system prompt, the tools
+  # and what the history gave the model back, and of FR-20's check of its
+  # replies (PromptDigest). It allows the economy model only when it says
+  # true for the economy route, the prompt, the tools, the history and the
+  # check as they are now, since a run on another model, effort, prompt, tool
+  # set, history or check does not speak for this one (the hunter's F2 on
+  # pull request #55; #59's M4; the close's XF-C4 and #60's C3). No file, a
   # file that is anything else, or one that cannot be read, is "not allowed",
   # said once in a warning line, never raised: a list or a scalar used to
   # raise, so a forced economy answered 500 on every session and poll (review
@@ -122,11 +123,12 @@ module Budget
       return closed(path, "was written by a run on #{gate["model"].inspect} at #{gate["effort"].inspect} effort, " \
                           "not on the economy route's #{route.model} at #{route.effort}")
     end
-    return true if gate.values_at("prompt", "tools", "guardrail") == [ PromptDigest.prompt, PromptDigest.tools, PromptDigest.guardrail ]
+    serving = [ PromptDigest.prompt, PromptDigest.tools, PromptDigest.guardrail, PromptDigest.history ]
+    return true if gate.values_at("prompt", "tools", "guardrail", "history") == serving
 
-    closed(path, "was written for the system prompt #{gate["prompt"].inspect}, the tools #{gate["tools"].inspect} and " \
-                 "FR-20's check #{gate["guardrail"].inspect}, not for the system prompt #{PromptDigest.prompt}, " \
-                 "the tools #{PromptDigest.tools} and the check #{PromptDigest.guardrail} that serve now")
+    closed(path, "was written for the system prompt #{gate["prompt"].inspect}, the tools #{gate["tools"].inspect}, " \
+                 "FR-20's check #{gate["guardrail"].inspect} and the history #{gate["history"].inspect}, not for the system prompt " \
+                 "#{serving[0]}, the tools #{serving[1]}, the check #{serving[2]} and the history #{serving[3]} that serve now")
   end
 
   def closed(path, why)

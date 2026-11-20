@@ -29,6 +29,8 @@ class AgentRunner
   # per model call, the three of NFR-03's scenario.
   MAX_RETRIES = 2
   MONOTONIC = -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) }
+  # What the model reads of a call past the turn's limit (SR-20).
+  TOOL_LIMIT = "the turn's limit of #{MAX_TOOL_CALLS} tool calls is reached".freeze
 
   # The reply's language at the start of a block, in any letter case and
   # with a region or a script after it ("[PT]", "[pt-BR]", "[es-419]").
@@ -204,7 +206,7 @@ class AgentRunner
       @tool_runs += 1
       return if @tool_runs <= MAX_TOOL_CALLS
 
-      raise AgentTool::Error.new("the turn's limit of #{MAX_TOOL_CALLS} tool calls is reached", reason: "tool_limit")
+      raise AgentTool::Error.new(TOOL_LIMIT, reason: "tool_limit")
     end
 
     def remaining = @deadline - @clock.call

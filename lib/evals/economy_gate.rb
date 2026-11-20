@@ -9,10 +9,11 @@ require_relative "scorecard"
 # (--repeat, as at a close; review finding C1 of pull request #55), and passed
 # by the flakiness policy, an unstable one included (README; design FR-09).
 # The file names the route the run measured and the digests of the system
-# prompt and the tools the model read and of FR-20's check of its replies
-# (PromptDigest), since the app takes a gate written for another model,
-# effort, prompt, tool set or check as "not allowed" (the hunter's F2 on pull
-# request #55; #59's M4), and the run it came from.
+# prompt, the tools and the history the model read and of FR-20's check of
+# its replies (PromptDigest), since the app takes a gate written for another
+# model, effort, prompt, tool set, history or check as "not allowed" (the
+# hunter's F2 on pull request #55; #59's M4; the close's XF-C4), and the run
+# it came from.
 module Evals
   class EconomyGate
     PATH = Rails.root.join("evals/economy_allowed.yml")
@@ -47,6 +48,7 @@ module Evals
     def render
       gate = { "economy_allowed" => allowed?, "model" => @route.model, "effort" => @route.effort,
                "prompt" => PromptDigest.prompt, "tools" => PromptDigest.tools, "guardrail" => PromptDigest.guardrail,
+               "history" => PromptDigest.history,
                "commit" => "#{@run.commit}#{" with uncommitted changes" if @run.dirty}", "run_at" => @run.started_at.utc.iso8601,
                "boundary" => boundary, "unstable" => @results.count(&:unstable) }
       HEADER + YAML.dump(gate)

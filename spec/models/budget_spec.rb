@@ -259,7 +259,7 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
     let(:route) { ModelPolicy.route("economy") }
     let(:run) do
       "model: #{route.model}\neffort: #{route.effort}\nprompt: #{PromptDigest.prompt}\ntools: #{PromptDigest.tools}\n" \
-        "guardrail: #{PromptDigest.guardrail}\ncommit: ec17b12\nrun_at: '2026-11-20T04:00:00Z'\n"
+        "guardrail: #{PromptDigest.guardrail}\nhistory: #{PromptDigest.history}\ncommit: ec17b12\nrun_at: '2026-11-20T04:00:00Z'\n"
     end
 
     before { allow(Rails.logger).to receive(:warn) }
@@ -358,6 +358,54 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
       expect(Rails.logger).to have_received(:warn).with(/check nil/)
     end
 
+    # The close's XF-C4 and #60's C3 (the owner, 2026-11-20, "Amarrar no
+    # portão"): the boundary suite measured the economy model on what the
+    # history gives it back too, the notices in system messages among it, and
+    # on the texts its tools' results carry; a change of either kept the gate
+    # open with no new run.
+    it "reads a gate written before a change of what the history gives the model as not allowed, and says so" do
+      file = gate("economy_allowed: true\n#{run}")
+      written = PromptDigest.history
+      expect(Budget.read_economy_allowed(file)).to be(true)
+
+      changes = {
+        "AgentRunner::History::NOTICES" => AgentRunner::History::NOTICES.merge("decline" => "Your reply was replaced."),
+        "AgentRunner::History::REPLAYED" => %w[create_reservation search_products],
+        "AgentRunner::History::SENT" => "%Y-%m-%d %H:%M",
+        "AgentRunner::History::TURNS" => 20
+      }
+      changes.each do |name, value|
+        RSpec::Mocks.with_temporary_scope do
+          stub_const(name, value)
+          expect(Budget.read_economy_allowed(file)).to be(false), name
+        end
+      end
+      expect(Budget.read_economy_allowed(gate("economy_allowed: true\n#{run.sub(/^history: .*\n/, "")}"))).to be(false)
+      expect(Rails.logger).to have_received(:warn).with(/the history "#{written}", not for .* the history (?!#{written})\h{16} that serve now/)
+                                                    .exactly(changes.size).times
+      expect(Rails.logger).to have_received(:warn).with(/the history nil, not for .* the history #{written} that serve now/)
+    end
+
+    it "digests how the history arranges what it gives back, and reads a gate written before a change of it as not allowed" do
+      file = gate("economy_allowed: true\n#{run}")
+      allow(AgentRunner::History).to receive(:arrange).and_wrap_original { |arrange, entries| arrange.call(entries).reverse }
+
+      expect(Budget.read_economy_allowed(file)).to be(false)
+    end
+
+    it "reads a gate written before a change of a text its tools' results carry as not allowed" do
+      file = gate("economy_allowed: true\n#{run}")
+
+      { "Tools::CreateReservation::AGAIN" => "The same reservation.", "Tools::CreateReservation::OPEN_LIMIT" => "Too many.",
+        "Tools::SearchProducts::EMPTY" => "Empty.", "Tools::GetStoreInfo::UNKNOWN" => "Unknown.", "AgentTool::FAILED" => "Failed.",
+        "AgentRunner::TOOL_LIMIT" => "No more tools." }.each do |name, value|
+        RSpec::Mocks.with_temporary_scope do
+          stub_const(name, value)
+          expect(Budget.read_economy_allowed(file)).to be(false), name
+        end
+      end
+    end
+
     it "digests FR-20's check: its system prompt, what it reads around the texts, its route and its answer's shape" do
       digest = PromptDigest.guardrail
       expect(digest).to match(/\A\h{16}\z/)
@@ -391,7 +439,7 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
 
       out, err, status = boot.call({ "economy_allowed" => true, "model" => route.model, "effort" => route.effort,
                                      "prompt" => PromptDigest.prompt, "tools" => PromptDigest.tools,
-                                     "guardrail" => PromptDigest.guardrail })
+                                     "guardrail" => PromptDigest.guardrail, "history" => PromptDigest.history })
       expect([ status.success?, out ]).to eq([ true, "true\n" ]), err
 
       out, err, status = boot.call([ true ])

@@ -79,7 +79,7 @@ RSpec.describe "FR-09 FR-14 SR-02 SR-18 the economy model's gate, as the full ev
     expect(Budget.read_economy_allowed(path)).to be(true)
     expect(YAML.safe_load_file(path)).to eq(
       "economy_allowed" => true, "model" => route.model, "effort" => route.effort, "prompt" => PromptDigest.prompt,
-      "tools" => PromptDigest.tools, "guardrail" => PromptDigest.guardrail, "commit" => "ec17b12",
+      "tools" => PromptDigest.tools, "guardrail" => PromptDigest.guardrail, "history" => PromptDigest.history, "commit" => "ec17b12",
       "run_at" => "2026-11-20T04:00:00Z", "boundary" => "33 of 33 cases passed, attempts 99 of 99 (each case 3 times)", "unstable" => 0
     )
     expect(path.read).to start_with("# ADR-0003's gate")
@@ -101,8 +101,8 @@ RSpec.describe "FR-09 FR-14 SR-02 SR-18 the economy model's gate, as the full ev
     allow(Rails.logger).to receive(:warn)
     committed = YAML.safe_load_file(Evals::EconomyGate::PATH)
 
-    expect(committed.values_at("model", "effort", "prompt", "tools", "guardrail"))
-      .to eq([ route.model, route.effort, PromptDigest.prompt, PromptDigest.tools, PromptDigest.guardrail ])
+    expect(committed.values_at("model", "effort", "prompt", "tools", "guardrail", "history"))
+      .to eq([ route.model, route.effort, PromptDigest.prompt, PromptDigest.tools, PromptDigest.guardrail, PromptDigest.history ])
     expect(committed["economy_allowed"]).to be(true).or be(false)
     expect(Budget.read_economy_allowed(Evals::EconomyGate::PATH)).to eq(committed["economy_allowed"])
     expect(Rails.logger).not_to have_received(:warn)

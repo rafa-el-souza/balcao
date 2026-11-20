@@ -64,12 +64,16 @@ module Tools
       }
     end
 
+    # A product as the result lists it: its listing, how it matched and its
+    # score (ADR-0003's gate digests its shape, PromptDigest.tools).
+    def self.entry(product) = listing(product).merge("match" => product.match, "score" => product.score)
+
     private
 
     def limit(input)
       (Integer(input.to_h[:limit], exception: false) || MAX_RESULTS).clamp(1, MAX_RESULTS)
     end
 
-    def entry(product) = self.class.listing(product).merge("match" => product.match, "score" => product.score)
+    def entry(product) = self.class.entry(product)
   end
 end
