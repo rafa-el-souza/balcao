@@ -351,14 +351,15 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
     # M2-11a"): the history held no tool results, so the model saw its own
     # earlier claim of a reservation's code with nothing to back it, and the
     # economy model told a visitor, three times in six, that it could not
-    # confirm a reservation it had made. An earlier turn's tool calls come
+    # confirm a reservation it had made. An earlier turn's reservations come
     # back with their results, before the reply the model wrote.
     describe "what the tools did in earlier turns" do
-      let(:exchange) do
-        [ { "role" => "assistant", "content" => [ { "type" => "tool_use", "id" => "toolu_01", "name" => "echo", "input" => { "text" => "dipirona" } } ] },
-          { "role" => "user", "content" => [ { "type" => "tool_result", "tool_use_id" => "toolu_01", "content" => "{\"echo\":\"dipirona\"}",
-                                               "is_error" => false } ] } ]
+      def step(id, name, input, result)
+        [ { "role" => "assistant", "content" => [ { "type" => "tool_use", "id" => id, "name" => name, "input" => input } ] },
+          { "role" => "user", "content" => [ { "type" => "tool_result", "tool_use_id" => id, "content" => result, "is_error" => false } ] } ]
       end
+
+      let(:exchange) { step("toolu_01", "create_reservation", { "product_id" => "p1", "quantity" => 1 }, "{\"code\":\"K7Q2XB\"}") }
 
       def kept(turn, body:, **what)
         travel_to(Time.zone.local(2026, 11, 11, 15, 0, 5)) { Message.record_outbound!(turn:, body:) }
@@ -374,8 +375,8 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
 
         expect(request.body[:messages]).to eq([
           { role: "user", content: [ { type: "text", text: "Sent Wednesday, 2026-11-11 15:00 (São Paulo time)" }, { type: "text", text: "tem dipirona?" } ] },
-          { role: "assistant", content: [ { type: "tool_use", id: "toolu_01", name: "echo", input: { text: "dipirona" } } ] },
-          { role: "user", content: [ { type: "tool_result", tool_use_id: "toolu_01", content: "{\"echo\":\"dipirona\"}", is_error: false } ] },
+          { role: "assistant", content: [ { type: "tool_use", id: "toolu_01", name: "create_reservation", input: { product_id: "p1", quantity: 1 } } ] },
+          { role: "user", content: [ { type: "tool_result", tool_use_id: "toolu_01", content: "{\"code\":\"K7Q2XB\"}", is_error: false } ] },
           { role: "assistant", content: [ { type: "text", text: "[pt] Temos." } ] },
           { role: "user", content: [ { type: "text", text: "Sent Wednesday, 2026-11-11 15:01 (São Paulo time)" }, { type: "text", text: "reserva uma" } ] }
         ])
@@ -393,6 +394,32 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
         expect(messages[2][:content].map { |block| block[:type] }).to eq(%w[tool_result text text])
         expect(messages.last[:content]).to eq(format(AgentRunner::History::NOTICES.fetch("fallback"),
                                                      sent: "Wednesday, 2026-11-11 15:00 (São Paulo time)"))
+      end
+
+      # Review finding V2 of pull request #60 (cannot tell, the verifier's;
+      # the slice's probe made it red): a lookup's result is what was true
+      # when it ran, and the economy model told a visitor a product it had
+      # found was still in stock, three times in three, after the stock ran
+      # out, where on main it searched again. The history gives back what
+      # the model did, never what it looked up, which it looks up again.
+      it "gives back no lookup of an earlier turn, a search or a store fact, only what the model did" do
+        search = step("toolu_02", "search_products", { "query" => "loratadina" }, "{\"products\":[{\"stock\":18}]}")
+        info = step("toolu_03", "get_store_info", { "topic" => "hours" }, "{\"hours\":\"08:00\"}")
+        both = [ { "role" => "assistant", "content" => search.first["content"] + exchange.first["content"] },
+                 { "role" => "user", "content" => search.last["content"] + exchange.last["content"] } ]
+        kept(turn_in(conversation, "tem loratadina? reserva uma", at: Time.zone.local(2026, 11, 11, 15, 0)),
+             body: "Reservei.", reply_kind: "model", model_reply: "[pt] Reservei.")
+        Turn.last.update!(tool_exchange: search + info + both)
+        current = turn_in(conversation, "ainda tem?", at: Time.zone.local(2026, 11, 11, 15, 1))
+
+        runner.run(current)
+
+        messages = request.body[:messages]
+        expect(messages.to_s).not_to include("toolu_02", "toolu_03", "search_products", "get_store_info", "stock")
+        expect(messages[1..2]).to eq([
+          { role: "assistant", content: [ { type: "tool_use", id: "toolu_01", name: "create_reservation", input: { product_id: "p1", quantity: 1 } } ] },
+          { role: "user", content: [ { type: "tool_result", tool_use_id: "toolu_01", content: "{\"code\":\"K7Q2XB\"}", is_error: false } ] }
+        ])
       end
 
       it "keeps out the calls of the turn it runs, which the SDK's runner sends itself" do

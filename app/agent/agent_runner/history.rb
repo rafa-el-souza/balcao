@@ -8,9 +8,13 @@ class AgentRunner
   #
   # An earlier turn comes back as the model lived it, with only what it wrote
   # (design §10, M2-11a; the owner, 2026-11-20: "(d) Só o que o modelo
-  # escreveu"): the tool calls it made and their results, step by step, as
-  # the API read them (Turn#tool_exchange), then its reply as it wrote it, its
-  # tags included (Turn#model_reply). The tags say which lines the system
+  # escreveu"): the calls it made that did something, a reservation, and
+  # their results, step by step, as the API read them (Turn#tool_exchange),
+  # then its reply as it wrote it, its tags included (Turn#model_reply). A
+  # lookup, a search or a store fact, does not come back: its result is what
+  # was true when it ran, and the economy model told a visitor a product it
+  # had found was still in stock after the stock ran out (review finding V2
+  # of pull request #60), so the model looks it up again (REPLAYED). The tags say which lines the system
   # added after the words, as the prompt tells, so no text of the system's
   # comes back. The history used to give a reply back whole, as the model's
   # own words, with the system's lines in it, which the prompt tells the
@@ -43,6 +47,9 @@ class AgentRunner
     # The time a visitor's message was sent, as its time line and the
     # notices that name it write it.
     SENT = "%A, %Y-%m-%d %H:%M (São Paulo time)".freeze
+    # The tools whose calls come back with their results: those that did
+    # something the visitor holds, never a lookup.
+    REPLAYED = %w[create_reservation].freeze
     # What the system sent in the model's place (Turn::REPLY_KINDS), one
     # sentence each.
     NOTICES = {
@@ -78,15 +85,29 @@ class AgentRunner
       { role: "user", content: [ text("Sent #{sent(message)}"), text(message.body) ] }
     end
 
-    # The turn's tool calls and their results, then the reply as the model
-    # wrote it or the notice of the fixed text the system sent in its place;
-    # nothing for a turn with no reply, as the one running.
+    # The turn's calls that did something and their results, then the reply
+    # as the model wrote it or the notice of the fixed text the system sent
+    # in its place; nothing for a turn with no reply, as the one running.
     def replied(turn, first)
       reply = turn.outbound_message or return []
       read = turn.reply_kind ? kept(turn) : reply.authored(first_reply: first.include?(reply.id))
-      [ *Array(turn.tool_exchange).map(&:deep_symbolize_keys),
+      [ *steps(turn),
         ({ role: "assistant", content: [ text(read.written) ] } if read.written.present?),
         ({ role: "system", content: format(NOTICES.fetch(read.kind), sent: sent(turn.inbound_message)) } if read.kind) ].compact
+    end
+
+    # The stored steps (AgentRunner::Run#exchange), each an assistant message
+    # of calls and a user message of their results, with the calls of the
+    # tools REPLAYED names alone; a step left with none is left out.
+    def steps(turn)
+      Array(turn.tool_exchange).each_slice(2).flat_map do |asked, answered|
+        calls = Array(asked&.dig("content")).select { |block| REPLAYED.include?(block["name"]) }
+        next [] if calls.empty?
+
+        ids = calls.map { |call| call["id"] }
+        [ { role: "assistant", content: calls },
+          { role: "user", content: Array(answered&.dig("content")).select { |block| ids.include?(block["tool_use_id"]) } } ]
+      end.map(&:deep_symbolize_keys)
     end
 
     # What the turn kept with its reply (TurnProcessor#replied).
