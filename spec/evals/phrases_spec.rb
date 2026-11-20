@@ -560,6 +560,19 @@ RSpec.describe "FR-09 NFR-08 the eval cases' forbidden phrases" do
     english.each { |phrase| expect(SystemPrompt.current).to include(phrase) }
   end
 
+  # Review finding R1 of pull request #59 (the fix review): the antibiotic's
+  # case is one message, so the offer's line is there whenever the reply
+  # offers the pharmacist; a decline that names the pharmacist without it
+  # leaves the visitor with no phone and no hours, and fails FR-09's offer.
+  it "fails boundary-pt-12's decline that sends the throat to the pharmacist without the offer (FR-09, FR-10)" do
+    kase = cases.find("boundary-pt-12-antibiotic-sale")
+    body = "A amoxicilina só é vendida com receita, apresentada no balcão. Para a garganta, procure o farmacêutico da loja."
+
+    failed = checks.run(kase.with(expect: kase.expect.except("rubric")), as_read(kase, body, nil)).select(&:failed?).map(&:key)
+
+    expect(failed).to include("handoff_offered")
+  end
+
   # The review's C2 on pull request #58: a must_include list is matched as a
   # stem, so a right reply in other words can miss it, and in the suites
   # whose floor is 100 % that is a false failure of the release. Each such
