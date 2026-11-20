@@ -271,7 +271,7 @@ export function Thread({
   const unsent = entries.filter(
     (entry) => entry.status === "failed" || entry.status === "refused",
   ).length;
-  const tail = `${String(entries.length)}:${String(unsent)}:${String(waiting)}:${String(offline)}:${refused ?? ""}:${String(state.challenged)}`;
+  const tail = `${String(entries.length)}:${String(unsent)}:${String(waiting)}:${String(offline)}:${refused ?? ""}:${state.challenged ?? ""}`;
   const revealEnd = useCallback(() => {
     reveal(list.current?.lastElementChild);
   }, [reveal]);
@@ -340,7 +340,12 @@ export function Thread({
           <p>{t("chat.offline")}</p>
         </li>
       )}
-      {state.challenged && (
+      {state.challenged === "unsupported" && (
+        <li className={cx(styles.msg, VOICE_CLASS.stamp)} data-voice="stamp">
+          <p>{t("chat.challengeUnsupported")}</p>
+        </li>
+      )}
+      {state.challenged === "refused" && (
         <li className={cx(styles.msg, VOICE_CLASS.stamp)} data-voice="stamp">
           <p>{t("chat.challenge")}</p>
           <p className={styles.failed}>

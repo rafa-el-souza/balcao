@@ -102,8 +102,8 @@ export interface State {
   // The server refused the anti-bot check of a session that would have
   // minted the visitor, the page's first or one asked for because the cookie
   // was gone, and no session has opened since: the page offers to try again
-  // (threat model SR-39).
-  challenged: boolean;
+  // (threat model SR-39), unless the browser cannot run the check at all.
+  challenged: "refused" | "unsupported" | null;
 }
 
 export type Action =
@@ -112,7 +112,7 @@ export type Action =
   | { type: "loadFailed" }
   // A session met the anti-bot check's refusal, and the visitor tries again
   // (SR-39).
-  | { type: "challenged" }
+  | { type: "challenged"; unsupported: boolean }
   | { type: "rechallenge" }
   | {
       type: "sending";
@@ -155,7 +155,7 @@ export const initialState: State = {
   stamps: 0,
   mode: null,
   brl: null,
-  challenged: false,
+  challenged: null,
 };
 
 // The mode and the rate an answer names, over what the page held.
@@ -273,7 +273,7 @@ export function reduce(state: State, action: Action): State {
       const known = state.known.includes(action.conversationId)
         ? state.known
         : [...state.known, action.conversationId];
-      return { ...state, known, challenged: false, ...budgetOf(state, action) };
+      return { ...state, known, challenged: null, ...budgetOf(state, action) };
     }
     case "loaded":
       return { ...state, phase: state.phase === "failed" ? "failed" : "ready" };
@@ -282,9 +282,12 @@ export function reduce(state: State, action: Action): State {
     case "loadFailed":
       return state.seen ? state : { ...state, phase: "failed" };
     case "challenged":
-      return { ...state, challenged: true };
+      return {
+        ...state,
+        challenged: action.unsupported ? "unsupported" : "refused",
+      };
     case "rechallenge":
-      return { ...state, challenged: false };
+      return { ...state, challenged: null };
     case "sending":
       return {
         ...state,

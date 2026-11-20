@@ -210,6 +210,30 @@ describe("SR-39 FR-18 the anti-bot check", () => {
     expect(server.sent()[0]?.body).toMatchObject({ say: "stock_pt" });
   });
 
+  // The review of pull request #53 (its web verifier's V5): a browser the
+  // check cannot run in gets no hint about a blocker nor a retry that can
+  // never pass.
+  it("says a browser the check cannot run in cannot open the conversation, with no retry", async () => {
+    turnstile().answer = "hold";
+    server.answers.session.push({ status: 403, body: { error: "challenge" } });
+    renderPage(<Chat />);
+    await waitFor(() => {
+      expect(turnstile().rendered).toHaveLength(1);
+    });
+
+    act(() => {
+      turnstile().unsupported();
+    });
+
+    expect(
+      await within(thread()).findByText(pt.challengeUnsupported),
+    ).toBeInTheDocument();
+    expect(within(thread()).queryByText(pt.challenge)).toBeNull();
+    expect(
+      within(thread()).queryByRole("button", { name: pt.challengeRetry }),
+    ).toBeNull();
+  });
+
   // Review finding C3 of pull request #53: the hint follows any session
   // the check refused, not only the page's first.
   it("says the check did not pass when a message finds its cookie gone and the check fails, and offers the message again", async () => {

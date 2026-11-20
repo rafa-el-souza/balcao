@@ -148,7 +148,10 @@ export function useConversation(challenge: Challenge) {
         async (): Promise<Outcome<Session>> => {
           const token = mint ? await challenge.token() : null;
           if (mint && token === null && refusedCheck.current) {
-            dispatch({ type: "challenged" });
+            dispatch({
+              type: "challenged",
+              unsupported: challenge.unsupported,
+            });
             return { kind: "challenge" };
           }
           const opened = await api.session(locale, token);
@@ -162,7 +165,10 @@ export function useConversation(challenge: Challenge) {
             });
           } else if (opened.kind === "challenge") {
             refusedCheck.current = true;
-            dispatch({ type: "challenged" });
+            dispatch({
+              type: "challenged",
+              unsupported: challenge.unsupported,
+            });
           }
           return opened;
         },

@@ -67,6 +67,7 @@
     "loadFailed": "Não consegui abrir a conversa agora. Recarregue a página daqui a pouco.",
     "challenge": "A verificação anti-bot não passou, e sem ela a conversa não abre. Um bloqueador de conteúdo pode impedir a verificação.",
     "challengeRetry": "tentar de novo",
+    "challengeUnsupported": "Este navegador não consegue fazer a verificação anti-bot da Cloudflare, e sem ela a conversa não abre. Abra o Balcão em outro navegador.",
     "offline": "Sem conexão com o servidor agora. Continuo tentando.",
     "failed": "não enviada",
     "retry": "enviar de novo",

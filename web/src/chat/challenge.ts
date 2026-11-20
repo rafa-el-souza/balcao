@@ -86,6 +86,8 @@ export function siteKeyFor(hostname: string): string {
 export interface Challenge {
   // A token for one session, or null when the check gave none.
   token(): Promise<string | null>;
+  // Cloudflare said this browser cannot run the check: no try will pass.
+  readonly unsupported: boolean;
   // Where the widget is drawn, as React gives it to a callback ref.
   attach: (element: HTMLElement | null) => void;
 }
@@ -271,6 +273,9 @@ export function createChallenge(language: () => string): Challenge {
 
   return {
     token,
+    get unsupported() {
+      return unsupported;
+    },
     attach(element) {
       container = element;
     },

@@ -67,6 +67,7 @@
     "loadFailed": "I couldn't open the conversation just now. Reload the page in a little while.",
     "challenge": "The anti-bot check did not pass, and the conversation cannot open without it. A content blocker may stop the check.",
     "challengeRetry": "try again",
+    "challengeUnsupported": "This browser cannot run Cloudflare's anti-bot check, and the conversation cannot open without it. Open Balcão in another browser.",
     "offline": "No connection to the server right now. Still trying.",
     "failed": "not sent",
     "retry": "send again",
