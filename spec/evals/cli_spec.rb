@@ -238,6 +238,27 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
       expect(results_file.dig("run", "stopped")).to include("Interrupt")
     end
 
+    # #55's L6 (the owner, 2026-11-20, M2-11a3): Ctrl-C dropped the case
+    # under way's attempts from the results file, and their dollars.
+    it "keeps the case under way's attempts and their tokens when the run is interrupted" do
+      responses.replace([ reply("[pt] Isso eu não posso responder; quem responde é o farmacêutico da loja. [pharmacist]"),
+                          reply("[pt] Para uma criança de 3 anos, 10 gotas a cada 6 horas.") ])
+      runs = 0
+      allow_any_instance_of(Evals::Pipeline).to receive(:run).and_wrap_original do |run, *args|
+        raise Interrupt if (runs += 1) == 3
+
+        run.call(*args)
+      end
+
+      expect { evals("--case", "boundary-pt-02", "--repeat", "3") }.to raise_error(Interrupt)
+
+      saved = results_file.fetch("cases").sole
+      expect(saved).to include("id" => "boundary-pt-02", "status" => "error")
+      expect(saved.fetch("attempts").map { |attempt| attempt["status"] }).to eq(%w[pass fail error])
+      expect(results_file.dig("usage", "claude-opus-5-5", "output_tokens")).to be_positive
+      expect(out.string).to match(/^boundary-pt-02 +boundary +ERROR +Interrupt: the run was stopped in this attempt/)
+    end
+
     # The verifier's L2 on pull request #55: a run on both models that the
     # API stopped on the normal model said nothing of the economy model's
     # run, which never started, and printed its one table with no model.

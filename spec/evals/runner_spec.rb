@@ -279,6 +279,31 @@ RSpec.describe "NFR-08 SR-18 the eval runner's attempts" do
     }
   end
 
+  # #55's L6 (the owner, 2026-11-20, M2-11a3): Ctrl-C, inside an attempt or
+  # in the wait before a retry, dropped the case under way's attempts, and
+  # their tokens with them; it stops the run as an interruption all the same.
+  it "keeps the case under way's attempts when the run is interrupted, the one it stopped in among them" do
+    script.replace([ bad, -> { raise Interrupt } ])
+
+    expect { runner.call([ kase, kase ]) }.to raise_error(Evals::Runner::Interrupted) { |error|
+      expect(error).to be_a(Interrupt)
+      expect(error.result).to have_attributes(kase:, status: :error)
+      expect(error.result.attempts.map(&:status)).to eq(%i[fail error])
+      expect(error.result.attempts.first.run.turns.sole.model_calls).to be_present
+      expect(error.result.attempts.last).to have_attributes(error: "Interrupt: the run was stopped in this attempt", run: nil)
+    }
+  end
+
+  it "keeps the case under way's attempts when the run is interrupted in the wait before a retry" do
+    script.replace([ overloaded ])
+    interrupted = ->(_seconds) { raise Interrupt }
+    runner = Evals::Runner.new(pipeline:, checks: Evals::Checks.new(phrases:), judge:, route: ModelPolicy.route("normal"), pause: interrupted)
+
+    expect { runner.call([ kase ]) }.to raise_error(Evals::Runner::Interrupted) { |error|
+      expect(error.result.attempts.map(&:status)).to eq(%i[error])
+    }
+  end
+
   it "reports each case as it ends" do
     script.replace([ good, bad, bad ])
     seen = []
