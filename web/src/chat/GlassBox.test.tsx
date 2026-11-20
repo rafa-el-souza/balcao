@@ -443,6 +443,94 @@ describe("FR-07 FR-12 a tool's reservation, refusal and failure in the glass box
   });
 });
 
+// FR-20: the guardrail's check of the reply is a row of its own, after the
+// model's calls and before the reply.
+describe("FR-20 FR-12 the guardrail's check in the glass box", () => {
+  async function checkRow(
+    guardrail: Record<string, unknown>,
+    outcome?: string,
+  ) {
+    server.answers.current.push(
+      conversation(
+        1,
+        [],
+        false,
+        answeredTurn("t1", { guardrail, ...(outcome ? { outcome } : {}) }),
+      ),
+    );
+    renderPage(<Chat />);
+    await ready();
+    return (
+      await within(glass()).findByText(pt.instrument.guardrail, {
+        selector: "summary span",
+      })
+    ).closest("li") as HTMLElement;
+  }
+
+  it("shows the check after the model's calls, with its verdict, its cost and its time", async () => {
+    await checkRow({});
+
+    const rows = rowsOf(events());
+    expect(rows[4]).toMatch(
+      /^12:03:44 guardrail resposta aprovada US\$ 0,0001 · 420 ms/,
+    );
+    expect(rows[5]).toBe("12:03:44 mensagem enviada");
+  });
+
+  it("opens to the check's model, its tokens and its cost", async () => {
+    const row = await checkRow({});
+
+    expect(within(row).getByText("claude-haiku-5-5")).toBeInTheDocument();
+    expect(within(row).getByText("640")).toBeInTheDocument();
+    expect(within(row).getByText("38")).toBeInTheDocument();
+    expect(row).not.toHaveAttribute("data-state");
+  });
+
+  // A rule at work is no failure: the replacement keeps the instrument's
+  // own ink, as a tool's refusal does.
+  it("says the reply was replaced, in the row and in the reply's, in the instrument's own ink", async () => {
+    const row = await checkRow(
+      { "balcao.guardrail.clinical": true },
+      "replaced",
+    );
+
+    expect(within(row).getByText("resposta substituída")).toBeInTheDocument();
+    expect(row).toHaveAttribute("data-state", "refused");
+    expect(
+      within(glass()).getByText("substituída pelo guardrail"),
+    ).toBeInTheDocument();
+  });
+
+  // Threat model R4: the reply went as the model wrote it.
+  it("says the check gave no verdict and the reply went unchecked, in the error colour, with the error in words", async () => {
+    const row = await checkRow({
+      "balcao.guardrail.clinical": undefined,
+      "gen_ai.response.model": undefined,
+      "balcao.cost.usd": undefined,
+      "gen_ai.usage.input_tokens": undefined,
+      "gen_ai.usage.output_tokens": undefined,
+      "error.type": "Anthropic::Errors::APITimeoutError",
+      "balcao.latency_ms": 5004,
+    });
+
+    expect(
+      within(row).getByText("sem verificação · resposta enviada"),
+    ).toBeInTheDocument();
+    expect(within(row).getByText("tempo esgotado")).toBeInTheDocument();
+    expect(row).toHaveAttribute("data-state", "error");
+  });
+
+  it("has a word for every verdict in each of the three languages", async () => {
+    const { default: en } = await import("../locales/en.json");
+    const { default: es } = await import("../locales/es.json");
+    const keys = Object.keys(pt.instrument.guardrailVerdicts).sort();
+
+    expect(keys).toEqual(["failed", "pass", "replaced"]);
+    expect(Object.keys(en.instrument.guardrailVerdicts).sort()).toEqual(keys);
+    expect(Object.keys(es.instrument.guardrailVerdicts).sort()).toEqual(keys);
+  });
+});
+
 describe("FR-12 a long conversation in the glass box", () => {
   it("folds the earlier turns into one line, which opens to a line per turn, and keeps the last turn open", async () => {
     server.answers.current.push(

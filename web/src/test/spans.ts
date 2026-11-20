@@ -45,7 +45,28 @@ export interface TurnOptions {
   // root records (app/models/turn_processor.rb).
   mode?: string;
   budgetMode?: string;
+  // FR-20: the guardrail's check of the reply, its span's attributes over
+  // a check that passed it in 420 ms; the reply then leaves after it.
+  guardrail?: Record<string, unknown>;
 }
+
+const guardrailSpan = (
+  turn: string,
+  minute: number,
+  attributes: Record<string, unknown>,
+) =>
+  span(turn, "balcao.guardrail", at(minute, 44), at(minute, 44, 420), {
+    "gen_ai.request.model": "claude-haiku-5-5",
+    "gen_ai.request.reasoning.level": "low",
+    "gen_ai.response.model": "claude-haiku-5-5",
+    "anthropic.message.stop_reason": "end_turn",
+    "balcao.latency_ms": 420,
+    "gen_ai.usage.input_tokens": 640,
+    "gen_ai.usage.output_tokens": 38,
+    "balcao.cost.usd": 0.000083,
+    "balcao.guardrail.clinical": false,
+    ...attributes,
+  });
 
 // An answered turn: received at minute:41, a model call that asks for a tool,
 // the tool, a model call that answers and the reply, at minute:44.
@@ -132,9 +153,18 @@ export function answeredTurn(turn: string, options: TurnOptions = {}) {
       "gen_ai.usage.cache_write.input_tokens": 3700,
       "gen_ai.usage.output_tokens": 98,
     }),
-    span(turn, "balcao.outbound", at(minute, 44), at(minute, 44), {
-      "balcao.message.author": "bot",
-    }),
+    ...(options.guardrail
+      ? [guardrailSpan(turn, minute, options.guardrail)]
+      : []),
+    span(
+      turn,
+      "balcao.outbound",
+      at(minute, 44, options.guardrail ? 420 : 0),
+      at(minute, 44, options.guardrail ? 420 : 0),
+      {
+        "balcao.message.author": "bot",
+      },
+    ),
   ];
 }
 
