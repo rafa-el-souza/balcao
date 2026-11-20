@@ -131,7 +131,9 @@ RSpec.describe "FR-18 SR-03 POST /api/session issues the visitor cookie", type: 
     end
 
     it "refuses a token Cloudflare refuses, creating nothing and setting no cookie" do
-      expect { api_post "/api/session", { turnstile_token: "0.a-token-the-test-secret-refuses" } }.not_to change(Visitor, :count)
+      stub_siteverify_answer(TurnstileStubs::REFUSED)
+
+      expect { api_post "/api/session", { turnstile_token: "0.a-token-cloudflare-refuses" } }.not_to change(Visitor, :count)
 
       expect(response).to have_http_status(:forbidden)
       expect(json).to eq("error" => "challenge")
@@ -171,7 +173,7 @@ RSpec.describe "FR-18 SR-03 POST /api/session issues the visitor cookie", type: 
       log = StringIO.new
       logger = ActiveSupport::Logger.new(log)
       allow(Rails).to receive(:logger).and_return(logger)
-      token = "0.a-token-the-test-secret-refuses"
+      token = "0.a-token-of-the-visitor"
 
       api_post "/api/session", { turnstile_token: token }
       api_post "/api/session", minting

@@ -23,10 +23,13 @@ RSpec.describe "SR-39 FR-18 Turnstile's check of a token" do
       expect(check.passed?(TurnstileStubs::DUMMY_TOKEN)).to be true
     end
 
-    it "refuses any other token, as the test secret does" do
+    # Probed on 2026-11-20: the test secret said yes to any token, though
+    # Cloudflare's docs say it refuses a real one; so the boot refuses it on
+    # the public name (config/required_environment.rb).
+    it "passes any token the test secret is given, as Cloudflare answered it when probed" do
       stub_siteverify
 
-      expect(check.passed?("0.real-looking-token")).to be false
+      expect(check.passed?("0.real-looking-token")).to be true
     end
 
     it "is the suite's own configuration: the published test secret that always passes" do
