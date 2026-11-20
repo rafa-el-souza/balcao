@@ -30,6 +30,12 @@ class Turnstile
   URL = URI("https://challenges.cloudflare.com/turnstile/v0/siteverify").freeze
   ACTION = "session".freeze
   MAX_TOKEN = 2048
+  # A token as Cloudflare writes one: printable ASCII, no space and no
+  # control character, at most 2,048 of them. A variant of one solved token
+  # (a line break after it) would hash apart from it in first_yes?, while
+  # Cloudflare's decoder may read it as the same token (the fix review of
+  # pull request #53, R2), so it is refused before Cloudflare is asked.
+  TOKEN = /\A[\x21-\x7E]{1,#{MAX_TOKEN}}\z/
   TEST_SECRETS = %w[
     1x0000000000000000000000000000000AA 2x0000000000000000000000000000000AA 3x0000000000000000000000000000000AA
   ].freeze
@@ -62,7 +68,7 @@ class Turnstile
 
   # Whether Cloudflare vouches for this token, here and now.
   def passed?(token)
-    return refused(:info, "no token") unless token.is_a?(String) && token.length.between?(1, MAX_TOKEN)
+    return refused(:info, "no token") unless token.is_a?(String) && token.match?(TOKEN)
 
     answer = siteverify(token) or return false
     return refused_by(answer) unless answer["success"] == true

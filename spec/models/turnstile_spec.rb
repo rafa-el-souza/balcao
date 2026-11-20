@@ -84,6 +84,21 @@ RSpec.describe "SR-39 FR-18 Turnstile's check of a token" do
       expect(Rails.logger).to have_received(:warn).with("turnstile: refused: a token taken before")
     end
 
+    # The fix review of pull request #53 (R2): a variant of one solved token
+    # (a line break after it) hashes apart, and Cloudflare's decoder may read
+    # it as the same token. Cloudflare's tokens hold no space and no control
+    # character.
+    it "refuses a token with a space or a control character, asking Cloudflare nothing, so a variant is never a second token" do
+      stub_siteverify_answer(passed)
+
+      expect(check.passed?("0.one-solved-token")).to be true
+      [ "0.one-solved-token\n", " 0.one-solved-token", "0.one-solved-token\r\n", "0.one\tsolved-token",
+        "0.one-solved-tokén" ].each do |variant|
+        expect(check.passed?(variant)).to be false
+      end
+      expect(a_request(:post, TurnstileStubs::SITEVERIFY)).to have_been_made.once
+    end
+
     it "keeps nothing of a token Cloudflare refused, nor of another site's or action's yes" do
       stub_siteverify_answer({ "success" => false, "error-codes" => [ "invalid-input-response" ] })
       check.passed?("0.refused")
