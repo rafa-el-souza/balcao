@@ -159,6 +159,20 @@ RSpec.describe "FR-06 ADR-0009 the catalogue search" do
     expect(results.map(&:score)).to all(be_between(0, 1))
   end
 
+  # #60's V2 of the second verifier, dismissed then and real at the close
+  # (teorico, the owner, 2026-11-20, M2-11a3): the database folds a query's
+  # accents after the tool's 100-character bound, and a folding can lengthen
+  # a word past what the likeness's edit distance takes, which made the
+  # whole search fail. A word over 64 letters is alike nothing, as in
+  # Product.named_in: no product's word is that long.
+  it "takes a word the folding lengthens past the edit distance's bound, which is alike nothing" do
+    long = "\u2167" * 70
+
+    expect { names(long) }.not_to raise_error
+    expect(names(long)).to be_empty
+    expect(matches("dipirona #{long}")).to include("Dipirona 500 mg, 10 comprimidos" => "partial")
+  end
+
   it "returns no more products than the limit" do
     expect(names("comprimidos", limit: 3).size).to eq(3)
   end

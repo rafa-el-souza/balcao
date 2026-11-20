@@ -41,13 +41,20 @@ class Product < ApplicationRecord
       ARRAY(SELECT word FROM unnest(tsvector_to_array(to_tsvector('simple', text))) AS word WHERE length(word) = 1)
     ) AS stem)
   SQL
+  # A word over WORD letters, the query's or a product's, is alike nothing
+  # but itself: no product's word is that long, and the edit distance refuses
+  # one over 255, which the database's folding of a query's accents can
+  # reach after the tool's 100-character bound (#60's V2, real at the close
+  # of M2-11a2). A CASE, since Postgres does not promise to evaluate an AND
+  # in its written order.
+  WORD = 64
   ALIKE = <<~SQL.squish.freeze
-    asked = found OR (length(asked) >= 5 AND (
+    asked = found OR CASE WHEN length(asked) < 5 OR length(asked) > #{WORD} OR length(found) > #{WORD} THEN false ELSE (
       levenshtein_less_equal(asked, found, 1) <= 1 OR
       (length(asked) = length(found) AND levenshtein_less_equal(asked, found, 2) <= 2 AND
        (SELECT string_agg(letter, '' ORDER BY letter) FROM regexp_split_to_table(asked, '') AS letter) =
        (SELECT string_agg(letter, '' ORDER BY letter) FROM regexp_split_to_table(found, '') AS letter))
-    ))
+    ) END
   SQL
 
   # The SQL of Product.search, below, which says what each part does.
@@ -208,7 +215,7 @@ class Product < ApplicationRecord
       SELECT id, kind, #{STEMS} AS stems FROM texts
     ),
     message AS MATERIALIZED (
-      SELECT ARRAY(SELECT stem FROM unnest(stems) AS stem WHERE length(stem) <= 64) AS stems FROM stemmed WHERE kind = 'message'
+      SELECT ARRAY(SELECT stem FROM unnest(stems) AS stem WHERE length(stem) <= #{WORD}) AS stems FROM stemmed WHERE kind = 'message'
     )
     SELECT products.*
     FROM products
