@@ -122,7 +122,7 @@ describe("FR-19 the privacy page is the bot's own policy", () => {
     ).toBeInTheDocument();
   });
 
-  it("names Telegram among those who process the data, and no company the demo does not use yet", () => {
+  it("names Telegram and Cloudflare among those who process the data, and no company the demo does not use", () => {
     renderPage(<Privacy />);
     const processors = within(
       screen
@@ -130,11 +130,28 @@ describe("FR-19 the privacy page is the bot's own policy", () => {
         .closest("section") as HTMLElement,
     );
 
-    expect(processors.getAllByRole("listitem")).toHaveLength(3);
+    expect(processors.getAllByRole("listitem")).toHaveLength(4);
     expect(processors.getByText(/^Telegram:/)).toBeInTheDocument();
-    // Cloudflare joins with Turnstile (FR-18, SR-39), Meta left with the
-    // channel (ADR-0016).
-    expect(text()).not.toMatch(/Cloudflare|Meta|WhatsApp/);
+    // Meta left with the channel (ADR-0016).
+    expect(text()).not.toMatch(/Meta|WhatsApp/);
+  });
+
+  // Threat model SR-39, ADR-0012: Turnstile's check runs when the chat opens,
+  // and Cloudflare sees the visitor's address and the browser's signals
+  // (Cloudflare's Turnstile privacy addendum, read on 2026-11-20).
+  it("names Cloudflare's anti-bot check, when it runs and what it sees, in the three languages", () => {
+    for (const [locale, page] of [
+      ["pt-BR", ptBR.privacy],
+      ["en", en.privacy],
+      ["es", es.privacy],
+    ] as const) {
+      const { unmount } = renderPage(<Privacy />, locale);
+      const item = page.processors.items.at(-1) ?? "";
+      expect(item).toMatch(/^Cloudflare: /);
+      expect(item).toMatch(/IP/);
+      expect(text()).toContain(item);
+      unmount();
+    }
   });
 
   it("keeps a Telegram conversation out of the test cases, which a web one may become", () => {
@@ -175,11 +192,10 @@ describe("FR-05 the privacy page on deleting before the seven days", () => {
 // out until then: the backups (M3) and Cloudflare's check (the Turnstile
 // slice), and the status link (M3).
 describe("Design §10 the privacy page shows nothing before its source exists", () => {
-  it("has no backups, no anti-bot check and no status link yet", () => {
+  it("has no backups and no status link yet", () => {
     renderPage(<Privacy />);
 
     expect(text()).not.toMatch(/cópias de segurança|backup/i);
-    expect(text()).not.toMatch(/anti-bot/);
     expect(screen.queryByRole("link", { name: /status/i })).toBeNull();
   });
 });

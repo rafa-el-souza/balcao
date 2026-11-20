@@ -23,6 +23,7 @@ import {
   type Snapshot,
   type Span,
 } from "./api";
+import type { Challenge } from "./challenge";
 import { awaiting, initialState, reduce } from "./conversation";
 
 // FR-18: the replies and the trace's spans arrive over Action Cable, on the
@@ -97,7 +98,7 @@ function takeSay(): OpenerKey | null {
   return isOpener(key) ? key : null;
 }
 
-export function useConversation() {
+export function useConversation(challenge: Challenge) {
   const { i18n } = useTranslation();
   const cable = useContext(CableContext);
   const queryClient = useQueryClient();
@@ -124,12 +125,16 @@ export function useConversation() {
   // One session request at a time, and messages only after the one in
   // flight: two requests without a cookie would mint two visitors, and the
   // last cookie to arrive would leave the page's message under the other
-  // (review finding C4 of pull request #14).
+  // (review finding C4 of pull request #14). A session that may mint a
+  // visitor (the page's first, and one asked for because the cookie is gone)
+  // waits for a token of Turnstile's widget, or for the check to give none;
+  // one that only names the page's language brings none (threat model SR-39).
   const sessions = useRef<Promise<unknown>>(Promise.resolve());
   const session = useCallback(
-    (locale: Locale) => {
+    (locale: Locale, mint = false) => {
       const next = sessions.current.then(async () => {
-        const opened = await api.session(locale);
+        const token = mint ? await challenge.token() : null;
+        const opened = await api.session(locale, token);
         if (opened.kind === "ok")
           dispatch({
             type: "session",
@@ -142,7 +147,7 @@ export function useConversation() {
       sessions.current = next.catch(() => undefined);
       return next;
     },
-    [api],
+    [api, challenge],
   );
 
   // Each answer of the conversation's query: the first is the page's load,
@@ -175,7 +180,7 @@ export function useConversation() {
       );
       setPollRefused(answer.kind === "limit" ? answer.text : null);
       // The cookie is gone: a new session, and the polls go on.
-      if (answer.kind === "session") void session(language());
+      if (answer.kind === "session") void session(language(), true);
     },
     [language, session],
   );
@@ -284,7 +289,7 @@ export function useConversation() {
       await sessions.current;
       let outcome = await api.send(clientId, content);
       if (outcome.kind === "session") {
-        const renewed = await session(language());
+        const renewed = await session(language(), true);
         // A refused session is the edge's limit, said with its own text
         // (review finding C6 of pull request #14).
         outcome =
@@ -385,31 +390,50 @@ export function useConversation() {
     [session],
   );
 
+  // The page's first session, and the one the visitor asks for again after
+  // the server refused the check (SR-39). The opener the address brought is
+  // sent once a session opens.
+  const say = useRef<OpenerKey | null>(null);
+  const open = useCallback(async () => {
+    const opened = await session(language(), true);
+    // A load that ends here has said so: the conversation's answers that a
+    // message opens later are polls (row IR-U1).
+    if (opened.kind === "limit") {
+      loaded.current = true;
+      dispatch({ type: "limited", clientId: null, text: opened.text });
+      dispatch({ type: "loaded" });
+      return;
+    }
+    // The check gave no token, or one Cloudflare did not vouch for: the page
+    // offers to try again, and a message sent meanwhile asks too.
+    if (opened.kind === "challenge") {
+      dispatch({ type: "challenged" });
+      return;
+    }
+    if (opened.kind !== "ok") {
+      loaded.current = true;
+      dispatch({ type: "loadFailed" });
+      return;
+    }
+    const opener = say.current;
+    say.current = null;
+    if (opener) sendOpener(opener);
+    setOpened(true);
+  }, [language, sendOpener, session]);
+
   // Once per page load, even when React mounts twice in development.
   const started = useRef(false);
   useEffect(() => {
     if (started.current) return;
     started.current = true;
-    const say = takeSay();
-    void (async () => {
-      const opened = await session(language());
-      // A load that ends here has said so: the conversation's answers that a
-      // message opens later are polls (row IR-U1).
-      if (opened.kind === "limit") {
-        loaded.current = true;
-        dispatch({ type: "limited", clientId: null, text: opened.text });
-        dispatch({ type: "loaded" });
-        return;
-      }
-      if (opened.kind !== "ok") {
-        loaded.current = true;
-        dispatch({ type: "loadFailed" });
-        return;
-      }
-      if (say) sendOpener(say);
-      setOpened(true);
-    })();
-  }, [language, sendOpener, session]);
+    say.current = takeSay();
+    void open();
+  }, [open]);
+
+  const retryChallenge = useCallback(() => {
+    dispatch({ type: "rechallenge" });
+    void open();
+  }, [open]);
 
   const refused = waiting ? pollRefused : null;
   const offline = waiting && refused === null && pollFailures >= 2;
@@ -422,6 +446,7 @@ export function useConversation() {
     sendCommand,
     sendOpener,
     retry,
+    retryChallenge,
     changeLanguage,
   };
 }

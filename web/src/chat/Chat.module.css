@@ -288,6 +288,25 @@
   cursor: pointer;
 }
 
+/* Cloudflare Turnstile's widget, which shows itself only when the check wants the visitor to tick
+   it, centred under the suggestions; and the line that says who runs the check (FR-18,
+   docs/prototype/chat.html). */
+.challenge {
+  display: flex;
+  justify-content: center;
+}
+
+.challenge:not(:empty) {
+  margin-top: var(--space-3);
+}
+
+.antibot {
+  margin: var(--space-3) 0 0;
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--color-ink-2);
+}
+
 /* The instrument: the glass box, on the receipt's roll. */
 .glass {
   display: flex;
@@ -590,7 +609,8 @@
     border-top: var(--rule-hairline);
   }
 
-  .chat[data-drawer] .suggest {
+  .chat[data-drawer] .suggest,
+  .chat[data-drawer] .antibot {
     display: none;
   }
 

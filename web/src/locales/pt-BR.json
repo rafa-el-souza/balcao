@@ -65,6 +65,8 @@
     "heading": "Conversa com a Farmácia Vida Longa",
     "greeting": "Olá! Posso ver estoque e preço ou reservar um produto. É só escrever, ou começar por uma destas:",
     "loadFailed": "Não consegui abrir a conversa agora. Recarregue a página daqui a pouco.",
+    "challenge": "A verificação anti-bot não passou, e sem ela a conversa não abre. Um bloqueador de conteúdo pode impedir a verificação.",
+    "challengeRetry": "tentar de novo",
     "offline": "Sem conexão com o servidor agora. Continuo tentando.",
     "failed": "não enviada",
     "retry": "enviar de novo",
@@ -82,6 +84,7 @@
       "pharmacist": "falar com o farmacêutico",
       "pharmacistText": "Quero falar com o farmacêutico."
     },
+    "antibot": "Verificação anti-bot: a Cloudflare faz a checagem e vê o seu IP.",
     "glass": {
       "title": "Caixa de vidro",
       "empty": "Nenhum evento ainda. Cada chamada ao modelo e a cada ferramenta aparece aqui, com a hora, a duração e o custo.",
@@ -275,7 +278,8 @@
       "items": [
         "Anthropic: o modelo de linguagem, que recebe o texto da conversa para responder.",
         "Hetzner: a hospedagem do servidor, onde ficam o banco de dados e os logs.",
-        "Telegram: as conversas com o bot passam pelos servidores do Telegram, sob a política de privacidade dele."
+        "Telegram: as conversas com o bot passam pelos servidores do Telegram, sob a política de privacidade dele.",
+        "Cloudflare: a verificação anti-bot do site, quando a conversa abre; ela vê o seu IP e a identificação do navegador."
       ]
     },
     "contact": {

@@ -73,7 +73,9 @@ interface Own extends Entry {
 }
 
 export interface State {
-  phase: "loading" | "ready" | "failed";
+  // "challenge": the server refused the anti-bot check of the page's first
+  // session, and the page offers to try again (threat model SR-39).
+  phase: "loading" | "ready" | "failed" | "challenge";
   conversationId: string | null;
   // The link to the conversation's trace page (FR-12), from the snapshot.
   traceToken: string | null;
@@ -105,6 +107,10 @@ export type Action =
   | { type: "session"; conversationId: string; mode?: unknown; brl?: unknown }
   | { type: "loaded" }
   | { type: "loadFailed" }
+  // The page's first session met the anti-bot check's refusal, and the
+  // visitor tries again (SR-39).
+  | { type: "challenged" }
+  | { type: "rechallenge" }
   | {
       type: "sending";
       clientId: string;
@@ -271,6 +277,12 @@ export function reduce(state: State, action: Action): State {
     // (review finding R4).
     case "loadFailed":
       return state.seen ? state : { ...state, phase: "failed" };
+    case "challenged":
+      return state.seen ? state : { ...state, phase: "challenge" };
+    case "rechallenge":
+      return state.phase === "challenge"
+        ? { ...state, phase: "loading" }
+        : state;
     case "sending":
       return {
         ...state,

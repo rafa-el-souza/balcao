@@ -65,6 +65,8 @@
     "heading": "Conversation with Farmácia Vida Longa",
     "greeting": "Hello! I can check stock and prices or reserve a product. Just write, or start with one of these:",
     "loadFailed": "I couldn't open the conversation just now. Reload the page in a little while.",
+    "challenge": "The anti-bot check did not pass, and the conversation cannot open without it. A content blocker may stop the check.",
+    "challengeRetry": "try again",
     "offline": "No connection to the server right now. Still trying.",
     "failed": "not sent",
     "retry": "send again",
@@ -82,6 +84,7 @@
       "pharmacist": "talk to the pharmacist",
       "pharmacistText": "I'd like to talk to the pharmacist."
     },
+    "antibot": "Anti-bot check: Cloudflare runs it and sees your IP.",
     "glass": {
       "title": "Glass box",
       "empty": "No events yet. Every call to the model and to each tool shows up here, with its time, its duration and its cost.",
@@ -275,7 +278,8 @@
       "items": [
         "Anthropic: the language model, which receives the conversation's text in order to reply.",
         "Hetzner: the server's hosting, where the database and the logs are.",
-        "Telegram: conversations with the bot go through Telegram's servers, under Telegram's own privacy policy."
+        "Telegram: conversations with the bot go through Telegram's servers, under Telegram's own privacy policy.",
+        "Cloudflare: the site's anti-bot check, when the conversation opens; it sees your IP and your browser's identification."
       ]
     },
     "contact": {

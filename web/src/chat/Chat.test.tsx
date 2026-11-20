@@ -19,6 +19,7 @@ import {
   replyTo,
   stored,
 } from "../test/fakeServer";
+import { DUMMY_TOKEN, turnstile } from "../test/fakeTurnstile";
 import { renderPage } from "../test/render";
 import { LIT_ICON, tabIcon } from "../test/tabIcon";
 import { serverClock } from "./api";
@@ -115,13 +116,132 @@ describe("FR-21 the chat's openers (threat model SR-34)", () => {
   });
 });
 
+// Threat model SR-39, ADR-0012: the server mints a visitor only with the token
+// of Cloudflare Turnstile's widget, which the page runs as it loads, under the
+// composer, saying who runs it; a page that brings back its cookie needs none.
+describe("SR-39 FR-18 the anti-bot check", () => {
+  it("runs the widget under the composer, in the page's language, and says who runs the check", async () => {
+    renderPage(<Chat />);
+    await ready();
+
+    const widget = turnstile().rendered;
+    expect(widget).toHaveLength(1);
+    expect(widget[0]?.options).toMatchObject({
+      language: "pt-br",
+      action: "session",
+      appearance: "interaction-only",
+    });
+    const form = field().closest("form");
+    expect(form).toContainElement(widget[0]?.container ?? null);
+    expect(
+      within(form as HTMLElement).getByText(pt.antibot),
+    ).toBeInTheDocument();
+  });
+
+  it("asks for the page's first session with the widget's token, and for a language with none", async () => {
+    renderPage(<Chat />);
+    await ready();
+
+    expect(server.requests[0]?.body).toEqual({
+      language: "pt-BR",
+      turnstile_token: DUMMY_TOKEN,
+    });
+
+    const switches = screen.getAllByRole("button", { name: /^ES Español$/ });
+    fireEvent.click(switches[0] as HTMLElement);
+    await waitFor(() => {
+      expect(server.requests.at(-1)?.body).toEqual({ language: "es" });
+    });
+    expect(turnstile().resets).toEqual([]);
+  });
+
+  it("waits for the check before it asks, and asks without a token when the check gives none: a returning page opens", async () => {
+    turnstile().answer = "hold";
+    renderPage(<Chat />);
+    await waitFor(() => {
+      expect(turnstile().rendered).toHaveLength(1);
+    });
+    expect(server.requests).toEqual([]);
+
+    act(() => {
+      turnstile().fail();
+    });
+
+    await ready();
+    expect(server.requests[0]?.body).toEqual({ language: "pt-BR" });
+    expect(within(thread()).getByText(pt.greeting)).toBeInTheDocument();
+  });
+
+  it("says the check did not pass, and asks again with a new token when the visitor tries again", async () => {
+    server.answers.session.push({ status: 403, body: { error: "challenge" } });
+    renderPage(<Chat />);
+
+    const retry = await within(thread()).findByRole("button", {
+      name: pt.challengeRetry,
+    });
+    expect(within(thread()).getByText(pt.challenge)).toBeInTheDocument();
+    expect(server.polls()).toEqual([]);
+
+    fireEvent.click(retry);
+
+    await ready();
+    expect(turnstile().resets).toEqual(["widget-1"]);
+    expect(server.requests.map((request) => request.body)).toEqual([
+      { language: "pt-BR", turnstile_token: DUMMY_TOKEN },
+      { language: "pt-BR", turnstile_token: DUMMY_TOKEN },
+      undefined,
+    ]);
+    expect(within(thread()).queryByText(pt.challenge)).toBeNull();
+    expect(within(thread()).getByText(pt.greeting)).toBeInTheDocument();
+  });
+
+  it("sends the opener the page came with once the check passes on a second try", async () => {
+    window.history.replaceState(null, "", "/chat?say=stock_pt");
+    server.answers.session.push({ status: 403, body: { error: "challenge" } });
+    renderPage(<Chat />);
+
+    fireEvent.click(
+      await within(thread()).findByRole("button", { name: pt.challengeRetry }),
+    );
+
+    await waitFor(() => {
+      expect(server.sent()).toHaveLength(1);
+    });
+    expect(server.sent()[0]?.body).toMatchObject({ say: "stock_pt" });
+  });
+
+  it("asks for a new session with a new token when a message finds its cookie gone, then sends it", async () => {
+    renderPage(<Chat />);
+    await ready();
+    server.answers.messages.push({ status: 401, body: { error: "session" } });
+
+    type("tem dipirona?");
+    fireEvent.submit(field().closest("form") as HTMLFormElement);
+
+    await waitFor(() => {
+      expect(server.sent()).toHaveLength(2);
+    });
+    const sessions = server.requests.filter(
+      (request) => request.path === "/api/session",
+    );
+    expect(sessions.map((request) => request.body)).toEqual([
+      { language: "pt-BR", turnstile_token: DUMMY_TOKEN },
+      { language: "pt-BR", turnstile_token: DUMMY_TOKEN },
+    ]);
+    expect(turnstile().resets).toEqual(["widget-1"]);
+  });
+});
+
 describe("NFR-09 the chat speaks the page's language to the server", () => {
   it("names the page's language in the session and in every request, and follows the switch", async () => {
     renderPage(<Chat />, "es");
     await ready();
 
     expect(server.requests[0]?.path).toBe("/api/session");
-    expect(server.requests[0]?.body).toEqual({ language: "es" });
+    expect(server.requests[0]?.body).toEqual({
+      language: "es",
+      turnstile_token: DUMMY_TOKEN,
+    });
     expect(
       server.requests.map((request) => request.headers.get("Accept-Language")),
     ).toEqual(server.requests.map(() => "es"));

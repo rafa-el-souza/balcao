@@ -217,6 +217,7 @@ export function Thread({
   covered,
   onOpener,
   onRetry,
+  onRetryChallenge,
 }: {
   state: State;
   offline: boolean;
@@ -225,6 +226,7 @@ export function Thread({
   covered: () => number;
   onOpener: (key: keyof typeof openers) => void;
   onRetry: (clientId: string, content: Content) => void;
+  onRetryChallenge: () => void;
 }) {
   const { t } = useTranslation();
   const list = useRef<HTMLOListElement>(null);
@@ -292,6 +294,20 @@ export function Thread({
       {state.phase === "failed" && (
         <li className={cx(styles.msg, VOICE_CLASS.stamp)} data-voice="stamp">
           <p>{t("chat.loadFailed")}</p>
+        </li>
+      )}
+      {state.phase === "challenge" && (
+        <li className={cx(styles.msg, VOICE_CLASS.stamp)} data-voice="stamp">
+          <p>{t("chat.challenge")}</p>
+          <p className={styles.failed}>
+            <button
+              type="button"
+              className={styles.retry}
+              onClick={onRetryChallenge}
+            >
+              {t("chat.challengeRetry")}
+            </button>
+          </p>
         </li>
       )}
       {firstVisit && (
