@@ -167,9 +167,14 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
     # lines in them, which the prompt tells it never to write, and the economy
     # model once disowned the offer's line ("o telefone e os horários que
     # escrevi não vieram do sistema"). An earlier reply is now the words the
-    # model wrote; the system's text comes after it, as the visitor read it,
-    # in the user's turn, under a line that names it the system's.
-    describe "the system's texts, marked as the system's" do
+    # model wrote; the system's text after it or in its place, as the visitor
+    # read it, comes in a system message, which no visitor can write: a first
+    # draft put it in the user's turn under a line, which a visitor copied to
+    # forge a reservation the economy model then confirmed (the slice's own
+    # probe). The API takes a system message only after a user message and
+    # before an assistant's or last, so it comes after the visitor's next
+    # message and names the message it followed by its time.
+    describe "the system's texts, in system messages" do
       def replied(text, at:, reply:, own:)
         turn_in(conversation, text, at:).tap do |turn|
           travel_to(at + 5.seconds) { Message.record_outbound!(turn:, body: reply, attendant_characters: own) }
@@ -178,11 +183,13 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
 
       def sent(minute) = { type: "text", text: "Sent Wednesday, 2026-11-11 15:0#{minute} (São Paulo time)" }
 
-      def system_text(text, after: true)
-        { type: "text", text: "#{after ? AgentRunner::History::AFTER : AgentRunner::History::INSTEAD}\n#{text}" }
-      end
+      def said(minute) = "Wednesday, 2026-11-11 15:0#{minute} (São Paulo time)"
 
-      it "gives the model the words it wrote, and the system's lines after them in the next user message" do
+      def after(minute, text) = "#{format(AgentRunner::History::AFTER, sent: said(minute))}\n#{text}"
+
+      def instead(minute, text) = "#{format(AgentRunner::History::INSTEAD, sent: said(minute))}\n#{text}"
+
+      it "gives the model the words it wrote, and the system's lines after them in a system message after the visitor's next one" do
         offer = FixedReply.offer("pt-BR")
         words = "Isso o farmacêutico da loja responde."
         replied("posso tomar dipirona grávida?", at: Time.zone.local(2026, 11, 11, 15, 0),
@@ -194,7 +201,8 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
         expect(request.body[:messages]).to eq([
           { role: "user", content: [ sent(0), { type: "text", text: "posso tomar dipirona grávida?" } ] },
           { role: "assistant", content: [ { type: "text", text: "Isso o farmacêutico da loja responde." } ] },
-          { role: "user", content: [ system_text(offer), sent(2), { type: "text", text: "e vocês entregam?" } ] }
+          { role: "user", content: [ sent(2), { type: "text", text: "e vocês entregam?" } ] },
+          { role: "system", content: after(0, offer) }
         ])
       end
 
@@ -206,10 +214,27 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
         runner.run(current)
 
         expect(request.body[:messages]).to eq([
-          { role: "user", content: [ sent(0), { type: "text", text: "tem dipirona?" },
-                                     system_text(FixedReply.fallback("pt-BR"), after: false),
-                                     sent(1), { type: "text", text: "e agora?" } ] }
+          { role: "user", content: [ sent(0), { type: "text", text: "tem dipirona?" }, sent(1), { type: "text", text: "e agora?" } ] },
+          { role: "system", content: instead(0, FixedReply.fallback("pt-BR")) }
         ])
+      end
+
+      # A system message must come before an assistant's or last: the
+      # system's texts of turns the model did not answer wait for the next
+      # turn it did, and join into one.
+      it "keeps every system message after a user message and before an assistant's, joining those of the turns between" do
+        replied("oi", at: Time.zone.local(2026, 11, 11, 15, 0), reply: FixedReply.with_notice("Olá!\n\n#{FixedReply.offer("pt-BR")}", "pt-BR"), own: 4)
+        replied("tem dipirona?", at: Time.zone.local(2026, 11, 11, 15, 1), reply: FixedReply.fallback("pt-BR"), own: 0)
+        replied("tem?", at: Time.zone.local(2026, 11, 11, 15, 2), reply: "Temos.", own: 6)
+        current = turn_in(conversation, "obrigado", at: Time.zone.local(2026, 11, 11, 15, 3))
+
+        runner.run(current)
+
+        messages = request.body[:messages]
+        expect(messages.map { |message| message[:role] }).to eq(%w[user assistant user system assistant user])
+        expect(messages[3][:content]).to eq("#{after(0, FixedReply.offer("pt-BR"))}\n\n#{instead(1, FixedReply.fallback("pt-BR"))}")
+        expect(messages.each_cons(2).select { |before, after| before[:role] == "system" || after[:role] == "system" })
+          .to all(satisfy { |before, after| after[:role] != "system" || before[:role] == "user" })
       end
 
       it "takes the notice out first, then splits the rest by the words the model wrote" do
@@ -221,7 +246,7 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
         runner.run(current)
 
         expect(request.body[:messages][1]).to eq(role: "assistant", content: [ { type: "text", text: "Reservado!" } ])
-        expect(request.body[:messages][2][:content].first).to eq(system_text(line))
+        expect(request.body[:messages].last).to eq(role: "system", content: after(0, line))
       end
 
       it "reads a reply stored before the model's share was kept as the model's whole, as before" do
@@ -265,7 +290,7 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
         ])
       end
 
-      it "puts the results first in the user message, before the system's text in the model's place" do
+      it "keeps the results first in their user message, the system's text in the model's place after it, in a system message" do
         earlier = turn_in(conversation, "tem dipirona?", at: Time.zone.local(2026, 11, 11, 15, 0))
         earlier.update!(tool_exchange: exchange)
         travel_to(Time.zone.local(2026, 11, 11, 15, 0, 5)) { Message.record_outbound!(turn: earlier, body: FixedReply.fallback("pt-BR"), attendant_characters: 0) }
@@ -273,8 +298,10 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
 
         runner.run(current)
 
-        expect(request.body[:messages].last[:content].map { |block| block[:type] }).to eq(%w[tool_result text text text])
-        expect(request.body[:messages].last[:content][1][:text]).to start_with(AgentRunner::History::INSTEAD)
+        messages = request.body[:messages]
+        expect(messages.map { |message| message[:role] }).to eq(%w[user assistant user system])
+        expect(messages[2][:content].map { |block| block[:type] }).to eq(%w[tool_result text text])
+        expect(messages.last[:content]).to start_with(format(AgentRunner::History::INSTEAD, sent: "Wednesday, 2026-11-11 15:00 (São Paulo time)"))
       end
 
       it "keeps out the calls of the turn it runs, which the SDK's runner sends itself" do

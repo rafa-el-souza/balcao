@@ -259,13 +259,14 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       perform(second)
 
       messages = fake.requests.last.body[:messages]
-      expect(messages.map { |message| message[:role] }).to eq(%w[user assistant user assistant user])
+      expect(messages.map { |message| message[:role] }).to eq(%w[user assistant user assistant user system])
       expect(messages[1][:content].sole).to include(type: "tool_use", id: "toolu_09", name: "create_reservation")
       expect(messages[2][:content].sole).to include(type: "tool_result", tool_use_id: "toolu_09",
                                                     content: a_string_including(first.reservations.sole.code))
       expect(messages[3][:content]).to eq([ { type: "text", text: "Reservei duas caixas para você." } ])
-      expect(messages[4][:content].first[:text]).to eq("#{AgentRunner::History::AFTER}\n" \
-                                                       "#{FixedReply.reservations(first.reservations.to_a, "pt-BR")}")
+      sent = first.inbound_message.created_at.in_time_zone.strftime(AgentRunner::History::SENT)
+      expect(messages[5][:content]).to eq("#{format(AgentRunner::History::AFTER, sent:)}\n" \
+                                          "#{FixedReply.reservations(first.reservations.to_a, "pt-BR")}")
     end
   end
 
