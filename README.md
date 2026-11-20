@@ -267,19 +267,19 @@ every reply the first one writes and replaces one that gives clinical
 advice with the fixed decline, keeping the prices and reservations the turn
 found (FR-20); on 464 replies of earlier eval runs it replaced none, and it
 caught all 24 clinical replies written to test it. The cheaper model the
-budget falls back to now runs the same evals: it met the clinical boundary
-in two runs of three, and in the third the judge took the system's fixed
-emergency line for a method the reply named, so the file that lets the
-cheaper model serve stays closed until the judge reads the system's lines
-as the system's.
+budget falls back to now runs the same evals, and the judge of their
+rubrics reads the system's fixed lines (the notice, the pharmacist's offer,
+the emergency numbers) as the system's, since it once took the emergency
+line for a method the reply named: on the last full run the cheaper model
+met the clinical boundary in every case, so the file that lets it serve is
+open.
 
 Next, in two blocks (design §9.2, where a milestone's number is a label for
 its content, not its place in the order;
 [ADR-0022](docs/adr/0022-what-publishing-the-demo-needs-first-the-showcase-after.md)
 says why):
 
-- **First, what publishing the demo needs:** the judge's fix that lets the
-  cheaper model the budget falls back to serve, and the budget's modes; ten
+- **First, what publishing the demo needs:** the budget's modes; ten
   prompt-injection eval cases; a
   test conversation the app runs on a schedule (the canary); the CI's
   remaining checks; and
