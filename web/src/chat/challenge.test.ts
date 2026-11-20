@@ -33,10 +33,16 @@ function attached(language: () => string) {
 }
 
 describe("SR-39 the site key, public, by the page's hostname", () => {
-  it("is the owner's widget on the public name", () => {
-    expect(siteKeyFor("balcao.rafasouza.dev.br")).toBe(
-      "0x4AAAAAAAF03lbnq8L3wEEjC",
-    );
+  // The key as the owner copied it from Cloudflare's dashboard: a typed copy
+  // had one character more, which Cloudflare would refuse on the public name
+  // alone, the one host the tests never are (review finding C1 of pull
+  // request #53). Cloudflare's keys, its test keys too, are "0x4" or a test
+  // digit and "x", then 21 characters.
+  it("is the owner's widget on the public name, in the shape of Cloudflare's keys", () => {
+    const key = siteKeyFor("balcao.rafasouza.dev.br");
+    expect(key).toBe("0x4AAAAAAF03lbnq8L3wEEjC");
+    expect(key).toMatch(/^0x4[A-Za-z0-9_-]{21}$/);
+    expect(TEST_SITE_KEY).toMatch(/^[123]x[A-Za-z0-9_-]{22}$/);
   });
 
   it("is Cloudflare's published test key everywhere else: development, the tests, a rehearsal host", () => {

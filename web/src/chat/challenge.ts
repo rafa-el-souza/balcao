@@ -70,7 +70,7 @@ export const SCRIPT_TIMEOUT_MS = 15_000;
 // Cloudflare's published test key, which always passes and whose dummy
 // token only a test secret accepts (ADR-0012).
 const SITE_KEYS: Readonly<Record<string, string>> = {
-  "balcao.rafasouza.dev.br": "0x4AAAAAAAF03lbnq8L3wEEjC",
+  "balcao.rafasouza.dev.br": "0x4AAAAAAF03lbnq8L3wEEjC",
 };
 export const TEST_SITE_KEY = "1x00000000000000000000AA";
 
