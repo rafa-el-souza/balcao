@@ -42,8 +42,18 @@ module Evals
       @results_dir = Pathname(results_dir)
       @scorecard_path = Pathname(scorecard_path)
       @economy_gate_path = Pathname(economy_gate_path)
-      @git = git || ->(*args) { IO.popen([ "git", *args ], chdir: Rails.root, err: File::NULL, &:read).to_s }
+      @git = git || self.class.git_in(Rails.root)
       @pause = pause
+    end
+
+    # git in the directory: its output, or nil when git failed. A checkout
+    # git refuses to read prints nothing, which read as a clean tree (the
+    # fix review's R3 on pull request #55).
+    def self.git_in(dir)
+      lambda do |*args|
+        output = IO.popen([ "git", *args ], chdir: dir, err: File::NULL, &:read)
+        output if $?.success?
+      end
     end
 
     def run
@@ -55,10 +65,14 @@ module Evals
       repeated!(selected, options[:repeat])
       return list(selected, options[:repeat]) if options[:list]
       # The gate speaks for a commit, so the run that writes it reads one
-      # (review finding C2 of pull request #55).
-      if options[:both] && options[:scorecard] && dirty?
+      # (review finding C2 of pull request #55), and a tree git cannot read
+      # is no commit's (the fix review's R3).
+      if options[:both] && options[:scorecard]
+        changed = changes
+        raise Usage, "--both-models --scorecard writes the economy model's gate, which speaks for a commit, and git could not read " \
+                     "the tree (git status fails): run it from a checkout git reads" if changed.nil?
         raise Usage, "--both-models --scorecard writes the economy model's gate, which speaks for a commit, and the tree has " \
-                     "uncommitted changes (git status lists them): commit or stash them first"
+                     "uncommitted changes (git status lists them): commit or stash them first" if changed.any?
       end
       raise Usage, "ANTHROPIC_API_KEY is blank: a live run needs the dev/eval key in the environment" if @env["ANTHROPIC_API_KEY"].to_s.strip.empty?
 
@@ -309,16 +323,20 @@ module Evals
 
     def phrases = YAML.safe_load_file(Rails.root.join("evals/phrases.yml"))
 
-    def commit = git("rev-parse", "--short", "HEAD").strip.presence || "unknown"
+    def commit = git("rev-parse", "--short", "HEAD").to_s.strip.presence || "unknown"
 
-    # The scorecard and the gate are the run's output, not its input. A file
-    # git does not track yet changes the tree too (a new locale file or
-    # initializer is loaded by the run), as bin/deploy counts it (review
-    # finding V1 of pull request #55).
-    def dirty?
-      git("status", "--porcelain", "--untracked-files=all").lines.map(&:chomp)
-                                                          .reject { |line| line.end_with?(" evals/scorecard.md", " evals/economy_allowed.yml") }.any?
+    # The tree's changes, as git status lists them, nil when git could not
+    # read the tree. The scorecard and the gate are the run's output, not its
+    # input. A file git does not track yet changes the tree too (a new locale
+    # file or initializer is loaded by the run), as bin/deploy counts it
+    # (review finding V1 of pull request #55).
+    def changes
+      git("status", "--porcelain", "--untracked-files=all")&.lines&.map(&:chomp)
+        &.reject { |line| line.end_with?(" evals/scorecard.md", " evals/economy_allowed.yml") }
     end
+
+    # A tree git could not read counts as changed.
+    def dirty? = changes.nil? || changes.any?
 
     def git(*args) = @git.call(*args)
   end
