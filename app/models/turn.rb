@@ -14,6 +14,14 @@ class Turn < ApplicationRecord
   enum :mode, { normal: "normal", economy: "economy", paused: "paused", handoff: "handoff" },
        prefix: true, validate: { allow_nil: true }
 
+  # The tool calls the model made in the turn and their results, step by
+  # step, as the API read them (AgentRunner::Result#exchange), which the
+  # history of the later turns gives the model back (AgentRunner::History;
+  # design §10, M2-11a). Kept with the reply, encrypted at rest: a call's
+  # input may quote what the visitor sent (threat model SR-41).
+  serialize :tool_exchange, coder: JSON
+  encrypts :tool_exchange
+
   validate :inbound_message_is_inbound
 
   # The turn of an inbound message. A second call for the same message, from

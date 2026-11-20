@@ -104,6 +104,24 @@ class Message < ApplicationRecord
   # (AgentRunner::History): without the notice the system put before it.
   def body_without_notice(first_reply: first_reply?) = first_reply ? notice_and_text.last : body
 
+  # A reply in its authors' parts, for the history the model reads back
+  # (AgentRunner::History; design §10, M2-11a): attendant, the words the
+  # model wrote, which the reply begins with after any notice, and system,
+  # the system's text after them or in their place, each nil when there is
+  # none. TurnProcessor keeps the length of the model's words with the reply
+  # (attendant_characters), so a fixed line a later slice adds is the
+  # system's with no list of the fixed texts to keep. A reply stored before
+  # that length was kept is the model's whole, as the history read it then.
+  Authored = Data.define(:attendant, :system)
+
+  def authored(first_reply: first_reply?)
+    text = body_without_notice(first_reply:)
+    return Authored.new(attendant: text, system: nil) if attendant_characters.nil?
+
+    Authored.new(attendant: text[0, attendant_characters].presence,
+                 system: text[attendant_characters..].to_s.delete_prefix("\n\n").presence)
+  end
+
   # The first reply of a conversation is the one the system put the notice
   # before (TurnProcessor#record_reply), on its first line: it is told by its
   # place, not by its wording, which a later deploy may change (review finding
@@ -128,11 +146,13 @@ class Message < ApplicationRecord
   # Stores the one reply of a turn, in the turn's conversation or in the one
   # given: a reset's confirmation opens the conversation it starts (FR-04). A
   # retried job meets the unique index and gets the reply already stored, so
-  # it neither stores nor sends a second one (NFR-02).
-  def self.record_outbound!(turn:, body:, author: "bot", conversation: nil)
+  # it neither stores nor sends a second one (NFR-02). attendant_characters
+  # is the length of the words the model wrote, which the body begins with
+  # after any notice, 0 for a text the system wrote in their place (authored).
+  def self.record_outbound!(turn:, body:, author: "bot", conversation: nil, attendant_characters: nil)
     create_or_find_by!(turn_id: turn.id) do |message|
       message.assign_attributes(conversation_id: conversation&.id || turn.conversation_id, direction: "outbound",
-                                author:, source: "text", body:, status: "pending")
+                                author:, source: "text", body:, status: "pending", attendant_characters:)
     end
   end
 end

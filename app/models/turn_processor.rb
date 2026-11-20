@@ -355,6 +355,7 @@ class TurnProcessor
       end
       [ result, guard(result, events) ]
     end
+    @exchange = result.exchange.presence
     @conversation.update!(language: result.language) if result.language
     return finish("replaced", "replied", replaced(result, @conversation.language)) if verdict&.clinical?
 
@@ -530,11 +531,15 @@ class TurnProcessor
   def replied(state, parent)
     ApplicationRecord.transaction do
       yield.tap do
-        @turn.update!(state:, **latency)
+        @turn.update!(state:, **latency, **exchange)
         delivery(parent)
       end
     end
   end
+
+  # The tool calls the model made in this run and their results, kept with
+  # the reply for the history of the later turns (AgentRunner::History).
+  def exchange = @exchange ? { tool_exchange: @exchange } : {}
 
   # FR-12, FR-19: a Telegram reply leaves after its run, by its status
   # (Telegram::Outbound), so the run opens its delivery's span and leaves it
@@ -544,9 +549,12 @@ class TurnProcessor
   # stored, to the page's stream.
   def delivery(parent) = (@recorder.start_delivery(parent) if @inbound.channel == "telegram")
 
+  # The reply keeps the length of the model's words it begins with after any
+  # notice, 0 when it holds none, so the history marks the system's text as
+  # the system's (Message#authored); a NUL the body loses is not counted.
   def record_reply(text, conversation:, language:, own: nil)
     body = conversation.messages.outbound.exists? ? text : FixedReply.with_notice(text, language)
-    Message.record_outbound!(turn: @turn, body:, conversation:).tap do
+    Message.record_outbound!(turn: @turn, body:, conversation:, attendant_characters: own.to_s.delete("\u0000").length).tap do
       ActiveSupport::Notifications.instrument(REPLY_EVENT, turn_id: @turn.id, attendant: own.presence)
     end
   end

@@ -171,7 +171,7 @@ module Telegram
           recorder = TraceRecorder.new(turn)
           span = recorder.start_span("balcao.command", started_at: inbound.received_at,
                                                        attributes: { "balcao.command.name" => "agree" })
-          Message.record_outbound!(turn:, body: greeting)
+          Message.record_outbound!(turn:, body: greeting, attendant_characters: 0)
           turn.update!(state: "replied")
           recorder.start_delivery(span)
           span.finish

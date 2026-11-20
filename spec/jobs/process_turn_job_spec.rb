@@ -198,6 +198,77 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
     end
   end
 
+  # M2-11a (design §10, M2-4's note): what the history of the next turns
+  # gives the model back of this one (AgentRunner::History): how much of the
+  # stored reply it wrote, so the system's texts are marked as the system's,
+  # and its tool calls with their results.
+  describe "what the next turns read of this one (FR-04, SR-41)" do
+    it "keeps how much of the reply the model wrote, after the notice, before the system's line" do
+      responses.replace([ reply("[pt] Ligue agora para o socorro. [emergency]") ])
+      turn = inbound("meu filho engoliu uns comprimidos")
+
+      perform(turn)
+
+      expect(turn.outbound_message.attendant_characters).to eq("Ligue agora para o socorro.".length)
+      expect(turn.outbound_message.authored).to have_attributes(attendant: "Ligue agora para o socorro.",
+                                                                system: FixedReply.emergency("pt-BR"))
+    end
+
+    it "keeps none of the model's for a reply the system wrote in its place: a refusal's, a tag's alone, a replaced one, a command's" do
+      allow(Guardrail).to receive(:default_client) { FakeModel.new([ GuardrailVerdicts.verdict(true, "Gives a dose.") ]).client }
+      responses.replace([ refusal, reply("[pt] [emergency]"), reply("[pt] Dê 15 gotas. [pharmacist]") ])
+      turns = [ "como faço para ...", "meu filho engoliu uns comprimidos", "quanto dou pro meu filho?", "/reiniciar" ].map { |text| inbound(text) }
+
+      turns.each { |turn| perform(turn) }
+
+      expect(turns.map { |turn| turn.reload.outbound_message.attendant_characters }).to eq([ 0, 0, 0, 0 ])
+    end
+
+    it "keeps the turn's tool calls and their results with its reply, encrypted at rest" do
+      product = create(:product, name: "Dipirona 500 mg", active_ingredient: "dipirona", stock: 12)
+      responses.replace([ tool_turn(tool_use("search_products", { query: "dipirona" }, id: "toolu_01")), reply("[pt] Temos.") ])
+      turn = inbound("tem dipirona?")
+
+      perform(turn)
+
+      exchange = turn.reload.tool_exchange
+      expect(exchange.map { |message| message["role"] }).to eq(%w[assistant user])
+      expect(exchange.first["content"].sole).to include("type" => "tool_use", "id" => "toolu_01", "name" => "search_products")
+      expect(exchange.last["content"].sole).to include("type" => "tool_result", "tool_use_id" => "toolu_01",
+                                                       "content" => a_string_including(product.id))
+      stored = Turn.connection.select_value(Turn.where(id: turn.id).select(:tool_exchange).to_sql)
+      expect(stored).not_to include("dipirona")
+    end
+
+    it "keeps no tool exchange for a turn that called no tool" do
+      turn = inbound("oi")
+
+      perform(turn)
+
+      expect(turn.reload.tool_exchange).to be_nil
+    end
+
+    it "gives the next turn's model this turn's tool calls, its words and the system's line, marked" do
+      product = create(:product, stock: 10)
+      responses.replace([ tool_turn(tool_use("create_reservation", { product_id: product.id, quantity: 2 }, id: "toolu_09")),
+                          reply("[pt] Reservei duas caixas para você."), reply("[pt] Está reservado, sim.") ])
+      first = inbound("reserva duas pra mim")
+      perform(first)
+      second = inbound("ficou reservado mesmo?")
+
+      perform(second)
+
+      messages = fake.requests.last.body[:messages]
+      expect(messages.map { |message| message[:role] }).to eq(%w[user assistant user assistant user])
+      expect(messages[1][:content].sole).to include(type: "tool_use", id: "toolu_09", name: "create_reservation")
+      expect(messages[2][:content].sole).to include(type: "tool_result", tool_use_id: "toolu_09",
+                                                    content: a_string_including(first.reservations.sole.code))
+      expect(messages[3][:content]).to eq([ { type: "text", text: "Reservei duas caixas para você." } ])
+      expect(messages[4][:content].first[:text]).to eq("#{AgentRunner::History::AFTER}\n" \
+                                                       "#{FixedReply.reservations(first.reservations.to_a, "pt-BR")}")
+    end
+  end
+
   describe "the demo notice (FR-01) and the language (FR-02)" do
     it "puts the notice before the first reply of a conversation, in the language the reply names" do
       responses.replace([ reply("[es] ¡Hola! ¿Buscas algún producto?") ])
