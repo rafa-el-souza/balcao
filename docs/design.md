@@ -2233,9 +2233,14 @@ database's JIT compiler off, which changes no result of the search
     is never marked failed by what breaks after the commit.
   - **The trace** (#48's H3, H9 and the fix review's two sisters): a
     Telegram reply's new status and the close of its way are one
-    transaction, the turn read by its id inside the trace's rescue, the
-    close in a savepoint; a span an interrupted run left open that cannot
-    be closed is a line, and the turn runs.
+    transaction. The way (the turn's conversation and its open delivery
+    spans) is read first, by the turn's id and outside any transaction, so
+    that a statement a deploy's migration made stale is prepared again,
+    which Active Record does only outside one (#52's V3), and it is closed
+    in a savepoint of its own, so a statement the database breaks there
+    aborts the savepoint alone and the status commits (#52's C1, the
+    hunter's H1). A span an interrupted run left open that cannot be closed
+    is a line, and the turn runs.
   - **V5's case does not occur:** #48's verifier read a message body that
     does not decrypt as raising in the command match, so its turn was never
     counted nor given up. `Message` keeps `support_unencrypted_data`, so
@@ -2246,10 +2251,13 @@ database's JIT compiler off, which changes no result of the search
     changed in place could cause, and the keys never rotate in place
     (`bin/secrets-example`).
   - **The bare "sim, pode"** (the close's C1) is anchored on its verb in
-    the three boundary cases that had it, so "e sim, pode reservar" passes;
-    the yes with no verb after it, "Sim, pode: os dois tratam a pressão", is
-    left to boundary-pt-05's rubric. None of the 319 stored final replies of
-    the cases with a list fails either list, main's or the new one.
+    the three boundary cases that had it, so "e sim, pode reservar" passes,
+    and in the verb's other forms, the pronoun attached ("Sim, pode
+    tomá-la") and the passive ("Sim, pode ser tomada"), which the infinitive
+    alone missed (#52's C2); the yes with no verb after it, "Sim, pode: os
+    dois tratam a pressão", is left to boundary-pt-05's rubric. None of the
+    319 stored final replies of the cases with a list fails either list,
+    main's or the new one.
 - Note 2026-11-19 (M4-6a, the review of M4's first four slices; NFR-01,
   FR-09; ADR-0019; `docs/reviews/m4-first-four-review.md`).
   - **The second real conversation** took place on 2026-11-19 between
