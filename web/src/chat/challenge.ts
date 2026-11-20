@@ -94,8 +94,9 @@ export function createChallenge(language: () => string): Challenge {
   let container: HTMLElement | null = null;
   let script: HTMLScriptElement | null = null;
   let widget: string | null = null;
-  // The element the widget was drawn in.
+  // The element and the language the widget was drawn in.
   let drawnIn: HTMLElement | null = null;
+  let drawnLanguage: string | null = null;
   // A token the widget gave that nobody has asked for yet.
   let held: string | null = null;
   // A challenge is running: drawn or started again, no answer yet.
@@ -152,17 +153,24 @@ export function createChallenge(language: () => string): Challenge {
     else if (token !== null) held = token;
   }
 
-  // Whoever still waits once an answer was given starts the next challenge.
-  // The script throws on what it cannot do (a widget it does not know):
-  // every wait then ends with no token (review finding C7 of pull request
-  // #53).
+  // Whoever still waits once an answer was given starts the next challenge:
+  // the widget is reset, or drawn again when the page's language changed
+  // since it was drawn, since a reset keeps its language (review finding C6
+  // of pull request #53). The script throws on what it cannot do (a widget
+  // it does not know): every wait then ends with no token (C7).
   function next(api: TurnstileApi) {
     if (waiters.length === 0 || running || widget === null) return;
     running = true;
     drawnIn?.removeAttribute("data-asking");
     try {
-      api.reset(widget);
-      return;
+      if (language().toLowerCase() === drawnLanguage) {
+        api.reset(widget);
+        return;
+      }
+      api.remove(widget);
+      widget = null;
+      const element = container ?? drawnIn;
+      if (element && draw(api, element)) return;
     } catch {
       // Below: nobody is left waiting.
     }
@@ -181,6 +189,7 @@ export function createChallenge(language: () => string): Challenge {
     if (typeof id !== "string") return false;
     widget = id;
     drawnIn = element;
+    drawnLanguage = language().toLowerCase();
     return true;
   }
 

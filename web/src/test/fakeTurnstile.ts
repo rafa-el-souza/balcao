@@ -11,6 +11,7 @@ export interface FakeTurnstile {
   api: TurnstileApi;
   rendered: { container: HTMLElement; options: RenderOptions }[];
   resets: string[];
+  removed: string[];
   // How a challenge ends by itself: the dummy token, or nothing until the
   // test says.
   answer: "token" | "hold";
@@ -27,6 +28,7 @@ export function fakeTurnstile(answer: FakeTurnstile["answer"] = "token") {
   const fake: FakeTurnstile = {
     rendered: [],
     resets: [],
+    removed: [],
     answer,
     api: {
       render(container, options) {
@@ -39,8 +41,8 @@ export function fakeTurnstile(answer: FakeTurnstile["answer"] = "token") {
         fake.resets.push(id);
         start();
       },
-      remove() {
-        // The page never removes its widget.
+      remove(id) {
+        fake.removed.push(id);
       },
     },
     solve(token = DUMMY_TOKEN) {

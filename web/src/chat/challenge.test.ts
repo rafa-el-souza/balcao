@@ -184,6 +184,34 @@ describe("SR-39 FR-18 the challenge", () => {
     expect(element).not.toHaveAttribute("data-asking");
   });
 
+  // Review finding C6 of pull request #53: a reset keeps the language the
+  // widget was drawn in.
+  it("draws the widget again in the page's language when it changed before the next challenge", async () => {
+    const fake = fakeTurnstile("hold");
+    window.turnstile = fake.api;
+    let language = "pt-BR";
+    const challenge = createChallenge(() => language);
+    challenge.attach(container());
+    const first = challenge.token();
+    fake.solve("first");
+    await first;
+
+    language = "en";
+    const second = challenge.token();
+    expect(fake.removed).toEqual(["widget-1"]);
+    expect(fake.rendered.map((widget) => widget.options.language)).toEqual([
+      "pt-br",
+      "en",
+    ]);
+    fake.solve("second");
+    await expect(second).resolves.toBe("second");
+
+    const third = challenge.token();
+    expect(fake.resets).toEqual(["widget-2"]);
+    fake.solve("third");
+    await expect(third).resolves.toBe("third");
+  });
+
   // Review finding C7 of pull request #53: a script that cannot start the
   // next challenge leaves nobody waiting.
   it("answers every waiter with no token when the script cannot start the next challenge", async () => {
