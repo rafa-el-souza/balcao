@@ -2399,14 +2399,18 @@ a reservation (M2-4; the note below).
     conversation rendered through `AgentRunner::History.render` (a reply with
     a lookup and a reservation, one turn of each notice, another reply, the
     turn running), so a change of how it arranges what it gives back closes
-    the gate with no version to bump by hand. `PromptDigest.tools` adds each
-    tool's text constants, the failure, the tool limit and the envelopes of
-    the results, rendered by the methods the tools answer with. The store's
-    facts and the catalogue stay data. Not digested: a text a later slice
-    writes inline rather than as a constant, the reading path of turns
-    stored before `reply_kind`, and the SDK's own way of carrying a tool's
-    error, which moves with a gem bump. A bug in the route's lookup or a
-    digest raises at boot (#55's F4, #60's H-B6).
+    the gate with no version to bump by hand; every kind of notice the
+    system writes is read from that table (the fix review's R3).
+    `PromptDigest.tools` adds each tool's text constants, the failure, the
+    tool limit, the envelopes of the results, rendered by the methods the
+    tools answer with and encoded as they reach the model, and the
+    low-stock refusal on a placeholder stock (the review's C1 = H5 and the
+    fix review's R2). The store's facts and the catalogue stay data. Not
+    digested: a text a later slice writes inline rather than as a constant,
+    the condition that picks one of two texts (the repeated reservation's
+    next step), the reading path of turns stored before `reply_kind`, and the
+    SDK's own way of carrying a tool's error, which a gem bump can move. A bug
+    in the route's lookup or a digest raises at boot (#55's F4, #60's H-B6).
   - **FR-20's check and the judge** (#54's C4 = H3 + H4 with V2; the review
     of #62, C4 = H3). The SDK coerces a structured answer leniently: an
     answer with no `clinical`, or with `"true"` or `1`, came back as a
@@ -2445,8 +2449,9 @@ a reservation (M2-4; the note below).
     on every turn and fails a case in every suite, counted by the turn's
     outcome (#54's C3 and V4, #59's L4); Ctrl-C, TERM and HUP keep the case
     under way's attempts and write the results before anything is printed,
-    and the report says its dollars are a floor when an attempt left no
-    spans (#55's L6; the review's H1, H2 and V3); the gate is written before
+    a signal the run started with ignored (nohup's HUP) staying ignored, and
+    the report says its dollars are a floor when an attempt left no spans
+    (#55's L6; the review's H1, H2 and V3; the fix review's R1); the gate is written before
     the scorecard, each atomically (#55's L1); `reservation-separate-pt-01`
     names the form (the eval audit's finding 4).
 - Note 2026-11-20 (M2-11a2, the review at M2's first close; ADR-0019,
