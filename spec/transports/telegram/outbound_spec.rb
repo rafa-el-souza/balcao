@@ -408,6 +408,32 @@ RSpec.describe "FR-19 SR-43 NFR-02 Telegram::Outbound, a reply on its way to the
                                             span_attributes: { "error.type" => "Telegram::Chat::Unreadable" })
     end
 
+    # The turn's read for the trace breaks inside the database (a lock or a
+    # statement timeout; here a division by zero), which aborts the
+    # transaction it runs in, as an error raised in Ruby does not.
+    def turn_read_breaks
+      allow(Turn).to receive(:includes).and_wrap_original do |original, *arguments|
+        Turn.connection.execute("SELECT 1/0")
+        original.call(*arguments)
+      end
+    end
+
+    # Review finding C1 of pull request #52: the turn was read for the trace
+    # inside the transaction of the reply's status but outside the trace's
+    # savepoint, so a database error on that read aborted the transaction,
+    # and its COMMIT rolled the status back in silence: a reply Telegram took
+    # stayed pending, for the sweep minutes later.
+    it "keeps a reply sent though the database breaks the read of its turn for the trace" do
+      turn_read_breaks
+      lines = []
+      allow(Rails.logger).to receive(:error) { |line| lines << line }
+
+      outbound.deliver_pending(visitor)
+
+      expect(message.reload.status).to eq "sent"
+      expect(lines).to include("trace: span balcao.delivery not recorded: ActiveRecord::StatementInvalid")
+    end
+
     # The hunter's H3 on pull request #48: the reply's turn was read for the
     # trace outside the trace's rescue, so a database error on that read broke
     # the delivery: a refusal's own line was lost, and an attempt was counted
