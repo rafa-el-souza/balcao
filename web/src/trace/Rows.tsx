@@ -347,11 +347,12 @@ function ToolRow({
   );
 }
 
-// FR-20: the guardrail's check of the reply, closed as one line with its
-// verdict, its cost and its time, opening to its model and tokens. A
-// replacement keeps the instrument's own ink, since a rule at work is no
+// FR-20: the guardrail's check of the reply, closed as one line with what
+// it found, its cost and its time, opening to its model and tokens. Clinical
+// advice found keeps the instrument's own ink, since a rule at work is no
 // failure; a check that gave no verdict takes the error colour, since the
-// reply went as the model wrote it (threat model R4).
+// reply went as the model wrote it (threat model R4), and so does a run
+// that stopped during the check. The reply's own row says whether it left.
 function GuardrailRow({
   row,
   open,
@@ -370,13 +371,13 @@ function GuardrailRow({
     .filter((part) => part !== null)
     .join(t("separator"));
   const word = (row.error ? ERRORS[row.error] : undefined) ?? "other";
-  const error =
-    row.verdict === "failed" ? t(`instrument.errors.${word}`) : null;
+  const broke = row.verdict === "failed" || row.verdict === "interrupted";
+  const error = broke ? t(`instrument.errors.${word}`) : null;
   const state = row.running
     ? "running"
-    : row.verdict === "replaced"
+    : row.verdict === "clinical"
       ? "refused"
-      : row.verdict === "failed"
+      : broke
         ? "error"
         : null;
 

@@ -697,23 +697,25 @@ describe("FR-20 FR-12 the guardrail's row", () => {
     });
   });
 
-  it("says a reply was replaced, and the reply's row carries the outcome", () => {
+  // The row says what the check found; what happened to the reply is the
+  // reply's own row's (review finding W1 of pull request #54).
+  it("says the check found clinical advice, and the reply's row that it was replaced", () => {
     const spans = checked(
       { ...passed, "balcao.guardrail.clinical": true },
       T("45"),
       "replaced",
     );
 
-    expect(guardrail(spans)).toMatchObject({ verdict: "replaced" });
+    expect(guardrail(spans)).toMatchObject({ verdict: "clinical" });
     expect(turnsOf(spans)[0]?.rows.at(-1)).toMatchObject({
       kind: "sent",
       outcome: "replaced",
     });
   });
 
-  // Threat model R4: a check that gave no verdict let the reply go as the
-  // model wrote it.
-  it("says the check failed, with its error, when it gave no verdict", () => {
+  // Threat model R4: a check that gave no verdict closed its own span, with
+  // its time and its error, and the reply went as the model wrote it.
+  it("says the check gave no verdict, with its error, when it closed without one", () => {
     expect(
       guardrail(
         checked({
@@ -726,6 +728,17 @@ describe("FR-20 FR-12 the guardrail's row", () => {
       error: "Anthropic::Errors::APITimeoutError",
       cost: null,
     });
+  });
+
+  // Review finding W1 of pull request #54: a span closed by a run that
+  // broke or stopped during the check (TraceRecorder.close_interrupted,
+  // TraceRecorder#abandon) has no time of the check's own; that run stored
+  // no reply, so the row may not say the check failed and the reply left.
+  it("tells a run that stopped during the check from a check that gave no verdict", () => {
+    for (const error of ["interrupted", "ActiveRecord::StatementInvalid"])
+      expect(
+        guardrail(checked({ "error.type": error }, T("45"), "dead_letter")),
+      ).toMatchObject({ verdict: "interrupted", error });
   });
 
   it("shows the check running until it answers", () => {

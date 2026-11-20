@@ -472,7 +472,7 @@ describe("FR-20 FR-12 the guardrail's check in the glass box", () => {
 
     const rows = rowsOf(events());
     expect(rows[4]).toMatch(
-      /^12:03:44 guardrail resposta aprovada US\$ 0,0001 · 420 ms/,
+      /^12:03:44 guardrail nada clínico US\$ 0,0001 · 420 ms/,
     );
     expect(rows[5]).toBe("12:03:44 mensagem enviada");
   });
@@ -487,22 +487,25 @@ describe("FR-20 FR-12 the guardrail's check in the glass box", () => {
   });
 
   // A rule at work is no failure: the replacement keeps the instrument's
-  // own ink, as a tool's refusal does.
-  it("says the reply was replaced, in the row and in the reply's, in the instrument's own ink", async () => {
+  // own ink, as a tool's refusal does. The row says what the check found,
+  // the reply's row what happened to the reply (review finding W1 of pull
+  // request #54).
+  it("says the check found clinical advice, and the reply's row that it was replaced, in the instrument's own ink", async () => {
     const row = await checkRow(
       { "balcao.guardrail.clinical": true },
       "replaced",
     );
 
-    expect(within(row).getByText("resposta substituída")).toBeInTheDocument();
+    expect(within(row).getByText("conselho clínico")).toBeInTheDocument();
     expect(row).toHaveAttribute("data-state", "refused");
     expect(
       within(glass()).getByText("substituída pelo guardrail"),
     ).toBeInTheDocument();
   });
 
-  // Threat model R4: the reply went as the model wrote it.
-  it("says the check gave no verdict and the reply went unchecked, in the error colour, with the error in words", async () => {
+  // Threat model R4: the reply went as the model wrote it, which the
+  // reply's own row says.
+  it("says the check gave no verdict, in the error colour, with the error in words", async () => {
     const row = await checkRow({
       "balcao.guardrail.clinical": undefined,
       "gen_ai.response.model": undefined,
@@ -513,10 +516,32 @@ describe("FR-20 FR-12 the guardrail's check in the glass box", () => {
       "balcao.latency_ms": 5004,
     });
 
-    expect(
-      within(row).getByText("sem verificação · resposta enviada"),
-    ).toBeInTheDocument();
+    expect(within(row).getByText("sem veredito")).toBeInTheDocument();
     expect(within(row).getByText("tempo esgotado")).toBeInTheDocument();
+    expect(row).toHaveAttribute("data-state", "error");
+  });
+
+  // Review finding W1 of pull request #54: a run that stopped or broke
+  // during the check stored no reply, so its row says the run was
+  // interrupted, never that a reply left.
+  it("says a run stopped during the check, never that a reply left", async () => {
+    const row = await checkRow(
+      {
+        "balcao.guardrail.clinical": undefined,
+        "gen_ai.response.model": undefined,
+        "balcao.cost.usd": undefined,
+        "gen_ai.usage.input_tokens": undefined,
+        "gen_ai.usage.output_tokens": undefined,
+        "balcao.latency_ms": undefined,
+        "error.type": "interrupted",
+      },
+      "dead_letter",
+    );
+
+    expect(
+      within(row).getByText("interrompida", { selector: "summary span" }),
+    ).toBeInTheDocument();
+    expect(row.textContent).not.toMatch(/enviada/);
     expect(row).toHaveAttribute("data-state", "error");
   });
 
@@ -525,7 +550,7 @@ describe("FR-20 FR-12 the guardrail's check in the glass box", () => {
     const { default: es } = await import("../locales/es.json");
     const keys = Object.keys(pt.instrument.guardrailVerdicts).sort();
 
-    expect(keys).toEqual(["failed", "pass", "replaced"]);
+    expect(keys).toEqual(["clinical", "failed", "interrupted", "pass"]);
     expect(Object.keys(en.instrument.guardrailVerdicts).sort()).toEqual(keys);
     expect(Object.keys(es.instrument.guardrailVerdicts).sort()).toEqual(keys);
   });

@@ -53,15 +53,18 @@ export type Row =
       // The code of the reservation the call made (create_reservation).
       reservation: string | null;
     }
-  // FR-20's check of the reply: it passed it, replaced it, or gave no
-  // verdict and let it go as written (failed, threat model R4); none while
-  // it runs.
+  // FR-20's check of the reply, by what the check itself found: nothing
+  // clinical (pass), clinical advice (clinical), no verdict (failed, which
+  // lets the reply go as written, threat model R4), or a run that stopped
+  // during it and stored no reply (interrupted); none while it runs. What
+  // happened to the reply is the reply's own row's (review finding W1 of
+  // pull request #54).
   | {
       kind: "guardrail";
       key: string;
       at: string;
       running: boolean;
-      verdict: "pass" | "replaced" | "failed" | null;
+      verdict: "pass" | "clinical" | "failed" | "interrupted" | null;
       model: string | null;
       latencyMs: number | null;
       input: number | null;
@@ -235,11 +238,16 @@ function toolRow(span: Span): Row {
   };
 }
 
+// The check closes its own span with its time (app/models/turn_trace.rb,
+// finish_guardrail), whatever it found; a span closed without that time was
+// closed by a run that broke or stopped during the check
+// (TraceRecorder.close_interrupted, TraceRecorder#abandon).
 function guardrailRow(span: Span): Row {
   const a = span.attributes;
   const running = span.finished_at === null;
   const clinical = a["balcao.guardrail.clinical"];
   const error = str(a, "error.type");
+  const own = num(a, "balcao.latency_ms") !== null;
   return {
     kind: "guardrail",
     key: span.span_id,
@@ -248,10 +256,12 @@ function guardrailRow(span: Span): Row {
     verdict: running
       ? null
       : clinical === true
-        ? "replaced"
+        ? "clinical"
         : clinical === false
           ? "pass"
-          : "failed",
+          : own
+            ? "failed"
+            : "interrupted",
     model: str(a, "gen_ai.response.model") ?? str(a, "gen_ai.request.model"),
     latencyMs:
       num(a, "balcao.latency_ms") ?? between(span.started_at, span.finished_at),

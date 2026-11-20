@@ -103,9 +103,10 @@
     "stop": "parou em {{reason}}",
     "guardrail": "guardrail",
     "guardrailVerdicts": {
-      "pass": "resposta aprovada",
-      "replaced": "resposta substituída",
-      "failed": "sem verificação · resposta enviada"
+      "pass": "nada clínico",
+      "clinical": "conselho clínico",
+      "failed": "sem veredito",
+      "interrupted": "interrompida"
     },
     "command": "comando",
     "queued": "mensagem na fila",
