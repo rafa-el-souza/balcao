@@ -100,9 +100,33 @@ class Message < ApplicationRecord
     { id:, turn_id:, author:, notice:, body: text, created_at: created_at.iso8601(3) }
   end
 
-  # The reply as the model wrote it, for the history it reads back
-  # (AgentRunner::History): without the notice the system put before it.
+  # The reply without the notice the system put before a conversation's
+  # first reply (FR-01).
   def body_without_notice(first_reply: first_reply?) = first_reply ? notice_and_text.last : body
+
+  # What the history gives back of a reply stored before its turn kept what
+  # the model wrote (Turn#reply_kind): an image before M2-11a, the old worker
+  # of Kamal's migration window, a rollback. It is read by its text (design
+  # §10, M2-11a): written, the model's words with the tags that asked for the
+  # lines a turn adds after them, the offer of the pharmacist and the
+  # emergency line, which are left out with a reservation's lines, told by
+  # their text (FixedReply.added_line?; review finding C1 of pull request
+  # #60); or kind, the fixed text the system wrote in the model's place,
+  # which the reply opens with (FixedReply.in_place_kind; review finding R1
+  # of the same pull request). The notice before a conversation's first
+  # reply is neither.
+  Authored = Data.define(:written, :kind)
+
+  def authored(first_reply: first_reply?)
+    text = body_without_notice(first_reply:)
+    kind = FixedReply.in_place_kind(text)
+    return Authored.new(written: nil, kind:) if kind
+
+    paragraphs = text.split("\n\n")
+    added = []
+    added.unshift(paragraphs.pop) while paragraphs.any? && FixedReply.added_line?(paragraphs.last)
+    Authored.new(written: [ paragraphs.join("\n\n").presence, *FixedReply.line_tags(added) ].compact.join(" ").presence, kind: nil)
+  end
 
   # The first reply of a conversation is the one the system put the notice
   # before (TurnProcessor#record_reply), on its first line: it is told by its

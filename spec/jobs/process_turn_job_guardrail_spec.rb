@@ -107,14 +107,48 @@ RSpec.describe "FR-20 SR-18 the guardrail in a turn (FR-09, FR-12, FR-14, NFR-02
     end
 
     # FR-09: the emergency line comes alone, in every reply that asks for it.
-    it "keeps the emergency line in place of the offer when the reply asked for it" do
+    # A replaced emergency reply opened with the decline, "quem responde é o
+    # farmacêutico da loja", before the line, where the model had urged the
+    # call (#59's M1; the owner, 2026-11-20, "Sim, a proxima fatia leva os
+    # consertos"): it opens with the call now, and names no pharmacist.
+    it "opens a replaced emergency reply with the call, then the emergency line, and never with the decline" do
       responses.replace([ reply("[pt] Dê bastante água e espere passar. [emergency]") ])
       clinical
       turn = inbound("meu filho engoliu uns comprimidos")
 
       perform(turn)
 
-      expect(turn.outbound_message.body).to eq(body(FixedReply.with_emergency(FixedReply.declined("pt-BR"), "pt-BR")))
+      expect(turn.outbound_message.body).to eq(body(FixedReply.with_emergency(FixedReply.call_now("pt-BR"), "pt-BR")))
+      expect(turn.outbound_message.body).not_to include(FixedReply.declined("pt-BR"))
+    end
+
+    { "en" => "my son swallowed some pills", "es" => "mi hijo se tragó unas pastillas" }.each do |language, message|
+      it "opens it with the call in the reply's language, #{language}" do
+        responses.replace([ reply("[#{language}] Give him water and wait. [emergency]") ])
+        clinical
+        turn = inbound(message)
+
+        perform(turn)
+
+        expect(turn.outbound_message.body).to eq(body(FixedReply.with_emergency(FixedReply.call_now(language), language), language))
+      end
+    end
+
+    # The emergency line comes alone: a product's price is not what the
+    # visitor needs then, even one the message names.
+    it "lists no product under a replaced emergency reply, and keeps the reservation the turn stored" do
+      product = create(:product, name: "Paracetamol 750 mg, 20 comprimidos", active_ingredient: "paracetamol", stock: 10)
+      responses.replace([ tool_turn(tool_use("search_products", { query: "paracetamol" })),
+                          tool_turn(tool_use("create_reservation", { product_id: product.id, quantity: 1 })),
+                          reply("[pt] Oito de 750 mg pode passar do limite; ligue agora. [emergency]") ])
+      clinical
+      turn = inbound("tomei 8 paracetamol, reserva mais uma caixa? é perigoso?")
+
+      perform(turn)
+
+      expect(turn.outbound_message.body)
+        .to eq(body(FixedReply.with_reservations(FixedReply.with_emergency(FixedReply.call_now("pt-BR"), "pt-BR"),
+                                                 turn.reservations.to_a, "pt-BR")))
     end
 
     # FR-10's MVP note: a reply that follows one carrying the offer in the
@@ -144,6 +178,99 @@ RSpec.describe "FR-20 SR-18 the guardrail in a turn (FR-09, FR-12, FR-14, NFR-02
       lines = turn.outbound_message.body.delete_prefix(body(FixedReply.with_offer(FixedReply.declined("pt-BR"), "pt-BR")))
       expect(lines.delete_prefix("\n\n").split("\n"))
         .to contain_exactly("Dipirona 500 mg, 10 comprimidos: R$ 7,90, em estoque.", "Dipirona gotas 20 ml: R$ 9,50, sem estoque.")
+    end
+
+    # #59's C2 and H2 (the owner, 2026-11-20): a replacement listed every
+    # product the turn's searches found, so a product the model chose for a
+    # symptom reached the visitor as the system's own line, even when the
+    # check caught the reply. A product line stays only for a product the
+    # visitor's message names, by its medicine or the head of its name, as
+    # the catalogue search reads a name (Product.named_in).
+    it "lists no product the visitor's message does not name: one the model chose for a symptom" do
+      create(:product, name: "Omeprazol 20 mg, 28 cápsulas", active_ingredient: "omeprazol", price: BigDecimal("18.90"), stock: 5)
+      responses.replace([ tool_turn(tool_use("search_products", { query: "omeprazol" })),
+                          reply("[pt] Para azia, o Omeprazol 20 mg ajuda: R$ 18,90. [pharmacist]") ])
+      clinical
+      turn = inbound("tem alguma coisa pra azia?")
+
+      perform(turn)
+
+      expect(turn.outbound_message.body).to eq(body(FixedReply.with_offer(FixedReply.declined("pt-BR"), "pt-BR")))
+    end
+
+    it "lists a product the message names by its medicine, with no word of its salt" do
+      create(:product, name: "Losartana potássica 50 mg, 30 comprimidos", active_ingredient: "losartana potássica",
+                       price: BigDecimal("15.40"), stock: 8)
+      create(:product, name: "Ibuprofeno 400 mg, 10 cápsulas", active_ingredient: "ibuprofeno", price: BigDecimal("11"), stock: 3)
+      responses.replace([ tool_turn(tool_use("search_products", { query: "losartana" }), tool_use("search_products", { query: "ibuprofeno" })),
+                          reply("[pt] Temos; e o ibuprofeno pode, sim.") ])
+      clinical
+      turn = inbound("tem losartana? posso tomar junto com algum anti-inflamatório?")
+
+      perform(turn)
+
+      expect(turn.outbound_message.body).to end_with("\n\nLosartana potássica 50 mg, 30 comprimidos: R$ 15,40, em estoque.")
+      expect(turn.outbound_message.body).not_to include("Ibuprofeno")
+    end
+
+    # Review finding H-B5 of pull request #60 (cliente, the verifier's): with
+    # the earlier turns' results in its history the model may answer a
+    # follow-up without searching again, and a replacement listed only what
+    # this turn's searches found, so a replaced follow-up that names the
+    # product lost the price line it had when the model searched each turn.
+    it "lists a product an earlier turn's search found when this message names it, at the catalogue's price and stock now" do
+      product = create(:product, name: "Dipirona 500 mg, 10 comprimidos", active_ingredient: "dipirona", price: BigDecimal("7.90"), stock: 12)
+      create(:product, name: "Paracetamol 750 mg, 20 comprimidos", active_ingredient: "paracetamol", price: BigDecimal("12.90"), stock: 5)
+      responses.replace([ tool_turn(tool_use("search_products", { query: "dipirona" }), tool_use("search_products", { query: "paracetamol" })),
+                          reply("[pt] Temos os dois."), reply("[pt] Pode tomar sim, é seguro.") ])
+      verdicts.replace([ GuardrailVerdicts.verdict(false), GuardrailVerdicts.verdict(true) ])
+      perform(inbound("tem dipirona e paracetamol?"))
+      product.update!(stock: 0)
+      turn = inbound("posso tomar dipirona grávida?")
+
+      perform(turn)
+
+      expect(turn.outbound_message.body).to eq(FixedReply.with_products(FixedReply.with_offer(FixedReply.declined("pt-BR"), "pt-BR"), [
+        { "name" => "Dipirona 500 mg, 10 comprimidos", "price" => "R$ 7,90", "stock" => 0, "prescription_required" => false }
+      ], "pt-BR"))
+    end
+
+    # Review finding R3 of pull request #60 (cliente, the verifier's): the
+    # catalogue's reload unlists a product a reservation still points at
+    # (CatalogueSeed, FR-26), and an earlier turn's search may have found it,
+    # so a replacement listed, as the system's own line, a product no search
+    # finds any more.
+    it "lists no product the catalogue stopped listing since an earlier turn's search found it" do
+      product = create(:product, name: "Dipirona 500 mg, 10 comprimidos", active_ingredient: "dipirona", price: BigDecimal("7.90"), stock: 12)
+      responses.replace([ tool_turn(tool_use("search_products", { query: "dipirona" })), reply("[pt] Temos."),
+                          reply("[pt] Pode tomar sim, é seguro.") ])
+      verdicts.replace([ GuardrailVerdicts.verdict(false), GuardrailVerdicts.verdict(true) ])
+      perform(inbound("tem dipirona?"))
+      product.update!(listed: false, stock: 0)
+      turn = inbound("posso tomar dipirona grávida?")
+
+      perform(turn)
+
+      expect(turn.outbound_message.body).to eq(FixedReply.with_offer(FixedReply.declined("pt-BR"), "pt-BR"))
+    end
+
+    # Review finding H-B4 of pull request #60 (dono, the verifier's): only
+    # the conversation's own trace showed that a reply was replaced, so a
+    # check that began to replace catalogue answers across the demo went
+    # unseen. One line per replacement, with the turn's id and counts,
+    # never a word of the reply or of the visitor (threat model SR-30).
+    it "writes one line per replacement, naming the turn and what it listed, never the reply's words or the visitor's" do
+      create(:product, name: "Dipirona 500 mg, 10 comprimidos", active_ingredient: "dipirona", price: BigDecimal("7.90"), stock: 12)
+      responses.replace([ tool_turn(tool_use("search_products", { query: "dipirona" })), reply("[pt] Temos; dê 15 gotas ao seu filho.") ])
+      clinical
+      allow(Rails.logger).to receive(:warn)
+      turn = inbound("tem dipirona? quanto dou pro meu filho?")
+
+      perform(turn)
+
+      expect(Rails.logger).to have_received(:warn).with("turn #{turn.id}: FR-20's check replaced the model's reply " \
+                                                        "(products listed: 1, emergency: false)").once
+      expect(Rails.logger).not_to have_received(:warn).with(/gotas|filho/)
     end
 
     it "names a product's prescription flag in its line, as the catalogue gives it" do

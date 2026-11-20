@@ -154,7 +154,9 @@ RSpec.describe "FR-19 SR-10 SR-41 SR-42 TelegramUpdateJob, reading a stored upda
       expect(inbound).to have_attributes(body: "Concordo", source: "command", channel: "telegram",
                                          external_id: "#{visitor.id}:3", webhook_event_id: @event.id)
       expect(outbound).to have_attributes(body: FixedReply.greeting("pt-BR"), status: "sent")
-      expect(Turn.sole).to have_attributes(state: "replied", inbound_message: inbound)
+      # The system's text, which the history names in a notice, never as the
+      # model's (M2-11a).
+      expect(Turn.sole).to have_attributes(state: "replied", inbound_message: inbound, reply_kind: "command", model_reply: nil)
       command = TraceEvent.find_by!(name: "balcao.command")
       expect(command.span_attributes).to eq("balcao.command.name" => "agree")
       # The greeting's way to the chat (FR-12; #45's verifier, V4): open as it

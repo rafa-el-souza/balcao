@@ -14,6 +14,11 @@ pt-BR:
     # pharmacist is the store's, never "de plantão" (the owner's decision of
     # 2026-11-14).
     declined: "Isso eu não posso responder por aqui; quem responde é o farmacêutico da loja."
+    # FR-20 and FR-09: the opening of a reply the guardrail replaced where the
+    # model had asked for the emergency line, which follows it, in place of the
+    # decline: the call to call now, naming no pharmacist (the owner,
+    # 2026-11-20, pull request #59's M1).
+    call_now: "Ligue agora para pedir ajuda."
     # FR-10's MVP note: the offer of the pharmacist, with the phone and the
     # counter's hours of config/store.yml (FixedReply.offer). Days in a row
     # with the same hours go together: "days" for a run, "on_day" for a day.

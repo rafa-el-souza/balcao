@@ -14,9 +14,13 @@
 # - the reply's language, read from the tag the prompt asks for (FR-02), and
 #   the fixed lines its closing tags ask for: the offer of the pharmacist
 #   (FR-10's MVP note) and the emergency line (FR-09);
-# - an event for each step as it happens, for the trace (FR-12, ADR-0010).
+# - an event for each step as it happens, for the trace (FR-12, ADR-0010);
+# - the turn's tool calls and their results, and the reply as the model wrote
+#   it, which the history of the later turns gives the model back (History;
+#   design §10, M2-11a).
 #
-# It stores nothing: the caller records the reply, the usage and the trace.
+# It stores nothing: the caller records the reply, the usage, the trace and
+# the tool exchange.
 class AgentRunner
   MAX_TOOL_CALLS = 6
   MAX_TOKENS = 1_500
@@ -47,12 +51,19 @@ class AgentRunner
   # outcome: :replied (text and language set), :refused, :incomplete (cut off
   # or empty), :tool_limit, :deadline or :model_error (error set). offer and
   # emergency say whether the reply's tags asked for the offer of the
-  # pharmacist and for the emergency line, which the caller adds.
+  # pharmacist and for the emergency line, which the caller adds. written is
+  # the reply as the model wrote it, its tags where the prompt asks for them,
+  # as the system read them, which the later turns' history gives back
+  # (Run#reply; History). exchange is the turn's tool calls and their
+  # results, step by step, as plain JSON in the API's own shape: an assistant
+  # message of tool_use blocks, then a user message of their tool_result
+  # blocks (Run#exchange).
   OUTCOMES = %i[replied refused incomplete tool_limit deadline model_error].freeze
-  Result = Data.define(:outcome, :text, :language, :offer, :emergency, :model_calls, :tool_calls, :error) do
+  Result = Data.define(:outcome, :text, :language, :offer, :emergency, :written, :model_calls, :tool_calls, :error,
+                       :exchange) do
     # The glass box words each outcome (TurnProcessor::OUTCOMES), so an
     # unlisted one never reaches it.
-    def initialize(outcome:, offer: false, emergency: false, **)
+    def initialize(outcome:, offer: false, emergency: false, written: nil, exchange: [], **)
       raise ArgumentError, "#{outcome.inspect} is not an outcome of AgentRunner::OUTCOMES" unless OUTCOMES.include?(outcome)
 
       super
@@ -107,7 +118,9 @@ class AgentRunner
     # asks for; each step's request may take only what is left of the turn's
     # wall clock, measured after the previous step's tools have run.
     def call
-      runner = @client.beta.messages.tool_runner(params)
+      history = History.messages(@turn)
+      @sent = history.size
+      @runner = runner = @client.beta.messages.tool_runner(params(history))
       last = nil
       until runner.finished? || @tool_uses > MAX_TOOL_CALLS
         check_deadline
@@ -150,7 +163,7 @@ class AgentRunner
 
     private
 
-    def params
+    def params(history)
       {
         model: @route.model,
         max_tokens: MAX_TOKENS,
@@ -158,7 +171,7 @@ class AgentRunner
         # caches both; the top-level one caches the conversation so far.
         system_: [ { type: "text", text: @prompt, cache_control: { type: "ephemeral" } } ],
         cache_control: { type: "ephemeral" },
-        messages: History.messages(@turn),
+        messages: history,
         output_config: { effort: @route.effort },
         # The history is rebuilt from the database every turn, so the turn's
         # few requests go as plain Messages API calls, with no message thread.
@@ -212,21 +225,58 @@ class AgentRunner
     # the language, so a line tag before it hides neither (finding C4 of
     # #27). A reply that is its tags alone is the line it asks for, so only a
     # reply with no text and no tag is empty (review finding C1 of pull
-    # request #27).
+    # request #27). The reply as written puts the tags where the prompt asks
+    # for them, the language's first and the lines' last, each once, around
+    # the words the visitor reads (the owner, 2026-11-20: "(d) Só o que o
+    # modelo escreveu").
     def reply
       blocks = @messages.flat_map { |message| message.content.select { |block| block.type == :text }.map(&:text) }
       lines = blocks.flat_map { |block| block.scan(LINE_TAG).flatten.map(&:downcase) }
       blocks = blocks.map { |block| block.gsub(LINE_TAG, "") }
-      tag = blocks.filter_map { |block| block[LANGUAGE_TAG, 1] }.first
+      tag = blocks.filter_map { |block| block[LANGUAGE_TAG, 1] }.first&.downcase
       text = blocks.map { |block| block.sub(LANGUAGE_TAG, "").strip }.reject(&:empty?).join("\n\n")
       return result(:incomplete) if text.empty? && lines.empty?
 
-      result(:replied, text:, language: LANGUAGES[tag&.downcase], offer: lines.include?("pharmacist"),
-                       emergency: lines.include?("emergency"))
+      offer, emergency = lines.include?("pharmacist"), lines.include?("emergency")
+      written = [ ("[#{tag}]" if tag), text.presence, ("[pharmacist]" if offer), ("[emergency]" if emergency) ].compact.join(" ")
+      result(:replied, text:, language: LANGUAGES[tag], offer:, emergency:, written:)
     end
 
-    def result(outcome, text: nil, language: nil, error: nil, offer: false, emergency: false)
-      Result.new(outcome:, text:, language:, offer:, emergency:, model_calls: @model_calls, tool_calls: @tool_calls, error:)
+    def result(outcome, text: nil, language: nil, error: nil, offer: false, emergency: false, written: nil)
+      Result.new(outcome:, text:, language:, offer:, emergency:, written:, model_calls: @model_calls, tool_calls: @tool_calls,
+                 error:, exchange:)
+    end
+
+    # The turn's tool calls and their results, step by step, as the model read
+    # them: the SDK's runner appends each step to the conversation it sends,
+    # after the history, as an assistant message with the calls and a user
+    # message with their results, the gate's refusal of a seventh call among
+    # them. Only the calls and the results are kept, as plain JSON: the history
+    # gives the model its reply as written (reply), and a thinking block
+    # belongs to the request that produced it (it may be left out of a later
+    # one). A call that got no result is left out, and a step left with
+    # no call.
+    def exchange
+      return [] unless @runner
+
+      @runner.params[:messages].drop(@sent).each_cons(2).flat_map do |asked, answered|
+        next [] unless role(asked) == "assistant" && role(answered) == "user"
+
+        results = blocks(answered, "tool_result").map { |block| block.slice(:type, :tool_use_id, :content, :is_error) }
+        calls = blocks(asked, "tool_use").map { |block| block.slice(:type, :id, :name, :input) }
+                                         .select { |call| results.any? { |result| result[:tool_use_id] == call[:id] } }
+        next [] if calls.empty?
+
+        [ { role: "assistant", content: calls },
+          { role: "user", content: results.select { |result| calls.any? { |call| call[:id] == result[:tool_use_id] } } } ]
+      end.then { |steps| JSON.parse(JSON.generate(steps)) }
+    end
+
+    def role(message) = message.to_h.transform_keys(&:to_sym)[:role].to_s
+
+    def blocks(message, type)
+      Array(message.to_h.transform_keys(&:to_sym)[:content]).map { |block| block.to_h.transform_keys(&:to_sym) }
+                                                            .select { |block| block[:type].to_s == type }
     end
 
     def model_failed(error)

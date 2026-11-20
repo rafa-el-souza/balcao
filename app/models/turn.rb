@@ -14,6 +14,27 @@ class Turn < ApplicationRecord
   enum :mode, { normal: "normal", economy: "economy", paused: "paused", handoff: "handoff" },
        prefix: true, validate: { allow_nil: true }
 
+  # The tool calls the model made in the turn and their results, step by
+  # step, as the API read them (AgentRunner::Result#exchange), which the
+  # history of the later turns gives the model back (AgentRunner::History;
+  # design §10, M2-11a). Kept with the reply, encrypted at rest: a call's
+  # input may quote what the visitor sent (threat model SR-41).
+  serialize :tool_exchange, coder: JSON
+  encrypts :tool_exchange
+
+  # What the history gives back of the turn's reply (the owner, 2026-11-20:
+  # "(d) Só o que o modelo escreveu" and "Aviso de uma frase"): model, the
+  # reply as the model wrote it, its tags included (model_reply,
+  # AgentRunner::Result#written; encrypted, as a reply may quote the
+  # visitor), or the fixed text the system sent in the model's place, which
+  # the history names in one sentence, never quoting it
+  # (AgentRunner::History::NOTICES). A turn stored before M2-11a has neither,
+  # and the history reads its reply by the text (Message#authored).
+  REPLY_KINDS = %w[model decline call_now refusal fallback pause reservations command].freeze
+
+  validates :reply_kind, inclusion: { in: REPLY_KINDS }, allow_nil: true
+  encrypts :model_reply
+
   validate :inbound_message_is_inbound
 
   # The turn of an inbound message. A second call for the same message, from

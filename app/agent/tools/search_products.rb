@@ -53,19 +53,23 @@ module Tools
 
     def tally(result) = { unit: "products", count: result.fetch("products").size }
 
+    # A product as the catalogue lists it to the model, and as a reply FR-20's
+    # check replaced lists it (TurnProcessor#products_of): its price as the
+    # visitor reads it, its stock and its prescription flag.
+    def self.listing(product)
+      {
+        "id" => product.id, "name" => product.name, "active_ingredient" => product.active_ingredient,
+        "price" => ActiveSupport::NumberHelper.number_to_currency(product.price, locale: :"pt-BR"),
+        "stock" => product.stock, "prescription_required" => product.prescription_required
+      }
+    end
+
     private
 
     def limit(input)
       (Integer(input.to_h[:limit], exception: false) || MAX_RESULTS).clamp(1, MAX_RESULTS)
     end
 
-    def entry(product)
-      {
-        "id" => product.id, "name" => product.name, "active_ingredient" => product.active_ingredient,
-        "price" => ActiveSupport::NumberHelper.number_to_currency(product.price, locale: :"pt-BR"),
-        "stock" => product.stock, "prescription_required" => product.prescription_required,
-        "match" => product.match, "score" => product.score
-      }
-    end
+    def entry(product) = self.class.listing(product).merge("match" => product.match, "score" => product.score)
   end
 end

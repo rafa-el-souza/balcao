@@ -236,6 +236,22 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
       Rails.configuration.x.economy_allowed = true
       expect(Budget.mode).to eq("economy")
     end
+
+    # Review finding H-B3 of pull request #60 (dono, the verifier's): a
+    # deploy whose gate reads closed under a month forced to economy paused
+    # the demo, and the only line was the boot's, which names the gate, not
+    # the pause. The read that finds the forced mode cannot serve says so in
+    # the month's line, once a process.
+    it "says once a process that a forced economy the gate keeps closed pauses the demo" do
+      travel_to Time.zone.local(2026, 11, 21, 9, 0) do
+        BudgetState.for_month!.update!(forced_mode: "economy")
+        allow(Rails.logger).to receive(:warn)
+
+        2.times { expect(Budget.status).to eq(Budget::Status.new(mode: "paused", forced: true)) }
+
+        expect(Rails.logger).to have_received(:warn).with(/; the forced economy mode may not serve yet, so the demo pauses\z/).once
+      end
+    end
   end
 
   describe "ADR-0003's gate, the full eval run's word, read at boot" do
@@ -243,7 +259,7 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
     let(:route) { ModelPolicy.route("economy") }
     let(:run) do
       "model: #{route.model}\neffort: #{route.effort}\nprompt: #{PromptDigest.prompt}\ntools: #{PromptDigest.tools}\n" \
-        "commit: ec17b12\nrun_at: '2026-11-20T04:00:00Z'\n"
+        "guardrail: #{PromptDigest.guardrail}\ncommit: ec17b12\nrun_at: '2026-11-20T04:00:00Z'\n"
     end
 
     before { allow(Rails.logger).to receive(:warn) }
@@ -314,6 +330,32 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
       expect(PromptDigest.tools([ Tools::GetStoreInfo, changed, Tools::CreateReservation ])).not_to eq(PromptDigest.tools)
     end
 
+    # #59's M4 (the owner, 2026-11-20, "Sim, a proxima fatia leva os
+    # consertos"): the boundary suite runs every reply through FR-20's check,
+    # and a stricter check fails boundary cases a gate written before it never
+    # measured, so the gate names the check too.
+    it "reads a gate written for another FR-20 check, or for none, as not allowed, and says so" do
+      expect(Budget.read_economy_allowed(gate("economy_allowed: true\n#{run.sub(PromptDigest.guardrail, "00112233aabbccdd")}"))).to be(false)
+      expect(Budget.read_economy_allowed(gate("economy_allowed: true\n#{run.sub(/^guardrail: .*\n/, "")}"))).to be(false)
+
+      expect(Rails.logger).to have_received(:warn).with(/check "00112233aabbccdd".*#{PromptDigest.guardrail}/)
+      expect(Rails.logger).to have_received(:warn).with(/check nil/)
+    end
+
+    it "digests FR-20's check: its system prompt, what it reads around the texts, its route and its answer's shape" do
+      digest = PromptDigest.guardrail
+      expect(digest).to match(/\A\h{16}\z/)
+      expect(PromptDigest.guardrail(ModelPolicy.guardrail.with(effort: "medium"))).not_to eq(digest)
+
+      allow(Guardrail).to receive(:content).and_call_original
+      allow(Guardrail).to receive(:content).with(message: "MESSAGE", reply: "REPLY", earlier: [ "EARLIER" ]).and_return("<answer>REPLY</answer>")
+      expect(PromptDigest.guardrail).not_to eq(digest)
+
+      RSpec::Mocks.space.proxy_for(Guardrail).reset
+      stub_const("Guardrail::SYSTEM", "#{Guardrail::SYSTEM}One more rule.")
+      expect(PromptDigest.guardrail).not_to eq(digest)
+    end
+
     it "is read when the app boots, so the file a deploy brought serves until the next deploy" do
       boot = lambda do |answer|
         probe = <<~RUBY
@@ -332,7 +374,8 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
       end
 
       out, err, status = boot.call({ "economy_allowed" => true, "model" => route.model, "effort" => route.effort,
-                                     "prompt" => PromptDigest.prompt, "tools" => PromptDigest.tools })
+                                     "prompt" => PromptDigest.prompt, "tools" => PromptDigest.tools,
+                                     "guardrail" => PromptDigest.guardrail })
       expect([ status.success?, out ]).to eq([ true, "true\n" ]), err
 
       out, err, status = boot.call([ true ])

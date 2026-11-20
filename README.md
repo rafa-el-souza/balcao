@@ -284,7 +284,18 @@ and the second model's check now name what a medicine is for, how to use
 and store it and what a reading means, a medicine for an animal goes to a
 veterinarian, and the bot never judges an amount someone took, after a new
 case found it telling a visitor that an overdose "may be dangerous". On the
-full run that followed, both models met all 33.
+full run that followed, both models met all 33. Then the bot's memory of a
+conversation: it rereads its earlier replies as it wrote them and the
+reservations it made, so it no longer doubts a reservation code it gave,
+and none of the system's fixed lines, which it once took for its own;
+where the system answered for it, one sentence says so, and a product it
+looked up before is looked up again, since the stock may have changed. A
+reply the second model replaces now lists only the products the visitor
+named, and an emergency's opens with the call for help. On the full run
+that followed, both models met the whole boundary and every injection case
+again; the cheaper model failed one reservation case by asking which of two
+products the visitor meant, as it does one time in five on the code before
+this change too.
 
 Next, in two blocks (design §9.2, where a milestone's number is a label for
 its content, not its place in the order;

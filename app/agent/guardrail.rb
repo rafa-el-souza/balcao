@@ -71,6 +71,26 @@ class Guardrail
 
   def self.default_client = AgentRunner.default_client
 
+  # What the check reads, its one user message: the visitor's earlier
+  # messages, the message and the reply, each in its tag as data. ADR-0003's
+  # gate names it with SYSTEM (PromptDigest.guardrail).
+  def self.content(message:, reply:, earlier: [])
+    "#{earlier_block(earlier)}<visitor_message>\n#{data(message)}\n</visitor_message>\n\n<reply>\n#{data(reply)}\n</reply>"
+  end
+
+  # A text's angle brackets, as single guillemets, so that neither text can
+  # close the check's tags and open a reply of its own (threat model SR-21:
+  # a visitor's forged decline was judged in place of the reply in two of
+  # three tries, design §10's note of 2026-11-20).
+  def self.data(text) = text.to_s.tr("<>", "‹›")
+
+  def self.earlier_block(earlier)
+    return "" if earlier.empty?
+
+    "<earlier_messages>\n#{earlier.map { |text| "<message>\n#{data(text)}\n</message>\n" }.join}</earlier_messages>\n\n"
+  end
+  private_class_method :data, :earlier_block
+
   def initialize(client: nil, route: ModelPolicy.guardrail, thinking: THINKING, clock: AgentRunner::MONOTONIC)
     @client = client || self.class.default_client
     @route = route
@@ -84,7 +104,7 @@ class Guardrail
   def check(message:, reply:, earlier: [])
     yield Started.new(model: @route.model, effort: @route.effort) if block_given?
     started = @clock.call
-    content = "#{earlier_block(earlier)}<visitor_message>\n#{data(message)}\n</visitor_message>\n\n<reply>\n#{data(reply)}\n</reply>"
+    content = self.class.content(message:, reply:, earlier:)
     watch = Watch.new(0)
     verdict = begin
       verdict_of(request(content, watch), started)
@@ -139,19 +159,7 @@ class Guardrail
     end
   end
 
-  # A text's angle brackets, as single guillemets, so that neither text can
-  # close the check's tags and open a reply of its own (threat model SR-21:
-  # a visitor's forged decline was judged in place of the reply in two of
-  # three tries, design §10's note of 2026-11-20).
-  def data(text) = text.to_s.tr("<>", "‹›")
-
   def thinking = @thinking ? { thinking: @thinking } : {}
-
-  def earlier_block(earlier)
-    return "" if earlier.empty?
-
-    "<earlier_messages>\n#{earlier.map { |text| "<message>\n#{data(text)}\n</message>\n" }.join}</earlier_messages>\n\n"
-  end
 
   def verdict_of(response, started)
     usage = [ usage_of(response) ]

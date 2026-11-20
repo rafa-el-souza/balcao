@@ -24,8 +24,9 @@
 #   for help (FR-09, the owner, 2026-11-15);
 # - the text the model wrote passes FR-20's check (Guardrail) before any of
 #   that, and a text it finds clinical is replaced by FR-09's decline and the
-#   facts the turn's tools produced (replaced); a check that gives no verdict
-#   lets the text go, traced and logged (threat model R4);
+#   facts the turn's tools produced, or by the call to call now in an
+#   emergency (replaced); a check that gives no verdict lets the text go,
+#   traced and logged (threat model R4);
 # - a turn the job gave up on after its attempts gets the fallback too
 #   (give_up, NFR-03).
 #
@@ -56,6 +57,13 @@ class TurnProcessor
   # replaced (FR-20), a turn answered from its stored reservations without
   # the model, one the budget paused and one the job gave up on.
   OUTCOMES = [ *AgentRunner::OUTCOMES.map(&:to_s), "replaced", "reservations", "paused", "dead_letter" ].freeze
+  # Which fixed text the system sent in the model's place, by the turn's
+  # outcome, for the history of the later turns (Turn::REPLY_KINDS): a
+  # replaced reply's is the decline, or the call to call now for an
+  # emergency (replace), and a command's its own (command).
+  IN_PLACE = { "refused" => "refusal", "incomplete" => "fallback", "tool_limit" => "fallback", "deadline" => "fallback",
+               "model_error" => "fallback", "dead_letter" => "fallback", "paused" => "pause",
+               "reservations" => "reservations", "replaced" => "decline" }.freeze
 
   # A reply holds the system's texts beside the model's own words: the notice
   # before a conversation's first reply, the fixed lines after the words
@@ -300,7 +308,7 @@ class TurnProcessor
     @inbound.update_columns(source: "command")
     span = @recorder.start_span("balcao.command", started_at: @inbound.received_at,
                                                   attributes: { "balcao.command.name" => name.to_s })
-    broadcast_reply(replied("replied", span) { yield })
+    broadcast_reply(replied("replied", span, kind: "command") { yield })
   rescue StandardError => e
     broken(e)
     raise
@@ -355,11 +363,13 @@ class TurnProcessor
       end
       [ result, guard(result, events) ]
     end
+    @exchange = result.exchange.presence
     @conversation.update!(language: result.language) if result.language
-    return finish("replaced", "replied", replaced(result, @conversation.language)) if verdict&.clinical?
+    return replace(result) if verdict&.clinical?
 
     text, state = reply_of(result)
-    finish(result.outcome, state, text, error: result.error, own: (result.text if result.outcome == :replied))
+    wrote = result.outcome == :replied
+    finish(result.outcome, state, text, error: result.error, own: (result.text if wrote), written: (result.written if wrote))
   end
 
   # FR-20: the text the model wrote passes the guardrail's check before it is
@@ -404,24 +414,66 @@ class TurnProcessor
   end
 
   # FR-20: a reply the check found clinical is FR-09's decline, followed by
-  # the offer of the pharmacist, or by the emergency line where the reply
-  # asked for it (FR-09), as any reply's lines are; then the facts the turn's
-  # tools produced, as fixed lines: the products it found, with their prices,
-  # and the reservations it stored or that the cap of open ones listed
-  # (FR-07). Nothing of the model's text is kept. A replacement that breaks
-  # breaks the turn, for the job's retry: the fail-open of threat model R4 is
-  # the check's alone, and the clinical text is never sent.
+  # the offer of the pharmacist, as any reply's lines are; then the facts the
+  # turn's tools produced, as fixed lines: the products it found that the
+  # visitor's message names, with their prices, and the reservations it
+  # stored or that the cap of open ones listed (FR-07). A reply that asked
+  # for the emergency line opens with the call to call now instead, then the
+  # line, and lists no product (FR-09: an emergency's one instruction is to
+  # call for help; #59's M1, the owner, 2026-11-20). Nothing of the model's
+  # text is kept. A replacement that breaks breaks the turn, for the job's
+  # retry: the fail-open of threat model R4 is the check's alone, and the
+  # clinical text is never sent.
   def replaced(result, language)
-    reply = with_lines(FixedReply.declined(language), language, offer: true, emergency: result.emergency)
-    FixedReply.with_reservations(FixedReply.with_products(reply, products_of(result), language), facts_of(result), language)
+    products = result.emergency ? [] : products_of(result)
+    reply = if result.emergency then FixedReply.with_emergency(FixedReply.call_now(language), language)
+    else FixedReply.with_products(with_lines(FixedReply.declined(language), language, offer: true), products, language)
+    end
+    [ FixedReply.with_reservations(reply, facts_of(result), language), products.size ]
   end
 
-  # The products the turn's searches found, each once, in the order found,
-  # at most one search's worth.
+  # The replacement stored, one line says so, with the turn's id and what it
+  # listed, never a word of the reply or of the visitor (threat model SR-30):
+  # the trace of the conversation was the only place that showed it, so a
+  # check that began to replace right answers across the demo went unseen
+  # (review finding H-B4 of pull request #60).
+  def replace(result)
+    text, listed = replaced(result, @conversation.language)
+    finish("replaced", "replied", text, kind: result.emergency ? "call_now" : "decline")
+    Rails.logger.warn("turn #{@turn.id}: FR-20's check replaced the model's reply (products listed: #{listed}, emergency: #{result.emergency})")
+  end
+
+  # The products the searches found that the visitor's message names, each
+  # once, at most one search's worth, as the catalogue lists them now: this
+  # turn's searches first, then the earlier turns' in the window the model
+  # read, newest first, since the model may answer a follow-up from a result
+  # its history holds without searching again (review finding H-B5 of pull
+  # request #60). A product the model chose for what the message describes,
+  # a symptom among them, is not one it names, so a replacement never lists
+  # it as the system's own line (#59's C2 and H2, the owner, 2026-11-20;
+  # Product.named_in).
   def products_of(result)
-    result.tool_calls.select { |call| call.name == "search_products" && !call.is_error }
-          .flat_map { |call| JSON.parse(call.output).fetch("products") }
-          .uniq { |product| product.fetch("id") }.first(Tools::SearchProducts::MAX_RESULTS)
+    found = result.tool_calls.select { |call| call.name == "search_products" && !call.is_error }
+                  .flat_map { |call| JSON.parse(call.output).fetch("products").map { |product| product.fetch("id") } }
+    ids = (found + earlier_found).uniq
+    named = Product.named_in(@inbound.body, ids).index_by(&:id)
+    ids.filter_map { |id| named[id] }.first(Tools::SearchProducts::MAX_RESULTS).map { |product| Tools::SearchProducts.listing(product) }
+  end
+
+  # The ids of the products the earlier turns' searches found, from their
+  # tool exchanges (Turn#tool_exchange), newest turn first, in the window
+  # the model read (AgentRunner::History).
+  def earlier_found
+    Turn.where(conversation_id: @turn.conversation_id).where("(turns.created_at, turns.id) < (?, ?)", @turn.created_at, @turn.id)
+        .order(created_at: :desc, id: :desc).limit(AgentRunner::History::TURNS - 1)
+        .filter_map(&:tool_exchange).flat_map { |exchange| searched(exchange) }
+  end
+
+  def searched(exchange)
+    blocks = exchange.flat_map { |message| message["content"] }
+    searches = blocks.filter_map { |block| block["id"] if block["type"] == "tool_use" && block["name"] == "search_products" }
+    blocks.select { |block| block["type"] == "tool_result" && searches.include?(block["tool_use_id"]) && !block["is_error"] }
+          .flat_map { |block| JSON.parse(block["content"]).fetch("products").map { |product| product.fetch("id") } }
   end
 
   def reservations = Reservation.where(turn_id: @turn.id).includes(:product).order(:created_at, :id).to_a
@@ -484,12 +536,18 @@ class TurnProcessor
   end
 
   # own is the model's words the text begins with, nil when it holds none
-  # (REPLY_EVENT).
-  def finish(outcome, state, text, error: nil, own: nil)
+  # (REPLY_EVENT); written, the reply as the model wrote it, and kind, what
+  # the later turns' history gives back of the turn (Turn::REPLY_KINDS):
+  # model for a reply the model wrote, else the fixed text sent in its
+  # place.
+  def finish(outcome, state, text, error: nil, own: nil, written: nil, kind: nil)
     raise ArgumentError, "#{outcome} is not in TurnProcessor::OUTCOMES" unless OUTCOMES.include?(outcome.to_s)
 
+    kind ||= outcome.to_s == "replied" ? "model" : IN_PLACE.fetch(outcome.to_s)
     outbound = @recorder.start_span("balcao.outbound", parent: @root, attributes: { "balcao.message.author" => "bot" })
-    message = replied(state, @root) { record_reply(text, conversation: @conversation, language: @conversation.language, own:) }
+    message = replied(state, @root, kind:, written:) do
+      record_reply(text, conversation: @conversation, language: @conversation.language, own:)
+    end
     broadcast_reply(message)
     outbound.finish(attributes: { "balcao.message.characters" => message.body.length })
     @root.finish(attributes: { "balcao.turn.mode" => @root.attributes["balcao.turn.mode"],
@@ -526,15 +584,21 @@ class TurnProcessor
   # retry; and the span is there before anything else can see the reply, so
   # a drain of the person's replies that sends it at once finds the span to
   # close (review finding V4 of pull request #48). The caller sends the reply
-  # to the stream once it is committed.
-  def replied(state, parent)
+  # to the stream once it is committed. The turn keeps, with its reply, what
+  # the history of the later turns gives back of it (AgentRunner::History):
+  # the reply as the model wrote it, or which fixed text the system sent in
+  # its place (kind), and the tool calls the model made in this run with
+  # their results.
+  def replied(state, parent, kind:, written: nil)
     ApplicationRecord.transaction do
       yield.tap do
-        @turn.update!(state:, **latency)
+        @turn.update!(state:, reply_kind: kind, model_reply: written, **latency, **exchange)
         delivery(parent)
       end
     end
   end
+
+  def exchange = @exchange ? { tool_exchange: @exchange } : {}
 
   # FR-12, FR-19: a Telegram reply leaves after its run, by its status
   # (Telegram::Outbound), so the run opens its delivery's span and leaves it

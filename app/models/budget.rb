@@ -42,7 +42,9 @@ module Budget
     state = month(at)
     automatic = automatic(state.spent_usd)
     record(state, automatic) unless state.automatic_mode == automatic
-    Status.new(mode: serving(state.forced_mode, automatic), forced: !state.forced_mode.nil?)
+    mode = serving(state.forced_mode, automatic)
+    line(state, automatic) if state.forced_mode && mode != state.forced_mode && !held?(state)
+    Status.new(mode:, forced: !state.forced_mode.nil?)
   end
 
   def mode(at = Time.current) = status(at).mode
@@ -90,10 +92,11 @@ module Budget
   # The gate as the full eval run writes it (Evals::EconomyGate): a mapping
   # whose economy_allowed is true or false, with the model and the effort the
   # boundary was measured on and the digests of the system prompt and the
-  # tools the model read (PromptDigest). It allows the economy model only when
-  # it says true for the economy route, the prompt and the tools as they are
-  # now, since a run on another model, effort, prompt or tool set does not
-  # speak for this one (the hunter's F2 on pull request #55). No file, a
+  # tools the model read and of FR-20's check of its replies (PromptDigest).
+  # It allows the economy model only when it says true for the economy route,
+  # the prompt, the tools and the check as they are now, since a run on
+  # another model, effort, prompt, tool set or check does not speak for this
+  # one (the hunter's F2 on pull request #55; #59's M4). No file, a
   # file that is anything else, or one that cannot be read, is "not allowed",
   # said once in a warning line, never raised: a list or a scalar used to
   # raise, so a forced economy answered 500 on every session and poll (review
@@ -110,10 +113,11 @@ module Budget
       return closed(path, "was written by a run on #{gate["model"].inspect} at #{gate["effort"].inspect} effort, " \
                           "not on the economy route's #{route.model} at #{route.effort}")
     end
-    return true if gate.values_at("prompt", "tools") == [ PromptDigest.prompt, PromptDigest.tools ]
+    return true if gate.values_at("prompt", "tools", "guardrail") == [ PromptDigest.prompt, PromptDigest.tools, PromptDigest.guardrail ]
 
-    closed(path, "was written for the system prompt #{gate["prompt"].inspect} and the tools #{gate["tools"].inspect}, " \
-                 "not for the system prompt #{PromptDigest.prompt} and the tools #{PromptDigest.tools} the model reads now")
+    closed(path, "was written for the system prompt #{gate["prompt"].inspect}, the tools #{gate["tools"].inspect} and " \
+                 "FR-20's check #{gate["guardrail"].inspect}, not for the system prompt #{PromptDigest.prompt}, " \
+                 "the tools #{PromptDigest.tools} and the check #{PromptDigest.guardrail} that serve now")
   rescue Errno::ENOENT
     closed(path, "is missing")
   rescue Psych::Exception, ArgumentError, SystemCallError => e
@@ -149,15 +153,22 @@ module Budget
 
   # A forced mode that serves is named; a forced economy the eval run has not
   # allowed pauses the demo, which the line says (review finding R1 of pull
-  # request #29).
+  # request #29), once a process and month for the read that finds it (held?):
+  # a deploy whose gate reads closed under a month forced to economy writes no
+  # other line, and the boot's names the gate, not the pause (review finding
+  # H-B3 of pull request #60).
   def line(state, automatic)
     forced = state.forced_mode
     note = if forced.nil? then ""
     elsif serving(forced, automatic) == forced then "; the forced #{forced} mode serves"
-    else "; the forced #{forced} mode may not serve yet, so the demo pauses"
+    else
+      (@held ||= Set.new) << [ state.month, forced ]
+      "; the forced #{forced} mode may not serve yet, so the demo pauses"
     end
     Rails.logger.warn(format("budget: %s's automatic mode is %s at US$ %.2f of its cap of US$ %.2f%s",
                              state.month, automatic, state.spent_usd, cap, note))
   end
-  private_class_method :month, :write_usage, :record, :line, :closed
+
+  def held?(state) = @held&.include?([ state.month, state.forced_mode ])
+  private_class_method :month, :write_usage, :record, :line, :held?, :closed
 end

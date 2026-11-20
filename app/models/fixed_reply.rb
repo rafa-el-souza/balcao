@@ -1,7 +1,8 @@
 # The texts the system writes instead of the model (NFR-09): the demo notice
 # before a conversation's first reply (FR-01), the commands' confirmations
 # (FR-04, FR-05, FR-12), the fallback of a turn the model could not answer
-# (NFR-03), FR-09's decline, the reply to a refusal (SR-19), the offer of the
+# (NFR-03), FR-09's decline, the reply to a refusal (SR-19), the call to call
+# now that opens a replaced emergency reply (FR-20), the offer of the
 # pharmacist (FR-10's MVP note), the emergency line (FR-09), the replies of a
 # month paused at its budget cap and of a pause the operator forced (FR-14),
 # the fixed line of each reservation a turn stored (NFR-02) and of each
@@ -32,6 +33,13 @@ module FixedReply
   # the offer (TurnProcessor; FR-09, the owner, 2026-11-15).
   def declined(locale) = I18n.t("turn.declined", locale:)
 
+  # FR-20 and FR-09: a reply the guardrail replaced where the model had asked
+  # for the emergency line opens with this, then the line, in place of the
+  # decline: an emergency's one instruction is to call for help, and the
+  # decline named the store's pharmacist before it (#59's M1; the owner,
+  # 2026-11-20).
+  def call_now(locale) = I18n.t("turn.call_now", locale:)
+
   # FR-10's MVP note: until M2 the offer of the pharmacist is this line, with
   # the pharmacy's phone and the counter's hours from the store sheet, so an
   # edit of config/store.yml changes it with no code change (FR-26). Days in
@@ -52,6 +60,53 @@ module FixedReply
   def emergency(locale) = I18n.t("turn.emergency", locale:)
 
   def with_emergency(text, locale) = paragraphs(text, emergency(locale))
+
+  # The history reads a reply stored before its turn kept what the model
+  # wrote by its text, in any of the three languages (Message#authored;
+  # design §10, M2-11a); a turn stored since keeps it (Turn#reply_kind).
+  #
+  # A paragraph a turn adds after the model's words: the offer of the
+  # pharmacist, the emergency line, or lines of reservations (review finding
+  # C1 of pull request #60).
+  def added_line?(paragraph)
+    return false if paragraph.blank?
+
+    locales = AgentRunner::LANGUAGES.values
+    locales.any? { |locale| [ offer(locale), emergency(locale) ].include?(paragraph) } ||
+      paragraph.split("\n").all? { |line| locales.any? { |locale| reservation_line(locale).match?(line) } }
+  end
+
+  # The tags that asked for the paragraphs a turn added, in the order the
+  # prompt asks for them.
+  def line_tags(paragraphs)
+    locales = AgentRunner::LANGUAGES.values
+    [ ("[pharmacist]" if locales.any? { |locale| paragraphs.include?(offer(locale)) }),
+      ("[emergency]" if locales.any? { |locale| paragraphs.include?(emergency(locale)) }) ].compact
+  end
+
+  # The fixed text the system wrote in the model's place that a reply opens
+  # with (Turn::REPLY_KINDS), nil for the model's words: FR-09's decline,
+  # which a reply the check replaced opens with, followed by the offer, and
+  # a refusal's, followed by the emergency line, as a replaced emergency's
+  # was before #59's M1; the fallback; a pause's; /start's greeting or
+  # /help's list (review finding R1 of pull request #60).
+  def in_place_kind(text)
+    AgentRunner::LANGUAGES.values.each do |locale|
+      if text.start_with?(declined(locale))
+        return text.include?(emergency(locale)) ? "refusal" : "decline"
+      end
+      return "fallback" if text.start_with?(fallback(locale))
+      return "pause" if text.start_with?(paused(locale), forced_pause(locale))
+      return "command" if text.start_with?(greeting(locale), help(locale))
+    end
+    nil
+  end
+
+  # A reservation's line as turn.reservation writes it, its values any text.
+  def reservation_line(locale)
+    Regexp.new("\\A#{Regexp.escape(I18n.t("turn.reservation", locale:)).gsub(/%\\\{\w+\\\}/, ".+")}\\z")
+  end
+  private_class_method :reservation_line
 
   def paragraphs(*texts) = texts.reject(&:blank?).join("\n\n")
   private_class_method :paragraphs
@@ -108,10 +163,11 @@ module FixedReply
     "#{text}\n\n#{self.reservations(reservations, locale)}"
   end
 
-  # FR-20: a reply the guardrail replaced keeps the products its turn found,
-  # one line each, with the price, the stock and the prescription flag the
-  # catalogue gave the model (Tools::SearchProducts' entries), so the visitor
-  # still learns what the store has and what it costs.
+  # FR-20: a reply the guardrail replaced keeps the products the searches
+  # found that the visitor's message names, one line each, with the price,
+  # the stock and the prescription flag the catalogue lists now
+  # (Tools::SearchProducts.listing), so the visitor still learns what the
+  # store has and what it costs.
   def products(products, locale)
     products.map do |product|
       details = [ product.fetch("price"), I18n.t(product.fetch("stock").to_i.positive? ? "in_stock" : "out_of_stock", scope: "turn.product", locale:) ]

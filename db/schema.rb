@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_20_020500) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_20_180000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "fuzzystrmatch"
   enable_extension "pg_catalog.plpgsql"
@@ -121,6 +121,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_020500) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "runs", default: 0, null: false
+    t.text "tool_exchange"
+    t.text "model_reply"
+    t.string "reply_kind"
     t.index ["conversation_id", "created_at"], name: "index_turns_on_conversation_id_and_created_at"
     t.index ["inbound_message_id"], name: "index_turns_on_inbound_message_id", unique: true
   end
