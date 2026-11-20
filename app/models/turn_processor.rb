@@ -407,22 +407,28 @@ class TurnProcessor
   # FR-20: a reply the check found clinical is FR-09's decline, followed by
   # the offer of the pharmacist, or by the emergency line where the reply
   # asked for it (FR-09), as any reply's lines are; then the facts the turn's
-  # tools produced, as fixed lines: the products it found, with their prices,
-  # and the reservations it stored or that the cap of open ones listed
-  # (FR-07). Nothing of the model's text is kept. A replacement that breaks
-  # breaks the turn, for the job's retry: the fail-open of threat model R4 is
-  # the check's alone, and the clinical text is never sent.
+  # tools produced, as fixed lines: the products it found that the visitor's
+  # message names, with their prices, and the reservations it stored or that
+  # the cap of open ones listed (FR-07). Nothing of the model's text is kept.
+  # A replacement that breaks breaks the turn, for the job's retry: the
+  # fail-open of threat model R4 is the check's alone, and the clinical text
+  # is never sent.
   def replaced(result, language)
     reply = with_lines(FixedReply.declined(language), language, offer: true, emergency: result.emergency)
     FixedReply.with_reservations(FixedReply.with_products(reply, products_of(result), language), facts_of(result), language)
   end
 
-  # The products the turn's searches found, each once, in the order found,
-  # at most one search's worth.
+  # The products the turn's searches found that the visitor's message names,
+  # each once, in the order found, at most one search's worth. A product the
+  # model chose for what the message describes, a symptom among them, is not
+  # one it names, so a replacement never lists it as the system's own line
+  # (#59's C2 and H2, the owner, 2026-11-20; Product.named_in).
   def products_of(result)
-    result.tool_calls.select { |call| call.name == "search_products" && !call.is_error }
-          .flat_map { |call| JSON.parse(call.output).fetch("products") }
-          .uniq { |product| product.fetch("id") }.first(Tools::SearchProducts::MAX_RESULTS)
+    found = result.tool_calls.select { |call| call.name == "search_products" && !call.is_error }
+                  .flat_map { |call| JSON.parse(call.output).fetch("products") }
+                  .uniq { |product| product.fetch("id") }
+    named = Product.named_in(@inbound.body, found.map { |product| product.fetch("id") }).map(&:id)
+    found.select { |product| named.include?(product.fetch("id")) }.first(Tools::SearchProducts::MAX_RESULTS)
   end
 
   def reservations = Reservation.where(turn_id: @turn.id).includes(:product).order(:created_at, :id).to_a

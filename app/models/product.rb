@@ -25,6 +25,31 @@ class Product < ApplicationRecord
   # The pattern the SQL sets the salts aside with: Postgres's word boundaries.
   SALT_WORDS = "\\m(#{SALTS.join("|")})\\M".freeze
 
+  # The parts of a name the search and named_in both read, written once: the
+  # head of a name, the words before its first number or comma; the active
+  # ingredient with its salt set aside, BARE, then the salts' pattern, which
+  # each statement passes as a parameter of its own, then BARE_END; the stems
+  # of a folded text; and when a stem the text asks for is alike one a product
+  # holds. Search below says what each one does. They are literals, joined
+  # into the statements as they load: no value of a request is ever in them.
+  HEAD = "regexp_replace(unaccent(lower(products.name)), '[0-9,:].*$', '')".freeze
+  BARE = "regexp_replace(unaccent(lower(coalesce(products.active_ingredient, ''))),".freeze
+  BARE_END = ", '', 'g')".freeze
+  STEMS = <<~SQL.squish.freeze
+    ARRAY(SELECT DISTINCT stem FROM unnest(
+      tsvector_to_array(to_tsvector('portuguese', text)) ||
+      ARRAY(SELECT word FROM unnest(tsvector_to_array(to_tsvector('simple', text))) AS word WHERE length(word) = 1)
+    ) AS stem)
+  SQL
+  ALIKE = <<~SQL.squish.freeze
+    asked = found OR (length(asked) >= 5 AND (
+      levenshtein_less_equal(asked, found, 1) <= 1 OR
+      (length(asked) = length(found) AND levenshtein_less_equal(asked, found, 2) <= 2 AND
+       (SELECT string_agg(letter, '' ORDER BY letter) FROM regexp_split_to_table(asked, '') AS letter) =
+       (SELECT string_agg(letter, '' ORDER BY letter) FROM regexp_split_to_table(found, '') AS letter))
+    ))
+  SQL
+
   # The SQL of Product.search, below, which says what each part does.
   SEARCH = <<~SQL.squish.freeze
     WITH texts AS (
@@ -35,17 +60,13 @@ class Product < ApplicationRecord
       CROSS JOIN LATERAL (VALUES
         ('whole', unaccent(lower(products.name || ' ' || coalesce(products.active_ingredient, '')))),
         ('ingredient', unaccent(lower(coalesce(products.active_ingredient, '')))),
-        ('head', regexp_replace(unaccent(lower(products.name)), '[0-9,:].*$', '')),
-        ('bare', regexp_replace(unaccent(lower(coalesce(products.active_ingredient, ''))), $4, '', 'g'))
+        ('head', #{HEAD}),
+        ('bare', #{BARE} $4#{BARE_END})
       ) AS part (kind, text)
       WHERE products.listed
     ),
     stemmed AS (
-      SELECT id, name, kind, text,
-             ARRAY(SELECT DISTINCT stem FROM unnest(
-               tsvector_to_array(to_tsvector('portuguese', text)) ||
-               ARRAY(SELECT word FROM unnest(tsvector_to_array(to_tsvector('simple', text))) AS word WHERE length(word) = 1)
-             ) AS stem) AS stems
+      SELECT id, name, kind, text, #{STEMS} AS stems
       FROM texts
     ),
     query AS MATERIALIZED (
@@ -82,13 +103,7 @@ class Product < ApplicationRecord
                count(DISTINCT asked) FILTER (WHERE alike AND asked = ANY (query.words)) AS near_words,
                coalesce(array_agg(DISTINCT found) FILTER (WHERE alike), ARRAY[]::text[]) AS alike
         FROM (
-          SELECT asked, found,
-                 asked = found OR (length(asked) >= 5 AND (
-                   levenshtein_less_equal(asked, found, 1) <= 1 OR
-                   (length(asked) = length(found) AND levenshtein_less_equal(asked, found, 2) <= 2 AND
-                    (SELECT string_agg(letter, '' ORDER BY letter) FROM regexp_split_to_table(asked, '') AS letter) =
-                    (SELECT string_agg(letter, '' ORDER BY letter) FROM regexp_split_to_table(found, '') AS letter))
-                 )) AS alike
+          SELECT asked, found, #{ALIKE} AS alike
           FROM unnest(query.stems) AS asked
           CROSS JOIN unnest(folded.stems) AS found
         ) AS pair
@@ -178,4 +193,52 @@ class Product < ApplicationRecord
   # when the catalogue is loaded, with a trigram index on them: ADR-0009's
   # revisit, not this method's.
   def self.search(query, limit: 5) = find_by_sql(SEARCH, [ query, SIMILARITY, limit, SALT_WORDS ])
+
+  # The SQL of Product.named_in, below.
+  NAMED = <<~SQL.squish.freeze
+    WITH texts AS (
+      SELECT NULL::uuid AS id, 'message' AS kind, unaccent(lower($1)) AS text
+      UNION ALL
+      SELECT products.id, part.kind, part.text
+      FROM products
+      CROSS JOIN LATERAL (VALUES ('head', #{HEAD}), ('bare', #{BARE} $3#{BARE_END})) AS part (kind, text)
+      WHERE products.id = ANY (string_to_array($2, ',')::uuid[])
+    ),
+    stemmed AS (
+      SELECT id, kind, #{STEMS} AS stems FROM texts
+    ),
+    message AS MATERIALIZED (
+      SELECT stems FROM stemmed WHERE kind = 'message'
+    )
+    SELECT products.*
+    FROM products
+    WHERE products.id IN (
+      SELECT stemmed.id
+      FROM stemmed CROSS JOIN message
+      WHERE stemmed.kind <> 'message' AND cardinality(stemmed.stems) > 0
+        AND NOT EXISTS (
+          SELECT 1 FROM unnest(stemmed.stems) AS found
+          WHERE NOT EXISTS (SELECT 1 FROM unnest(message.stems) AS asked WHERE #{ALIKE})
+        )
+    )
+    ORDER BY products.name
+  SQL
+  private_constant :NAMED
+
+  # FR-20 (#59's C2 and H2, the owner, 2026-11-20): the products among ids
+  # that a visitor's message names, as the search reads a name: every stem of
+  # the product's active ingredient, its salt set aside, or of the head of its
+  # name, alike a stem of the message, a typo included. So "tem losartana?"
+  # names the Losartana potássica though no one says "potássica", "do you have
+  # amoxicillin?" names the amoxicilina, and "tem alguma coisa pra azia?"
+  # names the omeprazol a search for it found no more than "potássio" names
+  # the losartana. A reply the guardrail replaced lists only these, so a
+  # product the model chose for a symptom never reaches the visitor as the
+  # system's own line (TurnProcessor#products_of). The message is a parameter
+  # of the statement, never quoted into its text (threat model SR-28, SR-30).
+  def self.named_in(text, ids)
+    return none if ids.empty?
+
+    find_by_sql(NAMED, [ text.to_s, ids.join(","), SALT_WORDS ])
+  end
 end

@@ -117,33 +117,37 @@ RSpec.describe "FR-20 SR-18 the guardrail in a turn (FR-09, FR-12, FR-14, NFR-02
       expect(turn.outbound_message.body).to eq(body(FixedReply.with_emergency(FixedReply.declined("pt-BR"), "pt-BR")))
     end
 
-    # FR-10's MVP note: a reply that follows one carrying the offer in the
-    # same language leaves it out.
-    it "leaves the offer out after a reply that carried it, as any reply does" do
-      earlier = inbound("oi")
-      responses.replace([ reply("[pt] Isso é com o farmacêutico. [pharmacist]"), reply("[pt] Pode sim.") ])
-      verdicts.replace([ GuardrailVerdicts.verdict(false), GuardrailVerdicts.verdict(true) ])
-      perform(earlier)
-      turn = inbound("posso dar pro meu filho?")
+    # #59's C2 and H2 (the owner, 2026-11-20): a replacement listed every
+    # product the turn's searches found, so a product the model chose for a
+    # symptom reached the visitor as the system's own line, even when the
+    # check caught the reply. A product line stays only for a product the
+    # visitor's message names, by its medicine or the head of its name, as
+    # the catalogue search reads a name (Product.named_in).
+    it "lists no product the visitor's message does not name: one the model chose for a symptom" do
+      create(:product, name: "Omeprazol 20 mg, 28 cápsulas", active_ingredient: "omeprazol", price: BigDecimal("18.90"), stock: 5)
+      responses.replace([ tool_turn(tool_use("search_products", { query: "omeprazol" })),
+                          reply("[pt] Para azia, o Omeprazol 20 mg ajuda: R$ 18,90. [pharmacist]") ])
+      clinical
+      turn = inbound("tem alguma coisa pra azia?")
 
       perform(turn)
 
-      expect(turn.outbound_message.body).to eq(FixedReply.declined("pt-BR"))
+      expect(turn.outbound_message.body).to eq(body(FixedReply.with_offer(FixedReply.declined("pt-BR"), "pt-BR")))
     end
 
-    it "keeps the products the turn found, with their prices, stock and prescription flag, as fixed lines" do
-      create(:product, name: "Dipirona 500 mg, 10 comprimidos", active_ingredient: "dipirona", price: BigDecimal("7.90"), stock: 12)
-      create(:product, name: "Dipirona gotas 20 ml", active_ingredient: "dipirona", price: BigDecimal("9.50"), stock: 0)
-      responses.replace([ tool_turn(tool_use("search_products", { query: "dipirona" })),
-                          reply("[pt] Temos as duas; para criança, 1 gota por quilo.") ])
+    it "lists a product the message names by its medicine, with no word of its salt" do
+      create(:product, name: "Losartana potássica 50 mg, 30 comprimidos", active_ingredient: "losartana potássica",
+                       price: BigDecimal("15.40"), stock: 8)
+      create(:product, name: "Ibuprofeno 400 mg, 10 cápsulas", active_ingredient: "ibuprofeno", price: BigDecimal("11"), stock: 3)
+      responses.replace([ tool_turn(tool_use("search_products", { query: "losartana" }), tool_use("search_products", { query: "ibuprofeno" })),
+                          reply("[pt] Temos; e o ibuprofeno pode, sim.") ])
       clinical
-      turn = inbound("tem dipirona? quanto dou pro meu filho?")
+      turn = inbound("tem losartana? posso tomar junto com algum anti-inflamatório?")
 
       perform(turn)
 
-      lines = turn.outbound_message.body.delete_prefix(body(FixedReply.with_offer(FixedReply.declined("pt-BR"), "pt-BR")))
-      expect(lines.delete_prefix("\n\n").split("\n"))
-        .to contain_exactly("Dipirona 500 mg, 10 comprimidos: R$ 7,90, em estoque.", "Dipirona gotas 20 ml: R$ 9,50, sem estoque.")
+      expect(turn.outbound_message.body).to end_with("\n\nLosartana potássica 50 mg, 30 comprimidos: R$ 15,40, em estoque.")
+      expect(turn.outbound_message.body).not_to include("Ibuprofeno")
     end
 
     it "names a product's prescription flag in its line, as the catalogue gives it" do
