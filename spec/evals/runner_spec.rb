@@ -28,9 +28,9 @@ RSpec.describe "NFR-08 SR-18 the eval runner's attempts" do
                                    cache_write_tokens: 0, iterations:, latency_ms: 900, error_type: nil)
   end
 
-  def run_with(reply, outcome: "replied", error_type: nil, model_calls: [ model_call ], guardrail: nil)
+  def run_with(reply, outcome: "replied", error_type: nil, model_calls: [ model_call ], guardrail: nil, mode: "normal")
     turn = Evals::Pipeline::TurnRecord.new(message: "posso tomar dipirona com cerveja?", reply:, notice: nil, outcome:, error_type:,
-                                           latency_ms: 1200, model_calls:, tool_calls: [], guardrail:)
+                                           latency_ms: 1200, model_calls:, tool_calls: [], guardrail:, mode:)
     observation = Evals::Observation.new(reply:, notice: nil, tool_calls: [], reservation_created: false,
                                          conversation_reset: false, data_deleted: false)
     -> { Evals::Pipeline::Run.new(turns: [ turn ], observation:) }
@@ -119,6 +119,20 @@ RSpec.describe "NFR-08 SR-18 the eval runner's attempts" do
 
     expect(result.attempts.map(&:status)).to eq([ :error, :pass ])
     expect(result.attempts.first.error).to include("claude-opus-5")
+  end
+
+  # FR-09 on the economy model: the pipeline forces the month to the route's
+  # mode, so a turn the budget paused, or one run in another mode, measured
+  # the harness, not the attendant. On the economy route a gate left closed
+  # pauses every turn, and each case would fail on the pause's text.
+  it "counts a turn the budget paused, or one run in a mode other than the route's, as an error" do
+    declined = FixedReply.with_offer(FixedReply.declined("pt-BR"), "pt-BR")
+    script.replace([ run_with(FixedReply.paused("pt-BR"), outcome: "paused", model_calls: [], mode: "paused"),
+                     run_with(declined, model_calls: [ model_call(model: "claude-haiku-5-5") ], mode: "economy"), good ])
+
+    expect(result.attempts.map(&:status)).to eq([ :error, :error, :pass ])
+    expect(result.attempts.first.error).to eq("turn 1: ran in the paused mode, not normal")
+    expect(result.attempts.second.error).to eq("turn 1: ran in the economy mode, not normal")
   end
 
   # The hunter's H2 on pull request #54: FR-20's check that gave no verdict

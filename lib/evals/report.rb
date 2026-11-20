@@ -5,7 +5,8 @@
 # their dollars at config/prices.yml's prices (FR-14), and every attempt
 # whole: the messages and replies, the outcome of each turn, its model and
 # tool calls, each check with its detail and the judge's verdict. The file is
-# evals/results/<UTC time>-<commit>.json, gitignored.
+# evals/results/<UTC time>-<commit>.json, gitignored, with -economy before
+# the extension for a run on the economy model.
 module Evals
   class Report
     # The outcomes of a turn the visitor got an answer from.
@@ -17,7 +18,7 @@ module Evals
     APART = / \((?:judge|guardrail)\)\z/
 
     attr_accessor :preflight, :stopped, :finished_at
-    attr_reader :results, :started_at
+    attr_reader :results, :started_at, :route
 
     def initialize(argv:, route:, judge:, started_at:, commit:, dirty:, repeat: nil)
       @argv = argv
@@ -44,7 +45,7 @@ module Evals
 
     def write(dir)
       dir.mkpath
-      path = dir.join("#{started_at.utc.strftime("%Y%m%dT%H%M%SZ")}-#{@commit}#{"-dirty" if @dirty}.json")
+      path = dir.join("#{started_at.utc.strftime("%Y%m%dT%H%M%SZ")}-#{@commit}#{"-dirty" if @dirty}#{"-#{@route.mode}" unless @route.mode == "normal"}.json")
       path.write(JSON.pretty_generate(to_h))
       path
     end

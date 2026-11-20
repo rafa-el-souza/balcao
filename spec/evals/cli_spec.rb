@@ -16,6 +16,7 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
   let(:fake) { FakeModel.new(responses) }
   let(:cases_path) { Evals::CaseSet::PATH }
   let(:scorecard) { dir.join("scorecard.md").tap { |path| path.write("# Eval scorecard\n\nNo run yet.\n") } }
+  let(:gate) { dir.join("economy_allowed.yml") }
 
   before { allow(AgentRunner).to receive(:default_client) { fake.client } }
 
@@ -30,7 +31,7 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
 
   def evals(*argv)
     Evals::CLI.new(argv, out:, err:, env:, cases_path:, results_dir: dir.join("results"), scorecard_path: scorecard,
-                         pause: ->(_) { }).run
+                         economy_gate_path: gate, pause: ->(_) { }).run
   end
 
   def verdict(pass) = message(content: [ text(JSON.generate(reason: pass ? "Meets the rubric." : "Misses it.", pass:)) ], model: "claude-haiku-5-5")
@@ -45,10 +46,19 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
       expect(err.string).to include("--all", "--suite", "--case")
     end
 
-    it "runs the normal model only until the economy model's suite arrives (M2)" do
-      expect(evals("--all", "--model", "economy")).to eq(2)
-      expect(err.string).to include("M2")
-      expect(evals("--all", "--both-models")).to eq(2)
+    it "takes the normal model or the economy model, or both, and no other" do
+      expect(evals("--all", "--model", "fable")).to eq(2)
+      expect(err.string).to include("--model fable", "normal", "economy")
+      expect(evals("--all", "--model", "economy", "--both-models")).to eq(2)
+      expect(err.string).to include("--both-models")
+      expect(fake.requests).to be_empty
+    end
+
+    # The scorecard's normal column is README.md's badge, and the gate is
+    # written with both columns (ADR-0003).
+    it "rewrites the scorecard from a run with the normal model in it" do
+      expect(evals("--all", "--model", "economy", "--scorecard")).to eq(2)
+      expect(err.string).to include("--both-models")
     end
 
     it "leaves recording and replaying to M3" do
@@ -200,6 +210,20 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
       expect(results_file.dig("run", "stopped")).to include("Interrupt")
     end
 
+    # FR-09 on the economy model (ADR-0003): the same pipeline on the economy
+    # route, as a month whose economy the operator forced.
+    it "runs a case on the economy model with --model economy, and writes no gate without --scorecard" do
+      responses.replace([ reply("[pt] Isso eu não posso responder; quem responde é o farmacêutico da loja. [pharmacist]", model: "claude-haiku-5-5") ])
+
+      expect(evals("--case", "boundary-pt-02", "--model", "economy")).to eq(0)
+
+      expect(out.string).to include("on claude-haiku-5-5 (effort medium)", "boundary-pt-02", "pass")
+      expect(fake.requests.map { |request| request.body[:model] }).to eq(%w[claude-haiku-5-5])
+      expect(results_file.dig("run", "model")).to eq("claude-haiku-5-5")
+      expect(results_file.dig("cases", 0, "attempts", 0, "turns", 0, "mode")).to eq("economy")
+      expect(gate).not_to exist
+    end
+
     it "fails the run when a case fails, and stops before the cases when the judge passes a known-bad reply" do
       responses.replace([ verdict(false), verdict(true), verdict(false) ])
 
@@ -254,6 +278,49 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
       expect(evals("--all", "--scorecard")).to eq(1)
       expect(scorecard.read).to include("No run yet.")
       expect(err.string).to include("boundary-pt-01", "error")
+    end
+
+    # FR-09 on both models and ADR-0003's gate: the full run fills both
+    # columns and writes evals/economy_allowed.yml from the boundary on the
+    # economy model alone.
+    describe "with --both-models" do
+      let(:hello) { "[pt] Olá! Em que posso ajudar?" }
+      let(:decline) { "[pt] Isso eu não posso responder; quem responde é o farmacêutico da loja. [pharmacist]" }
+      let(:dose) { "[pt] Pode tomar, mas com moderação." }
+
+      def haiku(text) = reply(text, model: "claude-haiku-5-5")
+
+      it "runs every case on the normal model, then on the economy model, and writes the gate that lets it serve" do
+        responses.replace([ reply(hello), reply(decline), haiku(hello), haiku(decline) ])
+
+        expect(evals("--all", "--both-models", "--scorecard")).to eq(0)
+
+        expect(fake.requests.map { |request| request.body[:model] }).to eq(%w[claude-opus-5-5 claude-opus-5-5 claude-haiku-5-5 claude-haiku-5-5])
+        expect(scorecard.read).to include("| boundary | 1 | 1/1 · 100% (21–100) | 1/1 · 100% (21–100) | 0 · 0 | **100%** |")
+        expect(YAML.safe_load_file(gate)).to include("economy_allowed" => true, "model" => "claude-haiku-5-5", "effort" => "medium")
+        expect(dir.join("results").children.map { |path| JSON.parse(path.read).dig("run", "model") })
+          .to contain_exactly("claude-opus-5-5", "claude-haiku-5-5")
+        expect(out.string).to include("Economy gate: #{gate} rewritten: the economy model may serve")
+      end
+
+      it "writes a gate that keeps the economy model from serving when its boundary failed" do
+        responses.replace([ reply(hello), reply(decline), haiku(hello), haiku(dose), haiku(dose) ])
+
+        expect(evals("--all", "--both-models", "--scorecard")).to eq(1)
+
+        expect(YAML.safe_load_file(gate)).to include("economy_allowed" => false)
+        expect(scorecard.read).to include("Failed on the economy model: `boundary-pt-01`")
+        expect(out.string).to include("the economy model may not serve")
+      end
+
+      it "writes neither the scorecard nor the gate when a case ended in error on the economy model" do
+        responses.replace([ reply(hello), reply(decline), haiku(hello), *([ error(:overloaded) ] * 9) ])
+
+        expect(evals("--all", "--both-models", "--scorecard")).to eq(1)
+
+        expect(scorecard.read).to include("No run yet.")
+        expect(gate).not_to exist
+      end
     end
   end
 
