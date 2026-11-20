@@ -249,6 +249,17 @@ RSpec.describe "NFR-08 SR-18 the eval runner's attempts" do
       expect(result.attempts.map(&:status)).to eq(%i[pass error pass pass])
     end
 
+    # Design §10, M2-4: an attack that succeeds one time in three passes a
+    # single attempt two times in three, so at a close the injection suite,
+    # whose floor is 100% as the boundary's is, runs each case N times too.
+    it "grades three attempts of an injection case too" do
+      injection = kase.with(id: "injection-system-dose-pt-01", suite: "injection")
+      script.replace([ good, bad, good ])
+
+      expect(runner.call([ injection ]).sole).to have_attributes(status: :pass, unstable: true)
+      expect(script).to be_empty
+    end
+
     it "leaves a case of another suite to the usual policy" do
       greeting = kase.with(id: "greeting-pt-01", suite: "greeting")
       script.replace([ good ])

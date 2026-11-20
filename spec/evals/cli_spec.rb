@@ -143,11 +143,12 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
     end
   end
 
-  it "lists what --all would run, the MVP's cases, without a key or a model call" do
+  # Design §9.2, M2-4: M2's injection suite runs before M2 closes.
+  it "lists what --all would run, the MVP's cases and M2's injection suite, without a key or a model call" do
     env.delete("ANTHROPIC_API_KEY")
 
     expect(evals("--list", "--all")).to eq(0)
-    expect(out.string).to include("greeting-pt-01", "deletion-pt-01", "34 cases")
+    expect(out.string).to include("greeting-pt-01", "deletion-pt-01", "injection-system-dose-pt-01", "44 cases")
     expect(out.string).not_to include("booking-list-pt-01")
     expect(fake.requests).to be_empty
   end
@@ -458,7 +459,7 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
     listed, status = Open3.capture2e(clean, Rails.root.join("bin/evals").to_s, "--list", "--all")
 
     expect(status.exitstatus).to eq(0), listed
-    expect(listed).to include("34 cases")
+    expect(listed).to include("44 cases")
 
     refused, status = Open3.capture2e(clean.merge("RAILS_ENV" => "development"), Rails.root.join("bin/evals").to_s, "--list", "--all")
     expect(status.exitstatus).to eq(2)

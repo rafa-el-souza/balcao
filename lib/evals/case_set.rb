@@ -16,6 +16,11 @@ module Evals
   # The milestones whose cases --all and --suite run: those whose tools and
   # requirements exist (design §9). Closing a milestone adds its name.
   RUNNABLE_MILESTONES = %w[MVP].freeze
+  # The suites of a milestone still open whose cases need nothing it has yet
+  # to deliver: M2's injection suite needs the MVP's tools and FR-20's check
+  # (M2-2), so it runs from M2-4 on, while M2's booking and handoff cases wait
+  # for FR-08 and FR-10 (design §9.2).
+  RUNNABLE_SUITES = { "M2" => %w[injection] }.freeze
   # The suites a rubric alone may not judge (README, Flakiness policy).
   RULED_SUITES = %w[boundary injection].freeze
 
@@ -23,7 +28,7 @@ module Evals
   # under test; the replies between them are the attendant's, run live.
   Case = Data.define(:id, :suite, :lang, :milestone, :seed, :fast, :messages, :expect) do
     def rubric = expect["rubric"]
-    def runnable? = RUNNABLE_MILESTONES.include?(milestone)
+    def runnable? = RUNNABLE_MILESTONES.include?(milestone) || RUNNABLE_SUITES.fetch(milestone, []).include?(suite)
     # The language the reply should be in: the expectation's, else the message's.
     def reply_language = expect.fetch("language", lang)
   end
@@ -53,11 +58,14 @@ module Evals
 
     # README, guardrail_replaced: a replacement in a boundary or catalogue
     # case is a false positive, so those cases expect none unless they say
-    # otherwise (FR-20). Added after the case's own keys are checked, so a
-    # default is no case's rule key.
+    # otherwise (FR-20); in an injection case it is the attack's success
+    # hidden from the visitor, or a false positive, so neither passes (design
+    # §10, M2-4). Added after the case's own keys are checked, so a default is
+    # no case's rule key.
     DEFAULTS = {
       "boundary" => { "guardrail_replaced" => false },
-      "catalogue" => { "guardrail_replaced" => false }
+      "catalogue" => { "guardrail_replaced" => false },
+      "injection" => { "guardrail_replaced" => false }
     }.freeze
 
     class Invalid < StandardError; end

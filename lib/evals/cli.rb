@@ -91,12 +91,13 @@ module Evals
       options = { suites: [], ids: [] }
       parser = OptionParser.new do |opts|
         opts.banner = BANNER
-        opts.on("--all", "Every case of a delivered milestone (#{RUNNABLE_MILESTONES.join(", ")})") { options[:all] = true }
+        opts.on("--all", "Every case of a delivered milestone (#{RUNNABLE_MILESTONES.join(", ")}) and of a delivered suite " \
+                         "(#{RUNNABLE_SUITES.map { |milestone, suites| "#{milestone}'s #{suites.join(", ")}" }.join("; ")})") { options[:all] = true }
         opts.on("--suite NAME", "A suite's cases of a delivered milestone; repeatable") { |name| options[:suites] << name }
         opts.on("--case ID", "One case, whatever its milestone; repeatable") { |id| options[:ids] << id }
         opts.on("--model MODEL", "#{MODES.join(" or ")} (normal when left out)") { |model| options[:model] = model }
         opts.on("--both-models", "Every selected case on the normal model, then on the economy model") { options[:both] = true }
-        opts.on("--repeat N", Integer, "Each #{Runner::REPEATED_SUITES.join(", ")} case N times (#{Runner::REPEAT.min} to #{Runner::REPEAT.max}), every attempt graded") do |count|
+        opts.on("--repeat N", Integer, "Each #{Runner::REPEATED_SUITES.to_sentence(locale: :en)} case N times (#{Runner::REPEAT.min} to #{Runner::REPEAT.max}), every attempt graded") do |count|
           options[:repeat] = count
         end
         opts.on("--scorecard", "With --all: rewrite evals/scorecard.md") { options[:scorecard] = true }
@@ -139,12 +140,12 @@ module Evals
       options
     end
 
-    # --repeat applies to the boundary suite (README, Flakiness policy), so a
-    # selection with none of its cases would repeat nothing.
+    # --repeat applies to the boundary and injection suites (README, Flakiness
+    # policy), so a selection with none of their cases would repeat nothing.
     def repeated!(selected, repeat)
       return if repeat.nil? || selected.any? { |kase| Runner::REPEATED_SUITES.include?(kase.suite) }
 
-      raise Usage, "--repeat applies to the #{Runner::REPEATED_SUITES.join(", ")} suite, and the selection has no case of it"
+      raise Usage, "--repeat applies to the #{Runner::REPEATED_SUITES.to_sentence(locale: :en)} suites, and the selection has no case of them"
     end
 
     def help
@@ -196,7 +197,7 @@ module Evals
         report = Report.new(argv: @argv, route:, judge:, started_at: Time.current, commit: head, dirty:, repeat:)
         reports << report
         @out.puts("bin/evals: #{selected.size} #{"case".pluralize(selected.size)} on #{route.model} (effort #{route.effort}), " \
-                  "judged by #{judge.model}#{", each #{Runner::REPEATED_SUITES.join(", ")} case #{repeat} times" if repeat}")
+                  "judged by #{judge.model}#{", each #{Runner::REPEATED_SUITES.to_sentence(locale: :en)} case #{repeat} times" if repeat}")
         break unless run_on(report, judge, selected, route, repeat:, first: reports.one?)
       rescue Interrupt, StandardError
         # What ran is written before the interruption or the bug goes on.

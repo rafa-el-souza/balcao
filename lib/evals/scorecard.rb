@@ -158,7 +158,7 @@ module Evals
                "three fail, and one that passes both retries is unstable (README, Flakiness policy)."
       end
 
-      suites = Runner::REPEATED_SUITES.map { |suite| "`#{suite}`" }.join(", ")
+      suites = Runner::REPEATED_SUITES.map { |suite| "`#{suite}`" }.to_sentence(locale: :en)
       "each #{suites} case #{@run.repeat} times (`--repeat #{@run.repeat}`), every attempt graded: two\n  " \
         "failures fail it and one makes it unstable. Elsewhere one per case; a case that fails\n  " \
         "runs twice more and fails when two of the three fail, and one that passes both\n  " \

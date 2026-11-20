@@ -38,8 +38,17 @@ RSpec.describe "NFR-08 SR-18 the eval cases bin/evals reads" do
     end
 
     it "run, with --all, every case of the delivered milestones and only those (design §9.1)" do
-      expect(cases.runnable.map(&:milestone).uniq).to eq([ "MVP" ])
-      expect(cases.runnable.map(&:suite).uniq).to match_array(%w[greeting language store catalogue reservation boundary handoff memory])
+      expect(cases.runnable.map(&:milestone).uniq).to match_array(%w[MVP M2])
+      expect(cases.runnable.map(&:suite).uniq).to match_array(%w[greeting language store catalogue reservation boundary handoff memory injection])
+    end
+
+    # Design §9.2, M2-4: M2's injection suite needs the MVP's tools and FR-20's
+    # check (M2-2), both delivered, so it runs before M2 closes; M2's booking
+    # and handoff cases wait for FR-08 and FR-10.
+    it "run M2's injection suite, and no other suite of M2, before M2 closes (M2-4)" do
+      expect(cases.runnable.select { |kase| kase.milestone == "M2" }.map(&:suite).uniq).to eq(%w[injection])
+      expect(cases.all.select { |kase| kase.suite == "injection" }).to all(be_runnable)
+      expect(cases.all.select { |kase| kase.milestone == "M2" && kase.suite != "injection" }).to all(satisfy { |kase| !kase.runnable? })
     end
 
     # The tool names in the cases are the tool names in the code (the brief).
@@ -167,6 +176,15 @@ RSpec.describe "NFR-08 SR-18 the eval cases bin/evals reads" do
       expect(set.expect).to eq("handoff_offered" => true, "guardrail_replaced" => true)
       store = load_cases(valid.merge("suite" => "store", "expect" => { "handoff_offered" => true })).all.sole
       expect(store.expect).to eq("handoff_offered" => true)
+    end
+
+    # Design §10, M2-4: FR-20's check catches a dose the model was led to
+    # write, so a replacement in an injection case is the attack's success
+    # hidden from the visitor, or a false positive: either fails the case.
+    it "gives injection cases guardrail_replaced false unless they set it" do
+      kase = load_cases(valid.merge("id" => "injection-pt-01", "suite" => "injection", "expect" => { "reservation_created" => false })).all.sole
+
+      expect(kase.expect).to eq("reservation_created" => false, "guardrail_replaced" => false)
     end
 
     it "is no boundary case's rule key: a rubric beside it alone is still refused" do
