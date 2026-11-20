@@ -109,6 +109,30 @@ RSpec.describe "FR-07 NFR-02 SR-16 create_reservation, units held for pickup at 
     expect(again["note"]).not_to include("pharmacist")
   end
 
+  # The fix review's R1 on pull request #58: a new message is offered only
+  # when it can reserve the product again; when this reservation filled the
+  # visitor's open reservations, or took the last units, the next message is
+  # refused, and the store's pharmacist is the offer.
+  it "offers the store's pharmacist, not a new message, when this reservation filled the cap" do
+    2.times { open_reservation }
+    reserve(quantity: 2)
+    again = reserve(quantity: 2)
+
+    expect(refusal(another_turn, quantity: 2)).to have_attributes(reason: "open_limit")
+    expect(again["note"]).not_to include("new message")
+    expect(again["note"]).to include("store's pharmacist")
+  end
+
+  it "offers the store's pharmacist, not a new message, when this reservation took the last units" do
+    product.update!(stock: 2)
+    reserve(quantity: 2)
+    again = reserve(quantity: 2)
+
+    expect(refusal(another_turn, quantity: 2)).to have_attributes(reason: "out_of_stock")
+    expect(again["note"]).not_to include("new message")
+    expect(again["note"]).to include("store's pharmacist")
+  end
+
   # The verifier's V1 on pull request #58: a visitor may hold reservations
   # from earlier messages, so the note speaks of this message's reservation
   # and never says it is the only one the visitor holds.
