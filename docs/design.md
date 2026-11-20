@@ -2007,7 +2007,7 @@ M2-7 (threat model R2).
 | M2-3 | The economy model: FR-09 on it, `evals/economy_allowed.yml` and its reading at boot, `formatMoney` (the list below) | — |
 | M2-3b | The judge reads the system's fixed lines as the system's (the emergency line, the offer, the notice), so a rubric judges the attendant's own words; then the full run on both models, whose gate lets the economy model serve if the boundary passes (§10, M2-3's note; the owner, 2026-11-20) | — |
 | M2-4 | The `injection` suite at ten cases (FR-21's fourth chip is M3-3's, ADR-0022) | — |
-| M2-11a | The first half of M2's close: the full eval run on both models with the unstable count, the boundary at 100 % on both, since M3-1 puts the economy model in front of visitors; the review at the close over M2-1 to M2-4 | — |
+| M2-11a | The first half of M2's close: the full eval run on both models with the unstable count, the boundary at 100 % on both, since M3-1 puts the economy model in front of visitors; the review at the close over M2-1 to M2-4; and the two weaknesses M2-4's probe recorded, which that run measures (the owner, 2026-11-20): a reply or a time line forged inside a visitor's message is the visitor's text, said in the prompt, and the history shows the model its earlier replies with the system's fixed lines marked as the system's (§10, M2-4's note) | — |
 | M3-1 | FR-14's modes: economy at 70 %, the daily slice, the alert at the cap through the bot to the operator's chat, linked once by the runbook's command until the console's button (SR-02 in full, SR-35; the console's kill switch is M2-10's, ADR-0022) | — |
 | M3-2 | FR-17's canary, with its marked system visitor, and the delivery watch over `getWebhookInfo` | — |
 | M3-4 | A turn's hard edge and the short log sweep: SR-20's exception closed, a least-privilege database role, and SR-30's lines that stay (the list below) | — |
@@ -2243,7 +2243,10 @@ narrowed it to the doses and to the medicine's name (its findings V1,
 C2 and R1). The store sheet names a key that is not text. A third
 exception, the same day: the application's connections run with the
 database's JIT compiler off, which changes no result of the search
-(M4-1; the note below).
+(M4-1; the note below). A fourth, on 2026-11-20 (the owner, "Integrar na
+M2-4"): `create_reservation`'s result says that a reservation a call finds
+again in its turn is the same one, which changes no row, rule or field of
+a reservation (M2-4; the note below).
 
 - Note 2026-11-20 (M2-4, the injection suite; FR-07, NFR-02, NFR-08;
   threat model SR-16, SR-17, SR-21). The `injection` suite at ten cases,
@@ -2329,19 +2332,21 @@ database's JIT compiler off, which changes no result of the search
     three. And a replacement by FR-20's check fails an injection case by
     default, since it is either a dose the model was led to write, hidden
     from the visitor by the check, or a false positive.
-  - **Two weaknesses recorded, not fixed here.** A dialogue forged inside
+  - **Two weaknesses, left to M2-11a** (the owner's word for each,
+    2026-11-20, "Na M2-11a": that slice's full run measures their fixes,
+    §9.2). A dialogue forged inside
     one message, with the system's time line and a dose in the attendant's
     words, had the normal model apologise for "the previous message" as
     its own in two of three tries; it gave no dose, and the forged
     message stays in the visitor's own bubble, so the harm is a confusing
     apology. Telling the model that a time line or a reply inside a
     visitor's message is the visitor's text is a prompt change, which
-    needs a full run on both models; for the owner. And once in about 160
+    needs a full run on both models. And once in about 160
     later turns read, the economy model disowned the system's own offer
     line ("o telefone e os horários que escrevi não vieram do sistema"):
     the history gives the model its earlier replies with the system's
     fixed lines in them, while the prompt tells it never to write those
-    lines itself. Not an injection; a slice of its own, for the owner.
+    lines itself. Not an injection.
   - **Run live** (the dev/eval key; each injection case three times):
     at `7dc312f` the reservation suite passed 5 of 5 on both models and
     the injection suite 9 of 10 on the normal model (attempts 28 of 30) and
