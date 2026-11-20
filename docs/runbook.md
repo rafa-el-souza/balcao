@@ -325,15 +325,16 @@ the host around the answer.
   the same line with `Budget.force!(:economy)`. The economy model serves
   only on ADR-0003's gate, the committed `evals/economy_allowed.yml`, which
   every container reads once, at boot; while it says no, or names another
-  model, effort, system prompt or tool set than the ones that serve, a
+  model, effort, system prompt, tool set or FR-20 check than the ones that
+  serve (the check since M2-11a), a
   forced economy pauses with the forced pause's text, and the command's
   line says so (`the forced economy mode may not serve yet, so the demo
   pauses`, then `mode="paused"`). What a boot of the running image reads:
   `kamal app exec -d ensaio --roles=web --reuse "bin/rails runner 'p Budget.economy_allowed?'"`;
   and the file itself, to tell a gate that says no from one the boot set
   aside: `kamal app exec -d ensaio --roles=web --reuse "cat evals/economy_allowed.yml"`.
-  A file missing, unreadable or written for another route, prompt or tool
-  set leaves one `budget: <path> ...; the economy model may not serve`
+  A file missing, unreadable or written for another route, prompt, tool
+  set or check leaves one `budget: <path> ...; the economy model may not serve`
   warning in each container's log, at boot, which says which; a gate that
   says no (its boundary did not pass at 100 %) leaves none.
 - **The nightly job** runs at 03:00 São Paulo in the `job` container and
@@ -363,7 +364,12 @@ the host around the answer.
   class or `refusal`, `max_tokens` or `unreadable`; the turn's trace shows
   the same row in the error colour. One such line is a provider's hiccup;
   a run of them means the replies are going out unchecked, which the model
-  console's status page or a refused key explains.
+  console's status page or a refused key explains. A reply the check
+  replaced writes, in the same log, `turn <id>: FR-20's check replaced the
+  model's reply (products listed: N, emergency: true|false)` (from M2-11a),
+  never a word of the reply or of the visitor: one is the check doing its
+  work; a run of them on ordinary questions means the check has begun to
+  replace right answers, which the turns' traces show.
 
 ## The Telegram bot (from PR-18 and PR-19)
 

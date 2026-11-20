@@ -914,7 +914,8 @@ limit, paused, handoff notices) and operator replies are not checked.
   check, each with a log line and the trace's row in the error colour. A
   replaced reply is the decline followed by the offer, as any reply's
   lines are; then one line per product the turn's searches, or an earlier
-  turn's the history gave back, found that the visitor's message names, by
+  turn's in the window the model read, as the turn kept them, found that
+  the visitor's message names, by
   its medicine or the whole head of its name, as the catalogue search reads
   a name, and that the catalogue still lists (since M2-11a; #59's C2: a
   product the model chose for a symptom was listed as the system's own
