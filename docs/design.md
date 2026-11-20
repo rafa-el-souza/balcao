@@ -2319,8 +2319,15 @@ database's JIT compiler off, which changes no result of the search
     English visitor answered in Portuguese, which the language check
     failed. No failure came from a system line. The economy model answered
     its 61 attempts in 9 min 2 s for US$ 0.018, the normal model its 61 in
-    18 min 39 s for US$ 0.41; the guardrail replaced none of the 126
+    9 min 37 s for US$ 0.41; the guardrail replaced none of the 126
     replies, and the judge cost US$ 0.014.
+  - **The run's report overstates the first model's time.** On a run on
+    both models the report prints each model's time when the whole run
+    ends, so the normal model's line counts the economy model's run too:
+    it printed 18 min 39 s here, and 12 min 39 s in M2-3's committed run,
+    whose normal model took 6 min 43 s (the times above are the attempts'
+    own, read from the results files). M2-4, which works in the evals,
+    fixes the report test-first.
   - **R3 of #55's fix review**: a git that cannot read the tree printed
     nothing, which read as a clean one; the run that writes the gate is
     refused on such a tree, and any other run counts it as changed.
@@ -2389,7 +2396,7 @@ database's JIT compiler off, which changes no result of the search
     passed in the committed run, with two cases unstable (that language
     slip; a product the store lacks, once without the pharmacist's offer).
     The economy model answered its 61 attempts in 5 min 56 s for US$ 0.018,
-    the normal model its 59 in 12 min 39 s for US$ 0.40, about twenty times
+    the normal model its 59 in 6 min 43 s for US$ 0.40, about twenty times
     the cost per attempt; the guardrail read the economy model's 63 replies,
     replacing none, at 1.4 s at the median and 1.6 s at p95.
   - **So the gate is closed.** The committed run wrote `economy_allowed:
