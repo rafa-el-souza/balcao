@@ -265,13 +265,13 @@ export function Thread({
 
   // What the thread ends with scrolls its column to itself: a new message,
   // "pensando…" when it appears (review finding C1 of pull request #18), the
-  // stamps of a limit or a lost connection (V2), and the line a message that
+  // stamps of a limit or a lost connection (V2), the line a message that
   // could not be sent gains (the owner's round at the MVP close, row
-  // 18-L-notsent).
+  // 18-L-notsent), and the anti-bot check's refusal (SR-39).
   const unsent = entries.filter(
     (entry) => entry.status === "failed" || entry.status === "refused",
   ).length;
-  const tail = `${String(entries.length)}:${String(unsent)}:${String(waiting)}:${String(offline)}:${refused ?? ""}`;
+  const tail = `${String(entries.length)}:${String(unsent)}:${String(waiting)}:${String(offline)}:${refused ?? ""}:${String(state.challenged)}`;
   const revealEnd = useCallback(() => {
     reveal(list.current?.lastElementChild);
   }, [reveal]);
@@ -294,20 +294,6 @@ export function Thread({
       {state.phase === "failed" && (
         <li className={cx(styles.msg, VOICE_CLASS.stamp)} data-voice="stamp">
           <p>{t("chat.loadFailed")}</p>
-        </li>
-      )}
-      {state.phase === "challenge" && (
-        <li className={cx(styles.msg, VOICE_CLASS.stamp)} data-voice="stamp">
-          <p>{t("chat.challenge")}</p>
-          <p className={styles.failed}>
-            <button
-              type="button"
-              className={styles.retry}
-              onClick={onRetryChallenge}
-            >
-              {t("chat.challengeRetry")}
-            </button>
-          </p>
         </li>
       )}
       {firstVisit && (
@@ -352,6 +338,20 @@ export function Thread({
       {offline && (
         <li className={cx(styles.msg, VOICE_CLASS.stamp)} data-voice="stamp">
           <p>{t("chat.offline")}</p>
+        </li>
+      )}
+      {state.challenged && (
+        <li className={cx(styles.msg, VOICE_CLASS.stamp)} data-voice="stamp">
+          <p>{t("chat.challenge")}</p>
+          <p className={styles.failed}>
+            <button
+              type="button"
+              className={styles.retry}
+              onClick={onRetryChallenge}
+            >
+              {t("chat.challengeRetry")}
+            </button>
+          </p>
         </li>
       )}
     </ol>

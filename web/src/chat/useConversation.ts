@@ -20,6 +20,7 @@ import {
   isServerMessage,
   type Outcome,
   serverNow,
+  type Session,
   type Snapshot,
   type Span,
 } from "./api";
@@ -129,21 +130,27 @@ export function useConversation(challenge: Challenge) {
   // visitor (the page's first, and one asked for because the cookie is gone)
   // waits for a token of Turnstile's widget, or for the check to give none;
   // one that only names the page's language brings none (threat model SR-39).
+  // The server's refusal of the check shows its hint, from any session, until
+  // a session opens (review finding C3 of pull request #53).
   const sessions = useRef<Promise<unknown>>(Promise.resolve());
   const session = useCallback(
-    (locale: Locale, mint = false) => {
-      const next = sessions.current.then(async () => {
-        const token = mint ? await challenge.token() : null;
-        const opened = await api.session(locale, token);
-        if (opened.kind === "ok")
-          dispatch({
-            type: "session",
-            conversationId: opened.value.conversation_id,
-            mode: opened.value.mode,
-            brl: opened.value.brl,
-          });
-        return opened;
-      });
+    (locale: Locale, mint = false): Promise<Outcome<Session>> => {
+      const next = sessions.current.then(
+        async (): Promise<Outcome<Session>> => {
+          const token = mint ? await challenge.token() : null;
+          const opened = await api.session(locale, token);
+          if (opened.kind === "ok")
+            dispatch({
+              type: "session",
+              conversationId: opened.value.conversation_id,
+              mode: opened.value.mode,
+              brl: opened.value.brl,
+            });
+          else if (opened.kind === "challenge")
+            dispatch({ type: "challenged" });
+          return opened;
+        },
+      );
       sessions.current = next.catch(() => undefined);
       return next;
     },
@@ -405,11 +412,9 @@ export function useConversation(challenge: Challenge) {
       return;
     }
     // The check gave no token, or one Cloudflare did not vouch for: the page
-    // offers to try again, and a message sent meanwhile asks too.
-    if (opened.kind === "challenge") {
-      dispatch({ type: "challenged" });
-      return;
-    }
+    // offers to try again (session above), and a message sent meanwhile asks
+    // too.
+    if (opened.kind === "challenge") return;
     if (opened.kind !== "ok") {
       loaded.current = true;
       dispatch({ type: "loadFailed" });
@@ -430,10 +435,20 @@ export function useConversation(challenge: Challenge) {
     void open();
   }, [open]);
 
+  // The visitor tries the check again: the page's first session, when none
+  // has opened yet, else a new one for the page that lost its cookie, whose
+  // conversation is asked for again once it opens.
   const retryChallenge = useCallback(() => {
     dispatch({ type: "rechallenge" });
-    void open();
-  }, [open]);
+    if (!opened) {
+      void open();
+      return;
+    }
+    void session(language(), true).then((renewed) => {
+      if (renewed.kind === "ok")
+        void queryClient.invalidateQueries({ queryKey: CURRENT });
+    });
+  }, [opened, open, session, language, queryClient]);
 
   const refused = waiting ? pollRefused : null;
   const offline = waiting && refused === null && pollFailures >= 2;

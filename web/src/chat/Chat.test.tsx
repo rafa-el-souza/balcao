@@ -210,6 +210,38 @@ describe("SR-39 FR-18 the anti-bot check", () => {
     expect(server.sent()[0]?.body).toMatchObject({ say: "stock_pt" });
   });
 
+  // Review finding C3 of pull request #53: the hint follows any session
+  // the check refused, not only the page's first.
+  it("says the check did not pass when a message finds its cookie gone and the check fails, and offers the message again", async () => {
+    renderPage(<Chat />);
+    await ready();
+    server.answers.messages.push({ status: 401, body: { error: "session" } });
+    server.answers.session.push({ status: 403, body: { error: "challenge" } });
+
+    type("tem dipirona?");
+    fireEvent.keyDown(field(), { key: "Enter" });
+
+    expect(await within(thread()).findByText(pt.challenge)).toBeInTheDocument();
+    expect(
+      within(thread()).getByRole("button", { name: pt.retry }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      within(thread()).getByRole("button", { name: pt.challengeRetry }),
+    );
+    await waitFor(() => {
+      expect(within(thread()).queryByText(pt.challenge)).toBeNull();
+    });
+    const sessions = server.requests.filter(
+      (request) => request.path === "/api/session",
+    );
+    expect(sessions.map((request) => request.body)).toEqual([
+      { language: "pt-BR", turnstile_token: DUMMY_TOKEN },
+      { language: "pt-BR", turnstile_token: DUMMY_TOKEN },
+      { language: "pt-BR", turnstile_token: DUMMY_TOKEN },
+    ]);
+  });
+
   it("asks for a new session with a new token when a message finds its cookie gone, then sends it", async () => {
     renderPage(<Chat />);
     await ready();

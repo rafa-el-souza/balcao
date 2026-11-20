@@ -73,9 +73,7 @@ interface Own extends Entry {
 }
 
 export interface State {
-  // "challenge": the server refused the anti-bot check of the page's first
-  // session, and the page offers to try again (threat model SR-39).
-  phase: "loading" | "ready" | "failed" | "challenge";
+  phase: "loading" | "ready" | "failed";
   conversationId: string | null;
   // The link to the conversation's trace page (FR-12), from the snapshot.
   traceToken: string | null;
@@ -101,14 +99,19 @@ export interface State {
   mode: Mode | null;
   // Reais per dollar (FR-12), none until the server gives the rate.
   brl: number | null;
+  // The server refused the anti-bot check of a session that would have
+  // minted the visitor, the page's first or one asked for because the cookie
+  // was gone, and no session has opened since: the page offers to try again
+  // (threat model SR-39).
+  challenged: boolean;
 }
 
 export type Action =
   | { type: "session"; conversationId: string; mode?: unknown; brl?: unknown }
   | { type: "loaded" }
   | { type: "loadFailed" }
-  // The page's first session met the anti-bot check's refusal, and the
-  // visitor tries again (SR-39).
+  // A session met the anti-bot check's refusal, and the visitor tries again
+  // (SR-39).
   | { type: "challenged" }
   | { type: "rechallenge" }
   | {
@@ -152,6 +155,7 @@ export const initialState: State = {
   stamps: 0,
   mode: null,
   brl: null,
+  challenged: false,
 };
 
 // The mode and the rate an answer names, over what the page held.
@@ -269,7 +273,7 @@ export function reduce(state: State, action: Action): State {
       const known = state.known.includes(action.conversationId)
         ? state.known
         : [...state.known, action.conversationId];
-      return { ...state, known, ...budgetOf(state, action) };
+      return { ...state, known, challenged: false, ...budgetOf(state, action) };
     }
     case "loaded":
       return { ...state, phase: state.phase === "failed" ? "failed" : "ready" };
@@ -278,11 +282,9 @@ export function reduce(state: State, action: Action): State {
     case "loadFailed":
       return state.seen ? state : { ...state, phase: "failed" };
     case "challenged":
-      return state.seen ? state : { ...state, phase: "challenge" };
+      return { ...state, challenged: true };
     case "rechallenge":
-      return state.phase === "challenge"
-        ? { ...state, phase: "loading" }
-        : state;
+      return { ...state, challenged: false };
     case "sending":
       return {
         ...state,
