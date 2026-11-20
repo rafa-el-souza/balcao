@@ -14,9 +14,10 @@
 //   to tick it (interaction-only), in the page's language and its light
 //   paper; it starts its challenge when drawn, as the page loads;
 // - a token is good once and for five minutes: each is given once, and the
-//   next one asked for starts the challenge again; nothing retries or
-//   refreshes by itself, so a page left open does not run a challenge every
-//   five minutes, nor ask the visitor to tick a box nobody needs;
+//   next one asked for starts the challenge again; nothing retries a failure,
+//   refreshes an expired token or a tick left unanswered by itself, so a page
+//   left open does not run a challenge every five minutes, nor ask the
+//   visitor to tick a box nobody needs;
 // - a failed challenge, an unsupported browser and a script that does not
 //   load answer no token, and the server's refusal then gives the page its
 //   retry hint.
@@ -32,6 +33,7 @@ export interface RenderOptions {
   size: "normal" | "flexible" | "compact";
   retry: "auto" | "never";
   "refresh-expired": "auto" | "manual" | "never";
+  "refresh-timeout": "auto" | "manual" | "never";
   "response-field": boolean;
   "feedback-enabled": boolean;
   callback?: (token: string) => void;
@@ -39,6 +41,7 @@ export interface RenderOptions {
   "expired-callback"?: () => void;
   "unsupported-callback"?: () => void;
   "before-interactive-callback"?: () => void;
+  "timeout-callback"?: () => void;
 }
 
 // What Cloudflare's script leaves on window, as far as the page uses it.
@@ -205,6 +208,7 @@ export function createChallenge(language: () => string): Challenge {
       size: "normal",
       retry: "never",
       "refresh-expired": "never",
+      "refresh-timeout": "never",
       "response-field": false,
       "feedback-enabled": false,
       callback: (token) => {
@@ -217,6 +221,13 @@ export function createChallenge(language: () => string): Challenge {
       },
       "expired-callback": () => {
         held = null;
+      },
+      // A tick left unanswered past Cloudflare's time answers no token, as a
+      // failure does, rather than refreshing for ever while a session waits
+      // on it that may not need one (the review of pull request #53).
+      "timeout-callback": () => {
+        answer(null);
+        next(api);
       },
       "unsupported-callback": () => {
         unsupported = true;

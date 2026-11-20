@@ -21,6 +21,8 @@ export interface FakeTurnstile {
   unsupported(): void;
   // The challenge turns interactive: the widget asks for a tick.
   interactive(): void;
+  // The visitor left the tick unanswered past Cloudflare's time.
+  timeout(): void;
 }
 
 export function fakeTurnstile(answer: FakeTurnstile["answer"] = "token") {
@@ -59,6 +61,9 @@ export function fakeTurnstile(answer: FakeTurnstile["answer"] = "token") {
     },
     interactive() {
       options()["before-interactive-callback"]?.();
+    },
+    timeout() {
+      options()["timeout-callback"]?.();
     },
   };
   function options(): RenderOptions {

@@ -82,6 +82,7 @@ describe("SR-39 FR-18 the challenge", () => {
       size: "normal",
       retry: "never",
       "refresh-expired": "never",
+      "refresh-timeout": "never",
       "response-field": false,
       "feedback-enabled": false,
     });
@@ -182,6 +183,25 @@ describe("SR-39 FR-18 the challenge", () => {
 
     void challenge.token();
     expect(element).not.toHaveAttribute("data-asking");
+  });
+
+  // The review of pull request #53 (its web verifier's V1): a tick the
+  // visitor leaves unanswered would refresh itself for ever, and the session
+  // waiting on it, though a returning visitor needs no token.
+  it("answers no token when the visitor leaves the tick unanswered, and starts a new challenge when asked again", async () => {
+    const fake = fakeTurnstile("hold");
+    window.turnstile = fake.api;
+    const challenge = attached(() => "pt-BR");
+
+    const first = challenge.token();
+    fake.interactive();
+    fake.timeout();
+    await expect(first).resolves.toBeNull();
+
+    const again = challenge.token();
+    expect(fake.resets).toEqual(["widget-1"]);
+    fake.solve("ticked");
+    await expect(again).resolves.toBe("ticked");
   });
 
   // Review finding C6 of pull request #53: a reset keeps the language the
