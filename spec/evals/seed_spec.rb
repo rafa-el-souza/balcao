@@ -1,5 +1,5 @@
 require "rails_helper"
-require Rails.root.join("lib/evals/checks").to_s
+require Rails.root.join("lib/evals/case_set").to_s
 
 # The seed is invented so that every eval case has its fact (evals/README.md,
 # Seeds; threat model SR-33): these examples fail when an edit of the store
@@ -97,8 +97,11 @@ RSpec.describe "FR-03 FR-06 FR-07 FR-21 SR-21 the eval cases find their facts in
   # alone, whatever the model wrote. Such a case says whether it expects the
   # line: true where the line is the point, false where the model's own words
   # must carry the fact.
+  # Every case --all runs, M2's injection cases among them since M2-4 (the
+  # verifier's V2 on pull request #58).
   it "makes a case whose expected words or fact the offer's line carries say whether it expects the line" do
-    cases.select { |kase| kase["milestone"] == "MVP" }.each do |kase|
+    runnable = Evals::CaseSet.load.runnable.map(&:id)
+    cases.select { |kase| runnable.include?(kase["id"]) }.each do |kase|
       expect_keys = kase["expect"]
       line = FixedReply.offer(AgentRunner::LANGUAGES.fetch(expect_keys["language"] || kase["lang"])).downcase
       wanted = expect_keys.values_at("must_include_any", "must_include_all").flatten.compact.map(&:downcase)
