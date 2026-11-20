@@ -113,10 +113,23 @@ module Evals
       raise Error, "the judge stopped with #{message.stop_reason}" unless message.stop_reason == :end_turn
       raise Error, "the judge was served by #{message.model}, not #{@model}" unless message.model.to_s == @model
 
+      # Only a boolean pass is a verdict: the SDK reads a structured answer
+      # leniently, and a "false" that is a String would pass a failing reply
+      # (the review of #62, C4 = H3, as #54's C4 for FR-20's check). A reason
+      # that is not text is no reason, and the verdict stands.
       output = message.parsed_output
-      raise Error, "the judge's verdict could not be read: #{output.inspect}" unless output.is_a?(Output)
+      pass = field(output, :pass)
+      raise Error, "the judge's verdict could not be read: #{output.inspect}" unless [ true, false ].include?(pass)
 
-      Verdict.new(pass: output.pass, reason: output.reason, model: message.model.to_s, usage: usage_of(message.usage))
+      reason = field(output, :reason)
+      Verdict.new(pass:, reason: (reason if reason.is_a?(String)), model: message.model.to_s, usage: usage_of(message.usage))
+    end
+
+    # A field of the parsed answer, nil when there is none or its read raises.
+    def field(output, name)
+      output.public_send(name) if output.is_a?(Output)
+    rescue StandardError
+      nil
     end
 
     def usage_of(usage)

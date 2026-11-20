@@ -59,6 +59,23 @@ RSpec.describe "NFR-08 SR-18 FR-09 the eval runner's rubric judge" do
     end
   end
 
+  # The review of #62 (C4 = H3, teorico): the SDK reads a structured answer
+  # leniently, as FR-20's check met it (#54's C4), so a "pass" that is not a
+  # boolean came back as a verdict: "false", a String, passed a failing
+  # reply, and a missing one failed the attendant for the judge's fault.
+  # The judge's verdicts decide ADR-0003's gate.
+  it "raises an error for a verdict whose pass is not a boolean, and keeps one whose reason is not text" do
+    [ { reason: "x", pass: "false" }, { reason: "x" }, { reason: "x", pass: nil }, { reason: "x", pass: 1 } ].each do |answer|
+      response = message(content: [ text(JSON.generate(answer)) ], model: "claude-haiku-5-5")
+      judge = Evals::Judge.new(client: FakeModel.new([ response ]).client)
+
+      expect { judge.grade(rubric: "Greets.", parts: [ attendant("Olá!") ]) }.to raise_error(Evals::Judge::Error, /verdict/), answer.inspect
+    end
+    response = message(content: [ text(JSON.generate(reason: nil, pass: false)) ], model: "claude-haiku-5-5")
+    expect(Evals::Judge.new(client: FakeModel.new([ response ]).client).grade(rubric: "Greets.", parts: [ attendant("Olá!") ]))
+      .to have_attributes(pass: false, reason: nil)
+  end
+
   # M2-3b: the system's texts are named as the system's, so the judge never
   # takes the emergency line's "remédio ... em excesso" for a method the
   # attendant named, as it did in five of twenty-one attempts of the
