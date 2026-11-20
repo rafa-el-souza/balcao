@@ -595,14 +595,17 @@ class TurnProcessor
   # The reply keeps where the model's words begin, after the notice of a
   # conversation's first reply, and their length, 0 when it holds none, so
   # the history marks the system's text as the system's (Message#authored); a
-  # NUL the body loses is not counted.
+  # NUL the body loses is not counted. Words that are only spaces are none,
+  # as FixedReply drops them from the body and the eval runner's event names
+  # none (review finding C2 of pull request #60).
   def record_reply(text, conversation:, language:, own: nil)
     first = !conversation.messages.outbound.exists?
     body = first ? FixedReply.with_notice(text, language) : text
     start = first ? body.length - text.length : 0
+    words = own.presence
     Message.record_outbound!(turn: @turn, body:, conversation:, attendant_start: start,
-                             attendant_characters: own.to_s.delete("\u0000").length).tap do
-      ActiveSupport::Notifications.instrument(REPLY_EVENT, turn_id: @turn.id, attendant: own.presence)
+                             attendant_characters: words.to_s.delete("\u0000").length).tap do
+      ActiveSupport::Notifications.instrument(REPLY_EVENT, turn_id: @turn.id, attendant: words)
     end
   end
 

@@ -215,6 +215,22 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
                                                                 system: FixedReply.emergency("pt-BR"))
     end
 
+    # Review finding C2 of pull request #60 (teorico, the verifier's; fixed
+    # since it is one expression): a reply whose only text is a space that
+    # String#strip leaves, as a no-break space, and a line tag is the line
+    # alone, as FixedReply drops the blank text, and kept one character of
+    # the model's, so the history gave the model the line's first letter.
+    it "keeps none of the model's for a reply whose words are only spaces strip leaves, before a line tag" do
+      responses.replace([ reply("[pt] Olá!"), reply("[pt]#{"\u00a0"}[pharmacist]") ])
+      perform(inbound("oi"))
+      turn = inbound("tem dipirona?")
+
+      perform(turn)
+
+      expect(turn.outbound_message).to have_attributes(body: FixedReply.offer("pt-BR"), attendant_characters: 0)
+      expect(turn.outbound_message.authored).to have_attributes(attendant: nil, system: FixedReply.offer("pt-BR"))
+    end
+
     # Review finding H-B2 of pull request #60: where the model's words begin
     # is kept, so the split holds when the purge takes the first reply.
     it "keeps where the model's words begin: after the notice in a conversation's first reply, at the start in a later one" do
