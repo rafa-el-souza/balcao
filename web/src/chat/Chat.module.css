@@ -610,8 +610,12 @@
     border-top: var(--rule-hairline);
   }
 
+  /* The widget too, which grows the composer by its box when it asks for a tick: the drawer's
+     bottom inset is the composer's height without it (the review of pull request #53). Closing
+     the drawer brings it back. */
   .chat[data-drawer] .suggest,
-  .chat[data-drawer] .antibot {
+  .chat[data-drawer] .antibot,
+  .chat[data-drawer] .challenge {
     display: none;
   }
 
