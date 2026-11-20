@@ -56,8 +56,10 @@ class Turnstile
   # The codes Cloudflare answers with are words and hyphens; anything else in
   # the list is not written.
   CODE = /\A[a-z][a-z-]{0,63}\z/
-  # A refusal that only the env file fixes: every new visitor meets it.
-  WRONG_SECRET = %w[missing-input-secret invalid-input-secret].freeze
+  # A refusal of our own request, which only the env file or the code fixes:
+  # every new visitor meets it, so its line is an error (a malformed request
+  # too: the fix review of pull request #53).
+  OURS = %w[missing-input-secret invalid-input-secret bad-request].freeze
 
   def self.passed?(token) = new.passed?(token)
 
@@ -127,7 +129,7 @@ class Turnstile
 
   def refused_by(answer)
     codes = Array(answer["error-codes"]).grep(CODE)
-    refused(codes.intersect?(WRONG_SECRET) ? :error : :info, codes.empty? ? "no code" : codes.join(", "))
+    refused(codes.intersect?(OURS) ? :error : :info, codes.empty? ? "no code" : codes.join(", "))
   end
 
   def refused(level, why)

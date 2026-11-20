@@ -190,6 +190,15 @@ RSpec.describe "SR-39 FR-18 Turnstile's check of a token" do
       expect(lines).to eq([ [ :error, "turnstile: refused: invalid-input-secret" ] ])
     end
 
+    # The fix review of pull request #53 (its note on c7524fd): a request
+    # Cloudflare calls malformed is ours, and every new visitor meets it.
+    it "names a request Cloudflare calls malformed as an error, as a wrong secret" do
+      stub_siteverify_answer({ "success" => false, "error-codes" => [ "bad-request" ], "messages" => [] }, status: 400)
+
+      expect(check.passed?("0.token-of-the-visitor")).to be false
+      expect(lines).to eq([ [ :error, "turnstile: refused: bad-request" ] ])
+    end
+
     it "takes no yes from an answer that is not 200, whatever its body says" do
       stub_siteverify_answer(passed, status: 400)
 
