@@ -156,7 +156,12 @@ module Tools
 
     def units(count) = count == 1 ? "1 unit" : "#{count} units"
 
-    def result(reservation)
+    def result(reservation) = self.class.result(reservation)
+
+    # A reservation as the tool's result gives it to the model, and as a
+    # turn the system answered without the model keeps it for the next
+    # turns' history (TurnProcessor#rebuilt).
+    def self.result(reservation)
       { "code" => reservation.code, "quantity" => reservation.quantity, "product" => reservation.product.name,
         "pickup_until" => reservation.pickup_until.in_time_zone.iso8601 }
     end

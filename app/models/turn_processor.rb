@@ -161,7 +161,9 @@ class TurnProcessor
       "balcao.channel" => @inbound.channel, "balcao.message.source" => @inbound.source
     })
     language = @conversation.language
-    finish("dead_letter", "failed", FixedReply.with_reservations(FixedReply.fallback(language), reservations, language), error:)
+    stored = reservations
+    @exchange = rebuilt(stored)
+    finish("dead_letter", "failed", FixedReply.with_reservations(FixedReply.fallback(language), stored, language), error:)
   rescue StandardError => e
     @recorder&.abandon(e.class.name)
     raise
@@ -335,7 +337,10 @@ class TurnProcessor
       "balcao.channel" => @inbound.channel, "balcao.message.source" => @inbound.source
     })
     stored = reservations
-    return finish("reservations", "replied", FixedReply.reservations(stored, @conversation.language)) if stored.any?
+    if stored.any?
+      @exchange = rebuilt(stored)
+      return finish("reservations", "replied", FixedReply.reservations(stored, @conversation.language))
+    end
 
     budget = Budget.status
     return paused(forced: budget.forced) if budget.mode == "paused"
@@ -482,6 +487,33 @@ class TurnProcessor
   end
 
   def reservations = Reservation.where(turn_id: @turn.id).includes(:product).order(:created_at, :id).to_a
+
+  # The tool exchange of a reply the system sent without running the model,
+  # a run's again that found the turn's reservations stored or the dead
+  # letter's fallback: the calls that made the turn's reservations and their
+  # results, rebuilt from the stored rows, in the shape AgentRunner::Run
+  # keeps (Turn#tool_exchange), or nil for a turn that reserved nothing.
+  # Each reservation of a turn was made by the model's own call in an
+  # earlier run of it, whose exchange was lost when that run broke before
+  # its reply was stored; without it, the next turn's history named no code
+  # for the reservations the visitor read, and the model has no tool to look
+  # them up (the close's XF-C2, the owner, 2026-11-20). A call's id is the
+  # reservation's, so the history reads the same on every turn and its
+  # cached prefix holds.
+  def rebuilt(stored)
+    return if stored.empty?
+
+    ids = stored.to_h { |reservation| [ reservation, "toolu_#{reservation.id.delete("-")}" ] }
+    calls = stored.map do |reservation|
+      { "type" => "tool_use", "id" => ids[reservation], "name" => Tools::CreateReservation.tool_name,
+        "input" => { "product_id" => reservation.product_id, "quantity" => reservation.quantity } }
+    end
+    results = stored.map do |reservation|
+      { "type" => "tool_result", "tool_use_id" => ids[reservation], "content" => JSON.generate(Tools::CreateReservation.result(reservation)),
+        "is_error" => false }
+    end
+    [ { "role" => "assistant", "content" => calls }, { "role" => "user", "content" => results } ]
+  end
 
   # The turn's reservations and, when the cap of open reservations refused
   # one, those the visitor holds (FR-07).

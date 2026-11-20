@@ -46,7 +46,9 @@ class AgentTool < Anthropic::BaseTool
     @gate = gate
   end
 
-  def name = self.class.name.demodulize.underscore
+  def name = self.class.tool_name
+
+  def self.tool_name = name.demodulize.underscore
 
   # The report runs after the call and outside the rescue of its bugs: a
   # handler that raises (the trace's insert failing after a reservation was

@@ -303,6 +303,51 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       expect(first.outbound_message.body).to include(line)
       expect(messages.to_s).not_to include(line)
     end
+
+    # The close's XF-C2 (cliente, the owner, 2026-11-20, M2-11a3): a reply
+    # the system sent without running the model, a run's again that found the
+    # turn's reservations stored or the dead letter's fallback, kept no tool
+    # exchange, so the next turn's model had no code for the reservations the
+    # visitor read, nor any tool to look them up. Each reservation of a turn
+    # was made by the model's own call in an earlier run of it, so the turn
+    # keeps that call and its result, rebuilt from the stored reservation.
+    describe "a reply the system sent without the model" do
+      let(:product) { create(:product, name: "Dipirona 500 mg, 10 comprimidos", stock: 10) }
+      let(:first) { inbound("reserva duas dipironas pra mim") }
+      let!(:reservation) { create(:reservation, turn: first, product:, quantity: 2) }
+
+      def gives_back(reservation, messages)
+        call = messages.flat_map { |message| message[:role] == "assistant" ? Array(message[:content]) : [] }
+                       .find { |block| block[:type] == "tool_use" && block[:name] == "create_reservation" }
+        expect(call).to include(input: { product_id: reservation.product_id, quantity: 2 }, id: match(/\A[a-zA-Z0-9_-]+\z/))
+        result = messages.flat_map { |message| message[:role] == "user" ? Array(message[:content]) : [] }
+                         .find { |block| block.is_a?(Hash) && block[:type] == "tool_result" && block[:tool_use_id] == call[:id] }
+        expect(JSON.parse(result[:content])).to include("code" => reservation.code, "quantity" => 2, "product" => product.name)
+      end
+
+      it "gives the next turn the reservations of a run's again that found them stored, as the model's calls and their results" do
+        responses.replace([ reply("[pt] O código é #{reservation.code}.") ])
+        perform(first)
+        expect(first.reload).to have_attributes(reply_kind: "reservations", tool_exchange: be_present)
+        second = inbound("qual era o código da reserva?")
+
+        perform(second)
+
+        gives_back(reservation, fake.requests.last.body[:messages])
+      end
+
+      it "gives the next turn the reservations of the dead letter's fallback, as the model's calls and their results" do
+        first.update!(state: "failed")
+        TurnProcessor.new(first).give_up(RuntimeError.new("a bug"))
+        expect(first.reload).to have_attributes(reply_kind: "fallback", tool_exchange: be_present)
+        responses.replace([ reply("[pt] O código é #{reservation.code}.") ])
+        second = inbound("qual era o código da reserva?")
+
+        perform(second)
+
+        gives_back(reservation, fake.requests.last.body[:messages])
+      end
+    end
   end
 
   describe "the demo notice (FR-01) and the language (FR-02)" do
