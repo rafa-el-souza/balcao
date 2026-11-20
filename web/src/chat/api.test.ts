@@ -88,3 +88,50 @@ describe("FR-18 NFR-02 what an answer says of sending again", () => {
     expect(await answering(429)).toEqual({ kind: "failed" });
   });
 });
+
+// Threat model SR-39: a session that mints a visitor carries the widget's
+// token, and the server's refusal of the check is the page's retry hint.
+describe("SR-39 FR-18 the session and Turnstile's token", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function recording(status: number, body: unknown) {
+    const bodies: unknown[] = [];
+    vi.stubGlobal("fetch", (_path: string, init: RequestInit) => {
+      bodies.push(JSON.parse(init.body as string));
+      return Promise.resolve(
+        new Response(JSON.stringify(body), {
+          status,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+    });
+    return bodies;
+  }
+
+  it("sends the token beside the language when it has one, and no token field when it has none", async () => {
+    const bodies = recording(201, { conversation_id: "c" });
+    const api = createApi(() => "pt-BR");
+
+    await api.session("es", "XXXX.DUMMY.TOKEN.XXXX");
+    await api.session("en", null);
+
+    expect(bodies).toEqual([
+      { language: "es", turnstile_token: "XXXX.DUMMY.TOKEN.XXXX" },
+      { language: "en" },
+    ]);
+  });
+
+  it("reads the server's refusal of the check apart from the Origin's", async () => {
+    recording(403, { error: "challenge" });
+    expect(await createApi(() => "pt-BR").session("pt-BR", null)).toEqual({
+      kind: "challenge",
+    });
+
+    recording(403, { error: "origin" });
+    expect(await createApi(() => "pt-BR").session("pt-BR", null)).toEqual({
+      kind: "refused",
+    });
+  });
+});

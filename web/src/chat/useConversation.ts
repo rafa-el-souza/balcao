@@ -20,9 +20,11 @@ import {
   isServerMessage,
   type Outcome,
   serverNow,
+  type Session,
   type Snapshot,
   type Span,
 } from "./api";
+import type { Challenge } from "./challenge";
 import { awaiting, initialState, reduce } from "./conversation";
 
 // FR-18: the replies and the trace's spans arrive over Action Cable, on the
@@ -97,7 +99,7 @@ function takeSay(): OpenerKey | null {
   return isOpener(key) ? key : null;
 }
 
-export function useConversation() {
+export function useConversation(challenge: Challenge) {
   const { i18n } = useTranslation();
   const cable = useContext(CableContext);
   const queryClient = useQueryClient();
@@ -124,25 +126,69 @@ export function useConversation() {
   // One session request at a time, and messages only after the one in
   // flight: two requests without a cookie would mint two visitors, and the
   // last cookie to arrive would leave the page's message under the other
-  // (review finding C4 of pull request #14).
+  // (review finding C4 of pull request #14). A session that may mint a
+  // visitor (the page's first, and one asked for because the cookie is gone)
+  // waits for a token of Turnstile's widget, or for the check to give none;
+  // one that only names the page's language brings none (threat model SR-39).
+  //
+  // Asked for while another that may mint is on its way, it is that one: the
+  // polls and a message that find the cookie gone wait on one challenge
+  // (review finding C4 of pull request #53). Once the server refused the
+  // check, no token means no request, since the server would refuse it again
+  // and the edge would count it against the address's twenty an hour (SR-01;
+  // C2 and the Rails finder's C1 of #53); the refusal shows its hint, from
+  // any session (C3), until a session opens.
   const sessions = useRef<Promise<unknown>>(Promise.resolve());
+  const minting = useRef<Promise<Outcome<Session>> | null>(null);
+  // The opener the address brought (?say=), until a session opens for it.
+  const say = useRef<OpenerKey | null>(null);
+  const refusedCheck = useRef(false);
   const session = useCallback(
-    (locale: Locale) => {
-      const next = sessions.current.then(async () => {
-        const opened = await api.session(locale);
-        if (opened.kind === "ok")
-          dispatch({
-            type: "session",
-            conversationId: opened.value.conversation_id,
-            mode: opened.value.mode,
-            brl: opened.value.brl,
-          });
-        return opened;
-      });
+    (locale: Locale, mint = false): Promise<Outcome<Session>> => {
+      if (mint && minting.current) return minting.current;
+      const next = sessions.current.then(
+        async (): Promise<Outcome<Session>> => {
+          // A switch of language queued before the refusal came asks
+          // nothing either (the fix review of #53, R3).
+          if (!mint && refusedCheck.current) return { kind: "challenge" };
+          const token = mint ? await challenge.token() : null;
+          if (mint && token === null && refusedCheck.current) {
+            dispatch({
+              type: "challenged",
+              unsupported: challenge.unsupported,
+            });
+            return { kind: "challenge" };
+          }
+          const opened = await api.session(locale, token);
+          if (opened.kind === "ok") {
+            refusedCheck.current = false;
+            dispatch({
+              type: "session",
+              conversationId: opened.value.conversation_id,
+              mode: opened.value.mode,
+              brl: opened.value.brl,
+            });
+          } else if (opened.kind === "challenge") {
+            refusedCheck.current = true;
+            dispatch({
+              type: "challenged",
+              unsupported: challenge.unsupported,
+            });
+          }
+          return opened;
+        },
+      );
       sessions.current = next.catch(() => undefined);
+      if (mint) {
+        minting.current = next;
+        const settled = () => {
+          if (minting.current === next) minting.current = null;
+        };
+        next.then(settled, settled);
+      }
       return next;
     },
-    [api],
+    [api, challenge],
   );
 
   // Each answer of the conversation's query: the first is the page's load,
@@ -150,8 +196,12 @@ export function useConversation() {
   const loaded = useRef(false);
   const answered = useCallback(
     (answer: Outcome<Snapshot | Deleted>) => {
-      if (answer.kind === "ok")
+      // The server answered with the cookie: whatever refused the check before,
+      // a session stands now (the fix review of pull request #53, R1).
+      if (answer.kind === "ok") {
+        refusedCheck.current = false;
         dispatch({ type: "snapshot", answer: answer.value });
+      }
       if (!loaded.current) {
         loaded.current = true;
         // The edge's refusal is its limit, with its text (review finding R5).
@@ -174,8 +224,11 @@ export function useConversation() {
           : 0,
       );
       setPollRefused(answer.kind === "limit" ? answer.text : null);
-      // The cookie is gone: a new session, and the polls go on.
-      if (answer.kind === "session") void session(language());
+      // The cookie is gone: a new session, and the polls go on; while the
+      // server stands by its refusal of the check, the visitor's own try
+      // asks (C2 of #53).
+      if (answer.kind === "session" && !refusedCheck.current)
+        void session(language(), true);
     },
     [language, session],
   );
@@ -284,7 +337,7 @@ export function useConversation() {
       await sessions.current;
       let outcome = await api.send(clientId, content);
       if (outcome.kind === "session") {
-        const renewed = await session(language());
+        const renewed = await session(language(), true);
         // A refused session is the edge's limit, said with its own text
         // (review finding C6 of pull request #14).
         outcome =
@@ -296,6 +349,7 @@ export function useConversation() {
       }
       const at = new Date(serverNow()).toISOString();
       if (outcome.kind === "ok") {
+        refusedCheck.current = false;
         // A page whose first session failed, or met the edge's limit, has not
         // asked for its conversation: the message's session lets it, and the
         // conversation's answer sets the conversation the page follows (the
@@ -331,6 +385,10 @@ export function useConversation() {
 
   const send = useCallback(
     (content: Content, text: string, lang?: string) => {
+      // The visitor's own words come first: an opener the page could not
+      // send before them is dropped, never sent after them (the review of
+      // pull request #53).
+      say.current = null;
       const clientId = crypto.randomUUID();
       dispatch({
         type: "sending",
@@ -377,39 +435,67 @@ export function useConversation() {
     [deliver],
   );
 
-  // The language of a conversation not yet answered follows the page's (FR-02).
+  // The language of a conversation not yet answered follows the page's
+  // (FR-02). A page whose check the server refused has no session to tell,
+  // and the request would only count against the address (SR-01).
   const changeLanguage = useCallback(
     (locale: Locale) => {
-      void session(locale);
+      if (!refusedCheck.current) void session(locale);
     },
     [session],
   );
+
+  // The page's first session, and the one the visitor asks for again after
+  // the server refused the check (SR-39). The opener the address brought is
+  // sent once a session opens (say, above).
+  const open = useCallback(async () => {
+    const opened = await session(language(), true);
+    // A load that ends here has said so: the conversation's answers that a
+    // message opens later are polls (row IR-U1).
+    if (opened.kind === "limit") {
+      loaded.current = true;
+      dispatch({ type: "limited", clientId: null, text: opened.text });
+      dispatch({ type: "loaded" });
+      return;
+    }
+    // The check gave no token, or one Cloudflare did not vouch for: the page
+    // offers to try again (session above), and a message sent meanwhile asks
+    // too.
+    if (opened.kind === "challenge") return;
+    if (opened.kind !== "ok") {
+      loaded.current = true;
+      dispatch({ type: "loadFailed" });
+      return;
+    }
+    const opener = say.current;
+    say.current = null;
+    if (opener) sendOpener(opener);
+    setOpened(true);
+  }, [language, sendOpener, session]);
 
   // Once per page load, even when React mounts twice in development.
   const started = useRef(false);
   useEffect(() => {
     if (started.current) return;
     started.current = true;
-    const say = takeSay();
-    void (async () => {
-      const opened = await session(language());
-      // A load that ends here has said so: the conversation's answers that a
-      // message opens later are polls (row IR-U1).
-      if (opened.kind === "limit") {
-        loaded.current = true;
-        dispatch({ type: "limited", clientId: null, text: opened.text });
-        dispatch({ type: "loaded" });
-        return;
-      }
-      if (opened.kind !== "ok") {
-        loaded.current = true;
-        dispatch({ type: "loadFailed" });
-        return;
-      }
-      if (say) sendOpener(say);
-      setOpened(true);
-    })();
-  }, [language, sendOpener, session]);
+    say.current = takeSay();
+    void open();
+  }, [open]);
+
+  // The visitor tries the check again: the page's first session, when none
+  // has opened yet, else a new one for the page that lost its cookie, whose
+  // conversation is asked for again once it opens.
+  const retryChallenge = useCallback(() => {
+    dispatch({ type: "rechallenge" });
+    if (!opened) {
+      void open();
+      return;
+    }
+    void session(language(), true).then((renewed) => {
+      if (renewed.kind === "ok")
+        void queryClient.invalidateQueries({ queryKey: CURRENT });
+    });
+  }, [opened, open, session, language, queryClient]);
 
   const refused = waiting ? pollRefused : null;
   const offline = waiting && refused === null && pollFailures >= 2;
@@ -422,6 +508,7 @@ export function useConversation() {
     sendCommand,
     sendOpener,
     retry,
+    retryChallenge,
     changeLanguage,
   };
 }

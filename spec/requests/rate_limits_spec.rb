@@ -18,8 +18,15 @@ RSpec.describe "FR-14 SR-01 SR-36 per-IP and per-visitor limits", type: :request
 
   def from(ip) = { "REMOTE_ADDR" => ip }
 
+  # A session as the page asks for one: the widget's token, which the suite's
+  # siteverify passes (spec/support/turnstile.rb, threat model SR-39), is
+  # read only when the request mints an identity.
+  def minting = { turnstile_token: TurnstileStubs::DUMMY_TOKEN }.to_json
+
+  before { stub_siteverify }
+
   def session_from(ip)
-    post "/api/session", params: "{}", headers: { "Content-Type" => "application/json", "Origin" => origin }, env: from(ip)
+    post "/api/session", params: minting, headers: { "Content-Type" => "application/json", "Origin" => origin }, env: from(ip)
   end
 
   def message_from(ip, text = "oi")
@@ -65,6 +72,22 @@ RSpec.describe "FR-14 SR-01 SR-36 per-IP and per-visitor limits", type: :request
     it "refuses its 21st new session within an hour, storing nothing" do
       20.times { session_from("203.0.113.7").then { cookies.delete(WebSession::COOKIE.to_s) } }
       expect(response).to have_http_status(:created)
+
+      expect { session_from("203.0.113.7") }.not_to change(Visitor, :count)
+      expect(limited?("limits.now")).to be true
+    end
+
+    # The review of pull request #53 (its Rails finder's C1): the edge counts
+    # the request before Turnstile's check answers, and the count is also
+    # what bounds the calls to Cloudflare, so a refused request counts too;
+    # the page sends none it knows the server would refuse again (the
+    # owner, 2026-11-20).
+    it "counts a session request the check refuses toward the twenty, as the edge cannot know the check's answer (SR-39)" do
+      20.times do
+        post "/api/session", params: { language: "pt-BR" }.to_json,
+                             headers: { "Content-Type" => "application/json", "Origin" => origin }, env: from("203.0.113.7")
+        expect(json).to eq("error" => "challenge")
+      end
 
       expect { session_from("203.0.113.7") }.not_to change(Visitor, :count)
       expect(limited?("limits.now")).to be true
@@ -305,7 +328,7 @@ RSpec.describe "FR-14 SR-01 SR-36 per-IP and per-visitor limits", type: :request
     end
 
     def raw_session
-      _, headers = raw("POST", "/api/session", body: "{}")
+      _, headers = raw("POST", "/api/session", body: minting)
       Array(headers["set-cookie"]).join("\n")[/#{WebSession::COOKIE}=[^;]+/o]
     end
 
@@ -320,9 +343,9 @@ RSpec.describe "FR-14 SR-01 SR-36 per-IP and per-visitor limits", type: :request
     end
 
     it "counts a session minted on a path with a repeated or trailing slash" do
-      expect(20.times.map { |index| raw("POST", index.even? ? "//api/session" : "/api/session/", body: "{}").first }).to all(eq(201))
+      expect(20.times.map { |index| raw("POST", index.even? ? "//api/session" : "/api/session/", body: minting).first }).to all(eq(201))
 
-      expect { expect(raw("POST", "//api/session", body: "{}").first).to eq(429) }.not_to change(Visitor, :count)
+      expect { expect(raw("POST", "//api/session", body: minting).first).to eq(429) }.not_to change(Visitor, :count)
     end
 
     # Review finding V4 of pull request #17: the edge's checks hold only

@@ -24,7 +24,11 @@ module EdgeLimits
     # page's lookup, which a link opened without the cookie makes (FR-12,
     # threat model SR-11).
     Limit.new(name: "ip/anonymous", limit: 60, period: 1.minute, reply: :now),
-    # Every session minted for one source from the public origin: a page load
+    # Every request of one source from the public origin that would mint a
+    # session, one with no cookie whose signature verifies, whether
+    # Turnstile's check then lets it or not: the edge cannot know the check's
+    # answer, and the count is also what bounds the calls to Cloudflare (SR-39;
+    # the owner, 2026-11-20, on the review of pull request #53). A page load
     # that brings back its cookie mints nothing, nor does a request the app
     # refuses for its origin.
     Limit.new(name: "ip/sessions", limit: 20, period: 1.hour, reply: :now),

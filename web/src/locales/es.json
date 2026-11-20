@@ -65,6 +65,9 @@
     "heading": "Conversación con la Farmácia Vida Longa",
     "greeting": "¡Hola! Puedo consultar existencias y precios o reservar un producto. Solo escribe, o empieza por una de estas:",
     "loadFailed": "No pude abrir la conversación ahora. Recarga la página en un rato.",
+    "challenge": "La verificación antibots no pasó, y sin ella la conversación no se abre. Un bloqueador de contenido puede impedir la verificación.",
+    "challengeRetry": "intentar de nuevo",
+    "challengeUnsupported": "Este navegador no puede hacer la verificación antibots de Cloudflare, y sin ella la conversación no se abre. Abre Balcão en otro navegador.",
     "offline": "Sin conexión con el servidor ahora. Sigo intentando.",
     "failed": "no enviado",
     "retry": "enviar de nuevo",
@@ -82,6 +85,7 @@
       "pharmacist": "hablar con el farmacéutico",
       "pharmacistText": "Quiero hablar con el farmacéutico."
     },
+    "antibot": "Verificación antibots: Cloudflare hace la comprobación y ve tu IP.",
     "glass": {
       "title": "Caja de cristal",
       "empty": "Todavía no hay eventos. Cada llamada al modelo y a cada herramienta aparece aquí, con la hora, la duración y el costo.",
@@ -275,7 +279,8 @@
       "items": [
         "Anthropic: el modelo de lenguaje, que recibe el texto de la conversación para responder.",
         "Hetzner: el alojamiento del servidor, donde están la base de datos y los logs.",
-        "Telegram: las conversaciones con el bot pasan por los servidores de Telegram, bajo la política de privacidad de Telegram."
+        "Telegram: las conversaciones con el bot pasan por los servidores de Telegram, bajo la política de privacidad de Telegram.",
+        "Cloudflare: la verificación antibots del sitio, cuando se abre la conversación; ve tu IP y la identificación del navegador."
       ]
     },
     "contact": {

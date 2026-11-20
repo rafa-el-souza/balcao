@@ -136,6 +136,10 @@ export type Outcome<T> =
   | { kind: "limit"; text: string }
   // The visitor cookie is missing or unreadable.
   | { kind: "session" }
+  // The server minted no visitor: Turnstile's check gave no token, or one
+  // Cloudflare did not vouch for (threat model SR-39); the page offers to
+  // try the check again.
+  | { kind: "challenge" }
   // What was asked for does not exist (a trace link that expired).
   | { kind: "missing" }
   // The server refused the request itself, an answer of 4xx other than the
@@ -155,7 +159,9 @@ export interface Accepted {
 }
 
 export interface Api {
-  session(language: Locale): Promise<Outcome<Session>>;
+  // The widget's token rides along when the page has one, for a session that
+  // may mint a visitor (SR-39); a page that brings back its cookie needs none.
+  session(language: Locale, token: string | null): Promise<Outcome<Session>>;
   // A request given up by its caller (signal) answers failed.
   current(signal?: AbortSignal): Promise<Outcome<Snapshot | Deleted>>;
   send(id: string, content: Content): Promise<Outcome<Accepted>>;
@@ -236,6 +242,8 @@ export function createApi(locale: () => Locale): Api {
     }
     if (response.ok && json !== null) return { kind: "ok", value: json as T };
     if (response.status === 401) return { kind: "session" };
+    if (response.status === 403 && isChallenge(json))
+      return { kind: "challenge" };
     if (response.status === 404) return { kind: "missing" };
     if (response.status === 429 && isLimit(json))
       return { kind: "limit", text: json.text };
@@ -249,7 +257,12 @@ export function createApi(locale: () => Locale): Api {
   }
 
   return {
-    session: (language) => request("POST", "/api/session", { language }),
+    session: (language, token) =>
+      request(
+        "POST",
+        "/api/session",
+        token === null ? { language } : { language, turnstile_token: token },
+      ),
     current: (signal) =>
       request("GET", "/api/conversations/current", undefined, signal),
     send: (id, content) => request("POST", "/api/messages", { id, ...content }),
@@ -261,6 +274,14 @@ export function createApi(locale: () => Locale): Api {
         "X-Trace-Token": token,
       }),
   };
+}
+
+function isChallenge(json: unknown): boolean {
+  return (
+    typeof json === "object" &&
+    json !== null &&
+    (json as { error?: unknown }).error === "challenge"
+  );
 }
 
 function isLimit(json: unknown): json is { error: "limit"; text: string } {

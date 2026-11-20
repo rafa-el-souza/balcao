@@ -128,7 +128,12 @@ Only a green `main` is deployed to the MVP host.
    deploy. It holds the host address, the key and ssh config paths, and the
    secrets that `.kamal/secrets.ensaio` references. A missing secret is
    generated with `bin/secrets-example` (it prints only the names not yet
-   set) and appended to that file.
+   set) and appended to that file, except those an outside console holds:
+   the model key, the bot's token and, since M2-1, `TURNSTILE_SECRET_KEY`,
+   the secret of the owner's Turnstile widget in Cloudflare's dashboard
+   (SR-39). A rehearsal host on its own name (from M3) holds Cloudflare's
+   published test secret instead, which the boot refuses on the public
+   name.
 3. `bin/deploy -d ensaio`. It refuses a dirty working tree, prints
    `kamal version`, puts the pinned kamal-proxy's image on the host by the
    digest written beside its tag, under that tag (SR-27; Docker runs a tag
@@ -153,13 +158,33 @@ Only a green `main` is deployed to the MVP host.
      `proxy.run.version` pins: a deploy starts the proxy that is already
      there, so another tag means a swap is due ("Swapping the proxy's
      release", below);
-   - a conversation runs over the API (since PR-09), with a cookie jar, the
-     public origin in the `Origin` header and a new id for the message:
+   - a script mints no visitor (since M2-1, SR-39): a session asked for
+     with no Turnstile token answers `403` and `{"error":"challenge"}`:
 
      ```
-     ORIGIN=https://balcao.rafasouza.dev.br; JAR=$(mktemp)
+     curl -s -w ' %{http_code}\n' -H 'Origin: https://balcao.rafasouza.dev.br' \
+       -H 'Content-Type: application/json' -d '{}' https://balcao.rafasouza.dev.br/api/session
+     ```
+
+   - a conversation runs in a person's browser, in a fresh private window:
+     open `/chat`, which runs Cloudflare's check as it loads (it shows a box
+     to tick only when Cloudflare wants one), and send "tem dipirona?"; the
+     reply comes in five to ten seconds and the glass box draws its rows. A
+     window that still holds a visitor cookie renews its session with no
+     token and would pass with a wrong site key; in a fresh one, the stamp
+     "A verificação anti-bot não passou", or a console error naming the code
+     110100, 110110 or 400020, says the site key is not the widget's. A real token
+     needs a browser, so the conversation over the API with curl (PR-09 to
+     M4-6b) runs only where the test keys are, a rehearsal host from M3,
+     with the test site key's dummy token in the session's body, a cookie
+     jar, the host's origin in the `Origin` header and a new id for the
+     message:
+
+     ```
+     ORIGIN=https://ensaio.rafasouza.dev.br; JAR=$(mktemp)
      curl -s -o /dev/null -w '%{http_code}\n' -c "$JAR" -H "Origin: $ORIGIN" \
-       -H 'Content-Type: application/json' -d '{}' "$ORIGIN/api/session"
+       -H 'Content-Type: application/json' \
+       -d '{"turnstile_token": "XXXX.DUMMY.TOKEN.XXXX"}' "$ORIGIN/api/session"
      curl -s -o /dev/null -w '%{http_code}\n' -b "$JAR" -H "Origin: $ORIGIN" \
        -H 'Content-Type: application/json' \
        -d "{\"id\": \"$(uuidgen)\", \"say\": \"stock_pt\"}" "$ORIGIN/api/messages"

@@ -257,15 +257,18 @@ four slices and of the MVP review's own pull requests read the 101 lines
 they left for the owner: 16 already made, 10 fixed in the next slice with
 the review's own two findings, the rest kept, planned or accepted
 ([`docs/reviews/m4-first-four-review.md`](docs/reviews/m4-first-four-review.md)).
+Then the first slice of what publishing needs: a new web visitor is created
+only after Cloudflare Turnstile, a check that a visitor is a person, which
+the chat runs as it opens and which only asks a person to tick a box when
+Cloudflare wants one (threat model SR-39).
 
 Next, in two blocks (design §9.2, where a milestone's number is a label for
 its content, not its place in the order;
 [ADR-0022](docs/adr/0022-what-publishing-the-demo-needs-first-the-showcase-after.md)
 says why):
 
-- **First, what publishing the demo needs:** Cloudflare Turnstile, a check
-  that a visitor is a person, before a session opens; a second model
-  checking every reply; the cheaper model the budget falls back to, and the
+- **First, what publishing the demo needs:** a second model checking
+  every reply; the cheaper model the budget falls back to, and the
   budget's modes; ten prompt-injection eval cases; a test conversation the
   app runs on a schedule (the canary); the CI's remaining checks; and
   production on a host of its own (until then the demo runs on the
@@ -292,7 +295,9 @@ that starts `bin/dev`: a paid Anthropic API key of your own, a cent or two
 a turn. `bin/setup` ends by starting `bin/dev`, so export the key first, or
 run `bin/setup --skip-server` and start `bin/dev` once it is set. Without
 the key the chat still opens, and every turn ends, after its three attempts
-(some twenty seconds), in the fallback reply.
+(some twenty seconds), in the fallback reply. The chat's anti-bot check
+loads Cloudflare's Turnstile script there too, with Cloudflare's published
+test keys, which always pass.
 
 ```sh
 bin/setup   # installs gems and npm packages, enables the secret-scan

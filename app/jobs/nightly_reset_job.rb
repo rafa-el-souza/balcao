@@ -14,8 +14,9 @@
 #    took all their rows in one statement); conversations whose last message
 #    went, or that never had one, once seven days old (a trace link dies with
 #    its conversation); reservations seven days past their deadline, which
-#    outlive the conversation of their turn until then; and the stored
-#    Telegram updates, read or not (FR-19);
+#    outlive the conversation of their turn until then; the stored Telegram
+#    updates, read or not (FR-19); and the digests of the Turnstile tokens
+#    that minted a web visitor (threat model SR-39);
 # 3. the catalogue returns to the seed, its stock less the units that open
 #    reservations hold (CatalogueSeed), counted after the purge;
 # 4. a message body an image before PR-18 wrote in plain text is encrypted
@@ -55,11 +56,12 @@ class NightlyResetJob < ApplicationJob
     "visitors" => ->(_before) { Visitor.unseen_for(RETENTION) },
     "conversations" => ->(before) { Conversation.where(created_at: ...before).where.missing(:messages) },
     "reservations" => ->(before) { Reservation.where(pickup_until: ...before) },
-    "stored updates" => ->(before) { WebhookEvent.where(created_at: ...before) }
+    "stored updates" => ->(before) { WebhookEvent.where(created_at: ...before) },
+    "Turnstile tokens" => ->(before) { TurnstileRedemption.where(created_at: ...before) }
   }.freeze
   # The order of the log line.
   DELETED = [ "visitors", "conversations", "messages", "turns", "spans", "usage records", "reservations",
-              "stored updates", "failed jobs", "limit counters" ].freeze
+              "stored updates", "Turnstile tokens", "failed jobs", "limit counters" ].freeze
 
   queue_as :default
 

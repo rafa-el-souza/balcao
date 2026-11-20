@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_15_234100) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_20_020500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "fuzzystrmatch"
   enable_extension "pg_catalog.plpgsql"
@@ -123,6 +123,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_15_234100) do
     t.integer "runs", default: 0, null: false
     t.index ["conversation_id", "created_at"], name: "index_turns_on_conversation_id_and_created_at"
     t.index ["inbound_message_id"], name: "index_turns_on_inbound_message_id", unique: true
+  end
+
+  create_table "turnstile_redemptions", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
+    t.string "digest", null: false
+    t.datetime "created_at", null: false
+    t.index ["created_at"], name: "index_turnstile_redemptions_on_created_at"
+    t.index ["digest"], name: "index_turnstile_redemptions_on_digest", unique: true
   end
 
   create_table "usage_records", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|

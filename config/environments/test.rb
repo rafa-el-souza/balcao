@@ -51,12 +51,16 @@ Rails.application.configure do
   # Stand-ins for the secrets production reads from its env file
   # (config/environments/production.rb): the encryption keys of what visitors
   # send (threat model SR-41), the pepper of a Telegram identity (SR-10), the
-  # bot's token and the webhook's secret (FR-19). No request leaves for
-  # Telegram from here: the suite blocks real HTTP (SR-29).
+  # bot's token and the webhook's secret (FR-19), and Cloudflare's published
+  # Turnstile test secret that always passes (SR-39, ADR-0012). No request
+  # leaves for Telegram or Cloudflare from here: the suite blocks real HTTP
+  # (SR-29), and spec/support/turnstile.rb answers as Cloudflare answers the
+  # test keys.
   config.active_record.encryption.primary_key = "test-primary-key-not-a-secret"
   config.active_record.encryption.deterministic_key = "test-deterministic-key-not-a-secret"
   config.active_record.encryption.key_derivation_salt = "test-key-derivation-salt-not-a-secret"
   config.x.identity_pepper = "test-pepper-not-a-secret"
   config.x.telegram_bot_token = "1:test-bot-token-not-a-secret"
   config.x.telegram_webhook_secret = "test-webhook-secret-not-a-secret"
+  config.x.turnstile_secret_key = "1x0000000000000000000000000000000AA"
 end
