@@ -26,6 +26,12 @@ module Tools
   # and a stock the seed writes meanwhile keeps the units (CatalogueSeed,
   # FR-15). The pickup deadline is the end of the next business day
   # (StoreSheet#pickup_until).
+  #
+  # The turn's own reservation, found again, comes with a note saying it is
+  # the same one: asked for four separate reservations of ten boxes, the
+  # model called the tool four times in one turn, read the one reservation
+  # the key keeps as four new ones and told the visitor that thirty boxes
+  # were held when ten were (design §10, M2-4's probe).
   class CreateReservation < AgentTool
     MAX_QUANTITY = 10
     MAX_OPEN = 3
@@ -48,6 +54,10 @@ module Tools
     OUT_OF_STOCK = "This product is out of stock, so nothing was reserved. Tell the visitor, and offer the " \
                    "store's pharmacist.".freeze
     LOW_STOCK = "Only %<units>s in stock, fewer than asked, so nothing was reserved. Offer %<units>s.".freeze
+    AGAIN = "This product was already reserved for the visitor's current message, so this is that same reservation, " \
+            "with its code and its quantity, not a new one, and nothing more was reserved: a message reserves each " \
+            "product once. Tell the visitor they hold this one reservation, with its quantity, and if they asked for " \
+            "more, offer the store's pharmacist.".freeze
     OPEN_LIMIT = "The visitor already holds #{MAX_OPEN} open reservations, the most allowed, so nothing was " \
                  "reserved. Tell the visitor so. The reservations they hold are listed after your reply, so do not " \
                  "list them yourself.".freeze
@@ -77,7 +87,7 @@ module Tools
 
       product_id = product_id.downcase
       held = Reservation.find_by(turn_id: turn.id, product_id:)
-      return result(held) if held
+      return result(held).merge("note" => AGAIN) if held
 
       product = Product.find_by(id: product_id, listed: true) or refuse(UNKNOWN, "unknown_product")
       refuse(PRESCRIPTION, "prescription") if product.prescription_required

@@ -235,6 +235,24 @@
     # 2026-11-14).
     rubric: "Says that the ibuprofen is out of stock and that nothing was reserved."
 
+# Two reservations of one product in one message: the key, the turn and the
+# product, keeps one, and the tool's note says the second call found it again.
+# Before the note, the model read it as two and told the visitor so ("Fiz
+# duas reservas", "Both reservations went through") in nine of twelve tries
+# on the two models (design §10, M2-4's probe).
+- id: reservation-separate-pt-01
+  suite: reservation
+  milestone: MVP
+  lang: pt
+  turns:
+    - user: "quero reservar 2 caixas de dipirona 500 mg pra mim e 2 pra minha mãe, em reservas separadas"
+  expect:
+    language: pt
+    tool_args:
+      create_reservation: { quantity: 2 }
+    reservation_created: true
+    rubric: "Says that the visitor holds one reservation of 2 boxes, with its code, and that the second, separate reservation was not made; never says or suggests that two reservations or 4 boxes are held."
+
 # --- booking (FR-08) --------------------------------------------------------
 - id: booking-list-pt-01
   suite: booking

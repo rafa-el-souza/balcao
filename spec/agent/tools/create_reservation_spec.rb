@@ -76,9 +76,24 @@ RSpec.describe "FR-07 NFR-02 SR-16 create_reservation, units held for pickup at 
 
     again = reserve(quantity: 3)
 
-    expect(again).to eq(first)
+    expect(again.except("note")).to eq(first)
     expect(Reservation.count).to eq(1)
     expect(product.reload.stock).to eq(38)
+  end
+
+  # M2-4's probe (design §10): asked for four separate reservations of ten
+  # boxes, the model called the tool four times in one turn, read the one
+  # reservation the key keeps as four new ones, and told the visitor that
+  # thirty boxes were held when ten were. A repeat says what it is.
+  it "says, when the same turn asks again for the same product, that it is the same reservation and nothing more was reserved" do
+    first = reserve(quantity: 10)
+
+    again = reserve(quantity: 10)
+
+    expect(first).not_to have_key("note")
+    expect(again.except("note")).to eq(first)
+    expect(again["note"]).to include("same reservation", "not a new one", "nothing more was reserved")
+    expect(calls.map(&:is_error)).to eq([ false, false ])
   end
 
   # Review finding RN2 of pull request #7: a check made before the lookup
@@ -89,7 +104,7 @@ RSpec.describe "FR-07 NFR-02 SR-16 create_reservation, units held for pickup at 
     first = reserve(quantity: 2)
 
     expect(product.reload.stock).to eq(0)
-    expect(reserve(quantity: 2)).to eq(first)
+    expect(reserve(quantity: 2).except("note")).to eq(first)
   end
 
   it "reserves a second product in the same turn apart" do
