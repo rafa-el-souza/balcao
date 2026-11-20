@@ -39,6 +39,12 @@ RSpec.describe "NFR-08 SR-18 the eval scorecard" do
     expect(markdown).to include("2026-11-13 19:12 UTC", "`b7652c1`", "`claude-opus-5-5`", "medium", "`claude-haiku-5-5`")
   end
 
+  # M2-3b: the judge's preflight takes four known-bad replies, and the judge
+  # reads the system's fixed texts as the system's.
+  it "says how the judge was checked and how it reads a reply" do
+    expect(markdown).to include("which first failed the #{Evals::Judge.known_bad.size} known-bad replies and reads the system's fixed texts as the system's")
+  end
+
   # FR-20: the guardrail checked every reply the model wrote in the run;
   # the scorecard says how many it replaced, and how many it left unchecked.
   it "says what the guardrail did in the run's graded attempts" do

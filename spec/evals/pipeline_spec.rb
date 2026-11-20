@@ -140,6 +140,69 @@ RSpec.describe "NFR-08 SR-18 the eval runner's pipeline" do
     end
   end
 
+  # M2-3b: the judge reads the reply in parts, each with its author, so that
+  # a rubric judges the attendant's own words and never the system's fixed
+  # texts (design §10, M2-3's note: the judge took the system's emergency
+  # line for a method the reply named). The turn names the words the model
+  # wrote (TurnProcessor::REPLY_EVENT); the rest is the system's.
+  describe "the reply's parts, for the judge (NFR-08, FR-09)" do
+    def system(text) = Evals::Part.new(author: :system, text:)
+    def attendant(text) = Evals::Part.new(author: :attendant, text:)
+
+    it "reads the attendant's own words apart from the system's notice before them and its line after them" do
+      responses.replace([ reply("[pt] Ligue agora para o socorro. [emergency]") ])
+
+      run = pipeline.run(kase("meu filho engoliu uns comprimidos"))
+
+      expect(run.observation.parts).to eq([ system(FixedReply.notice("pt-BR")), attendant("Ligue agora para o socorro."),
+                                            system(FixedReply.emergency("pt-BR")) ])
+      expect(run.turns.sole.attendant).to eq("Ligue agora para o socorro.")
+      expect(run.observation.parts.map(&:text).join("\n\n")).to eq(run.observation.reply)
+    end
+
+    it "reads a later reply's words apart from the reservation's line the system put after them" do
+      responses.replace([
+        reply("[pt] Temos Dipirona 500 mg, 10 comprimidos, por R$ 7,90."),
+        tool_turn(tool_use("create_reservation", { product_id: dipirona.id, quantity: 2 })),
+        reply("[pt] Pronto, reservei duas caixas.")
+      ])
+
+      observation = pipeline.run(kase("tem dipirona?", "reserva duas caixas")).observation
+
+      expect(observation.parts.map(&:author)).to eq(%i[attendant system])
+      expect(observation.parts.first.text).to eq("Pronto, reservei duas caixas.")
+      expect(observation.parts.last.text).to match(/\AReserva [A-Z0-9-]+: 2 × Dipirona/)
+    end
+
+    it "reads a reply the system wrote in the model's place, a command's and a deletion's as the system's alone" do
+      responses.replace([ refusal, reply("[pt] Temos, por R$ 7,90.") ])
+
+      refused = pipeline.run(kase("como faço para ...")).observation
+      reset = pipeline.run(kase("tem dipirona?", "/reiniciar")).observation
+      deleted = pipeline.run(kase("apagar meus dados")).observation
+
+      expect(refused.parts).to eq([ system(FixedReply.notice("pt-BR")), system(FixedReply.with_emergency(FixedReply.declined("pt-BR"), "pt-BR")) ])
+      expect(reset.parts).to eq([ system(FixedReply.notice("pt-BR")), system(FixedReply.command(:reset, "pt-BR")) ])
+      expect(deleted.parts).to eq([ system(FixedReply.command(:delete, "pt-BR")) ])
+    end
+
+    # A reply whose authors are unknown is never judged as anyone's: the
+    # attempt is the harness's error (evals/README.md).
+    it "raises for a stored reply its turn named no words of, or one that does not begin with the words it named" do
+      responses.replace([ reply("[pt] Temos, por R$ 7,90.") ] * 2)
+      words = nil
+      allow(ActiveSupport::Notifications).to receive(:instrument).and_wrap_original do |original, name, payload = {}, &block|
+        next original.call(name, payload, &block) unless name == TurnProcessor::REPLY_EVENT
+
+        original.call(name, payload.merge(attendant: words), &block) if words
+      end
+
+      expect { pipeline.run(kase("tem dipirona?")) }.to raise_error(Evals::Pipeline::Unattributed, /named no words/)
+      words = "Temos, por R$ 9,90."
+      expect { pipeline.run(kase("tem dipirona?")) }.to raise_error(Evals::Pipeline::Unattributed, /does not begin/)
+    end
+  end
+
   # FR-20 (README: "Cases run through the full turn pipeline (budget gate,
   # agent runner, guardrail, outbound)"): the guardrail checks each reply,
   # and the run keeps its verdict, its reason, its usage and its time, the

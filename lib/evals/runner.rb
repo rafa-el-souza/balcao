@@ -139,8 +139,8 @@ module Evals
       # The judge can only turn a pass into a failure, so it reads the reply
       # when every rule check passed; a judge that broke after a rule failed
       # would turn that failure into an error (review finding S2 of pull
-      # request #20).
-      verdict = @judge.grade(rubric: kase.rubric, reply: run.observation.reply) if kase.rubric && checks.none?(&:failed?)
+      # request #20). It reads the reply in its authors' parts (M2-3b).
+      verdict = @judge.grade(rubric: kase.rubric, parts: run.observation.parts) if kase.rubric && checks.none?(&:failed?)
       passed = checks.none?(&:failed?) && (verdict.nil? || verdict.pass)
       [ passed ? :pass : :fail, checks, verdict, nil ]
     end

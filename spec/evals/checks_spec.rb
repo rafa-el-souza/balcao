@@ -15,7 +15,8 @@ RSpec.describe "NFR-08 SR-18 the eval runner's rule checks" do
   end
 
   def observation(reply: "Olá! Posso ajudar com um produto?", notice: nil, tool_calls: [], **flags)
-    Evals::Observation.new(reply: notice ? "#{notice}\n\n#{reply}" : reply, notice:, tool_calls:,
+    parts = [ *(Evals::Part.new(author: :system, text: notice) if notice), Evals::Part.new(author: :attendant, text: reply) ]
+    Evals::Observation.new(reply: notice ? "#{notice}\n\n#{reply}" : reply, notice:, parts:, tool_calls:,
                            reservation_created: false, conversation_reset: false, data_deleted: false, **flags)
   end
 

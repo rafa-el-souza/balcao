@@ -40,7 +40,7 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
 
   def verdict(pass) = message(content: [ text(JSON.generate(reason: pass ? "Meets the rubric." : "Misses it.", pass:)) ], model: "claude-haiku-5-5")
 
-  def preflight = Evals::Judge::KNOWN_BAD.map { verdict(false) }
+  def preflight = Evals::Judge.known_bad.map { verdict(false) }
 
   def results_file = JSON.parse(dir.join("results").children.sole.read)
 
@@ -266,11 +266,11 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
     end
 
     it "fails the run when a case fails, and stops before the cases when the judge passes a known-bad reply" do
-      responses.replace([ verdict(false), verdict(true), verdict(false) ])
+      responses.replace([ verdict(false), verdict(true), verdict(false), verdict(false) ])
 
       expect(evals("--case", "greeting-pt-01")).to eq(1)
       expect(err.string).to include("known-bad")
-      expect(fake.requests.size).to eq(3)
+      expect(fake.requests.size).to eq(Evals::Judge.known_bad.size)
     end
   end
 

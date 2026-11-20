@@ -9,7 +9,10 @@ require_relative "case_set"
 # app stored and sent: the reply (a deletion's confirmation from the stream,
 # since no conversation is left to store it in), each turn's spans (FR-12),
 # FR-20's check of the reply with the reason the check gave (Guardrail::EVENT,
-# since the trace never keeps it), and the visitor's rows.
+# since the trace never keeps it), and the visitor's rows. The reply is also
+# read in its authors' parts, which the judge reads: the words the model
+# wrote, as its turn names them (TurnProcessor::REPLY_EVENT), and the
+# system's texts around them or in their place (design §10, M2-3b).
 #
 # The attempt runs in the test environment (bin/evals), inside one
 # transaction rolled back at its end: it starts with no visitor, the
@@ -32,9 +35,12 @@ module Evals
     # a command's turn, "deleted" for a deletion, or "none" when no reply came.
     # guardrail is FR-20's check of the reply, nil for a turn it did not read.
     # mode is the budget's mode the turn ran in, nil for a turn that read
-    # none (a command).
-    TurnRecord = Data.define(:message, :reply, :notice, :outcome, :error_type, :latency_ms, :model_calls, :tool_calls, :guardrail, :mode) do
-      def initialize(guardrail: nil, mode: nil, **) = super
+    # none (a command). attendant is the words of the reply the model wrote,
+    # which it begins with after the notice, nil when it holds none (a
+    # command's reply, a decline or a fallback in the model's place).
+    TurnRecord = Data.define(:message, :reply, :notice, :outcome, :error_type, :latency_ms, :model_calls, :tool_calls, :guardrail, :mode,
+                             :attendant) do
+      def initialize(guardrail: nil, mode: nil, attendant: nil, **) = super
     end
     # FR-20's check of a turn's reply, as its span recorded it (TurnTrace),
     # with the reason the check gave, which only the run hears
@@ -47,6 +53,11 @@ module Evals
     ModelCall = Data.define(:model, :stop_reason, :input_tokens, :output_tokens, :cache_read_tokens, :cache_write_tokens,
                             :iterations, :latency_ms, :error_type)
     Run = Data.define(:turns, :observation)
+
+    # A stored reply whose authors the run cannot tell: its turn named no
+    # words of it, or words it does not begin with. The judge never reads
+    # such a reply as anyone's; the attempt is the harness's error.
+    class Unattributed < StandardError; end
 
     attr_reader :mode
 
@@ -102,16 +113,20 @@ module Evals
       stream = "conversation:#{turn.conversation_id}"
       sent = []
       verdicts = []
+      named = []
       collect = ->(*args) { sent << args.last[:message] if args.last[:broadcasting] == stream }
       checked = ->(*args) { verdicts << args.last[:verdict] }
-      ActiveSupport::Notifications.subscribed(checked, Guardrail::EVENT) do
-        ActiveSupport::Notifications.subscribed(collect, "broadcast.action_cable") { ProcessTurnJob.perform_now(turn.id) }
+      authored = ->(*args) { named << args.last }
+      ActiveSupport::Notifications.subscribed(authored, TurnProcessor::REPLY_EVENT) do
+        ActiveSupport::Notifications.subscribed(checked, Guardrail::EVENT) do
+          ActiveSupport::Notifications.subscribed(collect, "broadcast.action_cable") { ProcessTurnJob.perform_now(turn.id) }
+        end
       end
       clear_enqueued_jobs
-      [ record(turn, text, sent, verdicts.last), turn.conversation_id, visitor ]
+      [ record(turn, text, sent, verdicts.last, named), turn.conversation_id, visitor ]
     end
 
-    def record(turn, text, sent, verdict = nil)
+    def record(turn, text, sent, verdict = nil, named = [])
       reply = Message.find_by(turn_id: turn.id)&.trace_payload
       deleted = sent.reverse.find { |payload| payload[:type] == "deleted" }
       # In the order they were written (the ids are uuidv7): a model call's
@@ -126,8 +141,36 @@ module Evals
         model_calls: spans.select { |span| span.name == TurnTrace::MODEL_CALL }.map { |span| model_call(span.span_attributes) },
         tool_calls: spans.select { |span| span.name.start_with?("#{TurnTrace::TOOL_CALL} ") }.map { |span| tool_call(span.span_attributes) },
         guardrail: guardrail(spans.reverse.find { |span| span.name == TurnTrace::GUARDRAIL }, verdict),
-        mode: root&.span_attributes&.dig("balcao.turn.mode")
+        mode: root&.span_attributes&.dig("balcao.turn.mode"), attendant: attendant_of(turn, reply, named)
       )
+    end
+
+    # The model's words of the turn's stored reply, as the turn named them
+    # (TurnProcessor::REPLY_EVENT), its last naming if a run was repeated; nil
+    # for a reply the system wrote in the model's place, or for no reply.
+    def attendant_of(turn, reply, named)
+      return unless reply
+
+      naming = named.reverse.find { |event| event[:turn_id] == turn.id }
+      raise Unattributed, "turn #{turn.id}'s stored reply named no words as the model's or the system's" unless naming
+
+      words = naming[:attendant]
+      raise Unattributed, "turn #{turn.id}'s stored reply does not begin with the words its turn named" if words && !reply[:body].start_with?(words)
+
+      words
+    end
+
+    # The reply in its authors' parts, in the order the visitor read them:
+    # the notice, the model's words, and the system's lines after them; a
+    # reply with no words of the model's (a decline or a fallback in their
+    # place, a command's, a deletion's) is the system's whole.
+    def parts_of(record)
+      return [] unless record.reply
+
+      body = record.notice ? record.reply.delete_prefix(record.notice).delete_prefix("\n\n") : record.reply
+      rest = record.attendant ? body.delete_prefix(record.attendant).delete_prefix("\n\n") : body
+      [ (Part.new(author: :system, text: record.notice) if record.notice), (Part.new(author: :attendant, text: record.attendant) if record.attendant),
+        (Part.new(author: :system, text: rest) if rest.present?) ].compact
     end
 
     # The last check of the turn's spans, the reason from the check itself.
@@ -178,7 +221,7 @@ module Evals
     # identity (FR-05); and the replies to the earlier messages.
     def observe(identity_hash, last, conversation_id, visitor, earlier:)
       Observation.new(
-        reply: last.reply, notice: last.notice, tool_calls: last.tool_calls, earlier:,
+        reply: last.reply, notice: last.notice, parts: parts_of(last), tool_calls: last.tool_calls, earlier:,
         guardrail_replaced: last.outcome == "replaced", guardrail_reason: last.guardrail&.reason,
         reservation_created: Reservation.exists?(visitor_id: visitor.id),
         conversation_reset: Conversation.where(id: conversation_id).where.not(closed_at: nil).exists? &&

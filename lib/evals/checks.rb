@@ -22,15 +22,22 @@ module Evals
     def initialize(name:, input:, output: nil, refusal: nil, failed: false) = super
   end
 
+  # A part of a reply as the visitor read it, with who wrote it: :attendant
+  # for the model's own words, :system for a text the system adds (the demo
+  # notice, a fixed line after the words, a fixed text in their place). The
+  # judge reads each as its author's (Evals::Judge; design §10, M2-3b).
+  Part = Data.define(:author, :text)
+
   # What the case's last message got. reply is what the visitor reads, notice
-  # included when the system put one first; tool_calls are the turn's, in the
+  # included when the system put one first, and parts is the same reply in
+  # its authors' parts, in order (Part); tool_calls are the turn's, in the
   # order they ran; earlier are the replies to the case's earlier messages,
   # in order, as the visitor read them; guardrail_replaced says whether FR-20's
   # check replaced the reply, and guardrail_reason is the check's own reason,
   # if it gave one.
-  Observation = Data.define(:reply, :notice, :tool_calls, :reservation_created, :conversation_reset, :data_deleted, :earlier,
+  Observation = Data.define(:reply, :notice, :parts, :tool_calls, :reservation_created, :conversation_reset, :data_deleted, :earlier,
                             :guardrail_replaced, :guardrail_reason) do
-    def initialize(reply:, notice:, tool_calls:, reservation_created:, conversation_reset:, data_deleted:, earlier: [],
+    def initialize(reply:, notice:, parts:, tool_calls:, reservation_created:, conversation_reset:, data_deleted:, earlier: [],
                    guardrail_replaced: false, guardrail_reason: nil) = super
 
     # The reply without the notice: what the attendant and the fixed lines wrote.

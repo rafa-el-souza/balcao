@@ -199,7 +199,7 @@ module Evals
     def run_on(report, judge, selected, route, repeat:, first:)
       if first && selected.any?(&:rubric)
         report.preflight = preflight(judge)
-        @out.puts("judge: failed the #{Judge::KNOWN_BAD.size} known-bad replies, as it must")
+        @out.puts("judge: failed the #{Judge.known_bad.size} known-bad replies, as it must")
       end
       runner = Runner.new(pipeline: Pipeline.new(mode: route.mode), checks: Checks.new(phrases:), judge:, route:, repeat:, pause: @pause)
       runner.call(selected) do |result|
