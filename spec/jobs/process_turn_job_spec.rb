@@ -182,8 +182,24 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
 
       events = named { perform(turn) }
 
-      expect(events).to eq([ { turn_id: turn.id, attendant: "Ligue agora para o socorro." } ])
+      expect(events).to eq([ { turn_id: turn.id, attendant: "Ligue agora para o socorro.", before_tools: [] } ])
       expect(turn.outbound_message.body).to eq(FixedReply.with_notice(FixedReply.with_emergency("Ligue agora para o socorro.", "pt-BR"), "pt-BR"))
+    end
+
+    # The close of M2-11a2's XC-1 (the owner, 2026-11-20, M2-11a3): the
+    # model's notes to itself before a tool call reached visitors; the turn
+    # names, for the evals, what of the reply was written before a tool call.
+    it "names the words the model wrote before a tool call, which the reply still carries" do
+      create(:product, name: "Dipirona 500 mg", active_ingredient: "dipirona", stock: 12)
+      responses.replace([ message(content: [ thinking, text("[pt] Preciso buscar o produto primeiro."), tool_use("search_products", { query: "dipirona" }) ],
+                                  stop_reason: :tool_use),
+                          reply("[pt] Temos Dipirona 500 mg.") ])
+      turn = inbound("tem dipirona?")
+
+      events = named { perform(turn) }
+
+      expect(events).to eq([ { turn_id: turn.id, attendant: "Preciso buscar o produto primeiro.\n\nTemos Dipirona 500 mg.",
+                               before_tools: [ "Preciso buscar o produto primeiro." ] } ])
     end
 
     it "names none for a reply the system wrote in the model's place: a refusal's, a tag's alone, a replaced one, a command's" do
@@ -193,7 +209,7 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
 
       events = named { turns.each { |turn| perform(turn) } }
 
-      expect(events).to eq(turns.map { |turn| { turn_id: turn.id, attendant: nil } })
+      expect(events).to eq(turns.map { |turn| { turn_id: turn.id, attendant: nil, before_tools: [] } })
       expect(turns.map { |turn| turn.reload.outbound_message.present? }).to all(be(true))
     end
   end

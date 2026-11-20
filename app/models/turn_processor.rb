@@ -70,9 +70,13 @@ class TurnProcessor
   # (FixedReply), or a fixed text in their place. Each reply this class
   # stores names, to whoever listens in the process, the words of it the
   # model wrote, which it begins with after any notice (attendant: nil when
-  # it holds none). The app has no subscriber; the eval runner's judge reads
-  # the system's texts as the system's (lib/evals/pipeline.rb; design §10,
-  # M2-3b), since it took the emergency line for the attendant's words.
+  # it holds none), and those of them it wrote before a tool call
+  # (before_tools: empty when none). The app has no subscriber; the eval
+  # runner's judge reads the system's texts as the system's
+  # (lib/evals/pipeline.rb; design §10, M2-3b), since it took the emergency
+  # line for the attendant's words, and the evals fail words written before
+  # a tool call, which the prompt asks the model never to write (the close
+  # of M2-11a2's XC-1).
   REPLY_EVENT = "reply.turn".freeze
 
   # The attempt of the job that runs the turn (ProcessTurnJob), and the turn
@@ -369,7 +373,8 @@ class TurnProcessor
 
     text, state = reply_of(result)
     wrote = result.outcome == :replied
-    finish(result.outcome, state, text, error: result.error, own: (result.text if wrote), written: (result.written if wrote))
+    finish(result.outcome, state, text, error: result.error, own: (result.text if wrote), written: (result.written if wrote),
+                                        before_tools: (result.before_tools if wrote))
   end
 
   # FR-20: the text the model wrote passes the guardrail's check before it is
@@ -535,18 +540,18 @@ class TurnProcessor
     Reservation.held_by(@conversation.visitor).includes(:product).order(:created_at, :id).to_a
   end
 
-  # own is the model's words the text begins with, nil when it holds none
-  # (REPLY_EVENT); written, the reply as the model wrote it, and kind, what
-  # the later turns' history gives back of the turn (Turn::REPLY_KINDS):
-  # model for a reply the model wrote, else the fixed text sent in its
-  # place.
-  def finish(outcome, state, text, error: nil, own: nil, written: nil, kind: nil)
+  # own is the model's words the text begins with, nil when it holds none,
+  # and before_tools those of them written before a tool call (REPLY_EVENT);
+  # written, the reply as the model wrote it, and kind, what the later
+  # turns' history gives back of the turn (Turn::REPLY_KINDS): model for a
+  # reply the model wrote, else the fixed text sent in its place.
+  def finish(outcome, state, text, error: nil, own: nil, written: nil, kind: nil, before_tools: nil)
     raise ArgumentError, "#{outcome} is not in TurnProcessor::OUTCOMES" unless OUTCOMES.include?(outcome.to_s)
 
     kind ||= outcome.to_s == "replied" ? "model" : IN_PLACE.fetch(outcome.to_s)
     outbound = @recorder.start_span("balcao.outbound", parent: @root, attributes: { "balcao.message.author" => "bot" })
     message = replied(state, @root, kind:, written:) do
-      record_reply(text, conversation: @conversation, language: @conversation.language, own:)
+      record_reply(text, conversation: @conversation, language: @conversation.language, own:, before_tools:)
     end
     broadcast_reply(message)
     outbound.finish(attributes: { "balcao.message.characters" => message.body.length })
@@ -608,10 +613,10 @@ class TurnProcessor
   # stored, to the page's stream.
   def delivery(parent) = (@recorder.start_delivery(parent) if @inbound.channel == "telegram")
 
-  def record_reply(text, conversation:, language:, own: nil)
+  def record_reply(text, conversation:, language:, own: nil, before_tools: nil)
     body = conversation.messages.outbound.exists? ? text : FixedReply.with_notice(text, language)
     Message.record_outbound!(turn: @turn, body:, conversation:).tap do
-      ActiveSupport::Notifications.instrument(REPLY_EVENT, turn_id: @turn.id, attendant: own.presence)
+      ActiveSupport::Notifications.instrument(REPLY_EVENT, turn_id: @turn.id, attendant: own.presence, before_tools: Array(before_tools))
     end
   end
 

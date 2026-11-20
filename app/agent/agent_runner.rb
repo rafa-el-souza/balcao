@@ -57,13 +57,15 @@ class AgentRunner
   # (Run#reply; History). exchange is the turn's tool calls and their
   # results, step by step, as plain JSON in the API's own shape: an assistant
   # message of tool_use blocks, then a user message of their tool_result
-  # blocks (Run#exchange).
+  # blocks (Run#exchange). before_tools is the text the model wrote in a step
+  # that called a tool, as the visitor reads it, which the prompt asks it
+  # never to write and the evals fail (Run#reply).
   OUTCOMES = %i[replied refused incomplete tool_limit deadline model_error].freeze
   Result = Data.define(:outcome, :text, :language, :offer, :emergency, :written, :model_calls, :tool_calls, :error,
-                       :exchange) do
+                       :exchange, :before_tools) do
     # The glass box words each outcome (TurnProcessor::OUTCOMES), so an
     # unlisted one never reaches it.
-    def initialize(outcome:, offer: false, emergency: false, written: nil, exchange: [], **)
+    def initialize(outcome:, offer: false, emergency: false, written: nil, exchange: [], before_tools: [], **)
       raise ArgumentError, "#{outcome.inspect} is not an outcome of AgentRunner::OUTCOMES" unless OUTCOMES.include?(outcome)
 
       super
@@ -228,23 +230,35 @@ class AgentRunner
     # request #27). The reply as written puts the tags where the prompt asks
     # for them, the language's first and the lines' last, each once, around
     # the words the visitor reads (the owner, 2026-11-20: "(d) Só o que o
-    # modelo escreveu").
+    # modelo escreveu"). The words of a step that called a tool are named
+    # apart too, as the visitor reads them: the model's notes to itself
+    # before a call ("Need search first.") reached visitors, which the prompt
+    # now asks it never to write and the evals fail (the close of M2-11a2's
+    # XC-1, the owner, 2026-11-20).
     def reply
-      blocks = @messages.flat_map { |message| message.content.select { |block| block.type == :text }.map(&:text) }
+      steps = @messages.map { |message| [ message.content.select { |block| block.type == :text }.map(&:text), tools?(message) ] }
+      blocks = steps.flat_map(&:first)
       lines = blocks.flat_map { |block| block.scan(LINE_TAG).flatten.map(&:downcase) }
       blocks = blocks.map { |block| block.gsub(LINE_TAG, "") }
       tag = blocks.filter_map { |block| block[LANGUAGE_TAG, 1] }.first&.downcase
-      text = blocks.map { |block| block.sub(LANGUAGE_TAG, "").strip }.reject(&:empty?).join("\n\n")
+      text = blocks.map { |block| words(block) }.reject(&:empty?).join("\n\n")
       return result(:incomplete) if text.empty? && lines.empty?
 
       offer, emergency = lines.include?("pharmacist"), lines.include?("emergency")
       written = [ ("[#{tag}]" if tag), text.presence, ("[pharmacist]" if offer), ("[emergency]" if emergency) ].compact.join(" ")
-      result(:replied, text:, language: LANGUAGES[tag], offer:, emergency:, written:)
+      before_tools = steps.select(&:last).flat_map(&:first).map { |block| words(block.gsub(LINE_TAG, "")) }.reject(&:empty?)
+      result(:replied, text:, language: LANGUAGES[tag], offer:, emergency:, written:, before_tools:)
     end
 
-    def result(outcome, text: nil, language: nil, error: nil, offer: false, emergency: false, written: nil)
+    # A block's words as the visitor reads them: no language tag, no spaces
+    # around.
+    def words(block) = block.sub(LANGUAGE_TAG, "").strip
+
+    def tools?(message) = message.content.any? { |block| block.type == :tool_use }
+
+    def result(outcome, text: nil, language: nil, error: nil, offer: false, emergency: false, written: nil, before_tools: [])
       Result.new(outcome:, text:, language:, offer:, emergency:, written:, model_calls: @model_calls, tool_calls: @tool_calls,
-                 error:, exchange:)
+                 error:, exchange:, before_tools:)
     end
 
     # The turn's tool calls and their results, step by step, as the model read

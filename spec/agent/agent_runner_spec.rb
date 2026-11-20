@@ -530,6 +530,22 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
         expect(runner.run(turn)).to have_attributes(outcome: :replied, text: "Déjame ver.\n\nSí, hacemos entregas.",
                                                     language: "es")
       end
+
+      # The close of M2-11a2's XC-1 (the owner, 2026-11-20, M2-11a3): the
+      # model's notes to itself before a tool call reached visitors, so the
+      # result names what was written before a call, as the visitor reads
+      # it, for the evals to fail; the reply keeps it all the same.
+      it "names the words written before a tool call, as the visitor reads them" do
+        expect(runner.run(turn).before_tools).to eq([ "Déjame ver." ])
+      end
+    end
+
+    context "when the model writes only after its tool calls" do
+      let(:responses) { [ tool_turn(tool_use("echo", { "text" => "x" })), reply("[es] Sí, hacemos entregas.") ] }
+
+      it "names no words before a tool call" do
+        expect(runner.run(turn)).to have_attributes(text: "Sí, hacemos entregas.", before_tools: [])
+      end
     end
 
     context "when a later step repeats the tag" do

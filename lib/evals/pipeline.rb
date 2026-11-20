@@ -38,9 +38,11 @@ module Evals
     # none (a command). attendant is the words of the reply the model wrote,
     # which it begins with after the notice, nil when it holds none (a
     # command's reply, a decline or a fallback in the model's place).
+    # before_tools is what of those words the model wrote before a tool call,
+    # as the turn named them (the close of M2-11a2's XC-1).
     TurnRecord = Data.define(:message, :reply, :notice, :outcome, :error_type, :latency_ms, :model_calls, :tool_calls, :guardrail, :mode,
-                             :attendant) do
-      def initialize(guardrail: nil, mode: nil, attendant: nil, **) = super
+                             :attendant, :before_tools) do
+      def initialize(guardrail: nil, mode: nil, attendant: nil, before_tools: [], **) = super
     end
     # FR-20's check of a turn's reply, as its span recorded it (TurnTrace),
     # with the reason the check gave, which only the run hears
@@ -142,7 +144,8 @@ module Evals
         model_calls: spans.select { |span| span.name == TurnTrace::MODEL_CALL }.map { |span| model_call(span.span_attributes) },
         tool_calls: spans.select { |span| span.name.start_with?("#{TurnTrace::TOOL_CALL} ") }.map { |span| tool_call(span.span_attributes) },
         guardrail: guardrail(spans.reverse.find { |span| span.name == TurnTrace::GUARDRAIL }, verdict),
-        mode: root&.span_attributes&.dig("balcao.turn.mode"), attendant: attendant_of(turn, reply, named)
+        mode: root&.span_attributes&.dig("balcao.turn.mode"), attendant: attendant_of(turn, reply, named),
+        before_tools: (reply && named.reverse.find { |event| event[:turn_id] == turn.id }&.dig(:before_tools)) || []
       )
     end
 
@@ -227,6 +230,7 @@ module Evals
       last = turns.last
       Observation.new(
         reply: last.reply, notice: last.notice, parts: parts_of(last), tool_calls: last.tool_calls, earlier: turns[...-1].map(&:reply),
+        before_tools: turns.flat_map(&:before_tools),
         guardrail_replaced: turns.any? { |turn| turn.outcome == "replaced" }, guardrail_reason: guardrail_reason(turns),
         reservation_created: Reservation.exists?(visitor_id: visitor.id),
         conversation_reset: Conversation.where(id: conversation_id).where.not(closed_at: nil).exists? &&

@@ -53,6 +53,23 @@ RSpec.describe "NFR-08 SR-18 the eval runner's pipeline" do
     expect(observation.reservation_created).to be(true)
   end
 
+  # The close of M2-11a2's XC-1 (the owner, 2026-11-20, M2-11a3): the model's
+  # notes to itself before a tool call reached visitors, and the evals passed
+  # them; each turn keeps what the model wrote before a tool call, and the
+  # observation every turn's.
+  it "keeps the words each turn's model wrote before a tool call, the earlier turns' too" do
+    responses.replace([
+      message(content: [ thinking, text("[pt] Need search first."), tool_use("search_products", { query: "dipirona" }) ], stop_reason: :tool_use),
+      reply("[pt] Temos Dipirona 500 mg, 10 comprimidos, por R$ 7,90."),
+      reply("[pt] De nada!")
+    ])
+
+    run = pipeline.run(kase("tem dipirona?", "obrigado"))
+
+    expect(run.turns.map(&:before_tools)).to eq([ [ "Need search first." ], [] ])
+    expect(run.observation.before_tools).to eq([ "Need search first." ])
+  end
+
   it "keeps each turn's model calls and tool calls, with their usage, for the results file" do
     responses.replace([ tool_turn(tool_use("search_products", { query: "dipirona" })), reply("[pt] Temos, por R$ 7,90.") ])
 
