@@ -450,9 +450,12 @@ export function formatDuration(ms: number, i18n: I18n): string {
 }
 
 // A sum of money's figure as the drawings write it, in the page's locale:
-// dollars to three decimals and reais to two, one more where a small figure
-// would round to nothing (docs/prototype/chat.html). The currency's symbol
-// around it is the locale files' (instrument.money; NFR-09).
+// dollars to three decimals and reais to two (docs/prototype/chat.html). A
+// figure above zero but below the last decimal keeps one significant digit,
+// as many decimals as that takes, since a call on the economy model can cost
+// a few hundred-thousandths of a dollar and no cost is drawn as a zero
+// (review finding C5 of pull request #29). The currency's symbol around it is
+// the locale files' (instrument.money; NFR-09).
 const DIGITS = { usd: 3, brl: 2 } as const;
 
 export function formatMoney(
@@ -461,10 +464,13 @@ export function formatMoney(
   locale: string,
 ): string {
   const digits = DIGITS[currency];
-  const fraction = value > 0 && value < 10 ** -digits ? digits + 1 : digits;
+  if (value > 0 && value < 10 ** -digits)
+    return new Intl.NumberFormat(locale, {
+      maximumSignificantDigits: 1,
+    }).format(value);
   return new Intl.NumberFormat(locale, {
-    minimumFractionDigits: fraction,
-    maximumFractionDigits: fraction,
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
   }).format(value);
 }
 
