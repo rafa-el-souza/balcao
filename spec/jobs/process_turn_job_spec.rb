@@ -209,9 +209,25 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
 
       perform(turn)
 
-      expect(turn.outbound_message.attendant_characters).to eq("Ligue agora para o socorro.".length)
+      expect(turn.outbound_message).to have_attributes(attendant_start: "#{FixedReply.notice("pt-BR")}\n\n".length,
+                                                       attendant_characters: "Ligue agora para o socorro.".length)
       expect(turn.outbound_message.authored).to have_attributes(attendant: "Ligue agora para o socorro.",
                                                                 system: FixedReply.emergency("pt-BR"))
+    end
+
+    # Review finding H-B2 of pull request #60: where the model's words begin
+    # is kept, so the split holds when the purge takes the first reply.
+    it "keeps where the model's words begin: after the notice in a conversation's first reply, at the start in a later one" do
+      responses.replace([ reply("[pt] Olá!"), reply("[pt] Temos. [pharmacist]") ])
+      first = inbound("oi")
+      perform(first)
+      later = inbound("tem dipirona?")
+
+      perform(later)
+
+      expect(later.outbound_message).to have_attributes(attendant_start: 0, attendant_characters: 6)
+      first.inbound_message.destroy!
+      expect(later.outbound_message.reload.authored).to have_attributes(attendant: "Temos.", system: FixedReply.offer("pt-BR"))
     end
 
     it "keeps none of the model's for a reply the system wrote in its place: a refusal's, a tag's alone, a replaced one, a command's" do

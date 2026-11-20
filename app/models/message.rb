@@ -106,18 +106,20 @@ class Message < ApplicationRecord
 
   # A reply in its authors' parts, for the history the model reads back
   # (AgentRunner::History; design §10, M2-11a): attendant, the words the
-  # model wrote, which the reply begins with after any notice, and system,
-  # the system's text after them or in their place, each nil when there is
-  # none. TurnProcessor keeps the length of the model's words with the reply
-  # (attendant_characters), so a fixed line a later slice adds is the
-  # system's with no list of the fixed texts to keep. A reply stored before
-  # that length was kept is the model's whole, as the history read it then.
+  # model wrote, and system, the system's text after them or in their place,
+  # each nil when there is none; the notice before a conversation's first
+  # reply is neither. TurnProcessor keeps where the model's words begin and
+  # how long they are with the reply (attendant_start, attendant_characters),
+  # so a fixed line a later slice adds is the system's with no list of the
+  # fixed texts to keep, and the split holds whatever reply the purge left
+  # first (review finding H-B2 of pull request #60). A reply stored before
+  # they were kept is read by its text (legacy_authored).
   Authored = Data.define(:attendant, :system)
 
   def authored(first_reply: first_reply?)
-    text = body_without_notice(first_reply:)
-    return legacy_authored(text) if attendant_characters.nil?
+    return legacy_authored(body_without_notice(first_reply:)) if attendant_start.nil? || attendant_characters.nil?
 
+    text = body[attendant_start..].to_s
     Authored.new(attendant: text[0, attendant_characters].presence,
                  system: text[attendant_characters..].to_s.delete_prefix("\n\n").presence)
   end
@@ -161,13 +163,14 @@ class Message < ApplicationRecord
   # Stores the one reply of a turn, in the turn's conversation or in the one
   # given: a reset's confirmation opens the conversation it starts (FR-04). A
   # retried job meets the unique index and gets the reply already stored, so
-  # it neither stores nor sends a second one (NFR-02). attendant_characters
-  # is the length of the words the model wrote, which the body begins with
-  # after any notice, 0 for a text the system wrote in their place (authored).
-  def self.record_outbound!(turn:, body:, author: "bot", conversation: nil, attendant_characters: nil)
+  # it neither stores nor sends a second one (NFR-02). attendant_start is
+  # where the words the model wrote begin in the body, after any notice, and
+  # attendant_characters their length, 0 for a text the system wrote in their
+  # place (authored).
+  def self.record_outbound!(turn:, body:, author: "bot", conversation: nil, attendant_start: nil, attendant_characters: nil)
     create_or_find_by!(turn_id: turn.id) do |message|
       message.assign_attributes(conversation_id: conversation&.id || turn.conversation_id, direction: "outbound",
-                                author:, source: "text", body:, status: "pending", attendant_characters:)
+                                author:, source: "text", body:, status: "pending", attendant_start:, attendant_characters:)
     end
   end
 end

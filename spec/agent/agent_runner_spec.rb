@@ -175,11 +175,15 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
     # before an assistant's or last, so it comes after the visitor's next
     # message and names the message it followed by its time.
     describe "the system's texts, in system messages" do
-      def replied(text, at:, reply:, own:)
+      # start is where the model's words begin: after the notice of the
+      # conversation's first reply, else at the body's start.
+      def replied(text, at:, reply:, own:, start: reply.start_with?("#{FixedReply.notice("pt-BR")}\n\n") ? notice : 0)
         turn_in(conversation, text, at:).tap do |turn|
-          travel_to(at + 5.seconds) { Message.record_outbound!(turn:, body: reply, attendant_characters: own) }
+          travel_to(at + 5.seconds) { Message.record_outbound!(turn:, body: reply, attendant_start: start, attendant_characters: own) }
         end
       end
+
+      def notice(locale = "pt-BR") = "#{FixedReply.notice(locale)}\n\n".length
 
       def sent(minute) = { type: "text", text: "Sent Wednesday, 2026-11-11 15:0#{minute} (São Paulo time)" }
 
@@ -249,6 +253,25 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
         expect(request.body[:messages].last).to eq(role: "system", content: after(0, line))
       end
 
+      # Review finding H-B2 of pull request #60 (cliente, the verifier's): a
+      # conversation kept open by a visitor who writes every day outlives the
+      # purge of its first reply, and the oldest reply left was read as the
+      # first, its first paragraph dropped as the notice, so the model's
+      # words became the offer's first letters. A reply keeps where the
+      # model's words begin.
+      it "splits a reply by where the model's words begin, whatever reply the purge left first" do
+        first = replied("oi", at: Time.zone.local(2026, 11, 11, 15, 0), reply: FixedReply.with_notice("Olá!", "pt-BR"), own: 4)
+        offer = FixedReply.offer("pt-BR")
+        replied("tem dipirona?", at: Time.zone.local(2026, 11, 11, 15, 1), reply: "Temos.\n\n#{offer}", own: 6)
+        first.inbound_message.destroy!
+        current = turn_in(conversation, "e entrega?", at: Time.zone.local(2026, 11, 11, 15, 2))
+
+        runner.run(current)
+
+        expect(request.body[:messages][1]).to eq(role: "assistant", content: [ { type: "text", text: "Temos." } ])
+        expect(request.body[:messages].last).to eq(role: "system", content: after(1, offer))
+      end
+
       it "reads a reply stored before the model's share was kept as the model's, as before, when it holds no system's line" do
         turn_in(conversation, "tem dipirona?", at: Time.zone.local(2026, 11, 11, 15, 0),
                                                reply: FixedReply.with_notice("Temos.\n\nUma linha.", "pt-BR"))
@@ -299,7 +322,7 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
       it "gives back an earlier turn's tool calls and their results, between its message and its reply" do
         earlier = turn_in(conversation, "tem dipirona?", at: Time.zone.local(2026, 11, 11, 15, 0))
         earlier.update!(tool_exchange: exchange)
-        travel_to(Time.zone.local(2026, 11, 11, 15, 0, 5)) { Message.record_outbound!(turn: earlier, body: "Temos.", attendant_characters: 6) }
+        travel_to(Time.zone.local(2026, 11, 11, 15, 0, 5)) { Message.record_outbound!(turn: earlier, body: "Temos.", attendant_start: 0, attendant_characters: 6) }
         current = turn_in(conversation, "reserva uma", at: Time.zone.local(2026, 11, 11, 15, 1))
 
         runner.run(current)
@@ -316,7 +339,9 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
       it "keeps the results first in their user message, the system's text in the model's place after it, in a system message" do
         earlier = turn_in(conversation, "tem dipirona?", at: Time.zone.local(2026, 11, 11, 15, 0))
         earlier.update!(tool_exchange: exchange)
-        travel_to(Time.zone.local(2026, 11, 11, 15, 0, 5)) { Message.record_outbound!(turn: earlier, body: FixedReply.fallback("pt-BR"), attendant_characters: 0) }
+        travel_to(Time.zone.local(2026, 11, 11, 15, 0, 5)) do
+          Message.record_outbound!(turn: earlier, body: FixedReply.fallback("pt-BR"), attendant_start: 0, attendant_characters: 0)
+        end
         current = turn_in(conversation, "e agora?", at: Time.zone.local(2026, 11, 11, 15, 1))
 
         runner.run(current)

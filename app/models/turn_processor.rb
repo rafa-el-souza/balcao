@@ -560,12 +560,16 @@ class TurnProcessor
   # stored, to the page's stream.
   def delivery(parent) = (@recorder.start_delivery(parent) if @inbound.channel == "telegram")
 
-  # The reply keeps the length of the model's words it begins with after any
-  # notice, 0 when it holds none, so the history marks the system's text as
-  # the system's (Message#authored); a NUL the body loses is not counted.
+  # The reply keeps where the model's words begin, after the notice of a
+  # conversation's first reply, and their length, 0 when it holds none, so
+  # the history marks the system's text as the system's (Message#authored); a
+  # NUL the body loses is not counted.
   def record_reply(text, conversation:, language:, own: nil)
-    body = conversation.messages.outbound.exists? ? text : FixedReply.with_notice(text, language)
-    Message.record_outbound!(turn: @turn, body:, conversation:, attendant_characters: own.to_s.delete("\u0000").length).tap do
+    first = !conversation.messages.outbound.exists?
+    body = first ? FixedReply.with_notice(text, language) : text
+    start = first ? body.length - text.length : 0
+    Message.record_outbound!(turn: @turn, body:, conversation:, attendant_start: start,
+                             attendant_characters: own.to_s.delete("\u0000").length).tap do
       ActiveSupport::Notifications.instrument(REPLY_EVENT, turn_id: @turn.id, attendant: own.presence)
     end
   end
