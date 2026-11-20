@@ -20,7 +20,7 @@ RSpec.describe "FR-19 FR-12 Telegram::Outbound, a reply's way in the trace when 
   before { allow(Rails.logger).to receive(:error) { |line| lines << line } }
 
   after do
-    ActiveRecord::Base.connection.execute("ALTER TABLE conversations DROP COLUMN IF EXISTS migration_probe")
+    ActiveRecord::Base.connection.execute("ALTER TABLE conversations ALTER COLUMN language TYPE character varying")
     Visitor.where(id: visitor.id).delete_all
     # No later spec meets a statement this file's migration made stale.
     ActiveRecord::Base.connection_pool.disconnect!
@@ -95,19 +95,22 @@ RSpec.describe "FR-19 FR-12 Telegram::Outbound, a reply's way in the trace when 
 
   # The verifier's V3 on pull request #52: Kamal runs a deploy's migration in
   # the new web container while the old job container still sends replies.
-  # A column added to the conversations makes the old connections' prepared
-  # `SELECT *` of them stale, and Active Record prepares it again only outside
-  # a transaction, so the turn's conversation, read for the trace inside the
-  # transaction of the reply's status, failed at every delivery of that
-  # worker, each leaving the reply's way open until the old container stopped.
-  it "closes the way of a reply sent after a migration added a column to the conversations" do
+  # A column added to the conversations, or one whose type changes, makes the
+  # old connections' prepared `SELECT *` of them stale, and Active Record
+  # prepares it again only outside a transaction, so the turn's conversation,
+  # read for the trace inside the transaction of the reply's status, failed at
+  # every delivery of that worker, each leaving the reply's way open until the
+  # old container stopped. The type changes here and back after: a column
+  # added and dropped would stay in PostgreSQL's catalogue, one more at every
+  # run, toward its limit of 1,600 (the fix review's R2 on #52).
+  it "closes the way of a reply sent after a migration changed the conversations' columns" do
     first = reply("Primeira.")
     # The second waits for its time while the first leaves, stored before the migration.
     second = reply("Segunda.").tap { |message| message.update_columns(next_attempt_at: 1.minute.from_now) }
     outbound.deliver_pending(visitor)
     expect([ first.reload.status, delivery_of(first).finished_at ]).to match([ "sent", be_present ])
 
-    ActiveRecord::Base.connection.execute("ALTER TABLE conversations ADD COLUMN migration_probe integer")
+    ActiveRecord::Base.connection.execute("ALTER TABLE conversations ALTER COLUMN language TYPE text")
     second.update_columns(next_attempt_at: nil)
     outbound.deliver_pending(visitor)
 
