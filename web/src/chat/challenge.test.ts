@@ -184,6 +184,28 @@ describe("SR-39 FR-18 the challenge", () => {
     expect(element).not.toHaveAttribute("data-asking");
   });
 
+  // Review finding C7 of pull request #53: a script that cannot start the
+  // next challenge leaves nobody waiting.
+  it("answers every waiter with no token when the script cannot start the next challenge", async () => {
+    const fake = fakeTurnstile("hold");
+    window.turnstile = {
+      ...fake.api,
+      reset() {
+        throw new Error("no such widget");
+      },
+    };
+    const challenge = createChallenge(() => "pt-BR");
+    challenge.attach(container());
+    const first = challenge.token();
+    const second = challenge.token();
+    const third = challenge.token();
+    fake.solve("one");
+
+    await expect(first).resolves.toBe("one");
+    await expect(second).resolves.toBeNull();
+    await expect(third).resolves.toBeNull();
+  });
+
   it("gives two callers a token each, one challenge after the other", async () => {
     const fake = fakeTurnstile("hold");
     window.turnstile = fake.api;

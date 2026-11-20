@@ -153,17 +153,21 @@ export function createChallenge(language: () => string): Challenge {
   }
 
   // Whoever still waits once an answer was given starts the next challenge.
-  // The script throws on what it cannot do (a widget it does not know): the
-  // wait then ends with no token.
+  // The script throws on what it cannot do (a widget it does not know):
+  // every wait then ends with no token (review finding C7 of pull request
+  // #53).
   function next(api: TurnstileApi) {
     if (waiters.length === 0 || running || widget === null) return;
     running = true;
     drawnIn?.removeAttribute("data-asking");
     try {
       api.reset(widget);
+      return;
     } catch {
-      answer(null);
+      // Below: nobody is left waiting.
     }
+    running = false;
+    for (const waiter of waiters.splice(0)) waiter(null);
   }
 
   // Draws the widget, whose challenge starts at once; false when it was not.
@@ -239,7 +243,8 @@ export function createChallenge(language: () => string): Challenge {
       running = true;
       if (draw(api, element)) return;
       running = false;
-      waiters.splice(waiters.indexOf(resolve), 1);
+      const waiting = waiters.indexOf(resolve);
+      if (waiting >= 0) waiters.splice(waiting, 1);
       resolve(null);
     });
   }
