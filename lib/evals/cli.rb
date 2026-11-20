@@ -228,7 +228,7 @@ module Evals
       stopped(report, e)
       raise
     ensure
-      report.finished_at = Time.current
+      report.finish!
     end
 
     # The case under way when the run stopped, with its attempts (review
