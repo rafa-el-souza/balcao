@@ -66,6 +66,39 @@ RSpec.describe "SR-39 FR-18 Turnstile's check of a token" do
     end
   end
 
+  # Review finding C2 of pull request #53: Cloudflare's check of a spent
+  # token converges in seconds, and repeats close together may each hear
+  # yes ("Validate the token", token reuse and network convergence): the
+  # first yes is the only one here.
+  describe "SR-39 a token mints once" do
+    it "takes a token once: a second yes for it refuses, with a line, keeping only the token's digest" do
+      allow(Rails.logger).to receive(:warn)
+      stub_siteverify_answer(passed)
+
+      expect(check.passed?("0.one-solved-token")).to be true
+      expect(check.passed?("0.one-solved-token")).to be false
+      expect(TurnstileRedemption.sole.digest).to eq Digest::SHA256.hexdigest("0.one-solved-token")
+      expect(Rails.logger).to have_received(:warn).with("turnstile: refused: a token taken before")
+    end
+
+    it "keeps nothing of a token Cloudflare refused, nor of another site's or action's yes" do
+      stub_siteverify_answer({ "success" => false, "error-codes" => [ "invalid-input-response" ] })
+      check.passed?("0.refused")
+      stub_siteverify_answer(passed(hostname: "elsewhere.example"))
+      check.passed?("0.elsewhere")
+
+      expect(TurnstileRedemption.count).to eq 0
+    end
+
+    it "passes the test keys' dummy token as often as it comes and keeps nothing, since every page on a test key sends it" do
+      check = Turnstile.new(secret: TurnstileStubs::TEST_SECRET, host:)
+      stub_siteverify
+
+      expect(3.times.map { check.passed?(TurnstileStubs::DUMMY_TOKEN) }).to all(be true)
+      expect(TurnstileRedemption.count).to eq 0
+    end
+  end
+
   describe "a token that is not one asks Cloudflare nothing" do
     [ nil, "", 7, [ "0.token" ], { "token" => "0.token" }, "x" * 2049 ].each do |token|
       it "refuses #{token.inspect.truncate(24)}" do

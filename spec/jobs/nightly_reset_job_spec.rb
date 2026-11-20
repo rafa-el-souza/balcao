@@ -215,6 +215,17 @@ RSpec.describe "FR-15 SR-31 the nightly reset and the seven-day purge" do
       end
     end
 
+    # Threat model SR-39: a token's digest outlives the token's five minutes
+    # (review finding C2 of pull request #53) and goes with the rest.
+    it "deletes the Turnstile tokens taken more than seven days ago, and keeps the newer" do
+      at(three_am - 8.days) { TurnstileRedemption.create!(digest: "a" * 64) }
+      at(three_am - 1.day) { TurnstileRedemption.create!(digest: "b" * 64) }
+
+      run
+
+      expect(TurnstileRedemption.pluck(:digest)).to eq [ "b" * 64 ]
+    end
+
     describe "the limits' counters" do
       # Expiry by job, not by Solid Cache's default thread, which outlived its
       # example and once (M4-3's session, seed 9419) queried the cache table
@@ -385,7 +396,7 @@ RSpec.describe "FR-15 SR-31 the nightly reset and the seven-day purge" do
     run
 
     expect(Rails.logger).to have_received(:info).with(
-      /\Anightly reset: expired 1 reservations, reset \d+ products; deleted 0 visitors, 0 conversations, 0 messages, 0 turns, 0 spans, 0 usage records, 0 reservations, 0 stored updates, 0 failed jobs, 0 limit counters; encrypted 0 plain bodies\z/
+      /\Anightly reset: expired 1 reservations, reset \d+ products; deleted 0 visitors, 0 conversations, 0 messages, 0 turns, 0 spans, 0 usage records, 0 reservations, 0 stored updates, 0 Turnstile tokens, 0 failed jobs, 0 limit counters; encrypted 0 plain bodies\z/
     )
   end
 

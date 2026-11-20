@@ -9,7 +9,7 @@ require "net/http"
 # and a siteverify that does not answer yes within FR-18's ten seconds. What
 # this does follows Cloudflare's docs as read on 2026-11-20 ("Validate the
 # token"): JSON to siteverify, a token of at most 2,048 characters, valid for
-# five minutes and good once.
+# five minutes and good once, which this keeps itself (first_yes?).
 #
 # Development, the suite and the rehearsal hosts (from M3) hold one of
 # Cloudflare's published test secrets, which accept only the test site keys'
@@ -70,7 +70,7 @@ class Turnstile
     return refused(:warn, "another hostname") unless answer["hostname"] == @host
     return refused(:warn, "another action") unless answer["action"] == ACTION
 
-    true
+    first_yes?(token) || refused(:warn, "a token taken before")
   end
 
   private
@@ -104,6 +104,19 @@ class Turnstile
     answer if answer.is_a?(Hash)
   rescue JSON::ParserError
     nil
+  end
+
+  # Cloudflare's check of a spent token converges in seconds, so two requests
+  # close together may each hear its yes ("Validate the token", token reuse
+  # and network convergence): the first yes is the only one here, the table's
+  # key refusing the same token's second (review finding C2 of pull request
+  # #53). The test keys skip it, as every page on them sends the one dummy
+  # token.
+  def first_yes?(token)
+    TurnstileRedemption.create!(digest: Digest::SHA256.hexdigest(token))
+    true
+  rescue ActiveRecord::RecordNotUnique
+    false
   end
 
   def refused_by(answer)
