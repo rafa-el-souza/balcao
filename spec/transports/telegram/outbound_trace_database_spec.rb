@@ -66,6 +66,25 @@ RSpec.describe "FR-19 FR-12 Telegram::Outbound, a reply's way in the trace when 
     expect(lines).to include("trace: span balcao.delivery not read: ActiveRecord::StatementInvalid")
   end
 
+  # The fix review's note on pull request #52: the close of the way is the one
+  # statement left inside the transaction of the reply's status, so its
+  # savepoint is what keeps a write the database breaks there from undoing
+  # the status, as C1's read did.
+  it "keeps a reply sent though the database breaks the close of its way" do
+    message = reply("Temos, sim.")
+    allow_any_instance_of(ActiveRecord::ConnectionAdapters::PostgreSQLAdapter).to receive(:update)
+      .and_wrap_original do |original, arel, name = nil, *rest|
+        original.receiver.execute("SELECT 1/0") if name == "TraceEvent Update"
+        original.call(arel, name, *rest)
+      end
+
+    outbound.deliver_pending(visitor)
+
+    expect(message.reload.status).to eq "sent"
+    expect(delivery_of(message).finished_at).to be_nil
+    expect(lines).to include("trace: span balcao.delivery not recorded: ActiveRecord::StatementInvalid")
+  end
+
   # The hunter's H3 on pull request #48: a database error on that read broke
   # the delivery, so a refusal's own line was lost and an attempt was counted
   # on a reply already failed; the fix review's sister: the same read for a
