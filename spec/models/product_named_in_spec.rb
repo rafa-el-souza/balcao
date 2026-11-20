@@ -48,6 +48,17 @@ RSpec.describe "FR-20 FR-09 the products a message names (FR-06)" do
       .to contain_exactly("Paracetamol 750 mg, 20 comprimidos", "Paracetamol gotas 200 mg/ml, 15 ml")
   end
 
+  # Review finding H-B1 of pull request #60 (cliente, the verifier's): the
+  # likeness asks levenshtein_less_equal, which refuses a word over 255
+  # characters, and a visitor's message of up to 1,000 holds a pasted link or
+  # a held-down key as one word, so a replacement broke its turn and the
+  # visitor got the fallback after three paid runs.
+  it "names what the message names beside a word or a link over 255 characters, which names nothing" do
+    expect(named("posso dar dipirona pro meu filho? #{"a" * 300} https://exemplo.com.br/#{"b" * 400}"))
+      .to contain_exactly("Dipirona 500 mg, 10 comprimidos", "Dipirona gotas 500 mg/ml, 20 ml")
+    expect(named("#{"dipirona" * 40} 12345678901234567890123456789012345678901234567890")).to be_empty
+  end
+
   it "names nothing for an empty message or no products" do
     expect(named("")).to be_empty
     expect(Product.named_in("tem dipirona?", [])).to be_empty

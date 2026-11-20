@@ -208,7 +208,7 @@ class Product < ApplicationRecord
       SELECT id, kind, #{STEMS} AS stems FROM texts
     ),
     message AS MATERIALIZED (
-      SELECT stems FROM stemmed WHERE kind = 'message'
+      SELECT ARRAY(SELECT stem FROM unnest(stems) AS stem WHERE length(stem) <= 64) AS stems FROM stemmed WHERE kind = 'message'
     )
     SELECT products.*
     FROM products
@@ -234,8 +234,12 @@ class Product < ApplicationRecord
   # names the omeprazol a search for it found no more than "potássio" names
   # the losartana. A reply the guardrail replaced lists only these, so a
   # product the model chose for a symptom never reaches the visitor as the
-  # system's own line (TurnProcessor#products_of). The message is a parameter
-  # of the statement, never quoted into its text (threat model SR-28, SR-30).
+  # system's own line (TurnProcessor#products_of). A word of the message over
+  # 64 characters names nothing: no product's word is that long, and the
+  # likeness asks levenshtein_less_equal, which refuses one over 255, where a
+  # visitor's message of up to 1,000 holds a pasted link as one word (review
+  # finding H-B1 of pull request #60). The message is a parameter of the
+  # statement, never quoted into its text (threat model SR-28, SR-30).
   def self.named_in(text, ids)
     return none if ids.empty?
 
