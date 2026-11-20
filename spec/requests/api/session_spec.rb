@@ -169,14 +169,22 @@ RSpec.describe "FR-18 SR-03 POST /api/session issues the visitor cookie", type: 
       expect(a_request(:post, TurnstileStubs::SITEVERIFY)).not_to have_been_made
     end
 
-    it "keeps the token out of the answer and of the log" do
+    # A refused token and a minting one, each answered and each in the log's
+    # lines (the fix review of pull request #53 found the refusal no longer
+    # ran here once the stub said yes to any token).
+    it "keeps the token out of the answer and of the log, refused or minting" do
       log = StringIO.new
       logger = ActiveSupport::Logger.new(log)
       allow(Rails).to receive(:logger).and_return(logger)
       token = "0.a-token-of-the-visitor"
 
+      stub_siteverify_answer(TurnstileStubs::REFUSED)
       api_post "/api/session", { turnstile_token: token }
+      expect(json).to eq("error" => "challenge")
+      expect(log.string).to include("turnstile: refused: invalid-input-response")
+      stub_siteverify
       api_post "/api/session", minting
+      expect(response).to have_http_status(:created)
 
       expect(response.body).not_to include(TurnstileStubs::DUMMY_TOKEN)
       expect(log.string).not_to include(token)
