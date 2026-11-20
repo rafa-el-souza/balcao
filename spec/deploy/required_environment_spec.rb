@@ -31,7 +31,30 @@ RSpec.describe "SR-25 production refuses to boot when a required variable is bla
         "ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY", "ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY",
         "ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT", "IDENTITY_PEPPER", "TELEGRAM_BOT_TOKEN", "TELEGRAM_WEBHOOK_SECRET"
       )
-      expect(described_class::HELD).to contain_exactly("ANTHROPIC_API_KEY", "TELEGRAM_BOT_TOKEN")
+      expect(described_class::HELD).to include("ANTHROPIC_API_KEY", "TELEGRAM_BOT_TOKEN")
+    end
+
+    # M2's first slice (SR-39, ADR-0012): the Turnstile widget's secret is held
+    # by Cloudflare's dashboard, never generated.
+    it "requires Turnstile's secret, held by Cloudflare's dashboard" do
+      expect(described_class::SECRETS).to include("TURNSTILE_SECRET_KEY")
+      expect(described_class::HELD).to contain_exactly("ANTHROPIC_API_KEY", "TELEGRAM_BOT_TOKEN", "TURNSTILE_SECRET_KEY")
+    end
+
+    # Cloudflare's published test secrets accept the test site keys' dummy
+    # token, which anyone can send: on the demo's public name one would let a
+    # script mint identities past the check while refusing every visitor's
+    # real token. The rehearsal hosts, on another name from M3, hold them.
+    it "refuses a published test secret on the public name, never naming the value" do
+      public_name = complete.merge("APP_HOST" => "balcao.rafasouza.dev.br")
+      %w[1x0000000000000000000000000000000AA 2x0000000000000000000000000000000AA 3x0000000000000000000000000000000AA].each do |value|
+        expect { described_class.verify!(public_name.merge("TURNSTILE_SECRET_KEY" => value)) }
+          .to raise_error(described_class::Missing, /TURNSTILE_SECRET_KEY.*SR-39/) { |error| expect(error.message).not_to include(value) }
+        expect { described_class.verify!(complete.merge("APP_HOST" => "ensaio.rafasouza.dev.br", "TURNSTILE_SECRET_KEY" => value)) }
+          .not_to raise_error
+      end
+      expect { described_class.verify!(public_name.merge("TURNSTILE_SECRET_KEY" => "0x4AAAAAAAvalue-of-a-real-secret")) }.not_to raise_error
+      expect(Turnstile::TEST_SECRETS).to all(match(described_class::TURNSTILE_TEST_SECRET))
     end
 
     # Telegram takes a secret token of 1 to 256 characters among A-Z, a-z,

@@ -84,6 +84,10 @@ Rails.application.configure do
   config.x.identity_pepper = ENV.fetch("IDENTITY_PEPPER")
   config.x.telegram_bot_token = ENV.fetch("TELEGRAM_BOT_TOKEN")
   config.x.telegram_webhook_secret = ENV.fetch("TELEGRAM_WEBHOOK_SECRET")
+  # The Turnstile widget's secret, for siteverify (SR-39): the owner's on the
+  # public name, Cloudflare's published test secret on a rehearsal host
+  # (ADR-0012), which the boot refuses on the public name.
+  config.x.turnstile_secret_key = ENV.fetch("TURNSTILE_SECRET_KEY")
 
   # Specify outgoing SMTP server. Remember to add smtp/* credentials via bin/rails credentials:edit.
   # config.action_mailer.smtp_settings = {
