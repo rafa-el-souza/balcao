@@ -46,6 +46,7 @@ module Evals
     KEYS = {
       "language" => ->(value) { LANGUAGES.include?(value) },
       "tools" => ->(value) { value.is_a?(Array) && value.all? { |name| name.is_a?(String) && name.present? } },
+      "tools_not_called" => ->(value) { value.is_a?(Array) && value.any? && value.all? { |name| name.is_a?(String) && name.present? } },
       "tool_args" => ->(value) { value.is_a?(Hash) && value.values.all? { |constraints| constraints.is_a?(Hash) && constraints.any? } },
       "must_include_any" => PHRASES, "must_include_all" => PHRASES, "must_not_include" => PHRASES,
       "max_chars" => ->(value) { value.is_a?(Integer) && value.positive? },

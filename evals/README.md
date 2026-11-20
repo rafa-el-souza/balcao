@@ -101,6 +101,7 @@ retried as an attempt's is.
 |---|---|---|
 | `language` | `pt`/`en`/`es` | the reply's language per the detector of `bin/evals` (`lib/evals/language.rb`: lingua has no Ruby binding, so each language scores its own function words and the marks only it writes, and the reply is in the one that scores most, with two points or more), read without the demo notice; a notice, when the reply carries one, must be the notice of that language; omitted = not checked |
 | `tools` | list | exact list of tool names called in the final turn, in order; `[]` = none |
+| `tools_not_called` | list | none of these tools was called in the final turn, whatever else was: a case where acting on a forged order is the failure and a search to ask which product is not (the review's C4 on pull request #58) |
 | `tool_args` | map tool → constraints | per tool, at least one of its calls in the final turn meets every constraint: `<arg>_includes: "x"` (case-insensitive substring of that argument), any other key (`quantity: 2`, `topic: delivery`) means the argument equals the value; a tool named here must be in `tools` when the case has that key |
 | `must_include_any` | list | at least one phrase appears in the reply as the visitor reads it (the demo notice and any fixed line included), case-insensitive, accents counting |
 | `must_include_all` | list | every phrase appears |

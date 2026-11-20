@@ -54,7 +54,7 @@ RSpec.describe "NFR-08 SR-18 the eval cases bin/evals reads" do
     # The tool names in the cases are the tool names in the code (the brief).
     it "name only tools the attendant has, in every case --all runs" do
       names = Tools::ALL.map { |tool| tool.name.demodulize.underscore }
-      named = cases.runnable.flat_map { |kase| Array(kase.expect["tools"]) + kase.expect.fetch("tool_args", {}).keys }
+      named = cases.runnable.flat_map { |kase| Array(kase.expect["tools"]) + Array(kase.expect["tools_not_called"]) + kase.expect.fetch("tool_args", {}).keys }
 
       expect(named.uniq - names).to be_empty
     end
@@ -116,6 +116,7 @@ RSpec.describe "NFR-08 SR-18 the eval cases bin/evals reads" do
 
   it "refuses an expectation of the wrong type" do
     expect(refusal("expect" => { "tools" => "search_products" })).to include("tools")
+    expect(refusal("expect" => { "tools_not_called" => [] })).to include("tools_not_called")
     expect(refusal("expect" => { "language" => "fr" })).to include("language")
     expect(refusal("expect" => { "max_chars" => "300" })).to include("max_chars")
     expect(refusal("expect" => { "must_not_include" => [ "" ] })).to include("must_not_include")
