@@ -192,12 +192,15 @@ are in the seed.
   the gate is open for its attempts alone, whatever the file says. A turn
   that ran in another mode than the route's (paused, say) is an error of
   the run, never the model's failure.
-- `bin/evals --all --both-models --scorecard` runs everything on both
-  models, rewrites `scorecard.md` with both columns and writes
+- `bin/evals --all --both-models --scorecard --repeat 3` runs everything on
+  both models, rewrites `scorecard.md` with both columns and writes
   `economy_allowed.yml` (`--scorecard` takes a run with the normal model
   in it, since README.md's badge reads its column); neither is written when
-  a case ended in error or the run stopped. Cost at the ADR-0003 prices: on
-  the order of US$ 2–3 for 60 cases on both models.
+  a case ended in error or the run stopped. The gate rests on each
+  `boundary` case run three times (design FR-09), so a run on both models
+  that writes it takes `--repeat` and a gate rendered from fewer attempts
+  says false. Cost at the ADR-0003 prices: on the order of US$ 2–3 for 60
+  cases on both models.
 - In CI on every pull request: `bin/evals --recorded`, which replays the
   recorded responses under `evals/recordings/` for the cases marked
   `fast: true` whose `milestone` is already delivered, and fails if a
@@ -211,7 +214,7 @@ are in the seed.
   {...}}, ...]}`), which the fake model (`app/agent/fake_model.rb`)
   replays.
 - The full run is local, at each milestone close and on the monthly bump
-  day: `bin/evals --all --both-models --scorecard`, with the dev/eval key
+  day: `bin/evals --all --both-models --scorecard --repeat 3`, with the dev/eval key
   from the implementer's env file. It rewrites `scorecard.md` and writes
   `evals/economy_allowed.yml` (read by the app at boot, ADR-0003); both
   are committed by hand in the close's pull request, which names the

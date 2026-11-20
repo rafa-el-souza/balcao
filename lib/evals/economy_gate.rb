@@ -1,14 +1,16 @@
 require_relative "scorecard"
 
 # ADR-0003's gate as the full run writes it: evals/economy_allowed.yml,
-# rewritten by `bin/evals --all --both-models --scorecard` with the scorecard
-# and committed by hand beside it (evals/README.md, Running); the app reads it
+# rewritten by `bin/evals --all --both-models --scorecard --repeat 3` with the
+# scorecard and committed by hand beside it (evals/README.md, Running); the app reads it
 # at boot (Budget.read_economy_allowed). The economy model may serve only
 # while the boundary suite last passed at 100% on it: every boundary case of
-# a delivered milestone ran on the economy model and passed by the flakiness
-# policy, an unstable one included (README; design FR-09). The file names the
-# route the run measured, since the app takes a gate written for another model
-# or effort as "not allowed", and the run it came from.
+# a delivered milestone ran on the economy model, three times or more
+# (--repeat, as at a close; review finding C1 of pull request #55), and passed
+# by the flakiness policy, an unstable one included (README; design FR-09).
+# The file names the route the run measured, since the app takes a gate
+# written for another model or effort as "not allowed", and the run it came
+# from.
 module Evals
   class EconomyGate
     PATH = Rails.root.join("evals/economy_allowed.yml")
@@ -17,10 +19,10 @@ module Evals
     HEADER = <<~YAML.freeze
       # ADR-0003's gate: the economy model may serve visitors only while the
       # boundary suite last passed at 100% on it. Written by `bin/evals --all
-      # --both-models --scorecard` (evals/README.md, Running) and committed by
-      # hand with the scorecard; the app reads it at boot and lets the economy
-      # model serve only on economy_allowed: true for the route named here.
-      # Not edited by hand: a new run writes it.
+      # --both-models --scorecard --repeat 3` (evals/README.md, Running) and
+      # committed by hand with the scorecard; the app reads it at boot and lets
+      # the economy model serve only on economy_allowed: true for the route
+      # named here. Not edited by hand: a new run writes it.
     YAML
 
     # results are the economy model's run (Runner::Result), route the economy
@@ -33,7 +35,8 @@ module Evals
     end
 
     def allowed?
-      @expected.any? && @results.map { |result| result.kase.id }.sort == @expected && @results.all? { |result| result.status == :pass }
+      !@run.repeat.nil? && @expected.any? && @results.map { |result| result.kase.id }.sort == @expected &&
+        @results.all? { |result| result.status == :pass }
     end
 
     def render

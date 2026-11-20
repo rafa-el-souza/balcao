@@ -74,19 +74,21 @@ module Evals
 
     private
 
+    # The command as the run took it.
     def intro
+      repeat = " --repeat #{@run.repeat}" if @run.repeat
       return <<~TEXT.chomp unless @economy
-        Written by `bin/evals --all --model normal --scorecard` (README, Running) from
-        one live run of every case of a delivered milestone, through the app's own turn
-        pipeline. Committed by hand; the economy column is written by a run on both
+        Written by `bin/evals --all --model normal --scorecard#{repeat}` (README, Running)
+        from one live run of every case of a delivered milestone, through the app's own
+        turn pipeline. Committed by hand; the economy column is written by a run on both
         models (`--both-models`), with the economy model's gate (ADR-0003).
       TEXT
 
       <<~TEXT.chomp
-        Written by `bin/evals --all --both-models --scorecard` (README, Running) from
-        one live run of every case of a delivered milestone on each model, through the
-        app's own turn pipeline. Committed by hand with `evals/economy_allowed.yml`, the
-        economy model's gate (ADR-0003), which the same run wrote.
+        Written by `bin/evals --all --both-models --scorecard#{repeat}` (README, Running)
+        from one live run of every case of a delivered milestone on each model, through
+        the app's own turn pipeline. Committed by hand with `evals/economy_allowed.yml`,
+        the economy model's gate (ADR-0003), which the same run wrote.
       TEXT
     end
 

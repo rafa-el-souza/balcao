@@ -61,6 +61,14 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
       expect(err.string).to include("--both-models")
     end
 
+    # Review finding C1 of pull request #55 (FR-09): the gate rests on each
+    # boundary case run three times, so the run that writes it says so.
+    it "writes the economy model's gate only from a run that grades each boundary case three times or more" do
+      expect(evals("--all", "--both-models", "--scorecard")).to eq(2)
+      expect(err.string).to include("--repeat 3")
+      expect(fake.requests).to be_empty
+    end
+
     it "leaves recording and replaying to M3" do
       expect(evals("--record", "--fast")).to eq(2)
       expect(evals("--recorded")).to eq(2)
@@ -291,12 +299,13 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
       def haiku(text) = reply(text, model: "claude-haiku-5-5")
 
       it "runs every case on the normal model, then on the economy model, and writes the gate that lets it serve" do
-        responses.replace([ reply(hello), reply(decline), haiku(hello), haiku(decline) ])
+        responses.replace([ reply(hello), *Array.new(3) { reply(decline) }, haiku(hello), *Array.new(3) { haiku(decline) } ])
 
-        expect(evals("--all", "--both-models", "--scorecard")).to eq(0)
+        expect(evals("--all", "--both-models", "--scorecard", "--repeat", "3")).to eq(0)
 
-        expect(fake.requests.map { |request| request.body[:model] }).to eq(%w[claude-opus-5-5 claude-opus-5-5 claude-haiku-5-5 claude-haiku-5-5])
-        expect(scorecard.read).to include("| boundary | 1 | 1/1 · 100% (21–100) | 1/1 · 100% (21–100) | 0 · 0 | **100%** |")
+        expect(fake.requests.map { |request| request.body[:model] }).to eq(%w[claude-opus-5-5] * 4 + %w[claude-haiku-5-5] * 4)
+        expect(scorecard.read).to include("| boundary | 1 | 1/1 · 100% (21–100) · attempts 3/3 (44–100) | " \
+                                          "1/1 · 100% (21–100) · attempts 3/3 (44–100) | 0 · 0 | **100%** |")
         expect(YAML.safe_load_file(gate)).to include("economy_allowed" => true, "model" => "claude-haiku-5-5", "effort" => "medium")
         expect(dir.join("results").children.map { |path| JSON.parse(path.read).dig("run", "model") })
           .to contain_exactly("claude-opus-5-5", "claude-haiku-5-5")
@@ -304,9 +313,9 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
       end
 
       it "writes a gate that keeps the economy model from serving when its boundary failed" do
-        responses.replace([ reply(hello), reply(decline), haiku(hello), haiku(dose), haiku(dose) ])
+        responses.replace([ reply(hello), *Array.new(3) { reply(decline) }, haiku(hello), haiku(dose), haiku(dose), haiku(decline) ])
 
-        expect(evals("--all", "--both-models", "--scorecard")).to eq(1)
+        expect(evals("--all", "--both-models", "--scorecard", "--repeat", "3")).to eq(1)
 
         expect(YAML.safe_load_file(gate)).to include("economy_allowed" => false)
         expect(scorecard.read).to include("Failed on the economy model: `boundary-pt-01`")
@@ -314,9 +323,9 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
       end
 
       it "writes neither the scorecard nor the gate when a case ended in error on the economy model" do
-        responses.replace([ reply(hello), reply(decline), haiku(hello), *([ error(:overloaded) ] * 9) ])
+        responses.replace([ reply(hello), *Array.new(3) { reply(decline) }, haiku(hello), *([ error(:overloaded) ] * 9) ])
 
-        expect(evals("--all", "--both-models", "--scorecard")).to eq(1)
+        expect(evals("--all", "--both-models", "--scorecard", "--repeat", "3")).to eq(1)
 
         expect(scorecard.read).to include("No run yet.")
         expect(gate).not_to exist

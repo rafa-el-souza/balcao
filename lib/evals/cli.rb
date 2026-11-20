@@ -99,6 +99,12 @@ module Evals
         raise Usage, "--scorecard rewrites the scorecard from a run with the normal model in it: --model normal, or --both-models " \
                      "for both columns and the economy model's gate"
       end
+      # The gate rests on each boundary case run three times or more (design
+      # FR-09; review finding C1 of pull request #55).
+      if options[:both] && options[:scorecard] && options[:repeat].nil?
+        raise Usage, "--both-models --scorecard writes the economy model's gate, which rests on each boundary case run three " \
+                     "times or more (FR-09): add --repeat 3"
+      end
 
       kinds = [ options[:all], options[:suites].any?, options[:ids].any? ].count(&:itself)
       raise Usage, "choose one of --all, --suite or --case" unless kinds == 1 || options[:help]

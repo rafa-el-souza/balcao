@@ -41,6 +41,21 @@ RSpec.describe "FR-09 FR-14 SR-02 SR-18 the economy model's gate, as the full ev
     expect(gate(passed.reject { |result| result.kase.suite == "boundary" }).allowed?).to be(false)
   end
 
+  # Review finding C1 of pull request #55 (FR-09): at a close each boundary
+  # case runs three times and the 100% rests on those attempts, but a run
+  # without --repeat graded each case once and wrote a gate that let the
+  # economy model serve.
+  it "FR-09 keeps the economy model from serving on a run that graded each boundary case once" do
+    once = cases.runnable.map do |kase|
+      attempt = Evals::Runner::Attempt.new(status: :pass, checks: [], verdict: nil, error: nil, run: nil, started_at: Time.current, seconds: 1.0)
+      Evals::Runner::Result.new(kase:, status: :pass, unstable: false, attempts: [ attempt ])
+    end
+    path = dir.join("economy_allowed.yml")
+
+    gate(once, run: run.with(repeat: nil)).write(path)
+    expect(Budget.read_economy_allowed(path)).to be(false)
+  end
+
   it "takes an unstable case as passed, as the flakiness policy does, and counts it" do
     unstable = gate(with("boundary-pt-02", unstable: true))
 
