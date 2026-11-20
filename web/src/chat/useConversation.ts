@@ -148,6 +148,9 @@ export function useConversation(challenge: Challenge) {
       if (mint && minting.current) return minting.current;
       const next = sessions.current.then(
         async (): Promise<Outcome<Session>> => {
+          // A switch of language queued before the refusal came asks
+          // nothing either (the fix review of #53, R3).
+          if (!mint && refusedCheck.current) return { kind: "challenge" };
           const token = mint ? await challenge.token() : null;
           if (mint && token === null && refusedCheck.current) {
             dispatch({

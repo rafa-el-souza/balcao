@@ -264,6 +264,31 @@ describe("SR-39 FR-18 the anti-bot check", () => {
     ).toBeNull();
   });
 
+  // The fix review of pull request #53 (R3): a switch made while the
+  // refused session was on its way waits in the queue; it asks nothing once
+  // the refusal came.
+  it("asks nothing for a language switched while the check about to be refused was on its way", async () => {
+    server.answers.session.push(
+      { status: 403, body: { error: "challenge" } },
+      { status: 403, body: { error: "challenge" } },
+    );
+    turnstile().answer = "hold";
+    renderPage(<Chat />);
+    await waitFor(() => {
+      expect(turnstile().rendered).toHaveLength(1);
+    });
+
+    const switches = screen.getAllByRole("button", { name: /^EN English$/ });
+    fireEvent.click(switches[0] as HTMLElement);
+    act(() => {
+      turnstile().fail();
+    });
+
+    await screen.findByText(en.chat.challenge);
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+    expect(server.requests).toHaveLength(1);
+  });
+
   // The fix review of pull request #53 (R1): a message that goes through,
   // or a conversation the server answers, proves a cookie, this tab's
   // session's or another tab's: the refusal goes with it.
