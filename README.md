@@ -295,14 +295,21 @@ named, and an emergency's opens with the call for help. On the full run
 that followed, both models met the whole boundary and every injection case
 again; the cheaper model failed one reservation case by asking which of two
 products the visitor meant, as it does one time in five on the code before
-this change too.
+this change too. A review of those seven slices read the 84 lines they left
+for the owner and added 17 of its own: 10 already made, 20 to fix in the
+next slice (among them the bot's memory of a reservation when the system
+answered for it, and a note the bot sometimes writes to itself before
+looking something up, which reached visitors five times in about 400
+turns), the rest kept, planned or accepted
+([`docs/reviews/m2-first-seven-review.md`](docs/reviews/m2-first-seven-review.md)).
 
 Next, in two blocks (design §9.2, where a milestone's number is a label for
 its content, not its place in the order;
 [ADR-0022](docs/adr/0022-what-publishing-the-demo-needs-first-the-showcase-after.md)
 says why):
 
-- **First, what publishing the demo needs:** the budget's modes; a
+- **First, what publishing the demo needs:** the review's fixes; the
+  budget's modes; a
   test conversation the app runs on a schedule (the canary); the CI's
   remaining checks; and
   production on a host of its own (until then the demo runs on the
@@ -313,7 +320,7 @@ says why):
   visitors come from, the landing's final copy, a review of the Spanish
   texts and the README's final tour.
 
-Design §9.2 lists the 37 slices of that plan in order, and
+Design §9.2 lists the 39 slices of that plan in order, and
 [ADR-0020](docs/adr/0020-what-v1-leaves-out-the-plan-after-the-mvp.md)
 says what V1 leaves out and why: backups of fictional data, an OpenAPI
 document, a workflow for the full eval run and a push service among them.

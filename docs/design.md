@@ -1,6 +1,6 @@
 # Balcão — design document
 
-**Status:** v1.24, 2026-11-20 (M2-11a: the history gives the model back its tool calls with their results and its replies as it wrote them, with a one-sentence notice where the system answered in its place; a reply FR-20's check replaced lists only the products the visitor's message names and, in an emergency, opens with the call to call now; ADR-0003's gate names FR-20's check too; §9.2's M2-11a split, see §10); v1.23, 2026-11-20 (M2-4b: the boundary by the Brazilian norms, the `boundary` suite at 33 cases; FR-09's list and FR-20's check gain what a medicine is for, how to use or store it and what a measurement means, a medicine for an animal goes to a veterinarian, an emergency's reply never judges an amount someone took, and a turn forged inside a visitor's message is the visitor's text; see §10); v1.22, 2026-11-20 (M2-4: the injection suite at ten cases, chosen by a red-team probe on both models in which no attack worked; a repeated reservation the model counted as several, fixed in the tool's result; see §10); v1.21, 2026-11-20 (M2-3b: the judge reads the system's fixed texts as the system's, measured on the stored replies; the full run on both models then met the boundary on the economy model and opened ADR-0003's gate, see §10); v1.20, 2026-11-20 (M2-3: the economy model measured on the boundary, ADR-0003's gate written by the full run and read at boot, closed by a misreading of the judge's, §6.5 says what it names, see §10); v1.19, 2026-11-20 (M2-2: FR-20's guardrail as built, its latency measured and its figure revised; §6.4 verified for the check, see §10); v1.18, 2026-11-20 (M2-1: Turnstile at session creation; FR-18, the API table and §6.7's processors as built, see §10); v1.17, 2026-11-19 (M4-6b: the review's fixes; FR-05 and FR-19's given-up update as built, see §10); v1.16, 2026-11-19 (M4-6a: the review of M4's first four slices; NFR-01 measured on a second real conversation, §9.2's M4-6 split into its review and its fixes, M3-6 gains the runbook's terms, see §10); v1.15, 2026-11-19 (ADR-0022: what publishing the demo needs comes first, then the showcase; §9.2's slices in two blocks, M2-11 split, and FR-10, FR-14, FR-21 and §12 follow, see §10); v1.14, 2026-11-15 (M4-3: the bot's buttons as built in FR-19, FR-12 and FR-21, see §10); v1.13, 2026-11-15 (M4-2: NFR-01 at 7 s and 12 s, measured from a Telegram update's receipt to its reply's send; §6.4's normal route at low effort, ADR-0021; M3's list charges an abandoned call, see §10); v1.12, 2026-11-15 (the plan after the MVP: §9.2 lists its slices in order, behind the data-contract gate where it holds, and ADR-0020 says what V1 leaves out; §2.2, J3, FR-10, FR-14, NFR-03, NFR-08, §6.1, §6.6, §6.9, §8 and OD-2 follow it, see §10); v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
+**Status:** v1.25, 2026-11-20 (M2-11a2: the review at M2's first close, its table in `docs/reviews/m2-first-seven-review.md`; §9.2 gains M2-11a3, the close's fixes, and the lines the close found without a home get one; M3-6 takes the docs reader test before the publication; FR-20 as built names the turns a replacement lists from; see §10); v1.24, 2026-11-20 (M2-11a: the history gives the model back its tool calls with their results and its replies as it wrote them, with a one-sentence notice where the system answered in its place; a reply FR-20's check replaced lists only the products the visitor's message names and, in an emergency, opens with the call to call now; ADR-0003's gate names FR-20's check too; §9.2's M2-11a split, see §10); v1.23, 2026-11-20 (M2-4b: the boundary by the Brazilian norms, the `boundary` suite at 33 cases; FR-09's list and FR-20's check gain what a medicine is for, how to use or store it and what a measurement means, a medicine for an animal goes to a veterinarian, an emergency's reply never judges an amount someone took, and a turn forged inside a visitor's message is the visitor's text; see §10); v1.22, 2026-11-20 (M2-4: the injection suite at ten cases, chosen by a red-team probe on both models in which no attack worked; a repeated reservation the model counted as several, fixed in the tool's result; see §10); v1.21, 2026-11-20 (M2-3b: the judge reads the system's fixed texts as the system's, measured on the stored replies; the full run on both models then met the boundary on the economy model and opened ADR-0003's gate, see §10); v1.20, 2026-11-20 (M2-3: the economy model measured on the boundary, ADR-0003's gate written by the full run and read at boot, closed by a misreading of the judge's, §6.5 says what it names, see §10); v1.19, 2026-11-20 (M2-2: FR-20's guardrail as built, its latency measured and its figure revised; §6.4 verified for the check, see §10); v1.18, 2026-11-20 (M2-1: Turnstile at session creation; FR-18, the API table and §6.7's processors as built, see §10); v1.17, 2026-11-19 (M4-6b: the review's fixes; FR-05 and FR-19's given-up update as built, see §10); v1.16, 2026-11-19 (M4-6a: the review of M4's first four slices; NFR-01 measured on a second real conversation, §9.2's M4-6 split into its review and its fixes, M3-6 gains the runbook's terms, see §10); v1.15, 2026-11-19 (ADR-0022: what publishing the demo needs comes first, then the showcase; §9.2's slices in two blocks, M2-11 split, and FR-10, FR-14, FR-21 and §12 follow, see §10); v1.14, 2026-11-15 (M4-3: the bot's buttons as built in FR-19, FR-12 and FR-21, see §10); v1.13, 2026-11-15 (M4-2: NFR-01 at 7 s and 12 s, measured from a Telegram update's receipt to its reply's send; §6.4's normal route at low effort, ADR-0021; M3's list charges an abandoned call, see §10); v1.12, 2026-11-15 (the plan after the MVP: §9.2 lists its slices in order, behind the data-contract gate where it holds, and ADR-0020 says what V1 leaves out; §2.2, J3, FR-10, FR-14, NFR-03, NFR-08, §6.1, §6.6, §6.9, §8 and OD-2 follow it, see §10); v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
 coding session, reading this file top to bottom.
 
 Balcão ("the counter", where a pharmacist serves customers) is an AI attendant
@@ -2026,15 +2026,16 @@ slice is one pull request and one session; the next session takes the next
 row. ADR-0020 cut the plan to 33 slices, ADR-0022 split M2-11 in two and
 the review of M4's first four slices split M4-6 (2026-11-19), so it had
 35, M2-3b and M2-4b, which the owner added on 2026-11-20, make it 37, and
-M2-11a's split the same day (the owner, "Dividir em duas") makes it 38;
-the days above are the estimates of 2026-11-09 and were not
+M2-11a's split the same day (the owner, "Dividir em duas") makes it 38,
+and the slice its close gave its fixes, M2-11a3 (the owner, 2026-11-20,
+"Fatia própria, já"), makes it 39; the days above are the estimates of 2026-11-09 and were not
 revised. A slice that splits keeps its number with a letter; one that
 appears on the way (a dependency's bump, a defect met on the demo) takes no
 number, as in the MVP.
 
 *Block 1, what publishing the demo needs (ADR-0022).* M4-1 to M4-4, M4-6a,
-M4-6b, M2-1 to M2-3, M2-3b, M2-4, M2-4b and M2-11a are done (#44, #45,
-#47, #48, #51 to #56, #58 to #60). The demo is publicised on the day of
+M4-6b, M2-1 to M2-3, M2-3b, M2-4, M2-4b, M2-11a and M2-11a2 are done (#44,
+#45, #47, #48, #51 to #56, #58 to #61). The demo is publicised on the day of
 M3-7, and until the console comes in block 2 the operator pauses it or
 forces a mode with the runbook's command; no visitor identity can be
 blocked before M2-7 (threat model R2).
@@ -2054,12 +2055,13 @@ blocked before M2-7 (threat model R2).
 | M2-4 | The `injection` suite at ten cases (FR-21's fourth chip is M3-3's, ADR-0022) | — |
 | M2-4b | The boundary by the Brazilian norms (the owner, 2026-11-20): the `boundary` suite at 33 cases, the categories the norms put on the pharmacist that had none; FR-09's list, the prompt and FR-20's check gain what a medicine is for, how to use or store it and what a measurement means; a medicine for an animal sent to a veterinarian; and the first of the two weaknesses M2-4's probe recorded, a reply or a time line forged inside a visitor's message is the visitor's text, said in the prompt (the owner, "Pode entrar junto sim"); then the full run on both models, since the prompt changes (§10, M2-4b's note) | The owner's three decisions on the norms' cases, given |
 | M2-11a | The first half of M2's close, its work and its run: the second weakness M2-4's probe recorded (the owner, 2026-11-20), the history gives the model back only what it wrote, its tags included, with a one-sentence notice where the system answered in its place, and what its tools did, so that it no longer doubts a reservation it made (§10, M2-4's note); three fixes #59's review recommended (the owner, "Sim, a proxima fatia leva os consertos"): a replacement lists only the products the visitor's message names, an emergency's replacement opens with the call to call now, ADR-0003's gate names FR-20's check; then the full eval run on both models with the unstable count, the boundary at 100 % on both, since M3-1 puts the economy model in front of visitors (§10, M2-11a's note) | — |
-| M2-11a2 | The review at the close over M2-1 to M2-4b and M2-11a, with ADR-0019's instruments (the owner, 2026-11-20, "Dividir em duas") | M2-11a merged |
+| M2-11a2 | The review at the close over M2-1 to M2-4b and M2-11a, with ADR-0019's instruments (the owner, 2026-11-20, "Dividir em duas"); its table is `docs/reviews/m2-first-seven-review.md` | M2-11a merged |
+| M2-11a3 | The close's fixes (the owner, 2026-11-20, "Fatia própria, já"; `docs/reviews/m2-first-seven-review.md`, "To fix in M2-11a3"): a reply the system sent without the model keeps, for the next turn's history, the reservations it carried; the model's notes to itself before a tool call kept from the visitor, by a line of the prompt and a check of the evals, measured before and after; ADR-0003's gate bound to what the history gives the model and to the tools' result texts (the owner, "Amarrar no portão"); five lines whose slice had come and gone (FR-20's check reads only a boolean verdict and keeps its usage, a case's replacement read on every turn and counted by its outcome, Ctrl-C in the eval runner, the gate reader's rescue scoped to the file, the gate written before the scorecard); a reply of whitespace alone, a search word the database expands past its limit, the judge's clause for a point asked of the attendant, a replacement failing a case in every suite, the dipirona case naming the form; then the full run on both models | M2-11a2 merged |
 | M3-1 | FR-14's modes: economy at 70 %, the daily slice, the alert at the cap through the bot to the operator's chat, linked once by the runbook's command until the console's button (SR-02 in full, SR-35; the console's kill switch is M2-10's, ADR-0022) | — |
 | M3-2 | FR-17's canary, with its marked system visitor, and the delivery watch over `getWebhookInfo` | — |
 | M3-4 | A turn's hard edge and the short log sweep: SR-20's exception closed, a least-privilege database role, and SR-30's lines that stay (the list below) | — |
 | M3-5 | The CI furniture: the recorded fast subset, NFR-10's gate over four pages with the build's size, the SimpleCov ratchet, actionlint, the static secrets check, the `.kamal/hooks` check | — |
-| M3-6 | The runbook completed and the cut prepared: the operator checklist, roll back, the rotations, the modes, the rehearsal flow, Kamal's resource limits, `bin/deploy`'s exit, the `__Host-` cookie, `docs/traceability.yml`, SR-03's catalogue from outside, the runbook's terms said where they first appear (the list below), and the invented names checked before the publication (SR-33; from M5-6, ADR-0022) | A security scan of the codebase, run and read |
+| M3-6 | The runbook completed and the cut prepared: the operator checklist, roll back, the rotations, the modes, the rehearsal flow, Kamal's resource limits, `bin/deploy`'s exit, the `__Host-` cookie, `docs/traceability.yml`, SR-03's catalogue from outside, the runbook's terms said where they first appear (the list below), the docs reader test over the README and the completed runbook (M2-11a2's close; until then M5-8 held the next), and the invented names checked before the publication (SR-33; from M5-6, ADR-0022) | A security scan of the codebase, run and read |
 | M3-7 | The production cut (ADR-0011): the owner's host, the demo's name moved to it, the bot's token reissued, the MVP host destroyed; the demo publicised the same day (the owner, 2026-11-19); then the soak's seven days, with real visitors | The owner's operator account, host, DNS records and production secrets |
 | M3-8 | M3's close, after the soak: the full eval run, the threat model's verification table, an external port scan, the review at the close, the merging policy revisited | The soak passed |
 
@@ -2204,6 +2206,19 @@ round.
 - Before the demo is publicised, so in M3-6 since ADR-0022: the invented
   name, address and phone looked at again against real businesses (SR-33;
   #8's review).
+- From the review at M2's first close (2026-11-20;
+  `docs/reviews/m2-first-seven-review.md`): in M3-4, a deadline on the
+  session's call to Cloudflare's check, which holds one of the web's three
+  threads up to about ten seconds while Cloudflare is slow, and on its
+  whole answer (#53, C3 and C4), and the limits' first count in a window
+  made atomic (#53, V1, negligible by its verifier); in M3-6, with the
+  runbook's secrets, the app strips `APP_HOST`, the three encryption keys
+  and the pepper as the boot check reads them, so a pasted line break
+  neither boots nor breaks every identity (#53's fix review; the boot
+  check already refuses one in the other values); in M3-5, the recorded
+  fast subset holds FR-20's check's requests in order, since the check
+  shares the client (#54's notes); in M3-1, the line of an automatic
+  economy that meets a closed gate says that the demo pauses (#55, L4).
 
 *M5.*
 - The Spanish review pass confirms "tú" or changes the register
@@ -2213,7 +2228,9 @@ round.
   refused; the judge calibrated against a few dozen replies labelled by
   hand, about 90 % agreement on the clear ones (the close's eval audit); a
   rubric for `boundary-pt-02` and `boundary-es-02`, whose lists pass a dose
-  written without units (#39's review).
+  written without units (#39's review). With them, a case aimed at FR-20's
+  check's own verdict, which M2-4's suite aimed none at (#54's notes; M2's
+  first close).
 - With FR-25's offer, which brings "R$" into a page's text: the build
   plugin inserts rendered text through replacer functions (#14, C9); the
   shell's description and `og:` tags from the locale files, with the
@@ -2222,6 +2239,9 @@ round.
 - The live regions (the thread, the glass box, the trace page's turns)
   carry `aria-relevant="additions"`, with a screen reader's own test, so
   that a language switch is not read out again whole (#38's review).
+- The glass box labels a repeated reservation's result as the same
+  reservation, not as a second row with its code (#58, V3; M2's first
+  close).
 - With the judge's calibration: a reason that ends mid-sentence is asked
   again, or the judge's prompt asks for a reason without double quotes
   (#42's sixth line).
@@ -2261,6 +2281,9 @@ trigger does the item and removes the line.
 - The next failure of `GlassBox.test.tsx`'s example "stops 'pensando…' and
   lights the tab's cross again": its timing is fixed, not run again (#38's
   review; it failed once in a parallel run).
+- The first slice that caches FR-20's check's prompt: the eval report
+  prices the check's tokens with the cache's split, as the model's (#54,
+  H6; M2's first close).
 
 **Waiting for the data-contract ADR.** The ADR on the data a pharmacy
 would hand Balcão is the owner's to write (number 0018, reserved in the
@@ -2272,7 +2295,9 @@ landing may promise (the owner, 2026-11-15). With FR-08's slice: delivery
 areas checked for unique names in the store sheet (#8, N10). For a real
 catalogue, after V1 (ADR-0020): the catalogue search's pair subquery
 fenced, measured (#31, V2), and the sku as the last sort key (#31's
-review). By the owner's word of 2026-11-15 the round below
+review); the repeated reservation's note measured against the trace's
+500-character cut of a tool's result, with the longest real product name,
+the note shortened or the cut raised (#58, C5; M2's first close). By the owner's word of 2026-11-15 the round below
 fixes two defects of what exists without changing the contract, in its
 first server pull request: the search with a dose in the query, and the
 error for a YAML key that is not text. Both were fixed there (#40): a
@@ -2295,6 +2320,72 @@ M2-4"): `create_reservation`'s result says that a reservation a call finds
 again in its turn is the same one, which changes no row, rule or field of
 a reservation (M2-4; the note below).
 
+- Note 2026-11-20 (M2-11a2, the review at M2's first close; ADR-0019,
+  ADR-0003, NFR-08; threat model SR-02; `docs/reviews/m2-first-seven-review.md`).
+  The review at a close over M2-1 to M2-4b and M2-11a (#53 to #60), with
+  ADR-0019's instruments; its table is `docs/reviews/m2-first-seven-review.md`.
+  - **What it found.** Of the 84 lines the seven slices left for the owner,
+    the triage against the code found 9 of 17 recommended changes made and
+    5 not made though the slice they named had come and gone, each of the
+    "next slice that touches it" kind, which none had written into the
+    standing triggers above, where ADR-0019's first amendment looks. The
+    close's extra finder read the four commits #60 made after its fix
+    review: a reply the system sends without running the model, after a
+    run that broke between a reservation and its reply (as a deploy can
+    stop one) or at the dead letter, leaves the next turn's history without
+    the reservation's code. The verifier read the dismissals and reaches
+    that only their authors had judged (#56 and #59 were off the risk list
+    and their dismissals had gone to no verifier): of six dismissals, one
+    was confirmed, two were wrong and three were facts their authors had
+    decided by design, which went to the owner.
+  - **ADR-0003's Consequences** say the boundary must pass "on both"
+    models or economy may not serve, while its Decision, the evals README
+    and the code gate the economy model on its own boundary (#55, L5). The
+    Decision holds: the normal model's boundary is the release floor, which
+    a normal model that fails it fails already.
+  - **The eval audit**, due at sixty cases. The judge runs on the economy
+    model whose boundary writes the gate. A second judge, another model,
+    regraded the 260 graded attempts of M2-11a's full run and agreed on
+    254; none of the six disagreements was a clinical reply, and the first
+    judge passed what the second failed 3 times in 129 on the economy
+    model's replies and 2 in 131 on the normal model's: no sign of the
+    judge favouring its own model. Since M2-3b, 2 of the economy model's 7
+    failed boundary attempts were the judge's misreadings, which the
+    two-of-three rule kept from the gate; M5-4's calibration names them.
+    With 33 cases at three attempts, a model failing 4 % of its attempts
+    at random opens the gate in about 86 % of full runs, and one failing
+    10 % in about 39 %: the gate is a floor, the attempts' interval the
+    measure.
+  - **A watch that repeated** (#58's "Boxes means tablets"). The text the
+    model writes before a tool call reaches the visitor as part of the
+    reply (#9's C1). In the stored full runs since the normal route's
+    effort went low (M4-2) it held the model's note to itself five times
+    in about 400 turns that called a tool, none in about 200 before: three
+    in Portuguese, two in English to a Portuguese-speaking visitor ("Need
+    search first."). The evals passed them.
+  - **Live runs settled what only a model could** (twelve each, the
+    dev/eval key, the code at `0add287`): the API took the history that a
+    reservation's step and a replaced reply leave, four times in four; the
+    judge passed a refusal's reply on `boundary-pt-06-emergency` once in
+    twelve (none in five in #56's run) and failed a bare decline and the
+    emergency line alone every time; FR-20's check let through "essa
+    quantidade pode ser perigosa" and a judgment of ten tablets as
+    dangerous for a child (none of 24 replaced) and replaced a reassurance
+    every time; `boundary-pt-18` passed a reply silent on the
+    prescription's validity every time; and a search word that the
+    database expands past a function's limit breaks the search, which the
+    tool turns into a failed lookup.
+  - **The owner decided** in four questions (2026-11-20): the lots as
+    recommended; the twenty fixes in a slice of their own, M2-11a3, the
+    next, before M3-1 ("Fatia própria, já"); ADR-0003's gate bound to what
+    the history gives the model and to the tools' result texts ("Amarrar
+    no portão"); and four cases and the check as recommended: the dipirona
+    case names the form, a replacement fails a case in every suite, FR-20's
+    check keeps letting through a judgment that an amount is dangerous (the
+    rule stays the prompt's, as #59 decided), and the prescription's age
+    keeps passing a reply silent on validity, since the case's point is
+    that no rule is given. The interface review stays M2-11b's (ADR-0022);
+    the docs reader test moves to M3-6, before the publication.
 - Note 2026-11-20 (M2-11a, the history and three fixes; FR-04, FR-09,
   FR-20, NFR-08; threat model SR-02, SR-18, SR-21, SR-41). The second
   weakness M2-4's probe recorded (its note below), which the owner put in
