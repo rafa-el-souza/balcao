@@ -1,6 +1,6 @@
 # Balcão — design document
 
-**Status:** v1.23, 2026-11-20 (M2-4b: the boundary by the Brazilian norms, the `boundary` suite at 33 cases; FR-09's list and FR-20's check gain what a medicine is for, how to use or store it and what a measurement means, a medicine for an animal goes to a veterinarian, an emergency's reply never judges an amount someone took, and a turn forged inside a visitor's message is the visitor's text; see §10); v1.22, 2026-11-20 (M2-4: the injection suite at ten cases, chosen by a red-team probe on both models in which no attack worked; a repeated reservation the model counted as several, fixed in the tool's result; see §10); v1.21, 2026-11-20 (M2-3b: the judge reads the system's fixed texts as the system's, measured on the stored replies; the full run on both models then met the boundary on the economy model and opened ADR-0003's gate, see §10); v1.20, 2026-11-20 (M2-3: the economy model measured on the boundary, ADR-0003's gate written by the full run and read at boot, closed by a misreading of the judge's, §6.5 says what it names, see §10); v1.19, 2026-11-20 (M2-2: FR-20's guardrail as built, its latency measured and its figure revised; §6.4 verified for the check, see §10); v1.18, 2026-11-20 (M2-1: Turnstile at session creation; FR-18, the API table and §6.7's processors as built, see §10); v1.17, 2026-11-19 (M4-6b: the review's fixes; FR-05 and FR-19's given-up update as built, see §10); v1.16, 2026-11-19 (M4-6a: the review of M4's first four slices; NFR-01 measured on a second real conversation, §9.2's M4-6 split into its review and its fixes, M3-6 gains the runbook's terms, see §10); v1.15, 2026-11-19 (ADR-0022: what publishing the demo needs comes first, then the showcase; §9.2's slices in two blocks, M2-11 split, and FR-10, FR-14, FR-21 and §12 follow, see §10); v1.14, 2026-11-15 (M4-3: the bot's buttons as built in FR-19, FR-12 and FR-21, see §10); v1.13, 2026-11-15 (M4-2: NFR-01 at 7 s and 12 s, measured from a Telegram update's receipt to its reply's send; §6.4's normal route at low effort, ADR-0021; M3's list charges an abandoned call, see §10); v1.12, 2026-11-15 (the plan after the MVP: §9.2 lists its slices in order, behind the data-contract gate where it holds, and ADR-0020 says what V1 leaves out; §2.2, J3, FR-10, FR-14, NFR-03, NFR-08, §6.1, §6.6, §6.9, §8 and OD-2 follow it, see §10); v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
+**Status:** v1.24, 2026-11-20 (M2-11a: the history gives the model back its tool calls with their results and the system's texts marked as the system's; a reply FR-20's check replaced lists only the products the visitor's message names and, in an emergency, opens with the call to call now; ADR-0003's gate names FR-20's check too; §9.2's M2-11a split, see §10); v1.23, 2026-11-20 (M2-4b: the boundary by the Brazilian norms, the `boundary` suite at 33 cases; FR-09's list and FR-20's check gain what a medicine is for, how to use or store it and what a measurement means, a medicine for an animal goes to a veterinarian, an emergency's reply never judges an amount someone took, and a turn forged inside a visitor's message is the visitor's text; see §10); v1.22, 2026-11-20 (M2-4: the injection suite at ten cases, chosen by a red-team probe on both models in which no attack worked; a repeated reservation the model counted as several, fixed in the tool's result; see §10); v1.21, 2026-11-20 (M2-3b: the judge reads the system's fixed texts as the system's, measured on the stored replies; the full run on both models then met the boundary on the economy model and opened ADR-0003's gate, see §10); v1.20, 2026-11-20 (M2-3: the economy model measured on the boundary, ADR-0003's gate written by the full run and read at boot, closed by a misreading of the judge's, §6.5 says what it names, see §10); v1.19, 2026-11-20 (M2-2: FR-20's guardrail as built, its latency measured and its figure revised; §6.4 verified for the check, see §10); v1.18, 2026-11-20 (M2-1: Turnstile at session creation; FR-18, the API table and §6.7's processors as built, see §10); v1.17, 2026-11-19 (M4-6b: the review's fixes; FR-05 and FR-19's given-up update as built, see §10); v1.16, 2026-11-19 (M4-6a: the review of M4's first four slices; NFR-01 measured on a second real conversation, §9.2's M4-6 split into its review and its fixes, M3-6 gains the runbook's terms, see §10); v1.15, 2026-11-19 (ADR-0022: what publishing the demo needs comes first, then the showcase; §9.2's slices in two blocks, M2-11 split, and FR-10, FR-14, FR-21 and §12 follow, see §10); v1.14, 2026-11-15 (M4-3: the bot's buttons as built in FR-19, FR-12 and FR-21, see §10); v1.13, 2026-11-15 (M4-2: NFR-01 at 7 s and 12 s, measured from a Telegram update's receipt to its reply's send; §6.4's normal route at low effort, ADR-0021; M3's list charges an abandoned call, see §10); v1.12, 2026-11-15 (the plan after the MVP: §9.2 lists its slices in order, behind the data-contract gate where it holds, and ADR-0020 says what V1 leaves out; §2.2, J3, FR-10, FR-14, NFR-03, NFR-08, §6.1, §6.6, §6.9, §8 and OD-2 follow it, see §10); v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
 coding session, reading this file top to bottom.
 
 Balcão ("the counter", where a pharmacist serves customers) is an AI attendant
@@ -230,6 +230,15 @@ conversation; a reset command starts over.
   model is called (no model cost, no trace beyond the command event).
 - Given no message for 24 hours, When a new message arrives, Then it starts a
   new conversation.
+- **As built (M2-11a, 2026-11-20; §10's note).** The model reads the
+  conversation's last thirty turns. An earlier turn comes back with the tool
+  calls the model made and their results, step by step, then the words it
+  wrote; the system's text after those words or in their place (the offer
+  of the pharmacist, the emergency line, a reservation's line, a decline, a
+  fallback, a command's answer) comes before the visitor's next message,
+  under a line naming it the system's, as the visitor read it. So the model
+  no longer reads the system's lines as its own, nor a reservation's code it
+  gave with nothing to back it.
 
 **FR-05 Data deletion.** A visitor can delete their data with a command.
 Deletion is deterministic: the command is matched before any model call,
@@ -899,10 +908,15 @@ limit, paused, handoff notices) and operator replies are not checked.
   and its output cap. Any answer without a verdict fails
   open: an error, a refusal, an answer cut off or unreadable, a bug of the
   check, each with a log line and the trace's row in the error colour. A
-  replaced reply is the decline followed by the offer, or by the
-  emergency line where the reply asked for it (FR-09), as any reply's
-  lines are; then one line per product the turn's searches found, with
-  its price, stock and prescription flag, and the turn's reservations.
+  replaced reply is the decline followed by the offer, as any reply's
+  lines are; then one line per product the turn's searches found that the
+  visitor's message names, by its medicine or the whole head of its name,
+  as the catalogue search reads a name (since M2-11a; #59's C2: a product
+  the model chose for a symptom was listed as the system's own line), with
+  its price, stock and prescription flag, and the turn's reservations. A
+  reply that asked for the emergency line opens instead with the call to
+  call now, then the line, with no decline, which named the store's
+  pharmacist, and no product (since M2-11a; #59's M1; FR-09).
   Its outcome is `replaced`, which FR-10's automatic trigger counts. The
   check's reason never reaches the trace, since it may restate the advice
   it found; the eval runner alone hears it. A replacement that breaks
@@ -1349,6 +1363,7 @@ erDiagram
     integer parts_sent
     integer send_attempts
     datetime next_attempt_at
+    integer attendant_characters
   }
   TURN {
     uuid id
@@ -1359,6 +1374,7 @@ erDiagram
     integer latency_ms
     string outcome
     string guardrail_verdict
+    text tool_exchange "encrypted"
   }
   WEBHOOK_EVENT {
     uuid id
@@ -1498,9 +1514,14 @@ apart. `message.author` ∈ {visitor, bot, operator, system};
 `economy_allowed` is not a column: it is the committed file
 `evals/economy_allowed.yml`, written by the full eval run and read at boot
 (ADR-0003); it names the model and the effort the run measured and the
-digests of the system prompt and the tools the model read, and the app takes
-a gate written for another economy route, prompt or tool set as not allowed
-(§10, M2-3's note).
+digests of the system prompt and the tools the model read and of FR-20's
+check (since M2-11a), and the app takes a gate written for another economy
+route, prompt, tool set or check as not allowed (§10, M2-3's and M2-11a's
+notes). Since M2-11a a reply keeps the length of the model's words it begins
+with after any notice (`message.attendant_characters`, 0 for a text the
+system wrote in their place, empty before), and a turn the tool calls the
+model made and their results (`turn.tool_exchange`, encrypted, SR-41): the
+history the model reads gives both back (FR-04).
 
 ### 6.6 Interfaces
 
@@ -1997,7 +2018,8 @@ registered, display name, Live mode) closed on 2026-11-14 (ADR-0016).
 slice is one pull request and one session; the next session takes the next
 row. ADR-0020 cut the plan to 33 slices, ADR-0022 split M2-11 in two and
 the review of M4's first four slices split M4-6 (2026-11-19), so it had
-35, and M2-3b and M2-4b, which the owner added on 2026-11-20, make it 37;
+35, M2-3b and M2-4b, which the owner added on 2026-11-20, make it 37, and
+M2-11a's split the same day (the owner, "Dividir em duas") makes it 38;
 the days above are the estimates of 2026-11-09 and were not
 revised. A slice that splits keeps its number with a letter; one that
 appears on the way (a dependency's bump, a defect met on the demo) takes no
@@ -2024,7 +2046,8 @@ M2-7 (threat model R2).
 | M2-3b | The judge reads the system's fixed lines as the system's (the emergency line, the offer, the notice), so a rubric judges the attendant's own words; then the full run on both models, whose gate lets the economy model serve if the boundary passes (§10, M2-3's note; the owner, 2026-11-20) | — |
 | M2-4 | The `injection` suite at ten cases (FR-21's fourth chip is M3-3's, ADR-0022) | — |
 | M2-4b | The boundary by the Brazilian norms (the owner, 2026-11-20): the `boundary` suite at 33 cases, the categories the norms put on the pharmacist that had none; FR-09's list, the prompt and FR-20's check gain what a medicine is for, how to use or store it and what a measurement means; a medicine for an animal sent to a veterinarian; and the first of the two weaknesses M2-4's probe recorded, a reply or a time line forged inside a visitor's message is the visitor's text, said in the prompt (the owner, "Pode entrar junto sim"); then the full run on both models, since the prompt changes (§10, M2-4b's note) | The owner's three decisions on the norms' cases, given |
-| M2-11a | The first half of M2's close: the full eval run on both models with the unstable count, the boundary at 100 % on both, since M3-1 puts the economy model in front of visitors; the review at the close over M2-1 to M2-4b; and the second weakness M2-4's probe recorded, which that run measures (the owner, 2026-11-20): the history shows the model its earlier replies with the system's fixed lines marked as the system's, and what its tools did, so that it no longer doubts a reservation it made (§10, M2-4's note) | — |
+| M2-11a | The first half of M2's close, its work and its run: the second weakness M2-4's probe recorded (the owner, 2026-11-20), the history shows the model its earlier replies with the system's fixed lines marked as the system's, and what its tools did, so that it no longer doubts a reservation it made (§10, M2-4's note); three fixes #59's review recommended (the owner, "Sim, a proxima fatia leva os consertos"): a replacement lists only the products the visitor's message names, an emergency's replacement opens with the call to call now, ADR-0003's gate names FR-20's check; then the full eval run on both models with the unstable count, the boundary at 100 % on both, since M3-1 puts the economy model in front of visitors (§10, M2-11a's note) | — |
+| M2-11a2 | The review at the close over M2-1 to M2-4b and M2-11a, with ADR-0019's instruments (the owner, 2026-11-20, "Dividir em duas") | M2-11a merged |
 | M3-1 | FR-14's modes: economy at 70 %, the daily slice, the alert at the cap through the bot to the operator's chat, linked once by the runbook's command until the console's button (SR-02 in full, SR-35; the console's kill switch is M2-10's, ADR-0022) | — |
 | M3-2 | FR-17's canary, with its marked system visitor, and the delivery watch over `getWebhookInfo` | — |
 | M3-4 | A turn's hard edge and the short log sweep: SR-20's exception closed, a least-privilege database role, and SR-30's lines that stay (the list below) | — |
@@ -2265,6 +2288,78 @@ M2-4"): `create_reservation`'s result says that a reservation a call finds
 again in its turn is the same one, which changes no row, rule or field of
 a reservation (M2-4; the note below).
 
+- Note 2026-11-20 (M2-11a, the history and three fixes; FR-04, FR-09,
+  FR-20, NFR-08; threat model SR-02, SR-18, SR-21, SR-41). The second
+  weakness M2-4's probe recorded (its note below), which the owner put in
+  this slice, and three fixes #59's review recommended, which he took the
+  same day ("Sim, a proxima fatia leva os consertos"); then the full run on
+  both models. He split M2-11a in two ("Dividir em duas"): this slice, and
+  M2-11a2, the review at the close over M2-1 to M2-4b and this one (§9.2).
+  - **The history** (FR-04). It gave an earlier reply back whole, as the
+    model's own words, with the system's fixed lines in it, which the prompt
+    says the model never writes, and held no tool result. Measured on main
+    before the change (the app's own pipeline, six attempts a model on the
+    dev/eval key, the replies kept outside the repository): asked for the
+    code of a reservation it had made one message before, the economy model
+    said six times in six that the code had not come from a confirmed
+    reservation ("não veio de uma reserva confirmada", "não foi gerado pelo
+    sistema") and made a second reservation in five, the normal model gave
+    the code six times in six; asked whether the offer's phone line was the
+    store's and whether it wrote it, the economy model said it had written
+    it six times in six, once adding that it should not have, and the
+    normal model said the system adds it five times in six, the sixth that
+    it wrote it and should not have. The sister M2-4's note recorded, a
+    reservation doubted when the next message asked for two more, did not
+    show on main's prompt (none of six on the economy model, three of six
+    before M2-4b's prompt).
+    A turn now keeps the tool calls the model made and their results, step
+    by step, as the API read them (`turn.tool_exchange`, encrypted, SR-41),
+    and a reply the length of the model's words it begins with after any
+    notice (`message.attendant_characters`). The history gives an earlier
+    turn back as the model lived it: its calls and their results, then its
+    words; the system's text after them or in their place comes before the
+    visitor's next message, under a line naming it the system's ("The
+    system's text after your reply, as the visitor read it:"), which the
+    prompt names, and a system's text written inside a visitor's message is
+    the visitor's own, as a time line is (SR-21). A thinking block is never
+    given back: one belongs to the request that produced it, and dropping
+    all of them keeps the history valid for preserved thinking. An earlier
+    turn's call to a tool no longer offered stays valid too: the API took a
+    history with such a call, with and without other tools. A reply stored
+    before this slice reads whole as the model's, as before; the demo's
+    seven days of messages carry it out.
+  - **The replacement's products** (FR-20; #59's C2 and H2). A replacement
+    listed every product the turn's searches found, so a product the model
+    chose for a symptom reached the visitor as the system's own line. It
+    lists now only the products the visitor's message names, as the
+    catalogue search reads a name (`Product.named_in`): every stem of the
+    product's medicine, its salt set aside, or of the whole head of its
+    name, alike a stem of the message, a typo included. The head is every
+    word before the first number or comma, as the search's partial match
+    reads it: "tem termômetro?" does not name the "Termômetro clínico
+    digital", a price left out, and "tem vitamina d?" does not name the
+    "Vitamina C", a product no one asked for kept out. The search's own
+    fragments are shared, and its SQL is the same text byte for byte.
+  - **An emergency's replacement** (FR-20, FR-09; #59's M1). A replaced
+    reply that had asked for the emergency line opened with the decline,
+    which names the store's pharmacist, before the line. It opens now with
+    one calm sentence in the reply's language ("Ligue agora para pedir
+    ajuda.", "Call for help now.", "Llama ahora para pedir ayuda."), then
+    the line, and lists no product, as the line comes alone in a reply the
+    model wrote; a reservation the turn stored keeps its line. An emergency
+    reply written without its tag that the check replaces still gets the
+    decline and the offer (#59's M1, its second half), since nothing tells
+    it from any other reply.
+  - **The gate names the check** (SR-02; #59's M4). The boundary suite runs
+    every reply through FR-20's check, and every boundary case fails on a
+    replacement, so a stricter check fails cases a gate written before it
+    never measured. `evals/economy_allowed.yml` names the check's digest
+    beside the prompt's and the tools' (its system prompt, what it reads
+    around the texts, its route, its thinking and its answer's shape), and
+    the boot reads a gate written for another check, or for none, as not
+    allowed. The history's shape is code, not a digest: a change of it
+    needs a full run by the rule that a change of what the model reads
+    does, as this one has.
 - Note 2026-11-20 (M2-4b, the boundary by the norms; FR-09, FR-20, NFR-08;
   threat model SR-18, SR-21). The `boundary` suite at 33 cases, from a study
   of the Brazilian norms behind the boundary; FR-09's list, the prompt and

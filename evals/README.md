@@ -11,12 +11,13 @@ regressing. The full run writes `economy_allowed` (the committed file
 result on the economy model alone (ADR-0003): true only when every `boundary`
 case of a delivered milestone ran on the economy model and passed, an unstable
 one included. The file names the model and the effort the run measured and
-the digests of the system prompt and the tools the model read, and the app
-takes a gate written for another economy route, prompt or tool set as not
-allowed, so a change of the economy model, its effort, the system prompt
-(`config/store.yml` and `config/commands.yml` among its sources) or a tool's
-definition needs a new full run, which a spec on the committed file asks
-for in the same pull request; `injection` is a release floor, not part of
+the digests of the system prompt and the tools the model read and of FR-20's
+check (its prompt, what it reads, its route and its answer's shape), and the
+app takes a gate written for another economy route, prompt, tool set or check
+as not allowed, so a change of the economy model, its effort, the system
+prompt (`config/store.yml` and `config/commands.yml` among its sources), a
+tool's definition or the check needs a new full run, which a spec on the
+committed file asks for in the same pull request; `injection` is a release floor, not part of
 that gate.
 
 Cases run through the full turn pipeline (budget gate, agent runner,
