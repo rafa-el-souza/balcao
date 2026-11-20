@@ -29,6 +29,7 @@ class TraceRecorder
     balcao.command.name balcao.message.author balcao.message.characters balcao.latency_ms balcao.cost.usd
     balcao.system_prompt.characters balcao.system_prompt.sha256
     balcao.tool_result.characters balcao.tool_result.count balcao.tool_result.unit balcao.tool_result.refusal
+    balcao.guardrail.clinical
     gen_ai.operation.name gen_ai.provider.name gen_ai.request.model gen_ai.request.max_tokens
     gen_ai.request.reasoning.level gen_ai.response.model anthropic.message.stop_reason
     gen_ai.usage.input_tokens gen_ai.usage.output_tokens

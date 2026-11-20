@@ -22,6 +22,10 @@
 #   FR-10's MVP note), and the emergency line after a refusal's decline: a
 #   refused message is the one the system cannot read, so it may be a call
 #   for help (FR-09, the owner, 2026-11-15);
+# - the text the model wrote passes FR-20's check (Guardrail) before any of
+#   that, and a text it finds clinical is replaced by FR-09's decline and the
+#   facts the turn's tools produced (replaced); a check that gives no verdict
+#   lets the text go, traced and logged (threat model R4);
 # - a turn the job gave up on after its attempts gets the fallback too
 #   (give_up, NFR-03).
 #
@@ -48,10 +52,10 @@
 # review finding V3 of pull request #29: a transaction left for the end of the
 # run is rolled back when its thread is killed).
 class TurnProcessor
-  # AgentRunner's, then the three this class adds: a turn answered from its
-  # stored reservations without the model, one the budget paused and one the
-  # job gave up on.
-  OUTCOMES = [ *AgentRunner::OUTCOMES.map(&:to_s), "reservations", "paused", "dead_letter" ].freeze
+  # AgentRunner's, then the four this class adds: a reply the guardrail
+  # replaced (FR-20), a turn answered from its stored reservations without
+  # the model, one the budget paused and one the job gave up on.
+  OUTCOMES = [ *AgentRunner::OUTCOMES.map(&:to_s), "replaced", "reservations", "paused", "dead_letter" ].freeze
 
   # The attempt of the job that runs the turn (ProcessTurnJob), and the turn
   # that job is for, which the deletion's confirmation counts and names in
@@ -334,15 +338,35 @@ class TurnProcessor
     @turn.update!(mode:, model: ModelPolicy.route(mode).model)
     @root.attributes["balcao.turn.mode"] = mode
     events = TurnTrace.new(@recorder, @root)
-    result = typing.during do
-      AgentRunner.new.run(@turn, mode:) do |event|
+    result, verdict = typing.during do
+      result = AgentRunner.new.run(@turn, mode:) do |event|
         Budget.charge!(@turn, event.usage) if event.is_a?(AgentRunner::ModelCall)
         events.on(event)
       end
+      [ result, guard(result, events) ]
     end
     @conversation.update!(language: result.language) if result.language
+    return finish("replaced", "replied", replaced(result, @conversation.language)) if verdict&.clinical?
+
     text, state = reply_of(result)
     finish(result.outcome, state, text, error: result.error)
+  end
+
+  # FR-20: the text the model wrote passes the guardrail's check before it is
+  # sent, while the chat still shows the typing status; a reply that is its
+  # tags alone is the system's own line, and the fixed replies never come
+  # here. The check's usage is charged as it arrives and its span is the
+  # trace's, as a model call's are. A check that gave no verdict is a line,
+  # and the reply goes as the model wrote it (threat model R4).
+  def guard(result, events)
+    return unless result.outcome == :replied && result.text.present?
+
+    verdict = Guardrail.new.check(message: @inbound.body, reply: result.text) do |event|
+      Budget.charge!(@turn, event.usage) if event.is_a?(Guardrail::Verdict)
+      events.on(event)
+    end
+    Rails.logger.error("turn #{@turn.id}: the guardrail gave no verdict (#{verdict.error}); the reply is sent as the model wrote it") if verdict.error
+    verdict
   end
 
   def reply_of(result)
@@ -355,7 +379,36 @@ class TurnProcessor
     end
   end
 
+  # FR-20: a reply the check found clinical is FR-09's decline, followed by
+  # the offer of the pharmacist, or by the emergency line where the reply
+  # asked for it (FR-09), as any reply's lines are; then the facts the turn's
+  # tools produced, as fixed lines: the products it found, with their prices,
+  # and the reservations it stored or that the cap of open ones listed
+  # (FR-07). Nothing of the model's text is kept. A replacement that breaks
+  # breaks the turn, for the job's retry: the fail-open of threat model R4 is
+  # the check's alone, and the clinical text is never sent.
+  def replaced(result, language)
+    reply = with_lines(FixedReply.declined(language), language, offer: true, emergency: result.emergency)
+    FixedReply.with_reservations(FixedReply.with_products(reply, products_of(result), language), facts_of(result), language)
+  end
+
+  # The products the turn's searches found, each once, in the order found,
+  # at most one search's worth.
+  def products_of(result)
+    result.tool_calls.select { |call| call.name == "search_products" && !call.is_error }
+          .flat_map { |call| JSON.parse(call.output).fetch("products") }
+          .uniq { |product| product.fetch("id") }.first(Tools::SearchProducts::MAX_RESULTS)
+  end
+
   def reservations = Reservation.where(turn_id: @turn.id).includes(:product).order(:created_at, :id).to_a
+
+  # The turn's reservations and, when the cap of open reservations refused
+  # one, those the visitor holds (FR-07).
+  def facts_of(result)
+    facts = reservations
+    facts |= held_reservations if result.tool_calls.any? { |call| call.refusal == "open_limit" }
+    facts
+  end
 
   # FR-07: the reply carries each reservation's code and pickup deadline. The
   # model is told to write them; a reply that leaves out a reservation's code
@@ -367,10 +420,8 @@ class TurnProcessor
   # another conversation's (findings C5 and N1 of the same review).
   def with_facts(result, language)
     text = result.text
-    facts = reservations
-    facts |= held_reservations if result.tool_calls.any? { |call| call.refusal == "open_limit" }
     reply = with_lines(text, language, offer: result.offer, emergency: result.emergency)
-    FixedReply.with_reservations(reply, facts.reject { |reservation| written?(text, reservation) }, language)
+    FixedReply.with_reservations(reply, facts_of(result).reject { |reservation| written?(text, reservation) }, language)
   end
 
   # FR-09 and FR-10's MVP note, with the owner's decisions of 2026-11-14: the

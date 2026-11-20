@@ -33,6 +33,13 @@ pt-BR:
     # the model (NFR-02, NFR-03).
     reservation: "Reserva %{code}: %{quantity} × %{product}, retirada até %{pickup_until}."
     pickup_format: "%d/%m às %H:%M"
+    # FR-20: under a reply the guardrail replaced, one line per product its
+    # turn found, with what the catalogue said of it (FixedReply.products).
+    product:
+      line: "%{name}: %{details}."
+      in_stock: "em estoque"
+      out_of_stock: "sem estoque"
+      prescription: "exige receita"
   commands:
     # FR-04: the notice comes before it.
     reset: "Pronto, começamos de novo. Em que posso ajudar?"

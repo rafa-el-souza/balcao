@@ -101,6 +101,12 @@
     "unsent": "mensaje no enviado",
     "model": "modelo",
     "stop": "se detuvo en {{reason}}",
+    "guardrail": "guardrail",
+    "guardrailVerdicts": {
+      "pass": "respuesta aprobada",
+      "replaced": "respuesta reemplazada",
+      "failed": "sin verificación · respuesta enviada"
+    },
     "command": "comando",
     "queued": "mensaje en cola",
     "queuedWait": "espera que termine el turno {{number}}",
@@ -153,6 +159,7 @@
       "tool_limit": "demasiadas herramientas",
       "incomplete": "respuesta incompleta",
       "refused": "el modelo se negó",
+      "replaced": "reemplazada por el guardrail",
       "reservations": "sin modelo",
       "paused": "demo en pausa",
       "dead_letter": "el sistema falló",

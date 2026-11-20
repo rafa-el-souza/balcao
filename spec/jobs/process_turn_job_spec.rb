@@ -802,7 +802,7 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
 
     before { product }
 
-    it "records the turn as a root span from the message's receipt, with the model calls, the tool call and the outbound message under it" do
+    it "records the turn as a root span from the message's receipt, with the model calls, the tool call, FR-20's check and the outbound message under it" do
       received = 3.seconds.ago.change(usec: 0)
       turn = inbound("tem dipirona?", at: received)
 
@@ -810,7 +810,7 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
 
       names = spans(turn).map(&:name)
       expect(names).to eq([ "balcao.turn", "anthropic.messages.create", "anthropic.custom_tool_use search_products",
-                            "anthropic.messages.create", "balcao.outbound" ])
+                            "anthropic.messages.create", "balcao.guardrail", "balcao.outbound" ])
       root, *children = spans(turn).to_a
       expect(root.started_at).to eq(received)
       expect(children.map(&:parent_span_id)).to all(eq(root.span_id))

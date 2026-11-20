@@ -11,9 +11,16 @@
 # US dollars at the price table's prices, is the ledger's own figure (FR-12,
 # FR-14; Budget charges the same usage), under the balcao. prefix, since the
 # SDK's spans carry none.
+#
+# FR-20's check of the reply (Guardrail) is a span of its own, GUARDRAIL,
+# with a model call's attributes and its verdict, balcao.guardrail.clinical,
+# which a check that gave none leaves out, with the error that left it
+# without one. Its reason never reaches the trace: it may restate the advice
+# it found, and the trace is the visitor's and the link holder's to read.
 class TurnTrace
   MODEL_CALL = "anthropic.messages.create".freeze
   TOOL_CALL = "anthropic.custom_tool_use".freeze
+  GUARDRAIL = "balcao.guardrail".freeze
 
   def self.prompt_summary(prompt = SystemPrompt.current)
     @prompt_summary ||= { "balcao.system_prompt.characters" => prompt.length,
@@ -30,10 +37,29 @@ class TurnTrace
     when AgentRunner::ModelStarted then @model_call = start_model_call(event)
     when AgentRunner::ModelCall then finish_model_call(event)
     when AgentRunner::ToolCall then tool_call(event)
+    when Guardrail::Started then @guardrail = start_guardrail(event)
+    when Guardrail::Verdict then finish_guardrail(event)
     end
   end
 
   private
+
+  def start_guardrail(event)
+    @recorder.start_span(GUARDRAIL, parent: @root, attributes: {
+      "gen_ai.operation.name" => "chat", "gen_ai.provider.name" => "anthropic", "gen_ai.request.model" => event.model,
+      "gen_ai.request.reasoning.level" => event.effort, "gen_ai.request.max_tokens" => Guardrail::MAX_TOKENS
+    })
+  end
+
+  def finish_guardrail(verdict)
+    span = @guardrail || start_guardrail(Guardrail::Started.new(model: verdict.model, effort: verdict.effort))
+    @guardrail = nil
+    span.finish(attributes: {
+      "gen_ai.response.model" => (verdict.model if verdict.usage.any?), "anthropic.message.stop_reason" => verdict.stop_reason,
+      "balcao.latency_ms" => verdict.latency_ms, "balcao.guardrail.clinical" => verdict.clinical, "error.type" => verdict.error,
+      **usage(verdict.usage)
+    })
+  end
 
   def start_model_call(event)
     @recorder.start_span(MODEL_CALL, parent: @root, attributes: {

@@ -44,10 +44,11 @@ RSpec.describe "FR-14 SR-02 FR-12 the budget in a turn: the pause before the mod
       perform(turn)
 
       costs = turn.usage_records.order(:created_at).pluck(:cost_usd)
-      # 1,200 × 4 + 80 or 120 × 20 + 3,000 × 0.20, per million tokens.
-      expect(costs).to eq([ BigDecimal("0.007"), BigDecimal("0.0078") ])
+      # 1,200 × 4 + 80 or 120 × 20 + 3,000 × 0.20, per million tokens; then
+      # FR-20's check of the reply, 640 × 0.10 + 38 × 0.50.
+      expect(costs).to eq([ BigDecimal("0.007"), BigDecimal("0.0078"), BigDecimal("0.000083") ])
       expect(calls(turn).map { |span| span.span_attributes["balcao.cost.usd"] }).to eq([ 0.007, 0.0078 ])
-      expect(month.spent_usd).to eq(BigDecimal("0.0148"))
+      expect(month.spent_usd).to eq(BigDecimal("0.014883"))
     end
 
     it "charges each attempt of a call a fallback model served, at that model's prices" do
@@ -60,7 +61,8 @@ RSpec.describe "FR-14 SR-02 FR-12 the budget in a turn: the pause before the mod
       perform(turn)
 
       expect(turn.usage_records.order(:created_at).pluck(:model, :cost_usd))
-        .to eq([ [ "claude-opus-5-5", BigDecimal("0.004") ], [ "claude-opus-5", BigDecimal("0.0075") ] ])
+        .to eq([ [ "claude-opus-5-5", BigDecimal("0.004") ], [ "claude-opus-5", BigDecimal("0.0075") ],
+                 [ "claude-haiku-5-5", BigDecimal("0.000083") ] ])
       expect(calls(turn).sole.span_attributes["balcao.cost.usd"]).to eq(0.0115)
     end
 
@@ -71,8 +73,9 @@ RSpec.describe "FR-14 SR-02 FR-12 the budget in a turn: the pause before the mod
 
       expect { perform(turn) }.to have_enqueued_job(ProcessTurnJob)
 
-      expect(turn.usage_records.count).to eq(1)
-      expect(month.spent_usd).to eq(BigDecimal("0.007"))
+      # The model's call and FR-20's check of its reply.
+      expect(turn.usage_records.pluck(:model)).to contain_exactly("claude-opus-5-5", "claude-haiku-5-5")
+      expect(month.spent_usd).to eq(BigDecimal("0.007083"))
     end
 
     # The silent-failure review of pull request #29: a run that breaks
@@ -122,8 +125,9 @@ RSpec.describe "FR-14 SR-02 FR-12 the budget in a turn: the pause before the mod
       perform(turn)
       perform(turn)
 
-      expect(UsageRecord.count).to eq(1)
-      expect(month.spent_usd).to eq(BigDecimal("0.007"))
+      # The model's call and FR-20's check, once.
+      expect(UsageRecord.count).to eq(2)
+      expect(month.spent_usd).to eq(BigDecimal("0.007083"))
     end
   end
 

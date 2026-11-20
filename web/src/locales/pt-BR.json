@@ -101,6 +101,12 @@
     "unsent": "mensagem não enviada",
     "model": "modelo",
     "stop": "parou em {{reason}}",
+    "guardrail": "guardrail",
+    "guardrailVerdicts": {
+      "pass": "resposta aprovada",
+      "replaced": "resposta substituída",
+      "failed": "sem verificação · resposta enviada"
+    },
     "command": "comando",
     "queued": "mensagem na fila",
     "queuedWait": "espera o turno {{number}} terminar",
@@ -153,6 +159,7 @@
       "tool_limit": "ferramentas demais",
       "incomplete": "resposta incompleta",
       "refused": "o modelo recusou",
+      "replaced": "substituída pelo guardrail",
       "reservations": "sem modelo",
       "paused": "demo pausada",
       "dead_letter": "o sistema falhou",
