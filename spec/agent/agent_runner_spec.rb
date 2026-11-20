@@ -162,147 +162,163 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
       expect(request.body[:messages][3]).to eq(role: "assistant", content: [ { type: "text", text: "Tenemos dos.\n\n¿Cuál prefieres?" } ])
     end
 
-    # M2-11a (design §10, M2-4's note, the owner's word "Na M2-11a"): the
-    # history gave the model back its earlier replies with the system's fixed
-    # lines in them, which the prompt tells it never to write, and the economy
-    # model once disowned the offer's line ("o telefone e os horários que
-    # escrevi não vieram do sistema"). An earlier reply is now the words the
-    # model wrote; the system's text after it or in its place, as the visitor
-    # read it, comes in a system message, which no visitor can write: a first
-    # draft put it in the user's turn under a line, which a visitor copied to
-    # forge a reservation the economy model then confirmed (the slice's own
-    # probe). The API takes a system message only after a user message and
-    # before an assistant's or last, so it comes after the visitor's next
-    # message and names the message it followed by its time.
-    describe "the system's texts, in system messages" do
-      # start is where the model's words begin: after the notice of the
-      # conversation's first reply, else at the body's start.
-      def replied(text, at:, reply:, own:, start: reply.start_with?("#{FixedReply.notice("pt-BR")}\n\n") ? notice : 0)
+    # M2-11a (design §10, M2-4's note; the owner, 2026-11-20: "(d) Só o que
+    # o modelo escreveu" and "Aviso de uma frase"): the history gave the model
+    # back its earlier replies with the system's fixed lines in them, which
+    # the prompt tells it never to write, and the economy model once disowned
+    # the offer's line ("o telefone e os horários que escrevi não vieram do
+    # sistema"). An earlier reply is now what the model wrote, its tags
+    # included, which say what lines the system added; no text of the
+    # system's comes back. A first draft gave it back under a line in the
+    # user's turn, which a visitor copied to forge a reservation the economy
+    # model confirmed; a second, in a system message, which carries the
+    # system prompt's authority, and the economy model then answered an
+    # English-speaking visitor in Portuguese 11 times in 18 (the slice's own
+    # probe). When the system answered in the model's place, one fixed
+    # sentence in a system message says so, never the text the visitor read.
+    describe "what the model wrote, and the system's notices" do
+      def answered(text, at:, body:, kind: "model", written: nil)
         turn_in(conversation, text, at:).tap do |turn|
-          travel_to(at + 5.seconds) { Message.record_outbound!(turn:, body: reply, attendant_start: start, attendant_characters: own) }
+          travel_to(at + 5.seconds) do
+            Message.record_outbound!(turn:, body:)
+            turn.update!(reply_kind: kind, model_reply: written)
+          end
         end
       end
 
-      def notice(locale = "pt-BR") = "#{FixedReply.notice(locale)}\n\n".length
-
       def sent(minute) = { type: "text", text: "Sent Wednesday, 2026-11-11 15:0#{minute} (São Paulo time)" }
 
-      def said(minute) = "Wednesday, 2026-11-11 15:0#{minute} (São Paulo time)"
+      def notice(kind, minute)
+        format(AgentRunner::History::NOTICES.fetch(kind), sent: "Wednesday, 2026-11-11 15:0#{minute} (São Paulo time)")
+      end
 
-      def after(minute, text) = "#{format(AgentRunner::History::AFTER, sent: said(minute))}\n#{text}"
+      def written = request.body[:messages].select { |message| message[:role] == "assistant" }.flat_map { |message| message[:content] }.pluck(:text)
 
-      def instead(minute, text) = "#{format(AgentRunner::History::INSTEAD, sent: said(minute))}\n#{text}"
+      def notices = request.body[:messages].select { |message| message[:role] == "system" }.pluck(:content)
 
-      it "gives the model the words it wrote, and the system's lines after them in a system message after the visitor's next one" do
-        offer = FixedReply.offer("pt-BR")
+      it "gives the model its reply as it wrote it, tags included, and none of the lines its tags asked for" do
         words = "Isso o farmacêutico da loja responde."
-        replied("posso tomar dipirona grávida?", at: Time.zone.local(2026, 11, 11, 15, 0),
-                                                 reply: FixedReply.with_notice("#{words}\n\n#{offer}", "pt-BR"), own: words.length)
+        answered("posso tomar dipirona grávida?", at: Time.zone.local(2026, 11, 11, 15, 0),
+                                                  body: FixedReply.with_notice(FixedReply.with_offer(words, "pt-BR"), "pt-BR"),
+                                                  written: "[pt] #{words} [pharmacist]")
         current = turn_in(conversation, "e vocês entregam?", at: Time.zone.local(2026, 11, 11, 15, 2))
 
         runner.run(current)
 
         expect(request.body[:messages]).to eq([
           { role: "user", content: [ sent(0), { type: "text", text: "posso tomar dipirona grávida?" } ] },
-          { role: "assistant", content: [ { type: "text", text: "Isso o farmacêutico da loja responde." } ] },
-          { role: "user", content: [ sent(2), { type: "text", text: "e vocês entregam?" } ] },
-          { role: "system", content: after(0, offer) }
+          { role: "assistant", content: [ { type: "text", text: "[pt] Isso o farmacêutico da loja responde. [pharmacist]" } ] },
+          { role: "user", content: [ sent(2), { type: "text", text: "e vocês entregam?" } ] }
         ])
       end
 
-      it "gives a reply the system wrote in the model's place as the system's whole, with no turn of the model's" do
-        replied("tem dipirona?", at: Time.zone.local(2026, 11, 11, 15, 0), reply: FixedReply.with_notice(FixedReply.fallback("pt-BR"), "pt-BR"),
-                                   own: 0)
+      it "says in one sentence of the system's what it sent in the model's place, never the text" do
+        answered("tem dipirona?", at: Time.zone.local(2026, 11, 11, 15, 0), body: FixedReply.with_notice(FixedReply.fallback("pt-BR"), "pt-BR"),
+                                  kind: "fallback")
         current = turn_in(conversation, "e agora?", at: Time.zone.local(2026, 11, 11, 15, 1))
 
         runner.run(current)
 
         expect(request.body[:messages]).to eq([
           { role: "user", content: [ sent(0), { type: "text", text: "tem dipirona?" }, sent(1), { type: "text", text: "e agora?" } ] },
-          { role: "system", content: instead(0, FixedReply.fallback("pt-BR")) }
+          { role: "system", content: notice("fallback", 0) }
         ])
+        expect(request.body[:messages].to_s).not_to include(FixedReply.fallback("pt-BR"))
       end
 
-      # A system message must come before an assistant's or last: the
-      # system's texts of turns the model did not answer wait for the next
-      # turn it did, and join into one.
-      it "keeps every system message after a user message and before an assistant's, joining those of the turns between" do
-        replied("oi", at: Time.zone.local(2026, 11, 11, 15, 0), reply: FixedReply.with_notice("Olá!\n\n#{FixedReply.offer("pt-BR")}", "pt-BR"), own: 4)
-        replied("tem dipirona?", at: Time.zone.local(2026, 11, 11, 15, 1), reply: FixedReply.fallback("pt-BR"), own: 0)
-        replied("tem?", at: Time.zone.local(2026, 11, 11, 15, 2), reply: "Temos.", own: 6)
-        current = turn_in(conversation, "obrigado", at: Time.zone.local(2026, 11, 11, 15, 3))
+      it "has one sentence for each fixed text the system sends in the model's place, naming the visitor's message" do
+        expect(AgentRunner::History::NOTICES.keys).to match_array(Turn::REPLY_KINDS - [ "model" ])
+        expect(AgentRunner::History::NOTICES.values).to all(include("%<sent>s"))
+      end
+
+      # A system message must come before an assistant's or last: the notices
+      # of turns the model did not answer wait for the next turn it did, and
+      # join into one.
+      it "keeps every notice after a user message and before an assistant's, joining those of the turns between" do
+        answered("oi", at: Time.zone.local(2026, 11, 11, 15, 0), body: FixedReply.with_notice("Olá!", "pt-BR"), written: "[pt] Olá!")
+        answered("posso tomar dipirona grávida?", at: Time.zone.local(2026, 11, 11, 15, 1),
+                                                  body: FixedReply.with_offer(FixedReply.declined("pt-BR"), "pt-BR"), kind: "decline")
+        answered("/ajuda", at: Time.zone.local(2026, 11, 11, 15, 2), body: FixedReply.help("pt-BR"), kind: "command")
+        answered("tem?", at: Time.zone.local(2026, 11, 11, 15, 3), body: "Temos.", written: "[pt] Temos.")
+        current = turn_in(conversation, "obrigado", at: Time.zone.local(2026, 11, 11, 15, 4))
 
         runner.run(current)
 
         messages = request.body[:messages]
         expect(messages.map { |message| message[:role] }).to eq(%w[user assistant user system assistant user])
-        expect(messages[3][:content]).to eq("#{after(0, FixedReply.offer("pt-BR"))}\n\n#{instead(1, FixedReply.fallback("pt-BR"))}")
+        expect(messages[3][:content]).to eq("#{notice("decline", 1)}\n\n#{notice("command", 2)}")
         expect(messages.each_cons(2).select { |before, after| before[:role] == "system" || after[:role] == "system" })
           .to all(satisfy { |before, after| after[:role] != "system" || before[:role] == "user" })
-      end
-
-      it "takes the notice out first, then splits the rest by the words the model wrote" do
-        line = FixedReply.reservations([ build(:reservation, code: "K7Q2XB", quantity: 1) ], "pt-BR")
-        replied("reserva uma", at: Time.zone.local(2026, 11, 11, 15, 0),
-                               reply: FixedReply.with_notice("Reservado!\n\n#{line}", "pt-BR"), own: 10)
-        current = turn_in(conversation, "obrigado", at: Time.zone.local(2026, 11, 11, 15, 1))
-
-        runner.run(current)
-
-        expect(request.body[:messages][1]).to eq(role: "assistant", content: [ { type: "text", text: "Reservado!" } ])
-        expect(request.body[:messages].last).to eq(role: "system", content: after(0, line))
       end
 
       # Review finding H-B2 of pull request #60 (cliente, the verifier's): a
       # conversation kept open by a visitor who writes every day outlives the
       # purge of its first reply, and the oldest reply left was read as the
-      # first, its first paragraph dropped as the notice, so the model's
-      # words became the offer's first letters. A reply keeps where the
-      # model's words begin.
-      it "splits a reply by where the model's words begin, whatever reply the purge left first" do
-        first = replied("oi", at: Time.zone.local(2026, 11, 11, 15, 0), reply: FixedReply.with_notice("Olá!", "pt-BR"), own: 4)
-        offer = FixedReply.offer("pt-BR")
-        replied("tem dipirona?", at: Time.zone.local(2026, 11, 11, 15, 1), reply: "Temos.\n\n#{offer}", own: 6)
+      # first, its first paragraph dropped as the notice. The reply as the
+      # model wrote it holds no notice to drop.
+      it "gives the reply as the model wrote it, whatever reply the purge left first" do
+        first = answered("oi", at: Time.zone.local(2026, 11, 11, 15, 0), body: FixedReply.with_notice("Olá!", "pt-BR"), written: "[pt] Olá!")
+        answered("tem dipirona?", at: Time.zone.local(2026, 11, 11, 15, 1), body: FixedReply.with_offer("Temos.", "pt-BR"),
+                                  written: "[pt] Temos. [pharmacist]")
         first.inbound_message.destroy!
         current = turn_in(conversation, "e entrega?", at: Time.zone.local(2026, 11, 11, 15, 2))
 
         runner.run(current)
 
-        expect(request.body[:messages][1]).to eq(role: "assistant", content: [ { type: "text", text: "Temos." } ])
-        expect(request.body[:messages].last).to eq(role: "system", content: after(1, offer))
+        expect(written).to eq([ "[pt] Temos. [pharmacist]" ])
+        expect(notices).to be_empty
       end
 
-      it "reads a reply stored before the model's share was kept as the model's, as before, when it holds no system's line" do
-        turn_in(conversation, "tem dipirona?", at: Time.zone.local(2026, 11, 11, 15, 0),
-                                               reply: FixedReply.with_notice("Temos.\n\nUma linha.", "pt-BR"))
-        current = turn_in(conversation, "e paracetamol?", at: Time.zone.local(2026, 11, 11, 15, 1))
+      # A reply stored before its turn kept what the model wrote (an image
+      # before this slice, the old worker of Kamal's migration window, a
+      # rollback) is read by its text.
+      describe "a reply stored before its turn kept what the model wrote" do
+        it "reads as the model's, as before, when it holds no line of the system's" do
+          turn_in(conversation, "tem dipirona?", at: Time.zone.local(2026, 11, 11, 15, 0),
+                                                 reply: FixedReply.with_notice("Temos.\n\nUma linha.", "pt-BR"))
+          current = turn_in(conversation, "e paracetamol?", at: Time.zone.local(2026, 11, 11, 15, 1))
 
-        runner.run(current)
+          runner.run(current)
 
-        expect(request.body[:messages][1]).to eq(role: "assistant", content: [ { type: "text", text: "Temos.\n\nUma linha." } ])
-      end
+          expect(written).to eq([ "Temos.\n\nUma linha." ])
+          expect(notices).to be_empty
+        end
 
-      # Review finding C1 of pull request #60 (cliente, the verifier's): a
-      # reply stored before the model's share was kept (an image before this
-      # slice, the old worker of Kamal's migration window, a rollback) came
-      # back whole as the model's, the offer's, the emergency's or a
-      # reservation's line in it. Those lines, the ones a turn adds after the
-      # model's words, are told by their text, in the three languages.
-      it "never gives a system's line back as the model's words, even from a reply stored before the share was kept" do
-        offer = FixedReply.offer("en")
-        line = FixedReply.reservations([ build(:reservation, code: "K7Q2XB", quantity: 1) ], "pt-BR")
-        turn_in(conversation, "can I take dipyrone while pregnant?", at: Time.zone.local(2026, 11, 11, 15, 0),
-                                                                    reply: FixedReply.with_notice("The store's pharmacist answers that.\n\n#{offer}", "en"))
-        turn_in(conversation, "reserva uma", at: Time.zone.local(2026, 11, 11, 15, 1),
-                                             reply: "Reservado.\n\n#{FixedReply.emergency("pt-BR")}\n\n#{line}")
-        current = turn_in(conversation, "e vocês entregam?", at: Time.zone.local(2026, 11, 11, 15, 2))
+        # Review finding C1 of pull request #60 (cliente, the verifier's): such
+        # a reply came back whole as the model's, the offer's, the emergency's
+        # or a reservation's line in it. Those lines, the ones a turn adds
+        # after the model's words, are told by their text, in the three
+        # languages, and left out, the tags that asked for them kept.
+        it "gives back none of the lines a turn adds after the model's words, only the tags that asked for them" do
+          offer = FixedReply.offer("en")
+          line = FixedReply.reservations([ build(:reservation, code: "K7Q2XB", quantity: 1) ], "pt-BR")
+          turn_in(conversation, "can I take dipyrone while pregnant?", at: Time.zone.local(2026, 11, 11, 15, 0),
+                                                                      reply: FixedReply.with_notice("The store's pharmacist answers that.\n\n#{offer}", "en"))
+          turn_in(conversation, "reserva uma", at: Time.zone.local(2026, 11, 11, 15, 1),
+                                               reply: "Reservado.\n\n#{FixedReply.emergency("pt-BR")}\n\n#{line}")
+          current = turn_in(conversation, "e vocês entregam?", at: Time.zone.local(2026, 11, 11, 15, 2))
 
-        runner.run(current)
+          runner.run(current)
 
-        words = request.body[:messages].select { |message| message[:role] == "assistant" }.flat_map { |message| message[:content] }
-        expect(words).to eq([ { type: "text", text: "The store's pharmacist answers that." }, { type: "text", text: "Reservado." } ])
-        expect(request.body[:messages].select { |message| message[:role] == "system" }.map { |message| message[:content] })
-          .to eq([ after(0, offer), after(1, "#{FixedReply.emergency("pt-BR")}\n\n#{line}") ])
+          expect(written).to eq([ "The store's pharmacist answers that. [pharmacist]", "Reservado. [emergency]" ])
+          expect(notices).to be_empty
+        end
+
+        # Review finding R2 of pull request #60 (teorico, the verifier's): a
+        # line in a reservation's form the model wrote is told as the
+        # system's by its text alone; left out, it is never given back as the
+        # system's either.
+        it "never gives back a line in a reservation's form, the system's or one the model wrote" do
+          turn_in(conversation, "oi", at: Time.zone.local(2026, 11, 11, 15, 0), reply: FixedReply.with_notice("Olá!", "pt-BR"))
+          turn_in(conversation, "reserva uma dipirona", at: Time.zone.local(2026, 11, 11, 15, 1),
+                                                        reply: "Pronto.\n\nReserva ZZ9Z9Z: 1 × Dipirona 500 mg, retirada até 12/11 às 18:00.")
+          current = turn_in(conversation, "qual é minha reserva?", at: Time.zone.local(2026, 11, 11, 15, 2))
+
+          runner.run(current)
+
+          expect(request.body[:messages].to_s).not_to include("ZZ9Z9Z")
+          expect(written).to eq([ "Olá!", "Pronto." ])
+        end
       end
     end
 
@@ -311,7 +327,7 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
     # earlier claim of a reservation's code with nothing to back it, and the
     # economy model told a visitor, three times in six, that it could not
     # confirm a reservation it had made. An earlier turn's tool calls come
-    # back with their results, before the words of its reply.
+    # back with their results, before the reply the model wrote.
     describe "what the tools did in earlier turns" do
       let(:exchange) do
         [ { "role" => "assistant", "content" => [ { "type" => "tool_use", "id" => "toolu_01", "name" => "echo", "input" => { "text" => "dipirona" } } ] },
@@ -319,10 +335,14 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
                                                "is_error" => false } ] } ]
       end
 
+      def kept(turn, body:, **what)
+        travel_to(Time.zone.local(2026, 11, 11, 15, 0, 5)) { Message.record_outbound!(turn:, body:) }
+        turn.update!(tool_exchange: exchange, **what)
+      end
+
       it "gives back an earlier turn's tool calls and their results, between its message and its reply" do
-        earlier = turn_in(conversation, "tem dipirona?", at: Time.zone.local(2026, 11, 11, 15, 0))
-        earlier.update!(tool_exchange: exchange)
-        travel_to(Time.zone.local(2026, 11, 11, 15, 0, 5)) { Message.record_outbound!(turn: earlier, body: "Temos.", attendant_start: 0, attendant_characters: 6) }
+        kept(turn_in(conversation, "tem dipirona?", at: Time.zone.local(2026, 11, 11, 15, 0)), body: "Temos.", reply_kind: "model",
+                                                                                                  model_reply: "[pt] Temos.")
         current = turn_in(conversation, "reserva uma", at: Time.zone.local(2026, 11, 11, 15, 1))
 
         runner.run(current)
@@ -331,17 +351,14 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
           { role: "user", content: [ { type: "text", text: "Sent Wednesday, 2026-11-11 15:00 (São Paulo time)" }, { type: "text", text: "tem dipirona?" } ] },
           { role: "assistant", content: [ { type: "tool_use", id: "toolu_01", name: "echo", input: { text: "dipirona" } } ] },
           { role: "user", content: [ { type: "tool_result", tool_use_id: "toolu_01", content: "{\"echo\":\"dipirona\"}", is_error: false } ] },
-          { role: "assistant", content: [ { type: "text", text: "Temos." } ] },
+          { role: "assistant", content: [ { type: "text", text: "[pt] Temos." } ] },
           { role: "user", content: [ { type: "text", text: "Sent Wednesday, 2026-11-11 15:01 (São Paulo time)" }, { type: "text", text: "reserva uma" } ] }
         ])
       end
 
-      it "keeps the results first in their user message, the system's text in the model's place after it, in a system message" do
-        earlier = turn_in(conversation, "tem dipirona?", at: Time.zone.local(2026, 11, 11, 15, 0))
-        earlier.update!(tool_exchange: exchange)
-        travel_to(Time.zone.local(2026, 11, 11, 15, 0, 5)) do
-          Message.record_outbound!(turn: earlier, body: FixedReply.fallback("pt-BR"), attendant_start: 0, attendant_characters: 0)
-        end
+      it "keeps the results first in their user message, and the notice of a text in the model's place after the visitor's next one" do
+        kept(turn_in(conversation, "tem dipirona?", at: Time.zone.local(2026, 11, 11, 15, 0)), body: FixedReply.fallback("pt-BR"),
+                                                                                                  reply_kind: "fallback")
         current = turn_in(conversation, "e agora?", at: Time.zone.local(2026, 11, 11, 15, 1))
 
         runner.run(current)
@@ -349,7 +366,8 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
         messages = request.body[:messages]
         expect(messages.map { |message| message[:role] }).to eq(%w[user assistant user system])
         expect(messages[2][:content].map { |block| block[:type] }).to eq(%w[tool_result text text])
-        expect(messages.last[:content]).to start_with(format(AgentRunner::History::INSTEAD, sent: "Wednesday, 2026-11-11 15:00 (São Paulo time)"))
+        expect(messages.last[:content]).to eq(format(AgentRunner::History::NOTICES.fetch("fallback"),
+                                                     sent: "Wednesday, 2026-11-11 15:00 (São Paulo time)"))
       end
 
       it "keeps out the calls of the turn it runs, which the SDK's runner sends itself" do
@@ -367,6 +385,28 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
       result = runner.run(turn)
 
       expect(result).to have_attributes(outcome: :replied, text: "Temos, sim.", language: "pt-BR")
+    end
+
+    # M2-11a (the owner, 2026-11-20: "(d) Só o que o modelo escreveu"): the
+    # later turns' history gives the model back this, its tags in the places
+    # the prompt asks for them, as the system read them (History).
+    it "returns the reply as the model wrote it: its language's tag first, its words, then the tags of the lines it asked for" do
+      responses.replace([ reply("[pharmacist] [PT-br] Temos dipirona.\n\nQuer reservar? [emergency] [pharmacist]") ])
+
+      expect(runner.run(turn).written).to eq("[pt] Temos dipirona.\n\nQuer reservar? [pharmacist] [emergency]")
+    end
+
+    it "returns a reply with no words, or no language's tag, as the tags the model wrote" do
+      responses.replace([ reply("[pt] [pharmacist]"), reply("Temos. [emergency]") ])
+
+      expect(runner.run(turn).written).to eq("[pt] [pharmacist]")
+      expect(runner.run(turn).written).to eq("Temos. [emergency]")
+    end
+
+    it "returns no reply as written for a turn the model did not answer" do
+      responses.replace([ refusal ])
+
+      expect(runner.run(turn)).to have_attributes(outcome: :refused, written: nil)
     end
 
     context "when the reply is in Spanish" do

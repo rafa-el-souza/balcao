@@ -74,7 +74,7 @@ RSpec.describe "NFR-02 design §6.3 the per-conversation lock of ProcessTurnJob,
     expect([ first.reload.state, second.reload.state ]).to eq(%w[replied replied])
     expect(first.outbound_message.created_at).to be < second.outbound_message.created_at
     expect(fake.requests.last.body[:messages].last(2)).to match([
-      { role: "assistant", content: [ { type: "text", text: "Olá! Em que posso ajudar?" } ] },
+      { role: "assistant", content: [ { type: "text", text: "[pt] Olá! Em que posso ajudar?" } ] },
       a_hash_including(role: "user")
     ])
     expect(waiting_for_a_lock).to eq(0)

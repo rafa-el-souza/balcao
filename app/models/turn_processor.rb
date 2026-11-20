@@ -57,6 +57,13 @@ class TurnProcessor
   # replaced (FR-20), a turn answered from its stored reservations without
   # the model, one the budget paused and one the job gave up on.
   OUTCOMES = [ *AgentRunner::OUTCOMES.map(&:to_s), "replaced", "reservations", "paused", "dead_letter" ].freeze
+  # Which fixed text the system sent in the model's place, by the turn's
+  # outcome, for the history of the later turns (Turn::REPLY_KINDS): a
+  # replaced reply's is the decline, or the call to call now for an
+  # emergency (replace), and a command's its own (command).
+  IN_PLACE = { "refused" => "refusal", "incomplete" => "fallback", "tool_limit" => "fallback", "deadline" => "fallback",
+               "model_error" => "fallback", "dead_letter" => "fallback", "paused" => "pause",
+               "reservations" => "reservations", "replaced" => "decline" }.freeze
 
   # A reply holds the system's texts beside the model's own words: the notice
   # before a conversation's first reply, the fixed lines after the words
@@ -301,7 +308,7 @@ class TurnProcessor
     @inbound.update_columns(source: "command")
     span = @recorder.start_span("balcao.command", started_at: @inbound.received_at,
                                                   attributes: { "balcao.command.name" => name.to_s })
-    broadcast_reply(replied("replied", span) { yield })
+    broadcast_reply(replied("replied", span, kind: "command") { yield })
   rescue StandardError => e
     broken(e)
     raise
@@ -361,7 +368,8 @@ class TurnProcessor
     return replace(result) if verdict&.clinical?
 
     text, state = reply_of(result)
-    finish(result.outcome, state, text, error: result.error, own: (result.text if result.outcome == :replied))
+    wrote = result.outcome == :replied
+    finish(result.outcome, state, text, error: result.error, own: (result.text if wrote), written: (result.written if wrote))
   end
 
   # FR-20: the text the model wrote passes the guardrail's check before it is
@@ -431,7 +439,7 @@ class TurnProcessor
   # (review finding H-B4 of pull request #60).
   def replace(result)
     text, listed = replaced(result, @conversation.language)
-    finish("replaced", "replied", text)
+    finish("replaced", "replied", text, kind: result.emergency ? "call_now" : "decline")
     Rails.logger.warn("turn #{@turn.id}: FR-20's check replaced the model's reply (products listed: #{listed}, emergency: #{result.emergency})")
   end
 
@@ -528,12 +536,18 @@ class TurnProcessor
   end
 
   # own is the model's words the text begins with, nil when it holds none
-  # (REPLY_EVENT).
-  def finish(outcome, state, text, error: nil, own: nil)
+  # (REPLY_EVENT); written, the reply as the model wrote it, and kind, what
+  # the later turns' history gives back of the turn (Turn::REPLY_KINDS):
+  # model for a reply the model wrote, else the fixed text sent in its
+  # place.
+  def finish(outcome, state, text, error: nil, own: nil, written: nil, kind: nil)
     raise ArgumentError, "#{outcome} is not in TurnProcessor::OUTCOMES" unless OUTCOMES.include?(outcome.to_s)
 
+    kind ||= outcome.to_s == "replied" ? "model" : IN_PLACE.fetch(outcome.to_s)
     outbound = @recorder.start_span("balcao.outbound", parent: @root, attributes: { "balcao.message.author" => "bot" })
-    message = replied(state, @root) { record_reply(text, conversation: @conversation, language: @conversation.language, own:) }
+    message = replied(state, @root, kind:, written:) do
+      record_reply(text, conversation: @conversation, language: @conversation.language, own:)
+    end
     broadcast_reply(message)
     outbound.finish(attributes: { "balcao.message.characters" => message.body.length })
     @root.finish(attributes: { "balcao.turn.mode" => @root.attributes["balcao.turn.mode"],
@@ -570,18 +584,20 @@ class TurnProcessor
   # retry; and the span is there before anything else can see the reply, so
   # a drain of the person's replies that sends it at once finds the span to
   # close (review finding V4 of pull request #48). The caller sends the reply
-  # to the stream once it is committed.
-  def replied(state, parent)
+  # to the stream once it is committed. The turn keeps, with its reply, what
+  # the history of the later turns gives back of it (AgentRunner::History):
+  # the reply as the model wrote it, or which fixed text the system sent in
+  # its place (kind), and the tool calls the model made in this run with
+  # their results.
+  def replied(state, parent, kind:, written: nil)
     ApplicationRecord.transaction do
       yield.tap do
-        @turn.update!(state:, **latency, **exchange)
+        @turn.update!(state:, reply_kind: kind, model_reply: written, **latency, **exchange)
         delivery(parent)
       end
     end
   end
 
-  # The tool calls the model made in this run and their results, kept with
-  # the reply for the history of the later turns (AgentRunner::History).
   def exchange = @exchange ? { tool_exchange: @exchange } : {}
 
   # FR-12, FR-19: a Telegram reply leaves after its run, by its status
@@ -592,20 +608,10 @@ class TurnProcessor
   # stored, to the page's stream.
   def delivery(parent) = (@recorder.start_delivery(parent) if @inbound.channel == "telegram")
 
-  # The reply keeps where the model's words begin, after the notice of a
-  # conversation's first reply, and their length, 0 when it holds none, so
-  # the history marks the system's text as the system's (Message#authored); a
-  # NUL the body loses is not counted. Words that are only spaces are none,
-  # as FixedReply drops them from the body and the eval runner's event names
-  # none (review finding C2 of pull request #60).
   def record_reply(text, conversation:, language:, own: nil)
-    first = !conversation.messages.outbound.exists?
-    body = first ? FixedReply.with_notice(text, language) : text
-    start = first ? body.length - text.length : 0
-    words = own.presence
-    Message.record_outbound!(turn: @turn, body:, conversation:, attendant_start: start,
-                             attendant_characters: words.to_s.delete("\u0000").length).tap do
-      ActiveSupport::Notifications.instrument(REPLY_EVENT, turn_id: @turn.id, attendant: words)
+    body = conversation.messages.outbound.exists? ? text : FixedReply.with_notice(text, language)
+    Message.record_outbound!(turn: @turn, body:, conversation:).tap do
+      ActiveSupport::Notifications.instrument(REPLY_EVENT, turn_id: @turn.id, attendant: own.presence)
     end
   end
 

@@ -61,17 +61,27 @@ module FixedReply
 
   def with_emergency(text, locale) = paragraphs(text, emergency(locale))
 
-  # A paragraph a turn adds after the model's words, told by its text in any
-  # of the three languages: the offer of the pharmacist, the emergency line,
-  # or lines of reservations. The history reads a reply stored before the
-  # model's share was kept with it (Message#authored; review finding C1 of
-  # pull request #60); a reply stored since says its share itself.
+  # The history reads a reply stored before its turn kept what the model
+  # wrote by its text, in any of the three languages (Message#authored;
+  # design §10, M2-11a); a turn stored since keeps it (Turn#reply_kind).
+  #
+  # A paragraph a turn adds after the model's words: the offer of the
+  # pharmacist, the emergency line, or lines of reservations (review finding
+  # C1 of pull request #60).
   def added_line?(paragraph)
     return false if paragraph.blank?
 
     locales = AgentRunner::LANGUAGES.values
     locales.any? { |locale| [ offer(locale), emergency(locale) ].include?(paragraph) } ||
       paragraph.split("\n").all? { |line| locales.any? { |locale| reservation_line(locale).match?(line) } }
+  end
+
+  # The tags that asked for the paragraphs a turn added, in the order the
+  # prompt asks for them.
+  def line_tags(paragraphs)
+    locales = AgentRunner::LANGUAGES.values
+    [ ("[pharmacist]" if locales.any? { |locale| paragraphs.include?(offer(locale)) }),
+      ("[emergency]" if locales.any? { |locale| paragraphs.include?(emergency(locale)) }) ].compact
   end
 
   # A reservation's line as turn.reservation writes it, its values any text.

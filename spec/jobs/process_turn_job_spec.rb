@@ -198,62 +198,49 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
     end
   end
 
-  # M2-11a (design §10, M2-4's note): what the history of the next turns
-  # gives the model back of this one (AgentRunner::History): how much of the
-  # stored reply it wrote, so the system's texts are marked as the system's,
-  # and its tool calls with their results.
+  # M2-11a (design §10, M2-4's note; the owner, 2026-11-20: "(d) Só o que o
+  # modelo escreveu" and "Aviso de uma frase"): what the history of the next
+  # turns gives the model back of this one (AgentRunner::History): its tool
+  # calls with their results, and the reply as the model wrote it, or which
+  # fixed text the system sent in its place.
   describe "what the next turns read of this one (FR-04, SR-41)" do
-    it "keeps how much of the reply the model wrote, after the notice, before the system's line" do
+    it "keeps the reply as the model wrote it, its tags included, encrypted at rest" do
       responses.replace([ reply("[pt] Ligue agora para o socorro. [emergency]") ])
       turn = inbound("meu filho engoliu uns comprimidos")
 
       perform(turn)
 
-      expect(turn.outbound_message).to have_attributes(attendant_start: "#{FixedReply.notice("pt-BR")}\n\n".length,
-                                                       attendant_characters: "Ligue agora para o socorro.".length)
-      expect(turn.outbound_message.authored).to have_attributes(attendant: "Ligue agora para o socorro.",
-                                                                system: FixedReply.emergency("pt-BR"))
+      expect(turn.reload).to have_attributes(reply_kind: "model", model_reply: "[pt] Ligue agora para o socorro. [emergency]")
+      stored = Turn.connection.select_value(Turn.where(id: turn.id).select(:model_reply).to_sql)
+      expect(stored).not_to include("socorro")
     end
 
     # Review finding C2 of pull request #60 (teorico, the verifier's; fixed
     # since it is one expression): a reply whose only text is a space that
     # String#strip leaves, as a no-break space, and a line tag is the line
-    # alone, as FixedReply drops the blank text, and kept one character of
-    # the model's, so the history gave the model the line's first letter.
-    it "keeps none of the model's for a reply whose words are only spaces strip leaves, before a line tag" do
+    # alone, as FixedReply drops the blank text.
+    it "keeps no words for a reply whose words are only spaces strip leaves, before a line tag" do
       responses.replace([ reply("[pt] Olá!"), reply("[pt]#{"\u00a0"}[pharmacist]") ])
       perform(inbound("oi"))
       turn = inbound("tem dipirona?")
 
       perform(turn)
 
-      expect(turn.outbound_message).to have_attributes(body: FixedReply.offer("pt-BR"), attendant_characters: 0)
-      expect(turn.outbound_message.authored).to have_attributes(attendant: nil, system: FixedReply.offer("pt-BR"))
+      expect(turn.outbound_message.body).to eq(FixedReply.offer("pt-BR"))
+      expect(turn.reload.model_reply).to eq("[pt] [pharmacist]")
     end
 
-    # Review finding H-B2 of pull request #60: where the model's words begin
-    # is kept, so the split holds when the purge takes the first reply.
-    it "keeps where the model's words begin: after the notice in a conversation's first reply, at the start in a later one" do
-      responses.replace([ reply("[pt] Olá!"), reply("[pt] Temos. [pharmacist]") ])
-      first = inbound("oi")
-      perform(first)
-      later = inbound("tem dipirona?")
-
-      perform(later)
-
-      expect(later.outbound_message).to have_attributes(attendant_start: 0, attendant_characters: 6)
-      first.inbound_message.destroy!
-      expect(later.outbound_message.reload.authored).to have_attributes(attendant: "Temos.", system: FixedReply.offer("pt-BR"))
-    end
-
-    it "keeps none of the model's for a reply the system wrote in its place: a refusal's, a tag's alone, a replaced one, a command's" do
-      allow(Guardrail).to receive(:default_client) { FakeModel.new([ GuardrailVerdicts.verdict(true, "Gives a dose.") ]).client }
-      responses.replace([ refusal, reply("[pt] [emergency]"), reply("[pt] Dê 15 gotas. [pharmacist]") ])
-      turns = [ "como faço para ...", "meu filho engoliu uns comprimidos", "quanto dou pro meu filho?", "/reiniciar" ].map { |text| inbound(text) }
+    it "keeps which fixed text the system sent in the model's place, and nothing as the model's" do
+      allow(Guardrail).to receive(:default_client) do
+        FakeModel.new([ GuardrailVerdicts.verdict(true, "Gives a dose."), GuardrailVerdicts.verdict(true, "Gives first aid.") ]).client
+      end
+      responses.replace([ refusal, reply("[pt] Dê 15 gotas. [pharmacist]"), reply("[pt] Ligue para o socorro e dê água. [emergency]"), reply("") ])
+      turns = [ "como faço para ...", "quanto dou pro meu filho?", "meu filho engoliu uns comprimidos", "oi?", "/help" ].map { |text| inbound(text) }
 
       turns.each { |turn| perform(turn) }
 
-      expect(turns.map { |turn| turn.reload.outbound_message.attendant_characters }).to eq([ 0, 0, 0, 0 ])
+      expect(turns.map { |turn| turn.reload.reply_kind }).to eq(%w[refusal decline call_now fallback command])
+      expect(turns.map(&:model_reply)).to all(be_nil)
     end
 
     it "keeps the turn's tool calls and their results with its reply, encrypted at rest" do
@@ -280,7 +267,7 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       expect(turn.reload.tool_exchange).to be_nil
     end
 
-    it "gives the next turn's model this turn's tool calls, its words and the system's line, marked" do
+    it "gives the next turn's model this turn's tool calls and its reply as it wrote it, and none of the system's lines" do
       product = create(:product, stock: 10)
       responses.replace([ tool_turn(tool_use("create_reservation", { product_id: product.id, quantity: 2 }, id: "toolu_09")),
                           reply("[pt] Reservei duas caixas para você."), reply("[pt] Está reservado, sim.") ])
@@ -291,14 +278,14 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       perform(second)
 
       messages = fake.requests.last.body[:messages]
-      expect(messages.map { |message| message[:role] }).to eq(%w[user assistant user assistant user system])
+      expect(messages.map { |message| message[:role] }).to eq(%w[user assistant user assistant user])
       expect(messages[1][:content].sole).to include(type: "tool_use", id: "toolu_09", name: "create_reservation")
       expect(messages[2][:content].sole).to include(type: "tool_result", tool_use_id: "toolu_09",
                                                     content: a_string_including(first.reservations.sole.code))
-      expect(messages[3][:content]).to eq([ { type: "text", text: "Reservei duas caixas para você." } ])
-      sent = first.inbound_message.created_at.in_time_zone.strftime(AgentRunner::History::SENT)
-      expect(messages[5][:content]).to eq("#{format(AgentRunner::History::AFTER, sent:)}\n" \
-                                          "#{FixedReply.reservations(first.reservations.to_a, "pt-BR")}")
+      expect(messages[3][:content]).to eq([ { type: "text", text: "[pt] Reservei duas caixas para você." } ])
+      line = FixedReply.reservations(first.reservations.to_a, "pt-BR")
+      expect(first.outbound_message.body).to include(line)
+      expect(messages.to_s).not_to include(line)
     end
   end
 
@@ -1193,7 +1180,7 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
 
       again = fake.requests[2]
       texts = again && again.body[:messages].flat_map { |message| message[:content].map { |block| block[:text] } }
-      expect(again.nil? || texts.include?("Temos dipirona, sim.")).to be(true)
+      expect(again.nil? || texts.include?("[pt] Temos dipirona, sim.")).to be(true)
       expect(first.reload.outbound_message.created_at).to be < second.reload.outbound_message.created_at
     end
 

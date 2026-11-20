@@ -100,28 +100,26 @@ class Message < ApplicationRecord
     { id:, turn_id:, author:, notice:, body: text, created_at: created_at.iso8601(3) }
   end
 
-  # The reply as the model wrote it, for the history it reads back
-  # (AgentRunner::History): without the notice the system put before it.
+  # The reply without the notice the system put before a conversation's
+  # first reply (FR-01).
   def body_without_notice(first_reply: first_reply?) = first_reply ? notice_and_text.last : body
 
-  # A reply in its authors' parts, for the history the model reads back
-  # (AgentRunner::History; design §10, M2-11a): attendant, the words the
-  # model wrote, and system, the system's text after them or in their place,
-  # each nil when there is none; the notice before a conversation's first
-  # reply is neither. TurnProcessor keeps where the model's words begin and
-  # how long they are with the reply (attendant_start, attendant_characters),
-  # so a fixed line a later slice adds is the system's with no list of the
-  # fixed texts to keep, and the split holds whatever reply the purge left
-  # first (review finding H-B2 of pull request #60). A reply stored before
-  # they were kept is read by its text (legacy_authored).
-  Authored = Data.define(:attendant, :system)
+  # What the history gives back of a reply stored before its turn kept what
+  # the model wrote (Turn#reply_kind): an image before M2-11a, the old worker
+  # of Kamal's migration window, a rollback. It is read by its text (design
+  # §10, M2-11a): written, the model's words with the tags that asked for the
+  # lines a turn adds after them, the offer of the pharmacist and the
+  # emergency line, which are left out with a reservation's lines, told by
+  # their text (FixedReply.added_line?; review finding C1 of pull request
+  # #60); kind, the fixed text the system wrote in the model's place, is not
+  # told. The notice before a conversation's first reply is neither.
+  Authored = Data.define(:written, :kind)
 
   def authored(first_reply: first_reply?)
-    return legacy_authored(body_without_notice(first_reply:)) if attendant_start.nil? || attendant_characters.nil?
-
-    text = body[attendant_start..].to_s
-    Authored.new(attendant: text[0, attendant_characters].presence,
-                 system: text[attendant_characters..].to_s.delete_prefix("\n\n").presence)
+    paragraphs = body_without_notice(first_reply:).split("\n\n")
+    added = []
+    added.unshift(paragraphs.pop) while paragraphs.any? && FixedReply.added_line?(paragraphs.last)
+    Authored.new(written: [ paragraphs.join("\n\n").presence, *FixedReply.line_tags(added) ].compact.join(" ").presence, kind: nil)
   end
 
   # The first reply of a conversation is the one the system put the notice
@@ -140,21 +138,6 @@ class Message < ApplicationRecord
 
   private
 
-  # A reply stored before the model's share was kept: an image before M2-11a,
-  # the old worker of Kamal's migration window, a rollback. The paragraphs a
-  # turn adds after the model's words, the offer of the pharmacist, the
-  # emergency line and a reservation's lines, are told by their text
-  # (FixedReply.added_line?) and are the system's; the rest reads as the
-  # model's, as the history read it then (review finding C1 of pull request
-  # #60: the history gave those lines back as the model's own words while
-  # the prompt says it never writes them).
-  def legacy_authored(text)
-    paragraphs = text.split("\n\n")
-    added = []
-    added.unshift(paragraphs.pop) while paragraphs.any? && FixedReply.added_line?(paragraphs.last)
-    Authored.new(attendant: paragraphs.join("\n\n").presence, system: added.join("\n\n").presence)
-  end
-
   def notice_and_text
     notice, text = body.split("\n\n", 2)
     text ? [ notice, text ] : [ nil, body ]
@@ -163,14 +146,11 @@ class Message < ApplicationRecord
   # Stores the one reply of a turn, in the turn's conversation or in the one
   # given: a reset's confirmation opens the conversation it starts (FR-04). A
   # retried job meets the unique index and gets the reply already stored, so
-  # it neither stores nor sends a second one (NFR-02). attendant_start is
-  # where the words the model wrote begin in the body, after any notice, and
-  # attendant_characters their length, 0 for a text the system wrote in their
-  # place (authored).
-  def self.record_outbound!(turn:, body:, author: "bot", conversation: nil, attendant_start: nil, attendant_characters: nil)
+  # it neither stores nor sends a second one (NFR-02).
+  def self.record_outbound!(turn:, body:, author: "bot", conversation: nil)
     create_or_find_by!(turn_id: turn.id) do |message|
       message.assign_attributes(conversation_id: conversation&.id || turn.conversation_id, direction: "outbound",
-                                author:, source: "text", body:, status: "pending", attendant_start:, attendant_characters:)
+                                author:, source: "text", body:, status: "pending")
     end
   end
 end
