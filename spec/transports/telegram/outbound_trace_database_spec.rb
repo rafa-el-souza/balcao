@@ -38,14 +38,17 @@ RSpec.describe "FR-19 FR-12 Telegram::Outbound, a reply's way in the trace when 
 
   def delivery_of(message) = TraceEvent.find_by(turn_id: message.turn_id, name: "balcao.delivery")
 
-  # The turn's read for the trace breaks in the database (a lock or a
-  # statement timeout during a deploy's migration; here a division by zero),
-  # as an error raised in Ruby does not.
+  # Every read of a turn breaks in the database (a lock or a statement
+  # timeout during a deploy's migration; here a division by zero), whatever
+  # code reads it, as an error raised in Ruby does not: the fix review's R1
+  # on pull request #52 found the examples broke one way of reading it, which
+  # the code before #48's H3 did not use.
   def turn_read_breaks
-    allow(Turn).to receive(:includes).and_wrap_original do |original, *arguments|
-      Turn.connection.execute("SELECT 1/0")
-      original.call(*arguments)
-    end
+    allow_any_instance_of(ActiveRecord::ConnectionAdapters::PostgreSQLAdapter).to receive(:select_all)
+      .and_wrap_original do |original, arel, name = nil, *rest, **options|
+        original.receiver.execute("SELECT 1/0") if name == "Turn Load"
+        original.call(arel, name, *rest, **options)
+      end
   end
 
   # Review finding C1 and the hunter's H1 on pull request #52: the turn was
