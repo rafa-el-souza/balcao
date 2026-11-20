@@ -174,11 +174,13 @@ Each mitigation is a requirement (SR-xx) with a test or a verification step.
   during a guardrail outage, traced and visible. As built (M2-2): an
   answer without a verdict fails open too (a refusal, an answer cut off or
   unreadable, a bug of the check), each a log line and an error-coloured
-  row in the trace; the check's own timeout and single retry bound what an
-  outage adds to a turn (about 11 s at worst); and a replacement that
-  breaks fails the turn instead, so the clinical text is never sent. The
-  check reads the visitor's message beside the reply, both as data, each
-  in its own tag with its angle brackets turned into guillemets: a forged
+  row in the trace; the check's own timeout and single retry, made only
+  when the wait the API asks for is a second or less, bound what an outage
+  adds to a turn (about 11 s at worst); and a replacement that breaks fails
+  the turn instead, so the clinical text is never sent. The check reads the
+  visitor's message and their earlier messages of the window the model
+  read beside the reply, all as data, each in its own tag with its angle
+  brackets turned into guillemets: a forged
   reply in the visitor's message moved the verdict in four of six tries
   before that, none of eighteen tries of six attacks after (SR-21; design
   §10's note of 2026-11-20), and the `injection` suite (M2-4) measures

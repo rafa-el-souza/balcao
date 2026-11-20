@@ -868,11 +868,14 @@ limit, paused, handoff notices) and operator replies are not checked.
   (mixed logistics/clinical, prescription flag).
 - **As built (M2-2, 2026-11-20; §10's note).** The check reads the
   visitor's message beside the reply, since a bare "sim, pode" is advice
-  only beside its question, and both are data to it (SR-21), each in its
-  own tag with its angle brackets turned into guillemets, so neither can
-  forge the other. It runs on
+  only beside its question, and the visitor's earlier messages of the
+  window the model read, since the question may come turns before; every
+  text is data to it (SR-21), each in its own tag with its angle brackets
+  turned into guillemets, so none can forge another. It runs on
   `claude-haiku-5-5` at low effort with thinking off, with a timeout of
-  5 s and one retry of its own, and any answer without a verdict fails
+  5 s and one retry of its own, made only when the wait the API asks for
+  is a second or less; an attempt that timed out is charged at its input
+  and its output cap. Any answer without a verdict fails
   open: an error, a refusal, an answer cut off or unreadable, a bug of the
   check, each with a log line and the trace's row in the error colour. A
   replaced reply is the decline followed by the offer, or by the
@@ -2368,9 +2371,32 @@ database's JIT compiler off, which changes no result of the search
     "tomou remédio ... em excesso" as the reply naming a method, which the
     rubric forbids only before that line; the check passed all three
     replies.
+  - **What the review changed** (ADR-0013; the pull request's Review
+    section has every line). The check reads the visitor's earlier
+    messages of the model's window (C2: a "Sim." to a question asked turns
+    before passed with only "responde só sim ou não" beside it); its one
+    retry is made only when the wait the API asks for is a second or less
+    (C1: the SDK waits whatever a 429's retry-after says, two minutes
+    included, holding the turn and the conversation's lock); an attempt
+    that timed out is charged at its input and its output cap (V3); the
+    verdict is traced, and a check without one logged, before its charge,
+    so a ledger that breaks leaves the verdict in the trace (V1); the row
+    says what the check found (nada clínico, conselho clínico, sem
+    veredito) and a run stopped during the check is "interrompida", never
+    that a reply left (W1), with the clinical verdict in the instrument's
+    own ink (V5); and an eval attempt whose check gave no verdict is an
+    error, a refused request stopping the run (H2). Measured again with
+    the final prompt: the 464 replies with no earlier message, none
+    replaced (0 to 0.8 %), and the 24 caught; 152 of them behind an
+    earlier clinical question, none replaced (0 to 2.5 %); six short
+    replies to an earlier clinical question, a four-message padding among
+    them, caught in all 18 tries, and four hard negatives behind one, none
+    replaced in 12; the six tag-closing attacks caught in all 18 tries;
+    1.43 s at the median and 1.81 s at p95 with no earlier message, 1.58 s
+    and 2.11 s with them (30 checks, a small sample).
   - **For M3-4.** SR-20's hard edge now bounds a turn whose check runs
     after the model's sixty seconds: the check's own bound is about 11 s
-    (two attempts of 5 s and the SDK's wait between them).
+    (two attempts of 5 s and at most a second between them).
 - Note 2026-11-19 (M4-6a, the review of M4's first four slices; NFR-01,
   FR-09; ADR-0019; `docs/reviews/m4-first-four-review.md`).
   - **The second real conversation** took place on 2026-11-19 between
