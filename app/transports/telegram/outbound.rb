@@ -166,13 +166,16 @@ module Telegram
     # A reply's new status and the close of its way in its turn's trace, in
     # one transaction, so a worker stopped between them leaves neither: the
     # reply still pending, its way still open, for the next drain (the fix
-    # review's sister on pull request #48). The trace reads the turn by its
-    # id inside its own rescue (the hunter's H3 on the same review), and
-    # writes in a savepoint, so its failure never undoes the status.
+    # review's sister on pull request #48). The way is read first, outside
+    # any transaction, by the turn's id and inside the trace's own rescue
+    # (TraceRecorder.way; the hunter's H3 on the same review, the verifier's
+    # V3 on pull request #52), and closed in a savepoint, so its failure
+    # never undoes the status (review finding C1 of #52).
     def finished(message, at: Time.current, error: nil, **columns)
+      way = TraceRecorder.way(message.turn_id)
       Message.transaction do
         message.update_columns(**columns, updated_at: at)
-        TraceRecorder.delivered(message.turn_id, at:, error:)
+        TraceRecorder.delivered(way, at:, error:)
       end
     end
 

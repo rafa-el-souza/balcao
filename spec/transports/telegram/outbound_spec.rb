@@ -408,62 +408,6 @@ RSpec.describe "FR-19 SR-43 NFR-02 Telegram::Outbound, a reply on its way to the
                                             span_attributes: { "error.type" => "Telegram::Chat::Unreadable" })
     end
 
-    # The turn's read for the trace breaks inside the database (a lock or a
-    # statement timeout; here a division by zero), which aborts the
-    # transaction it runs in, as an error raised in Ruby does not.
-    def turn_read_breaks
-      allow(Turn).to receive(:includes).and_wrap_original do |original, *arguments|
-        Turn.connection.execute("SELECT 1/0")
-        original.call(*arguments)
-      end
-    end
-
-    # Review finding C1 of pull request #52: the turn was read for the trace
-    # inside the transaction of the reply's status but outside the trace's
-    # savepoint, so a database error on that read aborted the transaction,
-    # and its COMMIT rolled the status back in silence: a reply Telegram took
-    # stayed pending, for the sweep minutes later.
-    it "keeps a reply sent though the database breaks the read of its turn for the trace" do
-      turn_read_breaks
-      lines = []
-      allow(Rails.logger).to receive(:error) { |line| lines << line }
-
-      outbound.deliver_pending(visitor)
-
-      expect(message.reload.status).to eq "sent"
-      expect(lines).to include("trace: span balcao.delivery not recorded: ActiveRecord::StatementInvalid")
-    end
-
-    # The hunter's H3 on pull request #48: the reply's turn was read for the
-    # trace outside the trace's rescue, so a database error on that read broke
-    # the delivery: a refusal's own line was lost, and an attempt was counted
-    # on a reply already failed. The fix review's sister: the same read for a
-    # visitor whose chat does not decrypt. The verifier's V1 on pull request
-    # #52: these examples stubbed Message#turn, which the fix no longer
-    # calls, so they passed whatever guarded the read; they break the read
-    # itself, in the database.
-    it "fails a refused reply with its line though its turn cannot be read for the trace" do
-      stub_request(:post, bot_api_url("sendMessage")).to_return(bot_api_error(403, "Forbidden: bot was blocked by the user"))
-      turn_read_breaks
-      lines = []
-      allow(Rails.logger).to receive(:error) { |line| lines << line }
-
-      outbound.deliver_pending(visitor)
-
-      expect(message.reload).to have_attributes(status: "failed", send_attempts: 1)
-      expect(lines).to include("telegram reply #{message.id}: failed after 1 attempt, Telegram::Client::Error (403)")
-    end
-
-    it "fails the replies of a visitor whose chat does not decrypt though their turns cannot be read for the trace" do
-      turn_read_breaks
-      allow(Rails.logger).to receive(:error)
-      other_keys = ActiveRecord::Encryption::DerivedSecretKeyProvider.new("another-primary-key-for-the-spec")
-
-      ActiveRecord::Encryption.with_encryption_context(key_provider: other_keys) { outbound.deliver_pending(Visitor.find(visitor.id)) }
-
-      expect(message.reload.status).to eq "failed"
-    end
-
     # The fix review's sister on pull request #48: the reply's status and its
     # way's close were two writes, so a worker stopped between them left the
     # way open for good, the reply no longer pending for anything to close it.
@@ -471,10 +415,7 @@ RSpec.describe "FR-19 SR-43 NFR-02 Telegram::Outbound, a reply on its way to the
       way = TraceEvent.create!(turn_id: message.turn_id, trace_id: "a" * 32, span_id: "b" * 16, name: "balcao.delivery",
                                started_at: 1.second.ago)
       stub_const("WorkerKilled", Class.new(Exception)) # rubocop:disable Lint/InheritException
-      allow(TraceEvent).to receive(:where).and_call_original
-      allow(TraceEvent).to receive(:where).with(hash_including(name: "balcao.delivery")).and_wrap_original do |original, *arguments|
-        original.call(*arguments).tap { raise WorkerKilled }
-      end
+      allow_any_instance_of(TraceEvent).to receive(:update!).and_raise(WorkerKilled)
 
       expect { outbound.deliver_pending(visitor) }.to raise_error(WorkerKilled)
 

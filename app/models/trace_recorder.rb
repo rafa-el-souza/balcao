@@ -62,25 +62,41 @@ class TraceRecorder
     Rails.logger.error("trace: the spans of an interrupted run not closed: #{e.class}")
   end
 
-  # FR-12, FR-19: closes the turn's open delivery span when its Telegram
-  # reply left (at the moment Telegram took its last part) or failed (with the
-  # error's class), from Telegram::Outbound, after the run that opened it, in
-  # the transaction that writes the reply's status (Outbound#finished). It
-  # takes the turn's id and reads the turn inside its own rescue (the
-  # hunter's H3 on pull request #48), and every statement of it, that read
-  # included, runs in a savepoint: a statement the database breaks aborts the
-  # savepoint alone, so the caller's transaction commits the status (review
-  # finding C1 of pull request #52). Like any span, it never fails what it
-  # records: a write that breaks is a line naming the span and the error's
-  # class.
-  def self.delivered(turn_id, at: Time.current, error: nil)
-    return unless turn_id
+  # A Telegram reply's way to the chat in its turn's trace: its delivery
+  # spans still open, and the conversation whose streams hear them close.
+  Way = Data.define(:conversation, :spans)
+
+  # FR-12, FR-19: the way of a reply about to be marked sent or failed,
+  # read by Telegram::Outbound before the transaction that writes the
+  # reply's status, outside any transaction: Active Record prepares again a
+  # statement a deploy's migration made stale (a column added to the
+  # conversations) only outside one, so read inside it the way failed at
+  # every delivery of the old worker (the verifier's V3 on pull request #52).
+  # It takes the turn's id and reads inside its own rescue, so a read that
+  # breaks never breaks the delivery (the hunter's H3 on pull request #48):
+  # nil, with a line.
+  def self.way(turn_id)
+    turn = turn_id && Turn.includes(:conversation).find_by(id: turn_id) or return
+    Way.new(conversation: turn.conversation, spans: TraceEvent.where(turn_id:, name: DELIVERY, finished_at: nil).to_a)
+  rescue StandardError => e
+    Rails.logger.error("trace: span #{DELIVERY} not read: #{e.class}")
+    nil
+  end
+
+  # Closes that way when the reply left (at the moment Telegram took its
+  # last part) or failed (with the error's class), in the transaction that
+  # writes the reply's status (Outbound#finished), in a savepoint of its own:
+  # a write the database breaks aborts the savepoint alone, so the status
+  # commits (review finding C1 of pull request #52). Like any span, it never
+  # fails what it records: a write that breaks is a line naming the span and
+  # the error's class.
+  def self.delivered(way, at: Time.current, error: nil)
+    return if way.nil? || way.spans.empty?
 
     TraceEvent.transaction(requires_new: true) do
-      turn = Turn.includes(:conversation).find_by(id: turn_id) or next
-      TraceEvent.where(turn_id:, name: DELIVERY, finished_at: nil).find_each do |event|
+      way.spans.each do |event|
         event.update!(finished_at: at, span_attributes: event.span_attributes.merge(clean("error.type" => error)))
-        broadcast(turn.conversation, payload(event.attributes.symbolize_keys.merge(attributes: event.span_attributes)))
+        broadcast(way.conversation, payload(event.attributes.symbolize_keys.merge(attributes: event.span_attributes)))
       end
     end
   rescue StandardError => e
