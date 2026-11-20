@@ -72,11 +72,14 @@ Rails.application.configure do
   # (config/environments/production.rb): the encryption keys of what visitors
   # send (threat model SR-41), the pepper of a Telegram identity (SR-10), the
   # bot's token and the webhook's secret (FR-19). The token names no bot, so
-  # nothing run here can act as the demo's.
+  # nothing run here can act as the demo's. Turnstile's is Cloudflare's
+  # published test secret that always passes, which takes only the dummy token
+  # of the test site key the page uses here (SR-39, ADR-0012).
   config.active_record.encryption.primary_key = "development-primary-key-not-a-secret"
   config.active_record.encryption.deterministic_key = "development-deterministic-key-not-a-secret"
   config.active_record.encryption.key_derivation_salt = "development-key-derivation-salt-not-a-secret"
   config.x.identity_pepper = "development-pepper-not-a-secret"
   config.x.telegram_bot_token = "1:development-bot-token-not-a-secret"
   config.x.telegram_webhook_secret = "development-webhook-secret-not-a-secret"
+  config.x.turnstile_secret_key = "1x0000000000000000000000000000000AA"
 end
