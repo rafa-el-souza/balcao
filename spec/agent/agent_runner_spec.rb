@@ -626,6 +626,19 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
         expect(runner.run(turn)).to have_attributes(outcome: :incomplete, text: nil, offer: false)
       end
     end
+
+    # Review finding V1 of #60's first verifier (the owner, 2026-11-20,
+    # M2-11a3): a reply of spaces String#strip leaves, a no-break space among
+    # them, came back as text; the stored body refused it as blank, so the
+    # visitor got the fallback only after the job's three attempts.
+    context "when the reply's words are only spaces strip leaves" do
+      let(:responses) { [ reply("[pt] #{"\u00a0"} #{"\u00a0"}\n\t"), reply("#{"\u00a0"}") ] }
+
+      it "ends as an empty reply does, for the fallback at once (NFR-03)" do
+        expect(runner.run(turn)).to have_attributes(outcome: :incomplete, text: nil, offer: false)
+        expect(runner.run(turn)).to have_attributes(outcome: :incomplete, text: nil)
+      end
+    end
   end
 
   # FR-09, the owner's decision of 2026-11-14: a message that may be an

@@ -251,8 +251,11 @@ class AgentRunner
     end
 
     # A block's words as the visitor reads them: no language tag, no spaces
-    # around.
-    def words(block) = block.sub(LANGUAGE_TAG, "").strip
+    # around, a no-break space among them, which String#strip leaves: a
+    # reply of such spaces alone came back as text, which the stored body
+    # refused as blank, so the visitor got the fallback only after the job's
+    # three attempts (review finding V1 of #60's first verifier).
+    def words(block) = block.sub(LANGUAGE_TAG, "").gsub(/\A[[:space:]]+|[[:space:]]+\z/, "")
 
     def tools?(message) = message.content.any? { |block| block.type == :tool_use }
 
