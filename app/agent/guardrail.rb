@@ -29,6 +29,10 @@ class Guardrail
   MAX_TOKENS = 1_024
   TIMEOUT = 5.0
   MAX_RETRIES = 1
+  # The longest wait before the retry the check makes: a response that asks
+  # for longer is no verdict at once (Watch; review finding C1 of pull
+  # request #54). The SDK's own backoff for one retry is under a second.
+  MAX_WAIT = 1.0
   # Thinking costs the check its latency (FR-20: at most 1.5 s more at p95);
   # the reason before the verdict is its reasoning.
   THINKING = { type: :disabled }.freeze
@@ -98,9 +102,25 @@ class Guardrail
       model: @route.model, max_tokens: MAX_TOKENS, system_: SYSTEM,
       messages: [ { role: "user", content: "<visitor_message>\n#{data(message)}\n</visitor_message>\n\n<reply>\n#{data(reply)}\n</reply>" } ],
       output_config: { effort: @route.effort, format: Output }, **thinking,
-      request_options: { timeout: TIMEOUT, max_retries: MAX_RETRIES }
+      request_options: { timeout: TIMEOUT, max_retries: MAX_RETRIES, middleware: [ WATCH ] }
     )
   end
+
+  # Around every attempt of the check: the SDK waits as long as a failed
+  # attempt's retry-after asks before it retries, however long, holding the
+  # turn, the conversation's lock and the typing status; a wait past
+  # MAX_WAIT is not made, and the SDK raises the attempt's error at once
+  # (review finding C1 of pull request #54; RetryAfter).
+  Watch = Class.new do
+    def call(request, nxt)
+      response = nxt.call(request)
+      return response if response.status < 300
+
+      wait = RetryAfter.seconds(response.headers)
+      wait && wait > MAX_WAIT ? RetryAfter.refused(response) : response
+    end
+  end
+  WATCH = Watch.new.freeze
 
   # A text's angle brackets, as single guillemets, so that neither text can
   # close the check's tags and open a reply of its own (threat model SR-21:

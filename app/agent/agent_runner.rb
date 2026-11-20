@@ -134,13 +134,12 @@ class AgentRunner
     # The SDK waits as long as a failed attempt's retry-after asks before it
     # retries, however long; a wait that outlasts what is left of the turn
     # is not made, and the SDK raises the attempt's error at once (review
-    # finding C2 of pull request #9, SR-20). It reads x-should-retry first.
+    # finding C2 of pull request #9, SR-20; RetryAfter).
     def bound_retry(response)
-      wait = requested_wait(response.headers)
+      wait = RetryAfter.seconds(response.headers)
       return response unless wait && wait >= remaining
 
-      Anthropic::APIResponse.new(status: response.status, headers: response.headers.merge("x-should-retry" => "false"),
-                                 body: response.body, raw: response.raw, request: response.request)
+      RetryAfter.refused(response)
     end
 
     # The model's answer, as it arrives and before the SDK runs its tools.
@@ -194,19 +193,6 @@ class AgentRunner
     end
 
     def remaining = @deadline - @clock.call
-
-    # The wait a response asks for, in seconds, read as the SDK reads it:
-    # retry-after-ms, then retry-after in seconds or as an HTTP date.
-    def requested_wait(headers)
-      if (milliseconds = Float(headers["retry-after-ms"], exception: false))
-        return milliseconds / 1000
-      end
-
-      after = headers["retry-after"] or return
-      Float(after, exception: false) || (Time.httpdate(after) - Time.now)
-    rescue ArgumentError
-      nil
-    end
 
     def result_of(message)
       case message&.stop_reason

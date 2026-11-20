@@ -120,6 +120,39 @@ RSpec.describe "FR-20 SR-18 the guardrail check" do
       end
     end
 
+    # Review finding C1 of pull request #54: the SDK waits as long as a
+    # failed attempt's retry-after asks before it retries, however long,
+    # holding the turn, the conversation's lock and the typing status. A
+    # wait past MAX_WAIT is not made: the check gives no verdict at once.
+    describe "a wait the API asks for before the retry" do
+      def limited(header, value) = error(:rate_limit).merge(headers: { header => value })
+
+      def check_after(response)
+        fake = FakeModel.new([ response, verdict(false, "ok") ])
+        client = fake.client
+        slept = []
+        allow(client).to receive(:sleep) { |seconds| slept << seconds }
+        [ Guardrail.new(client:).check(message: question, reply: answer), fake.requests.size, slept ]
+      end
+
+      it "is not made past its bound, in seconds, milliseconds or a date, and the check gives no verdict at once" do
+        [ limited("retry-after", "30"), limited("retry-after-ms", "40000"), limited("retry-after", 2.minutes.from_now.httpdate) ]
+          .each do |response|
+          result, requests, slept = check_after(response)
+
+          expect(result).to have_attributes(clinical: nil, error: "Anthropic::Errors::RateLimitError")
+          expect([ requests, slept ]).to eq([ 1, [] ])
+        end
+      end
+
+      it "is made when it fits the bound" do
+        result, requests, slept = check_after(limited("retry-after", "0.2"))
+
+        expect(result).to have_attributes(clinical: false, error: nil)
+        expect([ requests, slept ]).to eq([ 2, [ 0.2 ] ])
+      end
+    end
+
     it "asks with its own timeout and retries, whatever the client's" do
       guardrail.check(message: question, reply: answer)
 
