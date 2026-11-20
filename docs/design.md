@@ -1,6 +1,6 @@
 # Balcão — design document
 
-**Status:** v1.19, 2026-11-20 (M2-2: FR-20's guardrail as built, its latency measured and its figure revised; §6.4 verified for the check, see §10); v1.18, 2026-11-20 (M2-1: Turnstile at session creation; FR-18, the API table and §6.7's processors as built, see §10); v1.17, 2026-11-19 (M4-6b: the review's fixes; FR-05 and FR-19's given-up update as built, see §10); v1.16, 2026-11-19 (M4-6a: the review of M4's first four slices; NFR-01 measured on a second real conversation, §9.2's M4-6 split into its review and its fixes, M3-6 gains the runbook's terms, see §10); v1.15, 2026-11-19 (ADR-0022: what publishing the demo needs comes first, then the showcase; §9.2's slices in two blocks, M2-11 split, and FR-10, FR-14, FR-21 and §12 follow, see §10); v1.14, 2026-11-15 (M4-3: the bot's buttons as built in FR-19, FR-12 and FR-21, see §10); v1.13, 2026-11-15 (M4-2: NFR-01 at 7 s and 12 s, measured from a Telegram update's receipt to its reply's send; §6.4's normal route at low effort, ADR-0021; M3's list charges an abandoned call, see §10); v1.12, 2026-11-15 (the plan after the MVP: §9.2 lists its slices in order, behind the data-contract gate where it holds, and ADR-0020 says what V1 leaves out; §2.2, J3, FR-10, FR-14, NFR-03, NFR-08, §6.1, §6.6, §6.9, §8 and OD-2 follow it, see §10); v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
+**Status:** v1.20, 2026-11-20 (M2-3: the economy model measured on the boundary, ADR-0003's gate written by the full run and read at boot, §6.5 says what it names, see §10); v1.19, 2026-11-20 (M2-2: FR-20's guardrail as built, its latency measured and its figure revised; §6.4 verified for the check, see §10); v1.18, 2026-11-20 (M2-1: Turnstile at session creation; FR-18, the API table and §6.7's processors as built, see §10); v1.17, 2026-11-19 (M4-6b: the review's fixes; FR-05 and FR-19's given-up update as built, see §10); v1.16, 2026-11-19 (M4-6a: the review of M4's first four slices; NFR-01 measured on a second real conversation, §9.2's M4-6 split into its review and its fixes, M3-6 gains the runbook's terms, see §10); v1.15, 2026-11-19 (ADR-0022: what publishing the demo needs comes first, then the showcase; §9.2's slices in two blocks, M2-11 split, and FR-10, FR-14, FR-21 and §12 follow, see §10); v1.14, 2026-11-15 (M4-3: the bot's buttons as built in FR-19, FR-12 and FR-21, see §10); v1.13, 2026-11-15 (M4-2: NFR-01 at 7 s and 12 s, measured from a Telegram update's receipt to its reply's send; §6.4's normal route at low effort, ADR-0021; M3's list charges an abandoned call, see §10); v1.12, 2026-11-15 (the plan after the MVP: §9.2 lists its slices in order, behind the data-contract gate where it holds, and ADR-0020 says what V1 leaves out; §2.2, J3, FR-10, FR-14, NFR-03, NFR-08, §6.1, §6.6, §6.9, §8 and OD-2 follow it, see §10); v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
 coding session, reading this file top to bottom.
 
 Balcão ("the counter", where a pharmacist serves customers) is an AI attendant
@@ -1482,9 +1482,10 @@ apart. `message.author` ∈ {visitor, bot, operator, system};
 (ADR-0010): 128-bit trace id, 64-bit span id, closed on finish.
 `economy_allowed` is not a column: it is the committed file
 `evals/economy_allowed.yml`, written by the full eval run and read at boot
-(ADR-0003); it names the model and the effort the run measured, and the app
-takes a gate written for another economy route as not allowed (§10, M2-3's
-note).
+(ADR-0003); it names the model and the effort the run measured and the
+digests of the system prompt and the tools the model read, and the app takes
+a gate written for another economy route, prompt or tool set as not allowed
+(§10, M2-3's note).
 
 ### 6.6 Interfaces
 
@@ -2242,6 +2243,77 @@ exception, the same day: the application's connections run with the
 database's JIT compiler off, which changes no result of the search
 (M4-1; the note below).
 
+- Note 2026-11-20 (M2-3, the economy model; FR-09, FR-12, FR-14; threat
+  model SR-02, SR-18; ADR-0003). FR-09 on the economy model, ADR-0003's
+  gate and its reading at boot, and the two lines the MVP review left for
+  this slice (§9.2, "With the economy model").
+  - **The gate** (`evals/economy_allowed.yml`) is written by the full run
+    (`bin/evals --all --both-models --scorecard --repeat 3`) from the
+    boundary suite on the economy model alone: true only when every boundary
+    case of a delivered milestone ran there three times or more and passed
+    by the flakiness policy, an unstable one included, from a tree with no
+    uncommitted change, untracked files counted; a run on both models that
+    would write it without `--repeat`, or from such a tree, is refused
+    before any model call (the review's C1, C2 and V1). It names the model
+    and the effort the run measured, the digests of the system prompt (the
+    trace's) and of the tool definitions the model read, the commit and the
+    time. Every process reads it once, at boot
+    (`config/initializers/budget.rb`), and lets the economy model serve only
+    on a true written for the economy route, the prompt and the tools as
+    they are, so a change of any of them closes the gate until a new full
+    run rather than serving the economy model on what its boundary never met
+    (the hunter's F2; the guardrail and the cases are not bound, since a
+    boundary pass means no reply needed replacing, and a case added is
+    measured by the run of its own slice). A spec reads the committed file
+    as the boot does, so a pull request that changes the prompt or a tool
+    carries a new full run; and the image spec keeps the file in the build
+    context. A file that is missing, not the mapping the run writes, or
+    unreadable, reads as "not allowed", a forced economy pausing, with one
+    warning line at boot, never an exception (#29's S6: a list or a scalar
+    raised, and a forced economy answered 500 on every session and poll;
+    the hunter's F3 for the missing file).
+  - **Forcing a mode** goes through `Budget.force!`, which the runbook's
+    commands call and M2-10's console will: it writes the month's line,
+    which names a forced economy the gate keeps closed ("may not serve yet,
+    so the demo pauses"), and answers what serves now; the operator forced
+    the row itself before, and a forced economy paused the demo with no
+    line (the hunter's F1).
+  - **The economy model's run.** `--model economy` runs the same pipeline on
+    the economy route, as a month whose economy the operator forced; the run
+    is what writes the gate, so the gate is open for its own attempts alone.
+    `--both-models` runs the selection on the normal model, then on the
+    economy model, and says a model whose run never started. A turn that ran
+    in another mode than the route's (the budget paused it, say) is an error
+    of the run, never the model's failure. `--scorecard` takes a run with
+    the normal model in it, since README.md's badge reads its column.
+  - **What it measured** (the dev/eval key, each boundary case three times).
+    `claude-haiku-5-5` at medium effort held the boundary in both runs, 13
+    of 13 cases each: a run of the suite alone, 38 of 39 attempts, its one
+    failure two catalogue searches where the case asks for one, the decline
+    whole; and the full run, 38 of 39, its one failure the judge reading the
+    fixed emergency line ("se alguém tomou remédio ... em excesso") as a
+    method named in the self-harm reply, a misreading it made once on the
+    normal model too (M2-2's first run). Neither failure was a clinical
+    slip: 76 of 78 attempts passed. The full run's other suites passed on
+    both models, the economy model with two unstable cases (the judge
+    finding the fixed notice too long; a missing product without the
+    pharmacist's offer, once in three). The economy model answered the 63
+    attempts in 6 min 23 s for US$ 0.019, the normal model the 59 in
+    12 min 50 s for US$ 0.39, about twenty times the cost per attempt; the
+    guardrail read the economy model's 65 replies, replacing none, at 1.4 s
+    at the median and 1.6 s at p95. So the gate the run wrote lets the
+    economy model serve.
+  - **The judge** is the economy model for both columns (evals README), so
+    on the economy column it judges its own model's replies. In `boundary`
+    and `injection` the rule checks carry the verdict and a rubric can only
+    fail a pass, so a lenient judge lets through only what the rules do not
+    see; the two misreadings above went the other way. Its calibration
+    against labels made by hand is M5-4's.
+  - **`formatMoney`** (#29's C5): a cost above zero but below the currency's
+    last decimal keeps one significant digit, as many decimals as that
+    takes, so an economy call of US$ 0.000035 reads "0,00004", never
+    "0,0000", and the guardrail's check of US$ 0.000083 reads "0,00008" (it
+    read "0,0001", and "R$ 0,000" in reais).
 - Note 2026-11-20 (M2-1, Turnstile at session creation; FR-18, FR-14,
   threat model SR-39, SR-01, SR-03, SR-25; ADR-0012). Built as FR-18 says,
   with these choices its text left open, as the review of pull request #53

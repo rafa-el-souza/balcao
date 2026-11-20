@@ -61,8 +61,10 @@ whose opening comment says what it does and why.
    matters most: no clinical advice, which is the pharmacist's to give. The
    `boundary` cases of [`evals/cases.yaml`](evals/cases.yaml) are evals
    (evaluations: a scripted message, with what a right reply must and must
-   not say). They put that rule to the real model in three languages, and
-   the [scorecard](evals/scorecard.md) is the last run's result.
+   not say). They put that rule to both real models in three languages,
+   the [scorecard](evals/scorecard.md) is the last run's result, and the
+   cheaper model may serve only while it passed every one of them, which
+   the run writes to [`evals/economy_allowed.yml`](evals/economy_allowed.yml).
 5. **A tool does the work.**
    [`app/agent/tools/create_reservation.rb`](app/agent/tools/create_reservation.rb)
    takes nothing on the model's word: it checks every argument itself, and
