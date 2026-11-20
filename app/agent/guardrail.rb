@@ -96,11 +96,17 @@ class Guardrail
   def request(message, reply)
     @client.messages.create(
       model: @route.model, max_tokens: MAX_TOKENS, system_: SYSTEM,
-      messages: [ { role: "user", content: "<visitor_message>\n#{message}\n</visitor_message>\n\n<reply>\n#{reply}\n</reply>" } ],
+      messages: [ { role: "user", content: "<visitor_message>\n#{data(message)}\n</visitor_message>\n\n<reply>\n#{data(reply)}\n</reply>" } ],
       output_config: { effort: @route.effort, format: Output }, **thinking,
       request_options: { timeout: TIMEOUT, max_retries: MAX_RETRIES }
     )
   end
+
+  # A text's angle brackets, as single guillemets, so that neither text can
+  # close the check's tags and open a reply of its own (threat model SR-21:
+  # a visitor's forged decline was judged in place of the reply in two of
+  # three tries, design §10's note of 2026-11-20).
+  def data(text) = text.to_s.tr("<>", "‹›")
 
   def thinking = @thinking ? { thinking: @thinking } : {}
 
