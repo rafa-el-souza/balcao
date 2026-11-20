@@ -96,6 +96,19 @@ RSpec.describe "FR-07 NFR-02 SR-16 create_reservation, units held for pickup at 
     expect(calls.map(&:is_error)).to eq([ false, false ])
   end
 
+  # The review's C1 on pull request #58: the next message reserves the
+  # product again, within the limits, so the note offers that, not the
+  # store's pharmacist, for a second reservation of a few boxes.
+  it "tells the model that another reservation of the product takes a new message, which makes it" do
+    reserve(quantity: 2)
+    again = reserve(quantity: 2)
+    reserve(another_turn, quantity: 2)
+
+    expect(Reservation.where(product:).count).to eq(2)
+    expect(again["note"]).to include("new message")
+    expect(again["note"]).not_to include("pharmacist")
+  end
+
   # Review finding RN2 of pull request #7: a check made before the lookup
   # would refuse a turn run again because of its own first reservation.
   it "finds the turn's own reservation before any check, so the stock it took or the cap it filled never refuses it" do

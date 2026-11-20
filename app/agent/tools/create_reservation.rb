@@ -56,8 +56,8 @@ module Tools
     LOW_STOCK = "Only %<units>s in stock, fewer than asked, so nothing was reserved. Offer %<units>s.".freeze
     AGAIN = "This product was already reserved for the visitor's current message, so this is that same reservation, " \
             "with its code and its quantity, not a new one, and nothing more was reserved: a message reserves each " \
-            "product once. Tell the visitor they hold this one reservation, with its quantity, and if they asked for " \
-            "more, offer the store's pharmacist.".freeze
+            "product once. Tell the visitor they hold this one reservation, with its quantity; another reservation of " \
+            "this product takes a new message, within the limits.".freeze
     OPEN_LIMIT = "The visitor already holds #{MAX_OPEN} open reservations, the most allowed, so nothing was " \
                  "reserved. Tell the visitor so. The reservations they hold are listed after your reply, so do not " \
                  "list them yourself.".freeze
