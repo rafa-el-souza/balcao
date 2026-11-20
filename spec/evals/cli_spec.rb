@@ -237,6 +237,20 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
       expect(results_file.dig("run", "stopped")).to include("Interrupt")
     end
 
+    # The verifier's L2 on pull request #55: a run on both models that the
+    # API stopped on the normal model said nothing of the economy model's
+    # run, which never started, and printed its one table with no model.
+    it "says the economy model's run did not start when the run stopped on the normal model" do
+      refused = { status: 401, body: { type: "error", error: { type: "authentication_error", message: "invalid x-api-key" } } }
+      responses.replace([ *preflight, refused ])
+
+      expect(evals("--case", "greeting-pt-01", "--both-models")).to eq(1)
+
+      expect(err.string).to include("bin/evals: the run on the economy model did not start: the run stopped")
+      expect(out.string).to include("On the normal model, claude-opus-5-5:")
+      expect(dir.join("results").children.size).to eq(1)
+    end
+
     # FR-09 on the economy model (ADR-0003): the same pipeline on the economy
     # route, as a month whose economy the operator forced.
     it "runs a case on the economy model with --model economy, and writes no gate without --scorecard" do

@@ -181,10 +181,13 @@ module Evals
         break unless run_on(report, judge, selected, route, repeat:, first: reports.one?)
       rescue Interrupt, StandardError
         # What ran is written before the interruption or the bug goes on.
-        finish(reports, cases, scorecard: false)
+        finish(reports, cases, scorecard: false, headed: modes.many?)
         raise
       end
-      finish(reports, cases, scorecard:)
+      # A model whose run never started is said, not left to the missing
+      # results file (the verifier's L2 on pull request #55).
+      modes.drop(reports.size).each { |mode| @err.puts("bin/evals: the run on the #{mode} model did not start: the run stopped") }
+      finish(reports, cases, scorecard:, headed: modes.many?)
     end
 
     # Runs the selection on one route; false when the run stopped.
@@ -238,9 +241,10 @@ module Evals
       end
     end
 
-    def finish(reports, cases, scorecard:)
+    # headed: the run was on more than one model, so each table names its own.
+    def finish(reports, cases, scorecard:, headed:)
       reports.each do |report|
-        @out.puts("", ("On the #{report.route.mode} model, #{report.route.model}:" if reports.many?), *report.summary)
+        @out.puts(*[ "", ("On the #{report.route.mode} model, #{report.route.model}:" if headed), *report.summary ].compact)
         @out.puts("Results: #{report.write(@results_dir)}")
       end
       write_scorecard(reports, cases) if scorecard
