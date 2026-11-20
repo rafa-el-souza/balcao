@@ -138,14 +138,16 @@ RSpec.describe "FR-03 system prompt (FR-01, FR-02, FR-05, FR-09, FR-26, SR-21, d
   # model writes before a tool call reaches the visitor (#9's C1), and its
   # notes to itself did ("I need the product id; search again." in 8 of 12
   # of one case's runs, measured on main's prompt). The wording chosen of
-  # four measured on both models: none in 48 runs of the two cases where they
-  # came most, and no fewer lookups on the economy model (design §10).
-  it "asks the model to look up what a reply needs before writing, and to write nothing before a tool call (FR-02, NFR-08)" do
+  # seven measured on both models (design §10): no note in 48 runs of the
+  # three cases where they came, and no lookup for a symptom's product on the
+  # economy model, which a wording asking to look things up before writing
+  # brought.
+  it "tells the model that every word reaches the visitor, so it writes no note to itself before a tool call (FR-02, NFR-08)" do
     style = prompt[/# Style\n\n(.+?)\z/m, 1]
 
-    expect(style).to start_with("Look up what the reply needs with your tools before you write anything, then write the whole reply: " \
-                                "every word you write in a turn reaches the visitor, what you write before a tool call included, so " \
-                                "write nothing before a tool call, and never a note to yourself.")
+    expect(style).to start_with("Every word you write in a turn reaches the visitor, what you write before a tool call included, so never " \
+                                "write a note to yourself, such as that you need to search, to check the catalogue or to find a product's " \
+                                "id: look things up as these instructions say, without a word about it.")
   end
 
   # FR-10's MVP note: the offer is a fixed line the system adds where the
