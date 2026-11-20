@@ -103,17 +103,23 @@ export function createChallenge(language: () => string): Challenge {
   let unsupported = false;
   const waiters: Waiter[] = [];
 
-  // Cloudflare's script, once: an element that failed is dropped, so the
-  // next ask adds it again; one still loading is waited on again.
+  // Cloudflare's script, once: an element that failed, or that loaded and
+  // left no Turnstile (a content blocker's stub, a script that threw as it
+  // ran), is dropped, so the next ask adds it again; one still loading is
+  // waited on again (review finding C5 of pull request #53).
   function load(): Promise<TurnstileApi | null> {
     if (window.turnstile) return Promise.resolve(window.turnstile);
     if (!script) {
       const element = document.createElement("script");
       element.src = SCRIPT_SRC;
       element.async = true;
-      element.addEventListener("error", () => {
+      const drop = () => {
         element.remove();
         if (script === element) script = null;
+      };
+      element.addEventListener("error", drop);
+      element.addEventListener("load", () => {
+        if (!window.turnstile) drop();
       });
       document.head.append(element);
       script = element;

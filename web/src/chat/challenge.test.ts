@@ -244,6 +244,25 @@ describe("SR-39 Cloudflare's script, loaded once, from Cloudflare", () => {
     await expect(again).resolves.toBe(DUMMY_TOKEN);
   });
 
+  // Review finding C5 of pull request #53: a script that loads and leaves no
+  // Turnstile (a content blocker's stub, a script that throws as it runs)
+  // is a failure, not a script still loading.
+  it("answers no token at once when the script loads and leaves no Turnstile, and adds it again when asked again", async () => {
+    vi.useFakeTimers();
+    const challenge = createChallenge(() => "pt-BR");
+    challenge.attach(container());
+    const first = challenge.token();
+    scripts()[0]?.dispatchEvent(new Event("load"));
+
+    await expect(first).resolves.toBeNull();
+    expect(scripts()).toHaveLength(0);
+
+    const again = challenge.token();
+    expect(scripts()).toHaveLength(1);
+    scripts()[0]?.dispatchEvent(new Event("load"));
+    await expect(again).resolves.toBeNull();
+  });
+
   it("stops waiting for a script that does not load in time, and waits on the same one when asked again", async () => {
     vi.useFakeTimers();
     const challenge = attached(() => "pt-BR");
