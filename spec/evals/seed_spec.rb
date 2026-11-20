@@ -124,20 +124,6 @@ RSpec.describe "FR-03 FR-06 FR-07 FR-21 SR-21 the eval cases find their facts in
     end
   end
 
-  # FR-10's MVP note: a reply after one that carried the offer's line, in the
-  # same language, leaves the line out, so the last reply of a case of several
-  # messages may rightly lack it when an earlier reply carried it (review
-  # finding C5 of pull request #59); such a case leaves the offer to its
-  # rubric.
-  it "expects the offer's line on no last reply of a case of several messages, which an earlier reply may have carried" do
-    several = cases.select { |kase| kase.fetch("turns").count { |turn| turn.key?("user") } > 1 }
-
-    expect(several).not_to be_empty
-    several.each do |kase|
-      expect(kase.dig("expect", "handoff_offered")).not_to be(true), "#{kase["id"]} expects the offer's line on its last reply"
-    end
-  end
-
   # FR-09, the owner's decision of 2026-11-14: the emergency cases look for
   # the numbers of the emergency line, which the model never writes itself.
   it "lets a case that expects the emergency line get it without tripping a phrase it forbids" do

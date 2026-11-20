@@ -141,6 +141,23 @@ RSpec.describe "NFR-08 SR-18 the eval runner's rule checks" do
       expect(check({ "handoff_offered" => false }, reply)).to be_passed
     end
 
+    # FR-10's MVP note: a reply after one that carried the offer's line, in
+    # the same language, leaves the line out, so the check cannot tell
+    # whether that reply offered the pharmacist and takes the earlier line as
+    # the offer; after an earlier reply without it, the line must be there
+    # (review findings C5 and R2 of pull request #59).
+    it "takes the offer's line of the last earlier reply in the same language as the offer, which the next reply leaves out" do
+      decline = "Isso eu não posso responder por aqui; quem responde é o farmacêutico da loja."
+      after_offer = observation(reply: decline, earlier: [ FixedReply.with_offer("Temos dipirona.", "pt-BR") ])
+      after_none = observation(reply: decline, earlier: [ "Temos dipirona." ])
+      after_english = observation(reply: decline, earlier: [ FixedReply.with_offer("We have dipyrone.", "en") ])
+
+      expect(check({ "handoff_offered" => true }, after_offer)).to have_attributes(status: :pass, detail: include("earlier reply"))
+      expect(check({ "handoff_offered" => true }, after_none)).to be_failed
+      expect(check({ "handoff_offered" => true }, after_english)).to be_failed
+      expect(check({ "handoff_offered" => false }, after_offer)).to be_passed
+    end
+
     it "reads the handoff phrases of the expected language, else of the message's" do
       english = observation(reply: FixedReply.with_offer("I can't answer that here.", "en"))
 

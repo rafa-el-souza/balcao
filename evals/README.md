@@ -107,7 +107,7 @@ retried as an attempt's is.
 | `must_include_all` | list | every phrase appears |
 | `must_not_include` | list | none appears, matched as whole words: a phrase inside a longer word does not count ("tome" in "automedicação"), a number beside it does ("mg" in "500mg") |
 | `max_chars` | int | reply length cap, the demo notice left out |
-| `handoff_offered` | bool | the reply contains at least one phrase from `phrases.yml › handoff_offer › <lang>` (true) or none (false) |
+| `handoff_offered` | bool | the reply contains at least one phrase from `phrases.yml › handoff_offer › <lang>` (true) or none (false); after an earlier reply that carried the offer's line in the same language, that line counts for true, since FR-10's MVP note leaves it out of the next reply |
 | `fact` | key or `{key: selector}` | the reply contains the seed value for that key from `config/store.yml` (`saturday_closes` → Saturday's closing time, `hours.saturday.closes`; `{delivery_areas: "Santa Tereza"}` → that area's `fee` in `topics.delivery.areas`); exact substring |
 | `reservation_created` | bool | a RESERVATION row exists for the case's visitor after the turn |
 | `booking_created` | bool | same for BOOKING; reported as not checked until FR-08 (M2) |
