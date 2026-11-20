@@ -118,10 +118,11 @@ module Evals
         "retries is unstable (README, Flakiness policy)."
     end
 
-    # FR-20: what the guardrail did to the replies of the graded attempts.
+    # FR-20: what the guardrail did to the replies of every attempt, an
+    # errored one's too, since a check without a verdict makes its attempt an
+    # error (Runner; the fix review's R1 on pull request #54).
     def guardrail_note
-      checks = @results.values.flatten.flat_map(&:attempts).reject { |attempt| attempt.status == :error }.filter_map(&:run)
-                       .flat_map(&:turns).filter_map(&:guardrail)
+      checks = @results.values.flatten.flat_map(&:attempts).filter_map(&:run).flat_map(&:turns).filter_map(&:guardrail)
       return "" if checks.empty?
 
       "\n- Guardrail (FR-20): #{checks.size} #{"check".pluralize(checks.size)} of the replies the model wrote; " \

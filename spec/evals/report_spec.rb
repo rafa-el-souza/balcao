@@ -83,6 +83,16 @@ RSpec.describe "NFR-08 FR-14 the eval run's report" do
       expect(report.summary.last).to include("claude-opus-5-5 US$ 0.0045; claude-haiku-5-5 (guardrail) US$ 0.0001")
     end
 
+    # The fix review's R1 on pull request #54: a check without a verdict
+    # makes its attempt an error (the hunter's H2), so the line counts the
+    # checks of every attempt, an errored one's too.
+    it "counts the check of an errored attempt" do
+      report.results << result_with(guardrail: check(5000, clinical: nil, error_type: "Anthropic::Errors::OverloadedError", input: 0, output: 0))
+                        .then { |result| result.with(attempts: result.attempts.map { |attempt| attempt.with(status: :error) }) }
+
+      expect(report.summary).to include("Guardrail: 1 check, 0 replaced, 1 without a verdict")
+    end
+
     it "says how many checks replaced a reply or gave no verdict, and their time at the median and at p95" do
       [ check(1200), check(1400), check(1500, clinical: true), check(5000, clinical: nil, error_type: "Anthropic::Errors::APITimeoutError", input: 0, output: 0) ]
         .each { |guardrail| report.results << result_with(guardrail:) }

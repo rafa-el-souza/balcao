@@ -110,12 +110,13 @@ module Evals
       "Outcomes: #{unusual.map { |outcome, count| "#{count} #{outcome}" }.join(", ")}" if unusual.any?
     end
 
-    # FR-20: the checks of the graded attempts' replies, how many replaced a
-    # reply or gave no verdict, and the time of those that gave one, at the
-    # median and at p95 (FR-20's 1.5 s).
+    # FR-20: the checks of every attempt's replies, an errored attempt's too,
+    # since a check without a verdict makes its attempt an error (Runner,
+    # the fix review's R1 on pull request #54): how many replaced a reply or
+    # gave no verdict, and the time of those that gave one, at the median and
+    # at p95 (FR-20's figure).
     def guardrail
-      checks = @results.flat_map(&:attempts).reject { |attempt| attempt.status == :error }.filter_map(&:run)
-                       .flat_map(&:turns).filter_map(&:guardrail)
+      checks = @results.flat_map(&:attempts).filter_map(&:run).flat_map(&:turns).filter_map(&:guardrail)
       return if checks.empty?
 
       times = checks.reject(&:error_type).filter_map(&:latency_ms).sort

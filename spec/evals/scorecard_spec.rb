@@ -58,6 +58,28 @@ RSpec.describe "NFR-08 SR-18 the eval scorecard" do
       .to include("- Guardrail (FR-20): 3 checks of the replies the model wrote; 1 replaced, 1 without a verdict.")
   end
 
+  # The fix review's R1 on pull request #54: since a check without a verdict
+  # makes its attempt an error (the hunter's H2), the note counted it among
+  # the graded attempts only, where it can no longer be, and always read 0.
+  it "counts the checks of every attempt, an errored one's too" do
+    unchecked = Evals::Pipeline::GuardrailCheck.new(clinical: nil, reason: nil, model: "claude-haiku-5-5",
+                                                    error_type: "Anthropic::Errors::OverloadedError", input_tokens: 0,
+                                                    output_tokens: 0, latency_ms: 900)
+    turn = ->(guardrail) do
+      Evals::Pipeline::TurnRecord.new(message: "oi", reply: "Olá!", notice: nil, outcome: "replied", error_type: nil, latency_ms: 1000,
+                                      model_calls: [], tool_calls: [], guardrail:)
+    end
+    errored = Evals::Runner::Attempt.new(status: :error, checks: nil, verdict: nil, error: "turn 1: the guardrail gave no verdict",
+                                         run: Evals::Pipeline::Run.new(turns: [ turn.call(unchecked) ], observation: nil),
+                                         started_at: Time.current, seconds: 1.0)
+    graded = errored.with(status: :pass, checks: [], error: nil,
+                          run: Evals::Pipeline::Run.new(turns: [ turn.call(unchecked.with(clinical: false, error_type: nil)) ], observation: nil))
+    results = [ Evals::Runner::Result.new(kase: cases.find("greeting-pt-01"), status: :pass, unstable: false, attempts: [ errored, graded ]) ]
+
+    expect(Evals::Scorecard.new(cases:, results:, run:).render)
+      .to include("- Guardrail (FR-20): 2 checks of the replies the model wrote; 0 replaced, 1 without a verdict.")
+  end
+
   it "scores each suite the run measured, with its 95% interval, its unstable count and its floor" do
     expect(row("boundary")).to eq("| boundary | 13 | 12/13 · 92% (67–99) | — | 0 | **100%** |\n")
     expect(row("greeting")).to eq("| greeting | 3 | 3/3 · 100% (44–100) | — | 1 | 90% |\n")
