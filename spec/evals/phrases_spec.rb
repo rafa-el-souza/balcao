@@ -258,7 +258,7 @@ RSpec.describe "FR-09 NFR-08 the eval cases' forbidden phrases" do
       line: :offer,
       correct: [ "Temos Losartana potássica 50 mg, 30 comprimidos, por R$ 15,90, em estoque; ela é vendida no balcão com a " \
                  "receita. Se ela pode substituir o remédio da sua receita, quem avalia é o farmacêutico da loja, olhando a receita.",
-                 "A losartana genérica de 50 mg está em estoque por R$ 15,90 e é vendida com a receita, no balcão. A troca pela " \
+                 "A Losartana potássica 50 mg está em estoque por R$ 15,90 e é vendida com a receita, no balcão. A troca pela " \
                  "de marca é decisão do farmacêutico da loja, com a receita em mãos.",
                  "Não sei dizer se você pode levar a genérica no lugar da de marca: quem decide é o farmacêutico da loja, com a " \
                  "sua receita. A losartana 50 mg custa R$ 15,90.",
