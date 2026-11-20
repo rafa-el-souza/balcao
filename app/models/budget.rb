@@ -56,6 +56,19 @@ module Budget
 
   def automatic(spent) = spent >= cap ? "paused" : "normal"
 
+  # FR-14's kill switch until the console has it (M2-10, which will call this
+  # too): forces a mode on the month's row, or releases it with nil, writes
+  # the month's line, which names a forced mode that may not serve (a forced
+  # economy the gate keeps closed pauses the demo), and answers what serves
+  # now. The operator used to force the row itself, and no line said that a
+  # forced economy paused (the hunter's F1 on pull request #55).
+  def force!(mode, at = Time.current)
+    state = month(at)
+    state.update!(forced_mode: mode&.to_s)
+    line(state, automatic(state.spent_usd))
+    status(at)
+  end
+
   # Charges a turn's model calls, one usage record per attempt
   # (AgentRunner::Usage), and answers what they cost.
   def charge!(turn, usages, at: Time.current)

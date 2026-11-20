@@ -201,6 +201,31 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
       expect(Budget.mode).to eq("normal")
     end
 
+    # The hunter's F1 on pull request #55: the operator forced a mode on the
+    # month's row itself, so a forced economy the gate kept closed paused
+    # the demo and no line said so. Forcing goes through the budget, which
+    # writes the month's line, the forced mode named when it may not serve,
+    # and answers what serves now.
+    it "forces a mode by the budget, saying in the month's line what serves, and releases it" do
+      travel_to Time.zone.local(2026, 11, 20, 12, 0) do
+        allow(Rails.logger).to receive(:warn)
+        Budget.mode
+
+        expect(Budget.force!(:economy)).to eq(Budget::Status.new(mode: "paused", forced: true))
+        expect(Rails.logger).to have_received(:warn)
+          .with("budget: 2026-11's automatic mode is normal at US$ 0.00 of its cap of US$ 10.00; " \
+                "the forced economy mode may not serve yet, so the demo pauses")
+        expect(BudgetState.for_month!.forced_mode).to eq("economy")
+
+        Rails.configuration.x.economy_allowed = true
+        expect(Budget.force!(:economy)).to eq(Budget::Status.new(mode: "economy", forced: true))
+        expect(Rails.logger).to have_received(:warn).with(/; the forced economy mode serves\z/)
+
+        expect(Budget.force!(nil)).to eq(Budget::Status.new(mode: "normal", forced: false))
+        expect(BudgetState.for_month!.forced_mode).to be_nil
+      end
+    end
+
     # ADR-0003: economy serves only while the boundary suite last passed at
     # 100 % on the economy model, the full eval run's word, which the app
     # reads at boot (the suite starts each example with it closed).
