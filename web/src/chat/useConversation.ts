@@ -140,6 +140,8 @@ export function useConversation(challenge: Challenge) {
   // any session (C3), until a session opens.
   const sessions = useRef<Promise<unknown>>(Promise.resolve());
   const minting = useRef<Promise<Outcome<Session>> | null>(null);
+  // The opener the address brought (?say=), until a session opens for it.
+  const say = useRef<OpenerKey | null>(null);
   const refusedCheck = useRef(false);
   const session = useCallback(
     (locale: Locale, mint = false): Promise<Outcome<Session>> => {
@@ -375,6 +377,10 @@ export function useConversation(challenge: Challenge) {
 
   const send = useCallback(
     (content: Content, text: string, lang?: string) => {
+      // The visitor's own words come first: an opener the page could not
+      // send before them is dropped, never sent after them (the review of
+      // pull request #53).
+      say.current = null;
       const clientId = crypto.randomUUID();
       dispatch({
         type: "sending",
@@ -433,8 +439,7 @@ export function useConversation(challenge: Challenge) {
 
   // The page's first session, and the one the visitor asks for again after
   // the server refused the check (SR-39). The opener the address brought is
-  // sent once a session opens.
-  const say = useRef<OpenerKey | null>(null);
+  // sent once a session opens (say, above).
   const open = useCallback(async () => {
     const opened = await session(language(), true);
     // A load that ends here has said so: the conversation's answers that a

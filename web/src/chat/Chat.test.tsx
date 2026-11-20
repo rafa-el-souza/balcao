@@ -195,6 +195,36 @@ describe("SR-39 FR-18 the anti-bot check", () => {
     expect(within(thread()).getByText(pt.greeting)).toBeInTheDocument();
   });
 
+  // The review of pull request #53 (its web verifier's V4): an opener that
+  // could not go before the visitor wrote is dropped, never sent after the
+  // visitor's own words.
+  it("drops the opener the page came with once the visitor writes before a session opened", async () => {
+    window.history.replaceState(null, "", "/chat?say=stock_pt");
+    server.answers.session.push(
+      { status: 403, body: { error: "challenge" } },
+      { status: 403, body: { error: "challenge" } },
+    );
+    server.answers.messages.push({ status: 401, body: { error: "session" } });
+    renderPage(<Chat />);
+    await within(thread()).findByRole("button", { name: pt.challengeRetry });
+
+    type("tem dipirona?");
+    fireEvent.keyDown(field(), { key: "Enter" });
+    await waitFor(() => {
+      expect(
+        server.requests.filter((request) => request.path === "/api/session"),
+      ).toHaveLength(2);
+    });
+    fireEvent.click(
+      await within(thread()).findByRole("button", { name: pt.challengeRetry }),
+    );
+
+    await ready();
+    expect(server.sent().map((request) => request.body)).not.toContainEqual(
+      expect.objectContaining({ say: "stock_pt" }),
+    );
+  });
+
   it("sends the opener the page came with once the check passes on a second try", async () => {
     window.history.replaceState(null, "", "/chat?say=stock_pt");
     server.answers.session.push({ status: 403, body: { error: "challenge" } });
