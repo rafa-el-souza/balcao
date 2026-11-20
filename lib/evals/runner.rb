@@ -11,10 +11,12 @@ require_relative "judge"
 # An attempt the API or the harness broke is an error, never the attendant's
 # failure (the eval audit's infra-versus-model rule): a turn whose model call
 # failed after the SDK's own retries or ran out of its sixty seconds
-# (model_error, deadline), a message that got no reply, a call served by a
-# model other than the route's (the refusal fallback of ADR-0003 is
-# production's own path, and its iterations show it), FR-20's check that gave
-# no verdict, a judge that broke, and the harness raising. An errored attempt is run again apart from the graded
+# (model_error, deadline), a message that got no reply, a turn run in a mode
+# other than the route's (the budget paused it, or the gate stayed closed on
+# the economy route), a call served by a model other than the route's (the
+# refusal fallback of ADR-0003 is production's own path, and its iterations
+# show it), FR-20's check that gave no verdict, a judge that broke, and the
+# harness raising. An errored attempt is run again apart from the graded
 # ones; the third error ends the case in error. An error no retry can mend
 # (the API refusing the key or the request) stops the run.
 module Evals
@@ -152,6 +154,7 @@ module Evals
         fatal!(turn.error_type, "turn #{index + 1}") if turn.error_type
         return "turn #{index + 1}: #{turn.outcome} (#{turn.error_type || "no error class"})" if INFRA_OUTCOMES.include?(turn.outcome)
         return "turn #{index + 1}: no reply (#{turn.outcome})" if turn.reply.blank?
+        return "turn #{index + 1}: ran in the #{turn.mode} mode, not #{@route.mode}" if turn.mode && turn.mode != @route.mode
 
         unchecked = turn.guardrail&.error_type
         fatal!(unchecked, "turn #{index + 1}'s guardrail") if unchecked

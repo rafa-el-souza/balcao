@@ -8,8 +8,16 @@ milestone close (see Running). Floors for a release: `boundary` and `injection` 
 normal and the economy model; every other suite at 90% and never
 regressing. The full run writes `economy_allowed` (the committed file
 `evals/economy_allowed.yml`, read by the app at boot) from the `boundary`
-result on the economy model alone (ADR-0003); `injection` is a release floor, not
-part of that gate.
+result on the economy model alone (ADR-0003): true only when every `boundary`
+case of a delivered milestone ran on the economy model and passed, an unstable
+one included. The file names the model and the effort the run measured and
+the digests of the system prompt and the tools the model read, and the app
+takes a gate written for another economy route, prompt or tool set as not
+allowed, so a change of the economy model, its effort, the system prompt
+(`config/store.yml` and `config/commands.yml` among its sources) or a tool's
+definition needs a new full run, which a spec on the committed file asks
+for in the same pull request; `injection` is a release floor, not part of
+that gate.
 
 Cases run through the full turn pipeline (budget gate, agent runner,
 guardrail, outbound) against a seeded database, not against the agent
@@ -157,13 +165,16 @@ are in the seed.
   handoff offer the `boundary` cases expect is, in the MVP, the fixed
   store-contact line of design FR-10's MVP note, so `phrases.yml ›
   handoff_offer` lists its phrasing in the three languages. The recorded
-  subset in CI arrives at M3 and the economy model at M2; the full run
-  stays local (below).
+  subset in CI arrives at M3; the economy model runs from M2 (M2-3); the
+  full run stays local (below).
 - What runs today, with the key in `ANTHROPIC_API_KEY` (a live run without
   it stops before any call): `--all` (every case of a delivered milestone,
   the MVP's for now), `--suite NAME` (that suite's cases of a delivered
   milestone; repeatable), `--case ID` (that case, whatever its milestone;
-  repeatable), `--model normal`, `--repeat N` (each `boundary` case of the
+  repeatable), `--model normal` or `--model economy` (normal when left
+  out), `--both-models` (every selected case on the normal model, then on
+  the economy model, a table and a results file per model), `--repeat N`
+  (each `boundary` case of the
   selection N times, three to ten, every attempt graded; refused for a
   selection with no `boundary` case), `--scorecard` (with `--all`), and
   `--list`, which lists the selection and stops, with no key and no model
@@ -175,14 +186,25 @@ are in the seed.
   floor when something broke: an attempt the harness broke leaves no spans
   to read, and a verdict that broke no usage), and writes every attempt
   whole (messages, replies, outcomes, model and tool calls, checks,
-  verdicts) to `evals/results/<UTC time>-<commit>.json`, gitignored. It
+  verdicts) to `evals/results/<UTC time>-<commit>.json`, gitignored
+  (`-economy` before the extension for the economy model's run). It
   exits 0 when every case passed, 1 when one failed or ended in error or
   the run stopped, 2 for a command it does not take.
 - `bin/evals --suite boundary --model economy` runs one suite on the
-  economy model (from M2).
-- `bin/evals --all --both-models --scorecard` runs everything on both
-  models and rewrites `scorecard.md`. Cost at the ADR-0003 prices: on the
-  order of US$ 2–3 for 60 cases on both models.
+  economy model (from M2-3). A case on the economy model runs as a month
+  whose economy the operator forced: the run is what writes the gate, so
+  the gate is open for its attempts alone, whatever the file says. A turn
+  that ran in another mode than the route's (paused, say) is an error of
+  the run, never the model's failure.
+- `bin/evals --all --both-models --scorecard --repeat 3` runs everything on
+  both models, rewrites `scorecard.md` with both columns and writes
+  `economy_allowed.yml` (`--scorecard` takes a run with the normal model
+  in it, since README.md's badge reads its column); neither is written when
+  a case ended in error or the run stopped. The gate rests on each
+  `boundary` case run three times (design FR-09), so a run on both models
+  that writes it takes `--repeat` and a gate rendered from fewer attempts
+  says false. Cost at the ADR-0003 prices: on the order of US$ 2–3 for 60
+  cases on both models.
 - In CI on every pull request: `bin/evals --recorded`, which replays the
   recorded responses under `evals/recordings/` for the cases marked
   `fast: true` whose `milestone` is already delivered, and fails if a
@@ -196,7 +218,7 @@ are in the seed.
   {...}}, ...]}`), which the fake model (`app/agent/fake_model.rb`)
   replays.
 - The full run is local, at each milestone close and on the monthly bump
-  day: `bin/evals --all --both-models --scorecard`, with the dev/eval key
+  day: `bin/evals --all --both-models --scorecard --repeat 3`, with the dev/eval key
   from the implementer's env file. It rewrites `scorecard.md` and writes
   `evals/economy_allowed.yml` (read by the app at boot, ADR-0003); both
   are committed by hand in the close's pull request, which names the

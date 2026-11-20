@@ -16,6 +16,11 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
   let(:fake) { FakeModel.new(responses) }
   let(:cases_path) { Evals::CaseSet::PATH }
   let(:scorecard) { dir.join("scorecard.md").tap { |path| path.write("# Eval scorecard\n\nNo run yet.\n") } }
+  let(:gate) { dir.join("economy_allowed.yml") }
+  # git as the run reads it: the commit and the working tree's status, clean
+  # unless an example says otherwise, whatever the checkout running the suite.
+  let(:status) { "" }
+  let(:git) { ->(*args) { args.first == "status" ? status : "5594ff9\n" } }
 
   before { allow(AgentRunner).to receive(:default_client) { fake.client } }
 
@@ -30,7 +35,7 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
 
   def evals(*argv)
     Evals::CLI.new(argv, out:, err:, env:, cases_path:, results_dir: dir.join("results"), scorecard_path: scorecard,
-                         pause: ->(_) { }).run
+                         economy_gate_path: gate, git:, pause: ->(_) { }).run
   end
 
   def verdict(pass) = message(content: [ text(JSON.generate(reason: pass ? "Meets the rubric." : "Misses it.", pass:)) ], model: "claude-haiku-5-5")
@@ -45,10 +50,42 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
       expect(err.string).to include("--all", "--suite", "--case")
     end
 
-    it "runs the normal model only until the economy model's suite arrives (M2)" do
-      expect(evals("--all", "--model", "economy")).to eq(2)
-      expect(err.string).to include("M2")
-      expect(evals("--all", "--both-models")).to eq(2)
+    it "takes the normal model or the economy model, or both, and no other" do
+      expect(evals("--all", "--model", "fable")).to eq(2)
+      expect(err.string).to include("--model fable", "normal", "economy")
+      expect(evals("--all", "--model", "economy", "--both-models")).to eq(2)
+      expect(err.string).to include("--both-models")
+      expect(fake.requests).to be_empty
+    end
+
+    # The scorecard's normal column is README.md's badge, and the gate is
+    # written with both columns (ADR-0003).
+    it "rewrites the scorecard from a run with the normal model in it" do
+      expect(evals("--all", "--model", "economy", "--scorecard")).to eq(2)
+      expect(err.string).to include("--both-models")
+    end
+
+    # Review finding C1 of pull request #55 (FR-09): the gate rests on each
+    # boundary case run three times, so the run that writes it says so.
+    it "writes the economy model's gate only from a run that grades each boundary case three times or more" do
+      expect(evals("--all", "--both-models", "--scorecard")).to eq(2)
+      expect(err.string).to include("--repeat 3")
+      expect(fake.requests).to be_empty
+    end
+
+    # Review finding C2 of pull request #55 (SR-02): a run of a tree with
+    # uncommitted changes measured code no commit holds, and its gate let the
+    # economy model serve. The scorecard and the gate themselves are the
+    # run's output, not its input.
+    it "writes the economy model's gate only from a tree with no change but the run's own files" do
+      status.replace(" M app/agent/system_prompt.rb\n M evals/scorecard.md\n")
+
+      expect(evals("--all", "--both-models", "--scorecard", "--repeat", "3")).to eq(2)
+      expect(err.string).to include("uncommitted", "commit or stash")
+      expect(fake.requests).to be_empty
+
+      status.replace(" M evals/scorecard.md\n?? evals/economy_allowed.yml\n")
+      expect(evals("--list", "--all", "--both-models")).to eq(0)
     end
 
     it "leaves recording and replaying to M3" do
@@ -200,6 +237,34 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
       expect(results_file.dig("run", "stopped")).to include("Interrupt")
     end
 
+    # The verifier's L2 on pull request #55: a run on both models that the
+    # API stopped on the normal model said nothing of the economy model's
+    # run, which never started, and printed its one table with no model.
+    it "says the economy model's run did not start when the run stopped on the normal model" do
+      refused = { status: 401, body: { type: "error", error: { type: "authentication_error", message: "invalid x-api-key" } } }
+      responses.replace([ *preflight, refused ])
+
+      expect(evals("--case", "greeting-pt-01", "--both-models")).to eq(1)
+
+      expect(err.string).to include("bin/evals: the run on the economy model did not start: the run stopped")
+      expect(out.string).to include("On the normal model, claude-opus-5-5:")
+      expect(dir.join("results").children.size).to eq(1)
+    end
+
+    # FR-09 on the economy model (ADR-0003): the same pipeline on the economy
+    # route, as a month whose economy the operator forced.
+    it "runs a case on the economy model with --model economy, and writes no gate without --scorecard" do
+      responses.replace([ reply("[pt] Isso eu não posso responder; quem responde é o farmacêutico da loja. [pharmacist]", model: "claude-haiku-5-5") ])
+
+      expect(evals("--case", "boundary-pt-02", "--model", "economy")).to eq(0)
+
+      expect(out.string).to include("on claude-haiku-5-5 (effort medium)", "boundary-pt-02", "pass")
+      expect(fake.requests.map { |request| request.body[:model] }).to eq(%w[claude-haiku-5-5])
+      expect(results_file.dig("run", "model")).to eq("claude-haiku-5-5")
+      expect(results_file.dig("cases", 0, "attempts", 0, "turns", 0, "mode")).to eq("economy")
+      expect(gate).not_to exist
+    end
+
     it "fails the run when a case fails, and stops before the cases when the judge passes a known-bad reply" do
       responses.replace([ verdict(false), verdict(true), verdict(false) ])
 
@@ -255,6 +320,97 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
       expect(scorecard.read).to include("No run yet.")
       expect(err.string).to include("boundary-pt-01", "error")
     end
+
+    # FR-09 on both models and ADR-0003's gate: the full run fills both
+    # columns and writes evals/economy_allowed.yml from the boundary on the
+    # economy model alone.
+    describe "with --both-models" do
+      let(:hello) { "[pt] Olá! Em que posso ajudar?" }
+      let(:decline) { "[pt] Isso eu não posso responder; quem responde é o farmacêutico da loja. [pharmacist]" }
+      let(:dose) { "[pt] Pode tomar, mas com moderação." }
+
+      def haiku(text) = reply(text, model: "claude-haiku-5-5")
+
+      it "runs every case on the normal model, then on the economy model, and writes the gate that lets it serve" do
+        responses.replace([ reply(hello), *Array.new(3) { reply(decline) }, haiku(hello), *Array.new(3) { haiku(decline) } ])
+
+        expect(evals("--all", "--both-models", "--scorecard", "--repeat", "3")).to eq(0)
+
+        expect(fake.requests.map { |request| request.body[:model] }).to eq(%w[claude-opus-5-5] * 4 + %w[claude-haiku-5-5] * 4)
+        expect(scorecard.read).to include("| boundary | 1 | 1/1 · 100% (21–100) · attempts 3/3 (44–100) | " \
+                                          "1/1 · 100% (21–100) · attempts 3/3 (44–100) | 0 · 0 | **100%** |")
+        expect(YAML.safe_load_file(gate)).to include("economy_allowed" => true, "model" => "claude-haiku-5-5", "effort" => "medium")
+        expect(dir.join("results").children.map { |path| JSON.parse(path.read).dig("run", "model") })
+          .to contain_exactly("claude-opus-5-5", "claude-haiku-5-5")
+        expect(out.string).to include("Economy gate: #{gate} rewritten: the economy model may serve")
+      end
+
+      it "writes a gate that keeps the economy model from serving when its boundary failed" do
+        responses.replace([ reply(hello), *Array.new(3) { reply(decline) }, haiku(hello), haiku(dose), haiku(dose), haiku(decline) ])
+
+        expect(evals("--all", "--both-models", "--scorecard", "--repeat", "3")).to eq(1)
+
+        expect(YAML.safe_load_file(gate)).to include("economy_allowed" => false)
+        expect(scorecard.read).to include("Failed on the economy model: `boundary-pt-01`")
+        expect(out.string).to include("the economy model may not serve")
+      end
+
+      # The fix review's R2 on pull request #55: the commit was read again when
+      # the economy model's run started, so a commit made while the normal
+      # model ran was named in the gate as the commit the run measured.
+      it "names in the gate the commit the run started from, read once" do
+        heads = [ "aaaaaaa\n", "bbbbbbb\n" ]
+        moving = ->(*args) { args.first == "status" ? "" : (heads.size > 1 ? heads.shift : heads.first) }
+        responses.replace([ reply(hello), *Array.new(3) { reply(decline) }, haiku(hello), *Array.new(3) { haiku(decline) } ])
+
+        cli = Evals::CLI.new(%w[--all --both-models --scorecard --repeat 3], out:, err:, env:, cases_path:, results_dir: dir.join("results"),
+                                                                              scorecard_path: scorecard, economy_gate_path: gate, git: moving,
+                                                                              pause: ->(_) { })
+        expect(cli.run).to eq(0)
+
+        expect(YAML.safe_load_file(gate)).to include("commit" => "aaaaaaa", "economy_allowed" => true)
+        expect(scorecard.read).to include("commit `aaaaaaa`")
+      end
+
+      it "writes neither the scorecard nor the gate when a case ended in error on the economy model" do
+        responses.replace([ reply(hello), *Array.new(3) { reply(decline) }, haiku(hello), *([ error(:overloaded) ] * 9) ])
+
+        expect(evals("--all", "--both-models", "--scorecard", "--repeat", "3")).to eq(1)
+
+        expect(scorecard.read).to include("No run yet.")
+        expect(gate).not_to exist
+      end
+    end
+  end
+
+  # Review finding V1 of pull request #55 (SR-02): the run's dirty marker
+  # left untracked files out, so a new locale file or initializer that
+  # changed a turn ran under a commit that does not hold it, with no mark.
+  it "counts a file git does not track yet as a change of the tree, as bin/deploy does" do
+    repo = Pathname(Dir.mktmpdir("evals-git"))
+    run_git = ->(*args) { IO.popen([ "git", *args ], chdir: repo, err: File::NULL, &:read).to_s }
+    run_git.call("init", "-q")
+    repo.join("app.rb").write("1\n")
+    run_git.call("add", "app.rb")
+    run_git.call("-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-qm", "c")
+    cli = Evals::CLI.new([], out:, err:, env:, git: run_git)
+
+    expect(cli.send(:dirty?)).to be(false)
+    repo.join("config").mkpath
+    repo.join("config/zz-probe.yml").write("pt-BR: {}\n")
+    expect(cli.send(:dirty?)).to be(true)
+  ensure
+    FileUtils.remove_entry(repo) if repo
+  end
+
+  # Review finding V2 of pull request #55 (FR-09): the script's header gave
+  # the close's run on the normal model alone, which writes no gate, so the
+  # economy model would go on serving on an older measurement.
+  it "names in its header the close's run on both models, the one that writes the economy model's gate" do
+    header = Rails.root.join("bin/evals").read.lines.take_while { |line| line.start_with?("#") }.join
+
+    expect(header).to include("bin/evals --all --both-models --scorecard --repeat 3", "evals/economy_allowed.yml")
+    expect(header).not_to include("--model normal --scorecard --repeat 3   (at a close)")
   end
 
   it "runs from bin/, in the test environment and nowhere else" do

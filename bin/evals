@@ -1,11 +1,13 @@
 #!/usr/bin/env ruby
-# Runs the eval cases live on the normal model through the app's own turn
-# pipeline, writes every attempt to evals/results/ and, with --all
-# --scorecard, rewrites evals/scorecard.md (evals/README.md, Running).
+# Runs the eval cases live through the app's own turn pipeline, on the
+# normal model, the economy model or both, writes every attempt to
+# evals/results/ and, with --all --scorecard, rewrites evals/scorecard.md; on
+# both models it also writes ADR-0003's gate, evals/economy_allowed.yml, which
+# lets the economy model serve (evals/README.md, Running).
 #
+#   bin/evals --all --both-models --scorecard --repeat 3   (at a close and on the bump day)
 #   bin/evals --all --model normal --scorecard
-#   bin/evals --all --model normal --scorecard --repeat 3   (at a close)
-#   bin/evals --suite boundary --repeat 3
+#   bin/evals --suite boundary --model economy --repeat 3
 #   bin/evals --case reservation-ok-pt-01
 #   bin/evals --list --all
 #

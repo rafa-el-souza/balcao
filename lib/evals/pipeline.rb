@@ -12,9 +12,15 @@ require_relative "case_set"
 # since the trace never keeps it), and the visitor's rows.
 #
 # The attempt runs in the test environment (bin/evals), inside one
-# transaction rolled back at its end: it starts with no visitor and the
-# catalogue of the case's seed, and no attempt sees another's reservations,
-# stock or conversations. Nothing the app does in a turn waits for a commit.
+# transaction rolled back at its end: it starts with no visitor, the
+# catalogue of the case's seed and a month forced to the run's mode, and no
+# attempt sees another's reservations, stock or conversations. Nothing the app
+# does in a turn waits for a commit.
+#
+# The mode is the route's (ModelPolicy): normal, or economy for FR-09 on the
+# economy model, which serves only on ADR-0003's gate. The run is what writes
+# the gate (EconomyGate), so on the economy route the gate is open for the
+# attempt alone, whatever the boot read, and closed again after it.
 # The transaction is not joinable, so each of the app's own transaction
 # blocks is a savepoint of it and rolls back with its block, as it does in
 # production, when an exception leaves the block (the eval audit's finding
@@ -25,8 +31,10 @@ module Evals
     # read, notice included; outcome is the turn's root span's, "command" for
     # a command's turn, "deleted" for a deletion, or "none" when no reply came.
     # guardrail is FR-20's check of the reply, nil for a turn it did not read.
-    TurnRecord = Data.define(:message, :reply, :notice, :outcome, :error_type, :latency_ms, :model_calls, :tool_calls, :guardrail) do
-      def initialize(guardrail: nil, **) = super
+    # mode is the budget's mode the turn ran in, nil for a turn that read
+    # none (a command).
+    TurnRecord = Data.define(:message, :reply, :notice, :outcome, :error_type, :latency_ms, :model_calls, :tool_calls, :guardrail, :mode) do
+      def initialize(guardrail: nil, mode: nil, **) = super
     end
     # FR-20's check of a turn's reply, as its span recorded it (TurnTrace),
     # with the reason the check gave, which only the run hears
@@ -40,26 +48,48 @@ module Evals
                             :iterations, :latency_ms, :error_type)
     Run = Data.define(:turns, :observation)
 
+    attr_reader :mode
+
+    def initialize(mode: "normal")
+      @mode = ModelPolicy.route(mode).mode
+    end
+
     def run(kase)
       result = nil
-      ApplicationRecord.transaction(requires_new: true, joinable: false) do
-        prepare(kase.seed)
-        identity_hash = SecureRandom.hex(32)
-        said = kase.messages.map { |text| say(identity_hash, text) }
-        result = Run.new(turns: said.map(&:first), observation: observe(identity_hash, *said.last, earlier: said[...-1].map { |record, _| record.reply }))
-        raise ActiveRecord::Rollback
+      gate do
+        ApplicationRecord.transaction(requires_new: true, joinable: false) do
+          prepare(kase.seed)
+          identity_hash = SecureRandom.hex(32)
+          said = kase.messages.map { |text| say(identity_hash, text) }
+          result = Run.new(turns: said.map(&:first), observation: observe(identity_hash, *said.last, earlier: said[...-1].map { |record, _| record.reply }))
+          raise ActiveRecord::Rollback
+        end
       end
       result
     end
 
     private
 
-    # No visitor, so no conversation or reservation, and the case's catalogue
-    # (evals/seeds overlays the default one, README, Seeds).
+    def gate(&)
+      return yield unless @mode == "economy"
+
+      allowed = Rails.configuration.x.economy_allowed
+      begin
+        Rails.configuration.x.economy_allowed = true
+        yield
+      ensure
+        Rails.configuration.x.economy_allowed = allowed
+      end
+    end
+
+    # No visitor, so no conversation or reservation, the case's catalogue
+    # (evals/seeds overlays the default one, README, Seeds), and the month
+    # forced to the run's mode, whatever its row said or spent.
     def prepare(seed)
       Visitor.delete_all
       overlay = CaseSet::SEEDS.join("#{seed}.yml") unless seed == "default"
       CatalogueSeed.seed!(CatalogueSeed.entries(overlay:))
+      BudgetState.for_month!.update!(forced_mode: @mode)
     end
 
     # As the web channel takes a message (Api::MessagesController): the
@@ -95,7 +125,8 @@ module Evals
         error_type: root&.span_attributes&.dig("error.type"), latency_ms: Turn.find_by(id: turn.id)&.latency_ms,
         model_calls: spans.select { |span| span.name == TurnTrace::MODEL_CALL }.map { |span| model_call(span.span_attributes) },
         tool_calls: spans.select { |span| span.name.start_with?("#{TurnTrace::TOOL_CALL} ") }.map { |span| tool_call(span.span_attributes) },
-        guardrail: guardrail(spans.reverse.find { |span| span.name == TurnTrace::GUARDRAIL }, verdict)
+        guardrail: guardrail(spans.reverse.find { |span| span.name == TurnTrace::GUARDRAIL }, verdict),
+        mode: root&.span_attributes&.dig("balcao.turn.mode")
       )
     end
 

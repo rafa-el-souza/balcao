@@ -317,9 +317,25 @@ the host around the answer.
   console's usage page has the whole month.
 - **Pausing by hand** (FR-14's kill switch, until the console has it in
   M2-10, after the publication; ADR-0022):
-  `kamal app exec -d ensaio --roles=web --reuse "bin/rails runner 'BudgetState.for_month!.update!(forced_mode: :paused.to_s)'"`;
-  releasing: the same with `forced_mode: nil`. A forced mode holds into
-  the next month until released.
+  `kamal app exec -d ensaio --roles=web --reuse "bin/rails runner 'p Budget.force!(:paused)'"`;
+  releasing: the same with `Budget.force!(nil)`. The command prints the
+  month's `budget:` line and what serves now (`mode`, `forced`). A forced
+  mode holds into the next month until released.
+- **Economy by hand** (from M2-3; automatic at 70 % of the cap from M3-1):
+  the same line with `Budget.force!(:economy)`. The economy model serves
+  only on ADR-0003's gate, the committed `evals/economy_allowed.yml`, which
+  every container reads once, at boot; while it says no, or names another
+  model, effort, system prompt or tool set than the ones that serve, a
+  forced economy pauses with the forced pause's text, and the command's
+  line says so (`the forced economy mode may not serve yet, so the demo
+  pauses`, then `mode="paused"`). What a boot of the running image reads:
+  `kamal app exec -d ensaio --roles=web --reuse "bin/rails runner 'p Budget.economy_allowed?'"`;
+  and the file itself, to tell a gate that says no from one the boot set
+  aside: `kamal app exec -d ensaio --roles=web --reuse "cat evals/economy_allowed.yml"`.
+  A file missing, unreadable or written for another route, prompt or tool
+  set leaves one `budget: <path> ...; the economy model may not serve`
+  warning in each container's log, at boot, which says which; a gate that
+  says no (its boundary did not pass at 100 %) leaves none.
 - **The nightly job** runs at 03:00 São Paulo in the `job` container and
   writes one line, `nightly reset: expired N reservations, reset N
   products; deleted ...`. To run it by hand (it is safe to run again):

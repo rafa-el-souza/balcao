@@ -864,6 +864,16 @@ describe("FR-12 the instrument's figures", () => {
     expect(formatMoney(1.234, "usd", "pt-BR")).toBe("1,234");
   });
 
+  // Review finding C5 of pull request #29 (FR-12): one more decimal was not
+  // enough for a call on the economy model, whose cached turn costs a few
+  // hundred-thousandths of a dollar, so the figure read as a zero.
+  it("FR-12 keeps one significant digit of a figure smaller than the currency's last decimal", () => {
+    expect(formatMoney(0.000035, "usd", "pt-BR")).toBe("0,00004");
+    expect(formatMoney(0.000035 * 5.6518, "brl", "pt-BR")).toBe("0,0002");
+    expect(formatMoney(0.0000096, "usd", "en")).toBe("0.00001");
+    expect(formatMoney(0.0004, "brl", "es")).toBe("0,0004");
+  });
+
   // Review finding C6 of pull request #29 (NFR-09): the symbols are the
   // locale files' words, which the figure fills.
   it("leaves the currency's symbol to the locale files", () => {

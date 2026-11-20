@@ -89,3 +89,21 @@ RSpec.describe "SR-30 SR-11 the web container writes no request line of its own"
     expect(settings).to match(/(?:\A|\s)THRUSTER_LOG_REQUESTS="?false"?(?=\s|\z)/)
   end
 end
+
+# ADR-0003's gate is a committed file the app reads at boot
+# (config/initializers/budget.rb): an image built without it would read "not
+# allowed" and pause a forced economy with no line saying why.
+RSpec.describe "FR-14 SR-02 the image carries ADR-0003's gate" do
+  it "keeps evals/economy_allowed.yml in the build context" do
+    patterns = Rails.root.join(".dockerignore").read.lines(chomp: true).map(&:strip)
+      .reject { |line| line.empty? || line.start_with?("#") }
+    # As Docker reads the file: the last pattern that matches the path or a
+    # directory above it decides, and a "!" re-includes.
+    excluded = %w[evals evals/economy_allowed.yml].any? do |path|
+      last = patterns.reverse.find { |line| File.fnmatch?(line.delete_prefix("!").delete_prefix("/"), path, File::FNM_PATHNAME | File::FNM_DOTMATCH) }
+      last && !last.start_with?("!")
+    end
+
+    expect(excluded).to be(false)
+  end
+end

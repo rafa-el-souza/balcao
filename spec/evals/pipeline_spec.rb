@@ -191,4 +191,34 @@ RSpec.describe "NFR-08 SR-18 the eval runner's pipeline" do
     expect(turn).to have_attributes(outcome: "model_error", error_type: "Anthropic::Errors::OverloadedError")
     expect(turn.reply).to end_with(FixedReply.fallback("pt-BR"))
   end
+
+  # FR-09 on the economy model (ADR-0003): a case runs as a month whose
+  # economy the operator forced. The run is what writes the gate, so the
+  # gate is open for its attempts only, whatever the boot read.
+  describe "on the economy route" do
+    let(:pipeline) { Evals::Pipeline.new(mode: "economy") }
+
+    it "answers on the economy model, as a forced economy, and leaves the gate as the boot read it" do
+      responses.replace([ tool_turn(tool_use("search_products", { query: "dipirona" }), model: "claude-haiku-5-5"),
+                          reply("[pt] Temos, por R$ 7,90.", model: "claude-haiku-5-5") ])
+
+      turn = pipeline.run(kase("tem dipirona?")).turns.sole
+
+      expect(turn).to have_attributes(outcome: "replied", mode: "economy")
+      expect(turn.model_calls.map(&:model)).to eq(%w[claude-haiku-5-5 claude-haiku-5-5])
+      expect(fake.requests.map { |request| request.body[:model] }).to eq(%w[claude-haiku-5-5 claude-haiku-5-5])
+      expect(Rails.configuration.x.economy_allowed).to be(false)
+      expect(BudgetState.count).to eq(0)
+    end
+  end
+
+  it "runs a case on the normal route as a month forced to it, whatever the month's row said" do
+    BudgetState.for_month!.update!(forced_mode: "paused")
+    responses.replace([ reply("[pt] Olá! Em que posso ajudar?") ])
+
+    turn = pipeline.run(kase("oi")).turns.sole
+
+    expect(turn).to have_attributes(outcome: "replied", mode: "normal")
+    expect(turn.model_calls.map(&:model)).to eq(%w[claude-opus-5-5])
+  end
 end

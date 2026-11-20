@@ -1,32 +1,39 @@
 require "optparse"
 require_relative "scorecard"
+require_relative "economy_gate"
 
 # bin/evals' command line (evals/README.md, Running). It reads and checks
-# every case first, selects some, and either lists them or runs them live on
-# the normal model through the app's pipeline (Evals::Pipeline), the rubrics
-# judged by the economy model once it has failed its known-bad replies, each
-# boundary case N times with --repeat N (Evals::Runner). It prints each case
-# as it ends and a table per suite, writes every attempt
-# whole to evals/results/ (gitignored: replies, checks, verdicts, spans and
-# tokens), and with --all --scorecard rewrites evals/scorecard.md, unless a
-# case ended in error, since the run then measured less than the scorecard
-# would say.
+# every case first, selects some, and either lists them or runs them live
+# through the app's pipeline (Evals::Pipeline) on the normal model, the
+# economy model (--model economy) or both, one after the other
+# (--both-models), the rubrics judged by the economy model once it has failed
+# its known-bad replies, each boundary case N times with --repeat N
+# (Evals::Runner). It prints each case as it ends and a table per suite and
+# model, writes every attempt whole to evals/results/ (gitignored: replies,
+# checks, verdicts, spans and tokens), one file per model, and with --all
+# --scorecard rewrites evals/scorecard.md, unless a case ended in error,
+# since the run then measured less than the scorecard would say. On both
+# models it also rewrites ADR-0003's gate, evals/economy_allowed.yml, from
+# the boundary on the economy model alone (Evals::EconomyGate).
 #
 # Exit status: 0 when every case run passed, 1 when one failed or ended in
-# error or the run stopped, 2 for a command it does not take. The economy
-# model's run arrives at M2; recording and replaying the fast subset at M3.
+# error or the run stopped, 2 for a command it does not take. Recording and
+# replaying the fast subset arrive at M3.
 module Evals
   class CLI
-    BANNER = "Usage: bin/evals (--all | --suite NAME... | --case ID...) [--model normal] [--repeat N] [--scorecard] [--list]".freeze
+    BANNER = "Usage: bin/evals (--all | --suite NAME... | --case ID...) [--model normal|economy | --both-models] [--repeat N] " \
+             "[--scorecard] [--list]".freeze
+    MODES = ModelPolicy::ROUTES.keys.freeze
     LATER = {
-      "--both-models" => "the economy model's run arrives at M2", "--record" => "recording arrives at M3",
-      "--recorded" => "replaying recordings arrives at M3", "--fast" => "the fast subset's recordings arrive at M3"
+      "--record" => "recording arrives at M3", "--recorded" => "replaying recordings arrives at M3",
+      "--fast" => "the fast subset's recordings arrive at M3"
     }.freeze
 
     class Usage < StandardError; end
 
     def initialize(argv, out: $stdout, err: $stderr, env: ENV, cases_path: CaseSet::PATH,
-                   results_dir: Rails.root.join("evals/results"), scorecard_path: Scorecard::PATH, pause: ->(seconds) { sleep(seconds) })
+                   results_dir: Rails.root.join("evals/results"), scorecard_path: Scorecard::PATH,
+                   economy_gate_path: EconomyGate::PATH, git: nil, pause: ->(seconds) { sleep(seconds) })
       @argv = argv
       @out = out
       @err = err
@@ -34,6 +41,8 @@ module Evals
       @cases_path = cases_path
       @results_dir = Pathname(results_dir)
       @scorecard_path = Pathname(scorecard_path)
+      @economy_gate_path = Pathname(economy_gate_path)
+      @git = git || ->(*args) { IO.popen([ "git", *args ], chdir: Rails.root, err: File::NULL, &:read).to_s }
       @pause = pause
     end
 
@@ -45,9 +54,15 @@ module Evals
       selected = select(cases, options)
       repeated!(selected, options[:repeat])
       return list(selected, options[:repeat]) if options[:list]
+      # The gate speaks for a commit, so the run that writes it reads one
+      # (review finding C2 of pull request #55).
+      if options[:both] && options[:scorecard] && dirty?
+        raise Usage, "--both-models --scorecard writes the economy model's gate, which speaks for a commit, and the tree has " \
+                     "uncommitted changes (git status lists them): commit or stash them first"
+      end
       raise Usage, "ANTHROPIC_API_KEY is blank: a live run needs the dev/eval key in the environment" if @env["ANTHROPIC_API_KEY"].to_s.strip.empty?
 
-      live(cases, selected, scorecard: options[:scorecard], repeat: options[:repeat])
+      live(cases, selected, scorecard: options[:scorecard], repeat: options[:repeat], modes: options[:modes])
     rescue Usage, OptionParser::ParseError => e
       @err.puts("bin/evals: #{e.message}", BANNER)
       2
@@ -59,13 +74,14 @@ module Evals
     private
 
     def parse
-      options = { suites: [], ids: [], model: "normal" }
+      options = { suites: [], ids: [] }
       parser = OptionParser.new do |opts|
         opts.banner = BANNER
         opts.on("--all", "Every case of a delivered milestone (#{RUNNABLE_MILESTONES.join(", ")})") { options[:all] = true }
         opts.on("--suite NAME", "A suite's cases of a delivered milestone; repeatable") { |name| options[:suites] << name }
         opts.on("--case ID", "One case, whatever its milestone; repeatable") { |id| options[:ids] << id }
-        opts.on("--model MODEL", "normal; the economy model's run arrives at M2") { |model| options[:model] = model }
+        opts.on("--model MODEL", "#{MODES.join(" or ")} (normal when left out)") { |model| options[:model] = model }
+        opts.on("--both-models", "Every selected case on the normal model, then on the economy model") { options[:both] = true }
         opts.on("--repeat N", Integer, "Each #{Runner::REPEATED_SUITES.join(", ")} case N times (#{Runner::REPEAT.min} to #{Runner::REPEAT.max}), every attempt graded") do |count|
           options[:repeat] = count
         end
@@ -82,7 +98,20 @@ module Evals
 
     def check(options)
       raise Usage, "#{options[:later]}: #{LATER.fetch(options[:later])}" if options[:later]
-      raise Usage, "--model #{options[:model]}: only normal runs until the economy model's run arrives at M2" unless options[:model] == "normal"
+      raise Usage, "--model #{options[:model]}: it takes #{MODES.join(" or ")}" if options[:model] && !MODES.include?(options[:model])
+      raise Usage, "--both-models runs the normal model and then the economy model: leave --model out" if options[:both] && options[:model]
+
+      options[:modes] = options[:both] ? MODES : [ options[:model] || "normal" ]
+      if options[:scorecard] && !options[:modes].include?("normal")
+        raise Usage, "--scorecard rewrites the scorecard from a run with the normal model in it: --model normal, or --both-models " \
+                     "for both columns and the economy model's gate"
+      end
+      # The gate rests on each boundary case run three times or more (design
+      # FR-09; review finding C1 of pull request #55).
+      if options[:both] && options[:scorecard] && options[:repeat].nil?
+        raise Usage, "--both-models --scorecard writes the economy model's gate, which rests on each boundary case run three " \
+                     "times or more (FR-09): add --repeat 3"
+      end
 
       kinds = [ options[:all], options[:suites].any?, options[:ids].any? ].count(&:itself)
       raise Usage, "choose one of --all, --suite or --case" unless kinds == 1 || options[:help]
@@ -136,31 +165,56 @@ module Evals
       0
     end
 
-    def live(cases, selected, scorecard:, repeat:)
+    # The selection on each model in turn, one report each; a run that
+    # stopped on one model does not go on to the next. The judge's preflight
+    # runs once, before the first model's cases.
+    def live(cases, selected, scorecard:, repeat:, modes:)
       ActiveRecord::Migration.maintain_test_schema!
-      route = ModelPolicy.route("normal")
       judge = Judge.new(client: AgentRunner.default_client)
-      report = Report.new(argv: @argv, route:, judge:, started_at: Time.current, commit: commit, dirty: dirty?, repeat:)
-      @out.puts("bin/evals: #{selected.size} #{"case".pluralize(selected.size)} on #{route.model} (effort #{route.effort}), judged by #{judge.model}" \
-                "#{", each #{Runner::REPEATED_SUITES.join(", ")} case #{repeat} times" if repeat}")
-
-      begin
-        report.preflight = preflight(judge) if selected.any?(&:rubric)
-        @out.puts("judge: failed the #{Judge::KNOWN_BAD.size} known-bad replies, as it must") if report.preflight
-        runner = Runner.new(pipeline: Pipeline.new, checks: Checks.new(phrases:), judge:, route:, repeat:, pause: @pause)
-        runner.call(selected) do |result|
-          report.results << result
-          @out.puts(outcome(result))
-        end
-      rescue Judge::Unfit, Judge::Error, Runner::Fatal, Anthropic::Errors::APIError => e
-        stopped(report, e)
-      rescue Interrupt, StandardError => e
+      # The commit the run measured is the one it started from, read once: a
+      # commit made while the normal model ran is not the economy model's
+      # (the fix review's R2 on pull request #55).
+      head = commit
+      dirty = dirty?
+      reports = []
+      modes.each do |mode|
+        route = ModelPolicy.route(mode)
+        report = Report.new(argv: @argv, route:, judge:, started_at: Time.current, commit: head, dirty:, repeat:)
+        reports << report
+        @out.puts("bin/evals: #{selected.size} #{"case".pluralize(selected.size)} on #{route.model} (effort #{route.effort}), " \
+                  "judged by #{judge.model}#{", each #{Runner::REPEATED_SUITES.join(", ")} case #{repeat} times" if repeat}")
+        break unless run_on(report, judge, selected, route, repeat:, first: reports.one?)
+      rescue Interrupt, StandardError
         # What ran is written before the interruption or the bug goes on.
-        stopped(report, e)
-        finish(report, cases, scorecard: false)
+        finish(reports, cases, scorecard: false, headed: modes.many?)
         raise
       end
-      finish(report, cases, scorecard:)
+      # A model whose run never started is said, not left to the missing
+      # results file (the verifier's L2 on pull request #55).
+      modes.drop(reports.size).each { |mode| @err.puts("bin/evals: the run on the #{mode} model did not start: the run stopped") }
+      finish(reports, cases, scorecard:, headed: modes.many?)
+    end
+
+    # Runs the selection on one route; false when the run stopped.
+    def run_on(report, judge, selected, route, repeat:, first:)
+      if first && selected.any?(&:rubric)
+        report.preflight = preflight(judge)
+        @out.puts("judge: failed the #{Judge::KNOWN_BAD.size} known-bad replies, as it must")
+      end
+      runner = Runner.new(pipeline: Pipeline.new(mode: route.mode), checks: Checks.new(phrases:), judge:, route:, repeat:, pause: @pause)
+      runner.call(selected) do |result|
+        report.results << result
+        @out.puts(outcome(result))
+      end
+      true
+    rescue Judge::Unfit, Judge::Error, Runner::Fatal, Anthropic::Errors::APIError => e
+      stopped(report, e)
+      false
+    rescue Interrupt, StandardError => e
+      stopped(report, e)
+      raise
+    ensure
+      report.finished_at = Time.current
     end
 
     # The case under way when the run stopped, with its attempts (review
@@ -192,24 +246,35 @@ module Evals
       end
     end
 
-    def finish(report, cases, scorecard:)
-      report.finished_at = Time.current
-      @out.puts("", *report.summary)
-      @out.puts("Results: #{report.write(@results_dir)}")
-      written = scorecard && write_scorecard(report, cases)
-      ok = report.stopped.nil? && report.results.all? { |result| result.status == :pass }
-      @out.puts("Scorecard: #{@scorecard_path} rewritten") if written
+    # headed: the run was on more than one model, so each table names its own.
+    def finish(reports, cases, scorecard:, headed:)
+      reports.each do |report|
+        @out.puts(*[ "", ("On the #{report.route.mode} model, #{report.route.model}:" if headed), *report.summary ].compact)
+        @out.puts("Results: #{report.write(@results_dir)}")
+      end
+      write_scorecard(reports, cases) if scorecard
+      ok = reports.all? { |report| report.stopped.nil? && report.results.all? { |result| result.status == :pass } }
       ok ? 0 : 1
     end
 
-    def write_scorecard(report, cases)
-      errored = report.results.select { |result| result.status == :error }.map { |result| result.kase.id }
-      if report.stopped || errored.any?
-        @err.puts("bin/evals: scorecard not written: #{report.stopped ? "the run stopped" : "#{errored.join(", ")} ended in error"}")
+    # The scorecard from the normal model's report, with the economy model's
+    # column and ADR-0003's gate when the run had both (EconomyGate).
+    def write_scorecard(reports, cases)
+      errored = reports.flat_map(&:results).select { |result| result.status == :error }.map { |result| result.kase.id }.uniq
+      if reports.any?(&:stopped) || errored.any?
+        @err.puts("bin/evals: scorecard not written: #{reports.any?(&:stopped) ? "the run stopped" : "#{errored.join(", ")} ended in error"}")
         return false
       end
 
-      @scorecard_path.write(Scorecard.new(cases:, results: report.results, run: report.scorecard_run).render)
+      normal, economy = %w[normal economy].map { |mode| reports.find { |report| report.route.mode == mode } }
+      gate = EconomyGate.new(cases:, results: economy.results, route: economy.route, run: economy.scorecard_run) if economy
+      column = Scorecard::Economy.new(results: economy.results, model: economy.route.model, effort: economy.route.effort, allowed: gate.allowed?) if gate
+      @scorecard_path.write(Scorecard.new(cases:, results: normal.results, run: normal.scorecard_run, economy: column).render)
+      @out.puts("Scorecard: #{@scorecard_path} rewritten")
+      return true unless gate
+
+      gate.write(@economy_gate_path)
+      @out.puts("Economy gate: #{@economy_gate_path} rewritten: the economy model #{gate.allowed? ? "may" : "may not"} serve (ADR-0003)")
       true
     end
 
@@ -246,12 +311,16 @@ module Evals
 
     def commit = git("rev-parse", "--short", "HEAD").strip.presence || "unknown"
 
-    # The scorecard is the run's output, not its input.
+    # The scorecard and the gate are the run's output, not its input. A file
+    # git does not track yet changes the tree too (a new locale file or
+    # initializer is loaded by the run), as bin/deploy counts it (review
+    # finding V1 of pull request #55).
     def dirty?
-      git("status", "--porcelain", "--untracked-files=no").lines.map(&:chomp).reject { |line| line.end_with?(" evals/scorecard.md") }.any?
+      git("status", "--porcelain", "--untracked-files=all").lines.map(&:chomp)
+                                                          .reject { |line| line.end_with?(" evals/scorecard.md", " evals/economy_allowed.yml") }.any?
     end
 
-    def git(*args) = IO.popen([ "git", *args ], chdir: Rails.root, err: File::NULL, &:read).to_s
+    def git(*args) = @git.call(*args)
   end
 end
 

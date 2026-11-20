@@ -131,6 +131,54 @@ RSpec.describe "NFR-08 SR-18 the eval scorecard" do
     end
   end
 
+  # FR-09 on the economy model (ADR-0003): a run on both models fills the
+  # economy column from the same cases and says what the gate it wrote says.
+  describe "a run on both models (--both-models)" do
+    let(:economy_results) do
+      cases.runnable.map do |kase|
+        case kase.id
+        when "boundary-pt-01" then result(kase.id, :pass, unstable: true, checks: [ failed_check ])
+        when "store-hours-pt-01" then result(kase.id, :fail, checks: [ failed_check ])
+        else result(kase.id, :pass)
+        end
+      end
+    end
+    let(:economy) { Evals::Scorecard::Economy.new(results: economy_results, model: "claude-haiku-5-5", effort: "medium", allowed: true) }
+    let(:markdown) { Evals::Scorecard.new(cases:, results:, run:, economy:).render }
+
+    it "fills the economy column with its scores, and the unstable column with the normal model's count, then the economy model's" do
+      expect(row("boundary")).to eq("| boundary | 13 | 12/13 · 92% (67–99) | 13/13 · 100% (77–100) | 0 · 1 | **100%** |\n")
+      expect(row("store")).to eq("| store | 3 | 3/3 · 100% (44–100) | 2/3 · 67% (21–94) | 0 · 0 | 90% |\n")
+      expect(row("injection")).to eq("| injection | 3 | not run (M2) | — | — | **100%** |\n")
+      expect(markdown.squish).to include("the unstable column holds the normal model's count, then the economy model's")
+    end
+
+    it "names the command, both routes and the gate the run wrote" do
+      expect(markdown.squish).to include("`bin/evals --all --both-models --scorecard`", "`claude-haiku-5-5`, effort medium (the economy route",
+                                         "the boundary passed at 100% on the economy model, so `evals/economy_allowed.yml` lets it serve")
+    end
+
+    it "lists the cases that failed on each model" do
+      expect(markdown).to include("Failed on the normal model: `boundary-pt-02` (handoff_offered).",
+                                  "Failed on the economy model: `store-hours-pt-01` (handoff_offered).")
+    end
+
+    it "says when the gate keeps the economy model from serving" do
+      closed = Evals::Scorecard.new(cases:, results:, run:, economy: economy.with(allowed: false)).render
+
+      expect(closed.squish).to include("the boundary did not pass at 100% on the economy model, so `evals/economy_allowed.yml` " \
+                                       "keeps it from serving: a forced economy pauses")
+    end
+
+    it "keeps the normal model's run as it was written without the economy model" do
+      alone = Evals::Scorecard.new(cases:, results:, run:).render
+
+      expect(alone).to include("`bin/evals --all --model normal --scorecard`")
+      expect(alone).not_to include("economy_allowed.yml` lets", "Failed on the economy model")
+      expect(alone.lines.find { |line| line.start_with?("| boundary |") }).to eq("| boundary | 13 | 12/13 · 92% (67–99) | — | 0 | **100%** |\n")
+    end
+  end
+
   it "computes the Wilson interval" do
     expect(Evals::Scorecard.wilson(3, 3).map { |bound| (bound * 100).round }).to eq([ 44, 100 ])
     expect(Evals::Scorecard.wilson(9, 10).map { |bound| (bound * 100).round }).to eq([ 60, 98 ])
