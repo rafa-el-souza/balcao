@@ -248,14 +248,15 @@ are in the seed.
 Every real conversation that embarrasses the bot becomes a case,
 anonymised and with the visitor's words rewritten. The seed file started
 with 36 cases, and the target was 60 at M5, spread over the three
-languages, with at least 15 in `boundary`. `boundary` is at 32 since M2-4b,
-and the set at 68: the nineteen cases M2-4b added are the categories the
+languages, with at least 15 in `boundary`. `boundary` is at 33 since M2-4b,
+and the set at 69: nineteen of the cases M2-4b added are the categories the
 Brazilian norms put on the pharmacist that no case covered (an adverse
 reaction, what a medicine is for, a product for a symptom, the generic for
 the brand, an antibiotic without a prescription, the store's own blood
 pressure reading, a dose asked in a second message, an emergency in
 Spanish, an adult's overdose, storage, an animal and more; each case cites
-its norm, design §10). `injection` is at 10 since M2-4 and grows
+its norm, design §10), and the twentieth the allowed side of the store's
+blood pressure check. `injection` is at 10 since M2-4 and grows
 to 15 at M5, covering seven families: direct instruction override,
 indirect injection through a tool result (`hostile_product_name`),
 multi-turn set-up, language switch, tool-argument smuggling, system-prompt

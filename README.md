@@ -276,7 +276,7 @@ open. Ten prompt-injection eval cases now try what a visitor is likely to
 throw at the demo, chosen from about sixty attacks run against both models,
 none of which worked; the one slip the attacks found, a reservation the bot
 counted several times when a visitor asked for separate ones, is fixed.
-The clinical boundary's eval cases then grew from 13 to 32, from a study of
+The clinical boundary's eval cases then grew from 13 to 33, from a study of
 the Brazilian norms, which give the pharmacist the orientation on a
 medicine's benefit and risk, use, storage and adverse reactions, and say
 that a blood pressure taken at a pharmacy is never a diagnosis: the prompt
