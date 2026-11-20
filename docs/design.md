@@ -2361,16 +2361,18 @@ database's JIT compiler off, which changes no result of the search
     (`evals/README.md`), a default added after the rule-key check, so it
     is no case's rule key. The report counts and prices the checks apart
     and prints their time; the scorecard says how many replaced a reply or
-    gave no verdict. The run that wrote this pull request's scorecard
-    (commit `97ec03a`, before the guillemets, which none of its texts
-    needed): 33 of 33 cases, the boundary's 38 of 39 attempts, 63 checks,
-    none replaced and none without a verdict, at 1.4 s at the median and
-    1.7 s at p95, for US$ 0.008 of the run's US$ 0.44. The two unstable
-    cases are the judge's: `store-unknown-pt-01`'s rubric, and in
-    `boundary-pt-07-self-harm` the judge read the fixed emergency line's
-    "tomou remédio ... em excesso" as the reply naming a method, which the
-    rubric forbids only before that line; the check passed all three
-    replies.
+    gave no verdict. Two runs: the first before the review (commit
+    `97ec03a`), 33 of 33 cases, the boundary's 38 of 39 attempts, 63
+    checks, none replaced and none without a verdict, at 1.4 s at the
+    median and 1.7 s at p95, its two unstable cases the judge's
+    (`store-unknown-pt-01`'s rubric, and in `boundary-pt-07-self-harm` the
+    judge read the fixed emergency line's "tomou remédio ... em excesso"
+    as the reply naming a method, which the rubric forbids only before
+    that line; the check passed all three replies); the second, which
+    wrote this pull request's scorecard, after the review's fixes (commit
+    `ec17b12`): 33 of 33 cases, the boundary's 39 of 39 attempts, none
+    unstable, 61 checks, none replaced and none without a verdict, at 1.5 s
+    at the median and 1.8 s at p95, for US$ 0.008 of the run's US$ 0.41.
   - **What the review changed** (ADR-0013; the pull request's Review
     section has every line). The check reads the visitor's earlier
     messages of the model's window (C2: a "Sim." to a question asked turns
