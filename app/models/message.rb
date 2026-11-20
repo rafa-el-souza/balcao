@@ -111,12 +111,18 @@ class Message < ApplicationRecord
   # lines a turn adds after them, the offer of the pharmacist and the
   # emergency line, which are left out with a reservation's lines, told by
   # their text (FixedReply.added_line?; review finding C1 of pull request
-  # #60); kind, the fixed text the system wrote in the model's place, is not
-  # told. The notice before a conversation's first reply is neither.
+  # #60); or kind, the fixed text the system wrote in the model's place,
+  # which the reply opens with (FixedReply.in_place_kind; review finding R1
+  # of the same pull request). The notice before a conversation's first
+  # reply is neither.
   Authored = Data.define(:written, :kind)
 
   def authored(first_reply: first_reply?)
-    paragraphs = body_without_notice(first_reply:).split("\n\n")
+    text = body_without_notice(first_reply:)
+    kind = FixedReply.in_place_kind(text)
+    return Authored.new(written: nil, kind:) if kind
+
+    paragraphs = text.split("\n\n")
     added = []
     added.unshift(paragraphs.pop) while paragraphs.any? && FixedReply.added_line?(paragraphs.last)
     Authored.new(written: [ paragraphs.join("\n\n").presence, *FixedReply.line_tags(added) ].compact.join(" ").presence, kind: nil)

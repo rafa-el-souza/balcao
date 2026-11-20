@@ -84,6 +84,24 @@ module FixedReply
       ("[emergency]" if locales.any? { |locale| paragraphs.include?(emergency(locale)) }) ].compact
   end
 
+  # The fixed text the system wrote in the model's place that a reply opens
+  # with (Turn::REPLY_KINDS), nil for the model's words: FR-09's decline,
+  # which a reply the check replaced opens with, followed by the offer, and
+  # a refusal's, followed by the emergency line, as a replaced emergency's
+  # was before #59's M1; the fallback; a pause's; /start's greeting or
+  # /help's list (review finding R1 of pull request #60).
+  def in_place_kind(text)
+    AgentRunner::LANGUAGES.values.each do |locale|
+      if text.start_with?(declined(locale))
+        return text.include?(emergency(locale)) ? "refusal" : "decline"
+      end
+      return "fallback" if text.start_with?(fallback(locale))
+      return "pause" if text.start_with?(paused(locale), forced_pause(locale))
+      return "command" if text.start_with?(greeting(locale), help(locale))
+    end
+    nil
+  end
+
   # A reservation's line as turn.reservation writes it, its values any text.
   def reservation_line(locale)
     Regexp.new("\\A#{Regexp.escape(I18n.t("turn.reservation", locale:)).gsub(/%\\\{\w+\\\}/, ".+")}\\z")

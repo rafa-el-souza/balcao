@@ -319,6 +319,31 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
           expect(request.body[:messages].to_s).not_to include("ZZ9Z9Z")
           expect(written).to eq([ "Olá!", "Pronto." ])
         end
+
+        # Review finding R1 of pull request #60 (cliente, the verifier's): a
+        # reply the check replaced before this slice is FR-09's decline, the
+        # offer, then the products its search found, and the split by the
+        # lines after the model's words stopped at the products, so the
+        # decline and the offer came back as the model's. A reply the system
+        # wrote in the model's place is told by the fixed text it opens with.
+        it "gives a reply the system wrote in the model's place back as its notice, none of it as the model's" do
+          products = FixedReply.products([ { "name" => "Dipirona 500 mg, 10 comprimidos", "price" => "R$ 7,90", "stock" => 12,
+                                             "prescription_required" => false } ], "pt-BR")
+          turn_in(conversation, "oi", at: Time.zone.local(2026, 11, 11, 15, 0), reply: FixedReply.with_notice("Olá!", "pt-BR"))
+          turn_in(conversation, "posso tomar dipirona grávida?", at: Time.zone.local(2026, 11, 11, 15, 1),
+                                                                reply: "#{FixedReply.with_offer(FixedReply.declined("pt-BR"), "pt-BR")}\n\n#{products}")
+          turn_in(conversation, "y para un niño?", at: Time.zone.local(2026, 11, 11, 15, 2),
+                                                   reply: FixedReply.with_emergency(FixedReply.declined("es"), "es"))
+          turn_in(conversation, "hello?", at: Time.zone.local(2026, 11, 11, 15, 3), reply: FixedReply.fallback("en"))
+          turn_in(conversation, "e aí?", at: Time.zone.local(2026, 11, 11, 15, 4), reply: FixedReply.paused("pt-BR"))
+          current = turn_in(conversation, "e vocês entregam?", at: Time.zone.local(2026, 11, 11, 15, 5))
+
+          runner.run(current)
+
+          expect(written).to eq([ "Olá!" ])
+          expect(notices).to eq([ [ notice("decline", 1), notice("refusal", 2), notice("fallback", 3), notice("pause", 4) ].join("\n\n") ])
+          expect(request.body[:messages].to_s).not_to include("R$ 7,90")
+        end
       end
     end
 
