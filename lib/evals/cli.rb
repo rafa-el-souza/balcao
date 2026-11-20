@@ -49,9 +49,14 @@ module Evals
     # TERM and HUP (a kill, a timeout, a closed session) as Ctrl-C: an
     # Interrupt, which the run rescues to write what ran. Left to Ruby, they
     # raised SignalException, which nothing rescued, and the run's record was
-    # lost whole (the review of #62, H1). bin/evals installs them.
+    # lost whole (the review of #62, H1). A signal the run started with
+    # ignored, as nohup leaves HUP, stays ignored, so a run meant to outlive
+    # its session does (the fix review's R1). bin/evals installs them.
     def self.trap_signals!
-      %w[TERM HUP].each { |signal| Signal.trap(signal) { raise Interrupt } }
+      %w[TERM HUP].each do |signal|
+        previous = Signal.trap(signal) { raise Interrupt }
+        Signal.trap(signal, previous) if previous == "IGNORE"
+      end
     end
 
     # git in the directory: its output, or nil when git failed. A checkout

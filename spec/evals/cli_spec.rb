@@ -254,6 +254,18 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
       previous&.each { |signal, handler| Signal.trap(signal, handler) }
     end
 
+    # The fix review's R1 on pull request #62 (dono, a regression of H1's
+    # fix): a run started under nohup inherits HUP ignored, and the trap put
+    # its own handler over that, so closing the session stopped the run.
+    it "leaves a signal ignored when bin/evals starts with it ignored, as under nohup" do
+      previous = %w[TERM HUP].to_h { |signal| [ signal, Signal.trap(signal, "IGNORE") ] }
+      Evals::CLI.trap_signals!
+
+      %w[TERM HUP].each { |signal| expect(Signal.trap(signal, "IGNORE")).to eq("IGNORE"), signal }
+    ensure
+      previous&.each { |signal, handler| Signal.trap(signal, handler) }
+    end
+
     # The review of #62 (H1's HUP and V3, dono): with the terminal gone, every
     # print raises, and the summary was printed before the results file was
     # written, and the stop before the report was marked stopped.
