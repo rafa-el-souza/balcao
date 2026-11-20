@@ -358,7 +358,7 @@ class TurnProcessor
     end
     @exchange = result.exchange.presence
     @conversation.update!(language: result.language) if result.language
-    return finish("replaced", "replied", replaced(result, @conversation.language)) if verdict&.clinical?
+    return replace(result) if verdict&.clinical?
 
     text, state = reply_of(result)
     finish(result.outcome, state, text, error: result.error, own: (result.text if result.outcome == :replied))
@@ -417,10 +417,22 @@ class TurnProcessor
   # retry: the fail-open of threat model R4 is the check's alone, and the
   # clinical text is never sent.
   def replaced(result, language)
+    products = result.emergency ? [] : products_of(result)
     reply = if result.emergency then FixedReply.with_emergency(FixedReply.call_now(language), language)
-    else FixedReply.with_products(with_lines(FixedReply.declined(language), language, offer: true), products_of(result), language)
+    else FixedReply.with_products(with_lines(FixedReply.declined(language), language, offer: true), products, language)
     end
-    FixedReply.with_reservations(reply, facts_of(result), language)
+    [ FixedReply.with_reservations(reply, facts_of(result), language), products.size ]
+  end
+
+  # The replacement stored, one line says so, with the turn's id and what it
+  # listed, never a word of the reply or of the visitor (threat model SR-30):
+  # the trace of the conversation was the only place that showed it, so a
+  # check that began to replace right answers across the demo went unseen
+  # (review finding H-B4 of pull request #60).
+  def replace(result)
+    text, listed = replaced(result, @conversation.language)
+    finish("replaced", "replied", text)
+    Rails.logger.warn("turn #{@turn.id}: FR-20's check replaced the model's reply (products listed: #{listed}, emergency: #{result.emergency})")
   end
 
   # The products the turn's searches found that the visitor's message names,

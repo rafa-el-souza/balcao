@@ -213,6 +213,25 @@ RSpec.describe "FR-20 SR-18 the guardrail in a turn (FR-09, FR-12, FR-14, NFR-02
       expect(turn.outbound_message.body).not_to include("Ibuprofeno")
     end
 
+    # Review finding H-B4 of pull request #60 (dono, the verifier's): only
+    # the conversation's own trace showed that a reply was replaced, so a
+    # check that began to replace catalogue answers across the demo went
+    # unseen. One line per replacement, with the turn's id and counts,
+    # never a word of the reply or of the visitor (threat model SR-30).
+    it "writes one line per replacement, naming the turn and what it listed, never the reply's words or the visitor's" do
+      create(:product, name: "Dipirona 500 mg, 10 comprimidos", active_ingredient: "dipirona", price: BigDecimal("7.90"), stock: 12)
+      responses.replace([ tool_turn(tool_use("search_products", { query: "dipirona" })), reply("[pt] Temos; dê 15 gotas ao seu filho.") ])
+      clinical
+      allow(Rails.logger).to receive(:warn)
+      turn = inbound("tem dipirona? quanto dou pro meu filho?")
+
+      perform(turn)
+
+      expect(Rails.logger).to have_received(:warn).with("turn #{turn.id}: FR-20's check replaced the model's reply " \
+                                                        "(products listed: 1, emergency: false)").once
+      expect(Rails.logger).not_to have_received(:warn).with(/gotas|filho/)
+    end
+
     it "names a product's prescription flag in its line, as the catalogue gives it" do
       create(:product, name: "Amoxicilina 500 mg", active_ingredient: "amoxicilina", price: BigDecimal("32"), stock: 3,
                        prescription_required: true)
