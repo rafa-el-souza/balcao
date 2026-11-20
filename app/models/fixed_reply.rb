@@ -135,10 +135,11 @@ module FixedReply
     "#{text}\n\n#{self.reservations(reservations, locale)}"
   end
 
-  # FR-20: a reply the guardrail replaced keeps the products its turn found,
-  # one line each, with the price, the stock and the prescription flag the
-  # catalogue gave the model (Tools::SearchProducts' entries), so the visitor
-  # still learns what the store has and what it costs.
+  # FR-20: a reply the guardrail replaced keeps the products the searches
+  # found that the visitor's message names, one line each, with the price,
+  # the stock and the prescription flag the catalogue lists now
+  # (Tools::SearchProducts.listing), so the visitor still learns what the
+  # store has and what it costs.
   def products(products, locale)
     products.map do |product|
       details = [ product.fetch("price"), I18n.t(product.fetch("stock").to_i.positive? ? "in_stock" : "out_of_stock", scope: "turn.product", locale:) ]

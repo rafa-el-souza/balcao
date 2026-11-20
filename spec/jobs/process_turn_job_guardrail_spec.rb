@@ -213,6 +213,28 @@ RSpec.describe "FR-20 SR-18 the guardrail in a turn (FR-09, FR-12, FR-14, NFR-02
       expect(turn.outbound_message.body).not_to include("Ibuprofeno")
     end
 
+    # Review finding H-B5 of pull request #60 (cliente, the verifier's): with
+    # the earlier turns' results in its history the model may answer a
+    # follow-up without searching again, and a replacement listed only what
+    # this turn's searches found, so a replaced follow-up that names the
+    # product lost the price line it had when the model searched each turn.
+    it "lists a product an earlier turn's search found when this message names it, at the catalogue's price and stock now" do
+      product = create(:product, name: "Dipirona 500 mg, 10 comprimidos", active_ingredient: "dipirona", price: BigDecimal("7.90"), stock: 12)
+      create(:product, name: "Paracetamol 750 mg, 20 comprimidos", active_ingredient: "paracetamol", price: BigDecimal("12.90"), stock: 5)
+      responses.replace([ tool_turn(tool_use("search_products", { query: "dipirona" }), tool_use("search_products", { query: "paracetamol" })),
+                          reply("[pt] Temos os dois."), reply("[pt] Pode tomar sim, é seguro.") ])
+      verdicts.replace([ GuardrailVerdicts.verdict(false), GuardrailVerdicts.verdict(true) ])
+      perform(inbound("tem dipirona e paracetamol?"))
+      product.update!(stock: 0)
+      turn = inbound("posso tomar dipirona grávida?")
+
+      perform(turn)
+
+      expect(turn.outbound_message.body).to eq(FixedReply.with_products(FixedReply.with_offer(FixedReply.declined("pt-BR"), "pt-BR"), [
+        { "name" => "Dipirona 500 mg, 10 comprimidos", "price" => "R$ 7,90", "stock" => 0, "prescription_required" => false }
+      ], "pt-BR"))
+    end
+
     # Review finding H-B4 of pull request #60 (dono, the verifier's): only
     # the conversation's own trace showed that a reply was replaced, so a
     # check that began to replace catalogue answers across the demo went

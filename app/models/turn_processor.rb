@@ -435,17 +435,37 @@ class TurnProcessor
     Rails.logger.warn("turn #{@turn.id}: FR-20's check replaced the model's reply (products listed: #{listed}, emergency: #{result.emergency})")
   end
 
-  # The products the turn's searches found that the visitor's message names,
-  # each once, in the order found, at most one search's worth. A product the
-  # model chose for what the message describes, a symptom among them, is not
-  # one it names, so a replacement never lists it as the system's own line
-  # (#59's C2 and H2, the owner, 2026-11-20; Product.named_in).
+  # The products the searches found that the visitor's message names, each
+  # once, at most one search's worth, as the catalogue lists them now: this
+  # turn's searches first, then the earlier turns' in the window the model
+  # read, newest first, since the model may answer a follow-up from a result
+  # its history holds without searching again (review finding H-B5 of pull
+  # request #60). A product the model chose for what the message describes,
+  # a symptom among them, is not one it names, so a replacement never lists
+  # it as the system's own line (#59's C2 and H2, the owner, 2026-11-20;
+  # Product.named_in).
   def products_of(result)
     found = result.tool_calls.select { |call| call.name == "search_products" && !call.is_error }
-                  .flat_map { |call| JSON.parse(call.output).fetch("products") }
-                  .uniq { |product| product.fetch("id") }
-    named = Product.named_in(@inbound.body, found.map { |product| product.fetch("id") }).map(&:id)
-    found.select { |product| named.include?(product.fetch("id")) }.first(Tools::SearchProducts::MAX_RESULTS)
+                  .flat_map { |call| JSON.parse(call.output).fetch("products").map { |product| product.fetch("id") } }
+    ids = (found + earlier_found).uniq
+    named = Product.named_in(@inbound.body, ids).index_by(&:id)
+    ids.filter_map { |id| named[id] }.first(Tools::SearchProducts::MAX_RESULTS).map { |product| Tools::SearchProducts.listing(product) }
+  end
+
+  # The ids of the products the earlier turns' searches found, from their
+  # tool exchanges (Turn#tool_exchange), newest turn first, in the window
+  # the model read (AgentRunner::History).
+  def earlier_found
+    Turn.where(conversation_id: @turn.conversation_id).where("(turns.created_at, turns.id) < (?, ?)", @turn.created_at, @turn.id)
+        .order(created_at: :desc, id: :desc).limit(AgentRunner::History::TURNS - 1)
+        .filter_map(&:tool_exchange).flat_map { |exchange| searched(exchange) }
+  end
+
+  def searched(exchange)
+    blocks = exchange.flat_map { |message| message["content"] }
+    searches = blocks.filter_map { |block| block["id"] if block["type"] == "tool_use" && block["name"] == "search_products" }
+    blocks.select { |block| block["type"] == "tool_result" && searches.include?(block["tool_use_id"]) && !block["is_error"] }
+          .flat_map { |block| JSON.parse(block["content"]).fetch("products").map { |product| product.fetch("id") } }
   end
 
   def reservations = Reservation.where(turn_id: @turn.id).includes(:product).order(:created_at, :id).to_a
