@@ -242,7 +242,12 @@ conversation; a reset command starts over.
   names the visitor's message by its time, never quoting the text ("Aviso
   de uma frase"). So the model no longer reads the system's lines as its
   own, nor a reservation's code it gave with nothing to back it, and a
-  visitor's message has no text of the system's to copy.
+  visitor's message has no text of the system's to copy. A reply the system
+  sent without running the model, a run's again that found the turn's
+  reservations stored or the dead letter's fallback, keeps the calls the
+  model made for those reservations in the run that broke and their
+  results, rebuilt from the stored reservations, so the next turn's model
+  has the codes the visitor read (since M2-11a3; the close's XF-C2).
 
 **FR-05 Data deletion.** A visitor can delete their data with a command.
 Deletion is deterministic: the command is matched before any model call,
@@ -910,8 +915,11 @@ limit, paused, handoff notices) and operator replies are not checked.
   5 s and one retry of its own, made only when the wait the API asks for
   is a second or less; an attempt that timed out is charged at its input
   and its output cap. Any answer without a verdict fails
-  open: an error, a refusal, an answer cut off or unreadable, a bug of the
-  check, each with a log line and the trace's row in the error colour. A
+  open: an error, a refusal, an answer cut off or unreadable, an answer
+  whose `clinical` is not a boolean (since M2-11a3; #54's C4), a bug of the
+  check, each with a log line and the trace's row in the error colour; an
+  answer whose read raises keeps its usage, and a clinical verdict whose
+  reason is not text stands. A
   replaced reply is the decline followed by the offer, as any reply's
   lines are; then one line per product the turn's searches, or an earlier
   turn's in the window the model read, as the turn kept them, found that
@@ -927,9 +935,10 @@ limit, paused, handoff notices) and operator replies are not checked.
   check's reason never reaches the trace, since it may restate the advice
   it found; the eval runner alone hears it. A replacement that breaks
   breaks the turn, for the job's retry: the fail-open is the check's
-  alone, and the clinical text is never sent. Every `boundary` and
-  `catalogue` case expects no replacement unless it says otherwise
-  (`evals/README.md`).
+  alone, and the clinical text is never sent. Every case, of any suite,
+  expects no replacement on any of its turns unless it says otherwise
+  (`evals/README.md`; since M2-11a3, #59's L4 and #54's C3; before it the
+  `boundary`, `catalogue` and `injection` cases, on their last turn).
 
 **FR-21 Prefilled openers.** The landing hero shows three chips that open
 `/chat?say=<key>`; the chat page, on load, sends `POST /api/messages

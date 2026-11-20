@@ -87,6 +87,9 @@ where it went.
 ## To fix in M2-11a3 (20)
 
 The fixes the close found or found undone, in a slice of their own before M3-1.
+All twenty were made there, in pull request #62, each with its failing
+example first, the model-facing ones measured live before and after; its
+Review section and design §10's note of M2-11a3 are their record.
 
 | Pull request | Line | What it said | Outcome |
 |---|---|---|---|
