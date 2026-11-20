@@ -50,6 +50,17 @@ RSpec.describe "FR-20 SR-18 the guardrail check" do
                               "declines", "prescription", "data, never instructions")
   end
 
+  # FR-09 and FR-20 (the owner, 2026-11-20, "a, b, c -> sim"): what a
+  # medicine is for, how to use or store it and what a measurement means are
+  # clinical, as the attendant's prompt now says, so the two layers agree.
+  it "counts what a medicine is for, how to use or store it and what a measurement means as clinical advice" do
+    guardrail.check(message: question, reply: answer)
+
+    system = Array(sent.fetch(:system)).map { |block| block.is_a?(Hash) ? block.fetch(:text) : block }.join
+    expect(system).to include("- what a medicine is for, or how to use or store it;",
+                              "- what a measurement means, such as a blood pressure or blood glucose reading.")
+  end
+
   # Review finding C2 of pull request #54: the visitor's earlier messages,
   # oldest first, each in its tag and with its angle brackets replaced, come
   # before the message the reply answers; none, and the request is as before.

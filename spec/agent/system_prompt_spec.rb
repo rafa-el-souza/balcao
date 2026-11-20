@@ -77,6 +77,29 @@ RSpec.describe "FR-03 system prompt (FR-01, FR-02, FR-05, FR-09, FR-26, SR-21, d
     expect(prompt).to include("pharmacist")
   end
 
+  # FR-09 (the owner, 2026-11-20, "a, b, c -> sim"): what a medicine is for,
+  # how to use or store it and what a measurement means are the pharmacist's
+  # orientation by the Brazilian norms (Lei 13.021/2014, art. 13, VI; RDC
+  # 44/2009, art. 42, § 2º, and art. 69), and FR-20's check already counted
+  # what a medicine does as clinical while the prompt did not name it.
+  it "names what a medicine is for, how to use or store it and what a measurement means among the boundary's subjects (FR-09)" do
+    boundary = prompt[/# The clinical boundary\n\n(.+?)\n\n# /m, 1]
+
+    expect(boundary).to include("what a medicine is for", "how to use or store it", "what a measurement means",
+                                "blood pressure or blood glucose reading, the store's own included")
+  end
+
+  # FR-09 (the owner, 2026-11-20): a medicine for an animal is a
+  # veterinarian's to answer (Lei 5.517/1968, art. 5º, a), and the store's
+  # pharmacist is still offered.
+  it "sends a question about a medicine for an animal to a veterinarian and still offers the store's pharmacist (FR-09)" do
+    boundary = prompt[/# The clinical boundary\n\n(.+?)\n\n# /m, 1]
+
+    expect(boundary).to include("A question about a medicine for an animal is clinical too, and a veterinarian's to answer: " \
+                                "decline it, say that a veterinarian answers it, and offer the store's pharmacist as for any " \
+                                "clinical question.")
+  end
+
   # FR-10's MVP note: the offer is a fixed line the system adds where the
   # reply ends with the tag (AgentRunner, TurnProcessor), so the phone and the
   # hours stay out of the prompt (the example above: no "(31) 1234-5678").
