@@ -1,6 +1,6 @@
 # Balcão — design document
 
-**Status:** v1.18, 2026-11-20 (M2-2: FR-20's guardrail as built, its latency measured and its figure revised; §6.4 verified for the check, see §10); v1.17, 2026-11-19 (M4-6b: the review's fixes; FR-05 and FR-19's given-up update as built, see §10); v1.16, 2026-11-19 (M4-6a: the review of M4's first four slices; NFR-01 measured on a second real conversation, §9.2's M4-6 split into its review and its fixes, M3-6 gains the runbook's terms, see §10); v1.15, 2026-11-19 (ADR-0022: what publishing the demo needs comes first, then the showcase; §9.2's slices in two blocks, M2-11 split, and FR-10, FR-14, FR-21 and §12 follow, see §10); v1.14, 2026-11-15 (M4-3: the bot's buttons as built in FR-19, FR-12 and FR-21, see §10); v1.13, 2026-11-15 (M4-2: NFR-01 at 7 s and 12 s, measured from a Telegram update's receipt to its reply's send; §6.4's normal route at low effort, ADR-0021; M3's list charges an abandoned call, see §10); v1.12, 2026-11-15 (the plan after the MVP: §9.2 lists its slices in order, behind the data-contract gate where it holds, and ADR-0020 says what V1 leaves out; §2.2, J3, FR-10, FR-14, NFR-03, NFR-08, §6.1, §6.6, §6.9, §8 and OD-2 follow it, see §10); v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
+**Status:** v1.19, 2026-11-20 (M2-2: FR-20's guardrail as built, its latency measured and its figure revised; §6.4 verified for the check, see §10); v1.18, 2026-11-20 (M2-1: Turnstile at session creation; FR-18, the API table and §6.7's processors as built, see §10); v1.17, 2026-11-19 (M4-6b: the review's fixes; FR-05 and FR-19's given-up update as built, see §10); v1.16, 2026-11-19 (M4-6a: the review of M4's first four slices; NFR-01 measured on a second real conversation, §9.2's M4-6 split into its review and its fixes, M3-6 gains the runbook's terms, see §10); v1.15, 2026-11-19 (ADR-0022: what publishing the demo needs comes first, then the showcase; §9.2's slices in two blocks, M2-11 split, and FR-10, FR-14, FR-21 and §12 follow, see §10); v1.14, 2026-11-15 (M4-3: the bot's buttons as built in FR-19, FR-12 and FR-21, see §10); v1.13, 2026-11-15 (M4-2: NFR-01 at 7 s and 12 s, measured from a Telegram update's receipt to its reply's send; §6.4's normal route at low effort, ADR-0021; M3's list charges an abandoned call, see §10); v1.12, 2026-11-15 (the plan after the MVP: §9.2 lists its slices in order, behind the data-contract gate where it holds, and ADR-0020 says what V1 leaves out; §2.2, J3, FR-10, FR-14, NFR-03, NFR-08, §6.1, §6.6, §6.9, §8 and OD-2 follow it, see §10); v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
 coding session, reading this file top to bottom.
 
 Balcão ("the counter", where a pharmacist serves customers) is an AI attendant
@@ -532,8 +532,10 @@ levels (ADR-0003), with a daily slice and per-source limits (ADR-0012).
   writes, Then it gets the same fixed reply and nothing is stored beyond
   the counter.
 - Given one client IP (IPv6 aggregated by /64, address taken from the
-  trusted proxy), When it sends its 61st request within a minute, creates
-  its 21st session within an hour or sends its 201st turn within a day,
+  trusted proxy), When it sends its 61st request within a minute, asks for
+  its 21st new session within an hour (a request that would mint one, which
+  counts whether Turnstile's check lets it or not, SR-39) or sends its 201st
+  turn within a day,
   Then the request gets the fixed "limite da demo" reply without a model
   call and nothing is stored beyond the counter (threat model SR-01, which
   cites these numbers; this scenario is their only home). The operator
@@ -626,25 +628,29 @@ referrer counters (FR-23), and a link to the current eval scorecard.
 
 ### 4.5 Channels
 
-**FR-18 Web channel.** Anonymous browser sessions, no sign-up. **MVP note
-(2026-11-09):** the Turnstile gate of the first scenario ships in M2's
-first slice (ADR-0012, whose "first slice after the MVP" names M2; §9.2
-runs M4 before it); until then `POST /api/session` is gated by
-the per-IP limits of SR-01 alone, the CSP has no third-party origin and the
-Cloudflare line under the widget is absent.
+**FR-18 Web channel.** Anonymous browser sessions, no sign-up. The
+Turnstile gate shipped in M2's first slice (ADR-0012; M2-1, §10's note of
+2026-11-20); during the MVP the per-IP limits of SR-01 alone gated
+`POST /api/session`.
 - When the page loads, Then the chat page runs a Cloudflare Turnstile
   challenge (site key a tracked TypeScript constant, since it is public;
-  managed mode, invisible when the service grades the visitor as low risk) and `POST /api/session` requires its token, verified
-  server-side with a 10-second timeout; a missing, invalid or timed-out
-  token refuses the session with a retry hint. On success the endpoint
-  issues a visitor token in an HttpOnly, Secure, SameSite=Strict cookie and
-  returns `{conversation_id, trace_token, language}`; the API and the cable
-  both read the cookie, and state-changing requests are additionally
-  checked by Origin (threat model SR-03, SR-39). No token travels in a
-  header. The page states, in one line under the widget, that Cloudflare
-  runs the check and sees the visitor's IP; it is the only third party in
-  the app (ADR-0012). In development, CI and on rehearsal hosts the
-  widget and the verifier use Turnstile's published test keys.
+  managed mode, shown only when the service wants the visitor to tick it)
+  and a `POST /api/session` that mints a visitor identity, one without a
+  cookie whose signature verifies, requires its token, verified
+  server-side within 10 seconds; a missing, invalid or timed-out token
+  refuses the session with a retry hint, the thread's stamp with a button
+  that runs the check again. A request that brings back its cookie mints
+  nothing and needs no token, as SR-01 counts only a request that would
+  mint, refused or not. On success the
+  endpoint issues a visitor token in an HttpOnly, Secure, SameSite=Strict
+  cookie and returns `{conversation_id, trace_token, language}`; the API
+  and the cable both read the cookie, and state-changing requests are
+  additionally checked by Origin (threat model SR-03, SR-39). No visitor
+  token travels in a header. The page states, in one line under the widget,
+  that Cloudflare runs the check and sees the visitor's IP; it is the only
+  third party in the app (ADR-0012). In development, CI and on rehearsal
+  hosts the widget and the verifier use Turnstile's published test keys:
+  the page takes the owner's site key on the public name alone.
 - Messages are sent over HTTPS to `POST /api/messages`, each with an id
   the client generates for it, so a request sent again is stored once
   (NFR-02), and its turn is enqueued again while it has no reply (the
@@ -1485,7 +1491,7 @@ V1, ADR-0020):
 
 | Method | Path | Purpose |
 |---|---|---|
-| POST | `/api/session` | Issue the visitor cookie; requires a Turnstile token (SR-39); returns conversation id, trace token, language (FR-18); records `utm_source` (FR-23) |
+| POST | `/api/session` | Issue the visitor cookie, or renew the one the page brought back; minting one requires a Turnstile token (SR-39); returns conversation id, trace token, language (FR-18); records `utm_source` (FR-23) |
 | POST | `/api/messages` | Send a message (`{id, text}`) or an opener (`{id, say: key}`), `id` generated by the client per message (NFR-02); returns the turn id and the message as stored (§10, note of 2026-11-13 on the chat's stream) |
 | GET | `/api/conversations/current` | Messages, trace events and state of the current conversation (polling fallback) |
 | GET | `/api/traces/:token` | Trace of a conversation (FR-12) |
@@ -1526,8 +1532,8 @@ the fragment, so it never reaches the proxy's log; §10, PR-11),
 fetched from the API), `/privacy` (one screen, trilingual: fictional demo,
 seven-day retention, the delete command and what it does not reach, the
 copy of the chat in the visitor's own Telegram, the processors named, the
-model provider, Telegram for the bot and, once Turnstile ships,
-Cloudflare, that on Telegram the bot asks for agreement before it reads a
+model provider, Telegram for the bot and Cloudflare for the anti-bot
+check (since M2-1), that on Telegram the bot asks for agreement before it reads a
 first message, and that a web conversation may become a rewritten,
 unidentified test case while a Telegram one never does; it is the bot's own
 privacy policy, set in BotFather, which Telegram's developer terms require
@@ -1979,7 +1985,7 @@ appears on the way (a dependency's bump, a defect met on the demo) takes no
 number, as in the MVP.
 
 *Block 1, what publishing the demo needs (ADR-0022).* M4-1 to M4-4, M4-6a,
-M4-6b and M2-2 are done (#44, #45, #47, #48, #51, #52, #54). The demo is publicised on the day of M3-7, and
+M4-6b, M2-1 and M2-2 are done (#44, #45, #47, #48, #51, #52, #53, #54). The demo is publicised on the day of M3-7, and
 until the console comes in block 2 the operator pauses it or forces a mode
 with the runbook's command; no visitor identity can be blocked before
 M2-7 (threat model R2).
@@ -2234,6 +2240,94 @@ exception, the same day: the application's connections run with the
 database's JIT compiler off, which changes no result of the search
 (M4-1; the note below).
 
+- Note 2026-11-20 (M2-1, Turnstile at session creation; FR-18, FR-14,
+  threat model SR-39, SR-01, SR-03, SR-25; ADR-0012). Built as FR-18 says,
+  with these choices its text left open, as the review of pull request #53
+  left them:
+  - **Where the token is required.** A session request that mints a
+    visitor identity, one without a cookie whose signature verifies, needs
+    the widget's token, which Cloudflare's siteverify accepts; one that
+    brings back its cookie mints nothing and needs none, as SR-01 counts
+    only a request that would mint (`EdgeLimits.new_session?`). So a
+    returning visitor's page load and a language switch run no check, and a
+    Cloudflare that answers no, or fails fast, stops new visitors only. The
+    cookies minted before this slice keep working until they lapse, seven
+    days unseen; production's own `SECRET_KEY_BASE` voids every one at
+    M3-7.
+  - **What the limit counts.** The edge counts a request that would mint
+    before the check answers it, so a refused one counts against the
+    address's twenty an hour too; that count is also what bounds the calls
+    to Cloudflare. The owner kept it so (2026-11-20, the review's Rails
+    C1), the page sending no request it knows the server would refuse
+    again (below).
+  - **The page.** Its first session, and one asked for because the cookie
+    is gone, wait for a token; a language switch brings none. The widget is
+    managed, shown only when Cloudflare wants a tick, in the page's
+    language (lower-cased, as Cloudflare names them: "pt-BR" warns; drawn
+    again when the language changed before the next challenge), and hidden
+    while the drawer is open at 390 px. Nothing retries a failure or
+    refreshes an expired token or an unanswered tick by itself, so a page
+    left open runs no challenge every five minutes; a tick left unanswered
+    past Cloudflare's time answers no token. A failed challenge, Cloudflare's
+    script not loaded in 15 s (or loaded with no Turnstile) and an
+    unanswered tick give no token, and the session goes without one: a page
+    with its cookie opens, a new one is refused with "challenge", and the
+    thread ends with the stamp and "tentar de novo", which runs the check
+    again; a browser Cloudflare does not support gets a line of its own and
+    no button. The stamp follows whichever session the check refused, the
+    page's first or one a poll or a message asked for because the cookie
+    was gone. Those that ask while one is on its way wait on that one, and
+    once the server refused the check the page asks no session without a
+    token, nor one for a language. A token is used once; the next ask starts
+    a new challenge. An opener the address brought that could not go before
+    the visitor wrote is dropped, never sent after the visitor's words.
+  - **The site key by the page's hostname**, a tracked constant copied
+    from Cloudflare's dashboard (a typed copy had one character more, which
+    only the public name would have shown: the review's C1): the owner's
+    widget on `balcao.rafasouza.dev.br`, Cloudflare's published test key on
+    any other name (development, the tests, a rehearsal host from M3). The
+    real secret refuses the test key's dummy token; a test secret, probed
+    on 2026-11-20, said yes to any token, though Cloudflare's docs say it
+    refuses a real one. So the boot refuses a test secret when `APP_HOST`
+    is the public name, and reads the secret without the spaces a paste
+    leaves, as the boot check does.
+  - **A token mints once.** Cloudflare's check of a spent token converges
+    in seconds ("Validate the token", token reuse and network convergence),
+    so one solved token sent in requests close together could each hear
+    yes. The digest of a token that minted is kept (`turnstile_redemptions`,
+    whose unique index refuses a second, two requests at once included; the
+    nightly job deletes it with the rest after seven days), and a token with
+    a space or a control character is refused before Cloudflare is asked,
+    so a variant of a solved token is no second one; the test keys skip it,
+    since every page on them sends the one dummy token (the review's Rails
+    C2).
+  - **The ten seconds** are Net::HTTP's waits: 2 s for the name and the
+    connection, 2 s for the TLS handshake, 2 s for each write, 4 s for each
+    read, no retry. An answer that came in pieces, each under 4 s apart,
+    could take longer, which only Cloudflare or the network could cause;
+    and while siteverify is slow each new visitor's request holds one of
+    the server's three threads (the review's C3 and C4, for the owner).
+    With a real secret, Cloudflare's yes counts only for the public name
+    and the `session` action. The visitor's address is not sent: the host
+    has no IPv6, so a visitor on both families may solve the challenge from
+    one address and reach the server from another. The log names a refusal
+    by Cloudflare's codes, a wrong secret as an error, from the 400
+    Cloudflare answers it with (a refused token is answered 200), and a
+    failure by its class, never the token or the secret.
+  - **Re-verified on 2026-11-20** (SR-39's list, from Cloudflare's docs and
+    siteverify probed): the free plan has unlimited challenges, 20 widgets
+    and 10 hostnames a widget; the test keys and their dummy token as above;
+    the endpoint and its answers; what the widget collects, per Cloudflare's
+    Turnstile privacy addendum (the IP address, the TLS fingerprint, the
+    user agent, the site key and its origin), which `/privacy`'s new line
+    says. The frame asks for `fullscreen`, `autoplay` and
+    `xr-spatial-tracking`, which SR-03's Permissions-Policy denies; with
+    them denied it renders, solves the test keys and gives its token, and
+    the console says nothing (headless Chromium, the built page under the
+    production headers). Whether a person's browser passes the real
+    challenge as easily is seen on the demo after the deploy, in a private
+    window, since a page with an old cookie needs no token (the runbook's
+    smoke).
 - Note 2026-11-19 (M4-6b, the review's fixes; FR-05, FR-09, FR-12, FR-19,
   NFR-02, NFR-03; `docs/reviews/m4-first-four-review.md`, "To fix in
   M4-6b"). The thirteen lines the owner gave a slice of their own are
@@ -4333,7 +4427,8 @@ database's JIT compiler off, which changes no result of the search
     request #12). `/up`, the shell and the static files are not counted. A
     "session" of the 20 per hour is one minted: a page load that brings its
     cookie back mints none, nor does a request from another origin, which
-    the app refuses. A "turn" is a `POST /api/messages` from the public
+    the app refuses. (Since M2-1, a request that would mint, which counts
+    whether Turnstile's check lets it or not: §10's note of 2026-11-20.) A "turn" is a `POST /api/messages` from the public
     origin, counted before its body is read, so a message sent again counts
     again. The API's routes take no format extension, so each endpoint has
     the one path the edge counts (C1 of pull request #12). The refusal is a 429 with

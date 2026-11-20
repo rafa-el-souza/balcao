@@ -101,6 +101,7 @@ env:
     - IDENTITY_PEPPER
     - TELEGRAM_BOT_TOKEN
     - TELEGRAM_WEBHOOK_SECRET
+    - TURNSTILE_SECRET_KEY
 
 logging:
   options:

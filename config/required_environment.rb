@@ -12,16 +12,19 @@ module Balcao
     # Generated per destination by bin/secrets-example, or held by an outside
     # console. The encryption keys guard what visitors send (threat model
     # SR-41) and the pepper hashes a Telegram user id (SR-10); the bot's token
-    # and the webhook's secret are the Telegram channel's (FR-19, SR-06).
+    # and the webhook's secret are the Telegram channel's (FR-19, SR-06); the
+    # Turnstile widget's secret checks a new web visitor's token (SR-39).
     SECRETS = %w[
       SECRET_KEY_BASE POSTGRES_PASSWORD ANTHROPIC_API_KEY
       ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY
       ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT IDENTITY_PEPPER TELEGRAM_BOT_TOKEN TELEGRAM_WEBHOOK_SECRET
+      TURNSTILE_SECRET_KEY
     ].freeze
     # The secrets an outside console holds, which bin/secrets-example never
-    # generates: the model key comes from the provider's console and the bot's
-    # token from BotFather (design §8).
-    HELD = %w[ANTHROPIC_API_KEY TELEGRAM_BOT_TOKEN].freeze
+    # generates: the model key comes from the provider's console, the bot's
+    # token from BotFather and Turnstile's secret from Cloudflare's dashboard
+    # (design §8).
+    HELD = %w[ANTHROPIC_API_KEY TELEGRAM_BOT_TOKEN TURNSTILE_SECRET_KEY].freeze
     # Clear values set in config/deploy.yml and config/deploy.ensaio.yml.
     SETTINGS = %w[APP_HOST DB_HOST MODEL_ADAPTER BUDGET_CAP_USD].freeze
     NAMES = (SETTINGS + SECRETS).freeze
@@ -40,6 +43,13 @@ module Balcao
     # or more, so a token that boots is one no log line can carry (review
     # findings C3 and L5 of pull request #32).
     BOT_TOKEN = /\A\d{5,}:[A-Za-z0-9_-]{30,}\z/
+    # The demo's public name, and Cloudflare's published Turnstile test
+    # secrets (Turnstile::TEST_SECRETS), which accept the test site keys'
+    # dummy token that anyone can send: on the public name one would let a
+    # script mint visitor identities past the check (SR-39). The rehearsal
+    # hosts hold one, on their own name from M3 (ADR-0012).
+    PUBLIC_HOST = "balcao.rafasouza.dev.br".freeze
+    TURNSTILE_TEST_SECRET = /\A[123]x0{31}AA\z/
 
     class Missing < StandardError; end
 
@@ -64,6 +74,10 @@ module Balcao
       unless env["TELEGRAM_WEBHOOK_SECRET"].match?(WEBHOOK_SECRET)
         raise Missing, "Refusing to boot: TELEGRAM_WEBHOOK_SECRET must be 1 to 256 of A-Z, a-z, 0-9, _ and - " \
                        "(FR-19, threat model SR-06)."
+      end
+      if env["APP_HOST"].strip.casecmp?(PUBLIC_HOST) && env["TURNSTILE_SECRET_KEY"].strip.match?(TURNSTILE_TEST_SECRET)
+        raise Missing, "Refusing to boot: TURNSTILE_SECRET_KEY is one of Cloudflare's test secrets on the public name " \
+                       "(threat model SR-39, ADR-0012)."
       end
       return if env["TELEGRAM_BOT_TOKEN"].match?(BOT_TOKEN)
 

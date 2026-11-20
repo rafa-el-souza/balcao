@@ -19,6 +19,7 @@ import {
   replyTo,
   stored,
 } from "../test/fakeServer";
+import { DUMMY_TOKEN, turnstile } from "../test/fakeTurnstile";
 import { renderPage } from "../test/render";
 import { LIT_ICON, tabIcon } from "../test/tabIcon";
 import { serverClock } from "./api";
@@ -115,13 +116,354 @@ describe("FR-21 the chat's openers (threat model SR-34)", () => {
   });
 });
 
+// Threat model SR-39, ADR-0012: the server mints a visitor only with the token
+// of Cloudflare Turnstile's widget, which the page runs as it loads, under the
+// composer, saying who runs it; a page that brings back its cookie needs none.
+describe("SR-39 FR-18 the anti-bot check", () => {
+  it("runs the widget under the composer, in the page's language, and says who runs the check", async () => {
+    renderPage(<Chat />);
+    await ready();
+
+    const widget = turnstile().rendered;
+    expect(widget).toHaveLength(1);
+    expect(widget[0]?.options).toMatchObject({
+      language: "pt-br",
+      action: "session",
+      appearance: "interaction-only",
+    });
+    const form = field().closest("form");
+    expect(form).toContainElement(widget[0]?.container ?? null);
+    expect(
+      within(form as HTMLElement).getByText(pt.antibot),
+    ).toBeInTheDocument();
+  });
+
+  it("asks for the page's first session with the widget's token, and for a language with none", async () => {
+    renderPage(<Chat />);
+    await ready();
+
+    expect(server.requests[0]?.body).toEqual({
+      language: "pt-BR",
+      turnstile_token: DUMMY_TOKEN,
+    });
+
+    const switches = screen.getAllByRole("button", { name: /^ES Español$/ });
+    fireEvent.click(switches[0] as HTMLElement);
+    await waitFor(() => {
+      expect(server.requests.at(-1)?.body).toEqual({ language: "es" });
+    });
+    expect(turnstile().resets).toEqual([]);
+  });
+
+  it("waits for the check before it asks, and asks without a token when the check gives none: a returning page opens", async () => {
+    turnstile().answer = "hold";
+    renderPage(<Chat />);
+    await waitFor(() => {
+      expect(turnstile().rendered).toHaveLength(1);
+    });
+    expect(server.requests).toEqual([]);
+
+    act(() => {
+      turnstile().fail();
+    });
+
+    await ready();
+    expect(server.requests[0]?.body).toEqual({ language: "pt-BR" });
+    expect(within(thread()).getByText(pt.greeting)).toBeInTheDocument();
+  });
+
+  it("says the check did not pass, and asks again with a new token when the visitor tries again", async () => {
+    server.answers.session.push({ status: 403, body: { error: "challenge" } });
+    renderPage(<Chat />);
+
+    const retry = await within(thread()).findByRole("button", {
+      name: pt.challengeRetry,
+    });
+    expect(within(thread()).getByText(pt.challenge)).toBeInTheDocument();
+    expect(server.polls()).toEqual([]);
+
+    fireEvent.click(retry);
+
+    await ready();
+    expect(turnstile().resets).toEqual(["widget-1"]);
+    expect(server.requests.map((request) => request.body)).toEqual([
+      { language: "pt-BR", turnstile_token: DUMMY_TOKEN },
+      { language: "pt-BR", turnstile_token: DUMMY_TOKEN },
+      undefined,
+    ]);
+    expect(within(thread()).queryByText(pt.challenge)).toBeNull();
+    expect(within(thread()).getByText(pt.greeting)).toBeInTheDocument();
+  });
+
+  // The review of pull request #53 (its web verifier's V4): an opener that
+  // could not go before the visitor wrote is dropped, never sent after the
+  // visitor's own words.
+  it("drops the opener the page came with once the visitor writes before a session opened", async () => {
+    window.history.replaceState(null, "", "/chat?say=stock_pt");
+    server.answers.session.push(
+      { status: 403, body: { error: "challenge" } },
+      { status: 403, body: { error: "challenge" } },
+    );
+    server.answers.messages.push({ status: 401, body: { error: "session" } });
+    renderPage(<Chat />);
+    await within(thread()).findByRole("button", { name: pt.challengeRetry });
+
+    type("tem dipirona?");
+    fireEvent.keyDown(field(), { key: "Enter" });
+    await waitFor(() => {
+      expect(
+        server.requests.filter((request) => request.path === "/api/session"),
+      ).toHaveLength(2);
+    });
+    fireEvent.click(
+      await within(thread()).findByRole("button", { name: pt.challengeRetry }),
+    );
+
+    await ready();
+    expect(server.sent().map((request) => request.body)).not.toContainEqual(
+      expect.objectContaining({ say: "stock_pt" }),
+    );
+  });
+
+  it("sends the opener the page came with once the check passes on a second try", async () => {
+    window.history.replaceState(null, "", "/chat?say=stock_pt");
+    server.answers.session.push({ status: 403, body: { error: "challenge" } });
+    renderPage(<Chat />);
+
+    fireEvent.click(
+      await within(thread()).findByRole("button", { name: pt.challengeRetry }),
+    );
+
+    await waitFor(() => {
+      expect(server.sent()).toHaveLength(1);
+    });
+    expect(server.sent()[0]?.body).toMatchObject({ say: "stock_pt" });
+  });
+
+  // The review of pull request #53 (its web verifier's V5): a browser the
+  // check cannot run in gets no hint about a blocker nor a retry that can
+  // never pass.
+  it("says a browser the check cannot run in cannot open the conversation, with no retry", async () => {
+    turnstile().answer = "hold";
+    server.answers.session.push({ status: 403, body: { error: "challenge" } });
+    renderPage(<Chat />);
+    await waitFor(() => {
+      expect(turnstile().rendered).toHaveLength(1);
+    });
+
+    act(() => {
+      turnstile().unsupported();
+    });
+
+    expect(
+      await within(thread()).findByText(pt.challengeUnsupported),
+    ).toBeInTheDocument();
+    expect(within(thread()).queryByText(pt.challenge)).toBeNull();
+    expect(
+      within(thread()).queryByRole("button", { name: pt.challengeRetry }),
+    ).toBeNull();
+  });
+
+  // The fix review of pull request #53 (R3): a switch made while the
+  // refused session was on its way waits in the queue; it asks nothing once
+  // the refusal came.
+  it("asks nothing for a language switched while the check about to be refused was on its way", async () => {
+    server.answers.session.push(
+      { status: 403, body: { error: "challenge" } },
+      { status: 403, body: { error: "challenge" } },
+    );
+    turnstile().answer = "hold";
+    renderPage(<Chat />);
+    await waitFor(() => {
+      expect(turnstile().rendered).toHaveLength(1);
+    });
+
+    const switches = screen.getAllByRole("button", { name: /^EN English$/ });
+    fireEvent.click(switches[0] as HTMLElement);
+    act(() => {
+      turnstile().fail();
+    });
+
+    await screen.findByText(en.chat.challenge);
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+    expect(server.requests).toHaveLength(1);
+  });
+
+  // The fix review of pull request #53 (R1): a message that goes through,
+  // or a conversation the server answers, proves a cookie, this tab's
+  // session's or another tab's: the refusal goes with it.
+  it("drops the refusal once a message goes through on a cookie another tab got", async () => {
+    server.answers.session.push({ status: 403, body: { error: "challenge" } });
+    renderPage(<Chat />);
+    await within(thread()).findByText(pt.challenge);
+
+    type("tem dipirona?");
+    fireEvent.keyDown(field(), { key: "Enter" });
+    await ready();
+
+    await waitFor(() => {
+      expect(within(thread()).queryByText(pt.challenge)).toBeNull();
+    });
+    const switches = screen.getAllByRole("button", { name: /^ES Español$/ });
+    fireEvent.click(switches[0] as HTMLElement);
+    await waitFor(() => {
+      expect(server.requests.map((request) => request.body)).toContainEqual({
+        language: "es",
+      });
+    });
+  });
+
+  // Review finding C3 of pull request #53: the hint follows any session
+  // the check refused, not only the page's first.
+  it("says the check did not pass when a message finds its cookie gone and the check fails, and offers the message again", async () => {
+    renderPage(<Chat />);
+    await ready();
+    server.answers.messages.push({ status: 401, body: { error: "session" } });
+    server.answers.session.push({ status: 403, body: { error: "challenge" } });
+
+    type("tem dipirona?");
+    fireEvent.keyDown(field(), { key: "Enter" });
+
+    expect(await within(thread()).findByText(pt.challenge)).toBeInTheDocument();
+    expect(
+      within(thread()).getByRole("button", { name: pt.retry }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      within(thread()).getByRole("button", { name: pt.challengeRetry }),
+    );
+    await waitFor(() => {
+      expect(within(thread()).queryByText(pt.challenge)).toBeNull();
+    });
+    const sessions = server.requests.filter(
+      (request) => request.path === "/api/session",
+    );
+    expect(sessions.map((request) => request.body)).toEqual([
+      { language: "pt-BR", turnstile_token: DUMMY_TOKEN },
+      { language: "pt-BR", turnstile_token: DUMMY_TOKEN },
+      { language: "pt-BR", turnstile_token: DUMMY_TOKEN },
+    ]);
+  });
+
+  // Review finding C2 of pull request #53: a poll that finds the cookie gone
+  // asks for one session; once the check is refused, the polls ask for no
+  // more, each of which the edge would count (SR-01), and the page says so.
+  it("asks for one session when polls find the cookie gone, none more once the check is refused, and says so", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderPage(<Chat />);
+    await ready();
+    type("tem dipirona?");
+    fireEvent.keyDown(field(), { key: "Enter" });
+    await waitFor(() => {
+      expect(server.sent()).toHaveLength(1);
+    });
+    server.defaults.current = { status: 401, body: { error: "session" } };
+    server.defaults.session = { status: 403, body: { error: "challenge" } };
+
+    await elapse(90_000);
+
+    expect(server.polls().length).toBeGreaterThan(3);
+    expect(
+      server.requests.filter((request) => request.path === "/api/session"),
+    ).toHaveLength(2);
+    expect(within(thread()).getByText(pt.challenge)).toBeInTheDocument();
+  });
+
+  // Review finding C4 of pull request #53: the polls that find the cookie
+  // gone while a renewal waits for its token wait on that one.
+  it("waits on one renewal however many polls find the cookie gone, with one challenge", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderPage(<Chat />);
+    await ready();
+    type("tem dipirona?");
+    fireEvent.keyDown(field(), { key: "Enter" });
+    await waitFor(() => {
+      expect(server.sent()).toHaveLength(1);
+    });
+    const visitor = server.copy();
+    turnstile().answer = "hold";
+    server.defaults.current = { status: 401, body: { error: "session" } };
+
+    await elapse(30_000);
+    const sessions = () =>
+      server.requests.filter((request) => request.path === "/api/session");
+    expect(server.polls().length).toBeGreaterThan(3);
+    expect(sessions()).toHaveLength(1);
+    expect(turnstile().resets).toEqual(["widget-1"]);
+
+    server.defaults.current = conversation(1, [visitor], true);
+    act(() => {
+      turnstile().solve();
+    });
+    await elapse(1000);
+
+    expect(sessions()).toHaveLength(2);
+    expect(turnstile().resets).toEqual(["widget-1"]);
+  });
+
+  it("asks nothing for a language while the check stands refused, and asks in the new one when the visitor tries again", async () => {
+    server.answers.session.push({ status: 403, body: { error: "challenge" } });
+    turnstile().answer = "hold";
+    renderPage(<Chat />);
+    await waitFor(() => {
+      expect(turnstile().rendered).toHaveLength(1);
+    });
+    act(() => {
+      turnstile().fail();
+    });
+    await within(thread()).findByText(pt.challenge);
+    expect(server.requests).toHaveLength(1);
+
+    const switches = screen.getAllByRole("button", { name: /^EN English$/ });
+    fireEvent.click(switches[0] as HTMLElement);
+    await act(() => Promise.resolve());
+    expect(server.requests).toHaveLength(1);
+
+    turnstile().answer = "token";
+    fireEvent.click(
+      await screen.findByRole("button", { name: en.chat.challengeRetry }),
+    );
+    await waitFor(() => {
+      expect(server.requests).toHaveLength(3);
+    });
+    expect(server.requests[1]?.body).toEqual({
+      language: "en",
+      turnstile_token: DUMMY_TOKEN,
+    });
+  });
+
+  it("asks for a new session with a new token when a message finds its cookie gone, then sends it", async () => {
+    renderPage(<Chat />);
+    await ready();
+    server.answers.messages.push({ status: 401, body: { error: "session" } });
+
+    type("tem dipirona?");
+    fireEvent.submit(field().closest("form") as HTMLFormElement);
+
+    await waitFor(() => {
+      expect(server.sent()).toHaveLength(2);
+    });
+    const sessions = server.requests.filter(
+      (request) => request.path === "/api/session",
+    );
+    expect(sessions.map((request) => request.body)).toEqual([
+      { language: "pt-BR", turnstile_token: DUMMY_TOKEN },
+      { language: "pt-BR", turnstile_token: DUMMY_TOKEN },
+    ]);
+    expect(turnstile().resets).toEqual(["widget-1"]);
+  });
+});
+
 describe("NFR-09 the chat speaks the page's language to the server", () => {
   it("names the page's language in the session and in every request, and follows the switch", async () => {
     renderPage(<Chat />, "es");
     await ready();
 
     expect(server.requests[0]?.path).toBe("/api/session");
-    expect(server.requests[0]?.body).toEqual({ language: "es" });
+    expect(server.requests[0]?.body).toEqual({
+      language: "es",
+      turnstile_token: DUMMY_TOKEN,
+    });
     expect(
       server.requests.map((request) => request.headers.get("Accept-Language")),
     ).toEqual(server.requests.map(() => "es"));

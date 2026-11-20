@@ -23,8 +23,12 @@ module ApiRequests
     token && Visitor.find_by(channel: "web", identity_hash: WebSession.identity_hash(token))
   end
 
+  # A new visitor, minted as the page mints one: with the token of Turnstile's
+  # widget, which the suite's siteverify passes as Cloudflare passes the test
+  # keys (spec/support/turnstile.rb, threat model SR-39).
   def start_session(language: nil)
-    api_post "/api/session", language ? { language: } : {}
+    stub_siteverify
+    api_post "/api/session", { turnstile_token: TurnstileStubs::DUMMY_TOKEN }.merge(language ? { language: } : {})
     expect(response).to have_http_status(:created)
     cookie_visitor
   end

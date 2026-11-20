@@ -5,6 +5,7 @@ import { Cost, RateContext, useTicking, useTurnLine } from "../trace/Rows";
 import { Icon } from "../ui/Icon";
 import { LanguageSwitch } from "../ui/LanguageSwitch";
 import parts from "../ui/parts.module.css";
+import { createChallenge } from "./challenge";
 import styles from "./Chat.module.css";
 import { Composer } from "./Composer";
 import { glassOf, GlassRows, useSummary } from "./GlassBox";
@@ -24,13 +25,23 @@ const WIDE = "(width >= 52rem)";
 // as the server traces them (FR-12), each cost in dollars and in reais at the
 // server's rate, and its head names the budget's mode (FR-14); at 390 px it
 // folds into one line above the composer, which opens it as a drawer over the
-// lower half. Hidden until their source exists: the pharmacist's presence
-// (M2), the anti-bot line (Turnstile, after the MVP) and the "agendar"
-// suggestion (FR-08, M2); and the mode and the reais while the server names
-// none. While a turn waits the thread says "pensando…", and past twelve
-// seconds that the answer is taking longer (NFR-03, Thread.tsx).
+// lower half. Under the composer, Cloudflare Turnstile's widget, which shows
+// itself only when the check wants the visitor, and the line that says who
+// runs the check (FR-18, threat model SR-39). Hidden until their source
+// exists: the pharmacist's presence (M2) and the "agendar" suggestion (FR-08,
+// M2); and the mode and the reais while the server names none. While a turn
+// waits the thread says "pensando…", and past twelve seconds that the answer
+// is taking longer (NFR-03, Thread.tsx).
 export function Chat() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  // The page's one widget, drawn when the first session asks for a token.
+  const [challenge] = useState(() => createChallenge(() => i18n.language));
+  const placeWidget = useCallback(
+    (element: HTMLDivElement | null) => {
+      challenge.attach(element);
+    },
+    [challenge],
+  );
   const {
     state,
     offline,
@@ -39,8 +50,9 @@ export function Chat() {
     sendCommand,
     sendOpener,
     retry,
+    retryChallenge,
     changeLanguage,
-  } = useConversation();
+  } = useConversation(challenge);
   const glass = glassOf(state);
   const summary = useSummary(glass);
   const line = useTurnLine();
@@ -179,6 +191,7 @@ export function Chat() {
             covered={covered}
             onOpener={sendOpener}
             onRetry={retry}
+            onRetryChallenge={retryChallenge}
           />
 
           <div className={styles.counterFoot} ref={foot}>
@@ -224,7 +237,10 @@ export function Chat() {
               onSend={(text) => {
                 void send({ text }, text);
               }}
-            />
+            >
+              <div className={styles.challenge} ref={placeWidget} />
+              <p className={styles.antibot}>{t("chat.antibot")}</p>
+            </Composer>
           </div>
         </section>
 

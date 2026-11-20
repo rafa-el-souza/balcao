@@ -1,5 +1,6 @@
 import {
   type KeyboardEvent,
+  type ReactNode,
   useId,
   useLayoutEffect,
   useRef,
@@ -22,7 +23,15 @@ const SUGGESTIONS = ["reserve", "pharmacist"] as const;
 const sizesItself = () =>
   typeof CSS !== "undefined" && CSS.supports("field-sizing", "content");
 
-export function Composer({ onSend }: { onSend: (text: string) => void }) {
+// What the page puts under the suggestions (children): the anti-bot check's
+// widget and its line (Chat.tsx).
+export function Composer({
+  onSend,
+  children,
+}: {
+  onSend: (text: string) => void;
+  children?: ReactNode;
+}) {
   const { t, i18n } = useTranslation();
   const [text, setText] = useState("");
   const field = useRef<HTMLTextAreaElement>(null);
@@ -149,6 +158,7 @@ export function Composer({ onSend }: { onSend: (text: string) => void }) {
           </button>
         ))}
       </p>
+      {children}
     </form>
   );
 }
