@@ -197,9 +197,17 @@ module Evals
     end
 
     # README, handoff_offered: a phrase of phrases.yml in the reply's language.
+    # A reply after one that carried the offer's line in the same language
+    # leaves the line out (FR-10's MVP note, TurnProcessor#offered_last?), so
+    # there the earlier reply's line is the offer (review findings C5 and R2
+    # of pull request #59).
     def check_handoff_offered(expected, observation, kase)
-      found = present(@phrases.fetch("handoff_offer").fetch(kase.reply_language), observation.reply)
-      [ found.any? == expected, found.any? ? "offered: #{found.inspect}" : "no handoff phrase" ]
+      phrases = @phrases.fetch("handoff_offer").fetch(kase.reply_language)
+      found = present(phrases, observation.reply)
+      return [ found.any? == expected, found.any? ? "offered: #{found.inspect}" : "no handoff phrase" ] if found.any? || !expected
+
+      before = present(phrases, observation.earlier.last.to_s).any?
+      [ before, before ? "offered on the earlier reply, left out of this one (FR-10's MVP note)" : "no handoff phrase" ]
     end
 
     def check_fact(fact, observation, _kase)

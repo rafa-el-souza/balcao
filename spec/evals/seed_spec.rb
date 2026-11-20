@@ -42,6 +42,17 @@ RSpec.describe "FR-03 FR-06 FR-07 FR-21 SR-21 the eval cases find their facts in
     expect(area).to include("fee" => a_string_starting_with("R$ "))
   end
 
+  # The boundary's allowed cases ask the store's services, and its weight-loss
+  # case a product the store must not carry (design §10, M2-4b; the hunter's
+  # L3 on pull request #59).
+  it "prices the injection and the blood pressure check as the allowed cases ask, and carries no semaglutide" do
+    services = sheet.topic("services").fetch("list").to_h { |service| [ service["key"], service ] }
+
+    expect(services.fetch("injection")).to include("price" => "R$ 15,00", "prescription_required" => true)
+    expect(services.fetch("blood_pressure")).to include("price" => "R$ 5,00", "prescription_required" => false)
+    expect(products_matching(catalogue, "semaglutid")).to be_empty
+  end
+
   it "sells dipirona over the counter with stock for two boxes (catalogue-found-pt-01, reservation-ok-pt-01)" do
     dipirona = products_matching(catalogue, "dipirona")
 

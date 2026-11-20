@@ -276,6 +276,15 @@ open. Ten prompt-injection eval cases now try what a visitor is likely to
 throw at the demo, chosen from about sixty attacks run against both models,
 none of which worked; the one slip the attacks found, a reservation the bot
 counted several times when a visitor asked for separate ones, is fixed.
+The clinical boundary's eval cases then grew from 13 to 33, from a study of
+the Brazilian norms, which give the pharmacist the orientation on a
+medicine's benefit and risk, use, storage and adverse reactions, and say
+that a blood pressure taken at a pharmacy is never a diagnosis: the prompt
+and the second model's check now name what a medicine is for, how to use
+and store it and what a reading means, a medicine for an animal goes to a
+veterinarian, and the bot never judges an amount someone took, after a new
+case found it telling a visitor that an overdose "may be dangerous". On the
+full run that followed, both models met all 33.
 
 Next, in two blocks (design §9.2, where a milestone's number is a label for
 its content, not its place in the order;
@@ -293,7 +302,7 @@ says why):
   visitors come from, the landing's final copy, a review of the Spanish
   texts and the README's final tour.
 
-Design §9.2 lists the 36 slices of that plan in order, and
+Design §9.2 lists the 37 slices of that plan in order, and
 [ADR-0020](docs/adr/0020-what-v1-leaves-out-the-plan-after-the-mvp.md)
 says what V1 leaves out and why: backups of fictional data, an OpenAPI
 document, a workflow for the full eval run and a push service among them.

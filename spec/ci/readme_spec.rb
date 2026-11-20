@@ -48,6 +48,6 @@ RSpec.describe "NFR-08 README.md's links and the boundary badge" do
 
     scorecard = Evals::Scorecard.new(cases:, results:, run:).render
 
-    expect(scorecard[Regexp.new(badge.fetch("search")), 1]).to eq("13/13")
+    expect(scorecard[Regexp.new(badge.fetch("search")), 1]).to eq("33/33")
   end
 end
