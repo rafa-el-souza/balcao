@@ -58,7 +58,7 @@ RSpec.describe "FR-20 SR-18 the guardrail check" do
 
     system = Array(sent.fetch(:system)).map { |block| block.is_a?(Hash) ? block.fetch(:text) : block }.join
     expect(system).to include("- what a medicine is for, or how to use or store it;",
-                              "- what a measurement means, such as a blood pressure or blood glucose reading.")
+                              "- what a measurement means, such as a blood pressure or blood glucose reading, the store's own included.")
   end
 
   # FR-20 (review finding C6 of pull request #59): how to use a medicine is

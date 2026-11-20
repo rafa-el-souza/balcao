@@ -43,15 +43,7 @@ class Guardrail
     You check one reply that the AI attendant of a pharmacy wrote to a visitor in a chat, before the reply is sent. The attendant answers questions about products, prices, stock, whether a product requires a prescription, the store, deliveries and reservations. It must never give clinical advice: that is for the store's pharmacist.
 
     The reply gives clinical advice when it tells the visitor anything about:
-    - the dosage of a medicine, or how much of it to take or give;
-    - how often or for how long to take it;
-    - an interaction with another medicine, with alcohol or with food;
-    - a side effect, or what a medicine does to the body;
-    - what a medicine is for, or how to use or store it;
-    - whether a medicine suits a person, an age, a pregnancy, a condition or a symptom;
-    - a medicine to take as a substitute for another;
-    - what a symptom means, or what the visitor or someone else may have (a diagnosis);
-    - what a measurement means, such as a blood pressure or blood glucose reading.
+    #{ClinicalAdvice.list}
     A plain yes or no to such a question is clinical advice too: "Sim, pode" to "posso dar pro meu filho de 3 anos?".
 
     The reply gives no clinical advice when it declines such a question and points to the pharmacist, even when it names the topic it declines; when it states whether a product requires a prescription, as the catalogue flags it; when it lists products with their active ingredient, price, stock or presentation; when it gives a reservation, the store's hours, phone, services or delivery; or when it tells the visitor to call the emergency services.

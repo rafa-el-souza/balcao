@@ -70,11 +70,13 @@ RSpec.describe "FR-03 system prompt (FR-01, FR-02, FR-05, FR-09, FR-26, SR-21, d
     expect(prompt).to match(/notice/i)
   end
 
+  # The subjects are FR-20's check's too, written once (ClinicalAdvice,
+  # spec/agent/clinical_advice_spec.rb; design §10, M2-4b).
   it "names the clinical boundary's subjects and the pharmacist (FR-09)" do
-    %w[dosage frequency interactions side\ effects suitability substitutions diagnosis symptoms].each do |subject|
+    [ "dosage", "how often", "interaction", "side effect", "suits", "substitute", "diagnosis", "symptom" ].each do |subject|
       expect(prompt).to include(subject)
     end
-    expect(prompt).to include("pharmacist")
+    expect(prompt).to include(ClinicalAdvice.list, "pharmacist")
   end
 
   # FR-09 (the owner, 2026-11-20, "a, b, c -> sim"): what a medicine is for,
