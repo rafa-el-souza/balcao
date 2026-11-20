@@ -76,7 +76,7 @@ module PromptDigest
 
   def exchange
     [ Tools::SearchProducts, Tools::CreateReservation ].each_with_index.flat_map do |tool, index|
-      [ { "role" => "assistant", "content" => [ { "type" => "tool_use", "id" => "toolu_#{index}", "name" => tool.tool_name, "input" => { "query" => "INPUT" } } ] },
+      [ { "role" => "assistant", "content" => [ { "type" => "tool_use", "id" => "toolu_#{index}", "name" => tool.api_name, "input" => { "query" => "INPUT" } } ] },
         { "role" => "user", "content" => [ { "type" => "tool_result", "tool_use_id" => "toolu_#{index}", "content" => "RESULT", "is_error" => false } ] } ]
     end
   end

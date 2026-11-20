@@ -507,7 +507,7 @@ class TurnProcessor
 
     ids = stored.to_h { |reservation| [ reservation, "toolu_#{reservation.id.delete("-")}" ] }
     calls = stored.map do |reservation|
-      { "type" => "tool_use", "id" => ids[reservation], "name" => Tools::CreateReservation.tool_name,
+      { "type" => "tool_use", "id" => ids[reservation], "name" => Tools::CreateReservation.api_name,
         "input" => { "product_id" => reservation.product_id, "quantity" => reservation.quantity } }
     end
     results = stored.map do |reservation|

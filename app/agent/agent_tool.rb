@@ -46,9 +46,13 @@ class AgentTool < Anthropic::BaseTool
     @gate = gate
   end
 
-  def name = self.class.tool_name
+  def name = self.class.api_name
 
-  def self.tool_name = name.demodulize.underscore
+  # The name the model calls the tool by, from its class (GetStoreInfo is
+  # get_store_info); the same the SDK derives. Not tool_name, which is the
+  # SDK's own accessor: set, the SDK sends it and gives a tool with no doc no
+  # description (the review of #62, C2).
+  def self.api_name = name.demodulize.underscore
 
   # The report runs after the call and outside the rescue of its bugs: a
   # handler that raises (the trace's insert failing after a reservation was
