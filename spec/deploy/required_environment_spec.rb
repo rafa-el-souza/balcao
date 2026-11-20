@@ -144,5 +144,18 @@ RSpec.describe "SR-25 production refuses to boot when a required variable is bla
       expect(status).to be_success, err
       expect(out).to include("booted")
     end
+
+    # The review of pull request #53 (its Rails verifier's V4): the boot
+    # check reads a secret without the spaces around it, so the app must too,
+    # or a pasted line break boots and every new visitor is refused.
+    it "reads Turnstile's secret as the boot check does, without the spaces or line break a paste left around it" do
+      env = complete.merge("RAILS_ENV" => "production", "DATABASE_URL" => nil,
+                           "TURNSTILE_SECRET_KEY" => " 0x4AAAAAAAvalue-of-a-real-secret\n")
+      out, err, status = Open3.capture3(env, "bin/rails", "runner", "p Rails.configuration.x.turnstile_secret_key",
+                                        chdir: Rails.root.to_s)
+
+      expect(status).to be_success, err
+      expect(out.lines.last).to eq "\"0x4AAAAAAAvalue-of-a-real-secret\"\n"
+    end
   end
 end
