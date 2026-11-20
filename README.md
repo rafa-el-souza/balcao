@@ -266,15 +266,21 @@ Cloudflare wants one (threat model SR-39). And a second model now reads
 every reply the first one writes and replaces one that gives clinical
 advice with the fixed decline, keeping the prices and reservations the turn
 found (FR-20); on 464 replies of earlier eval runs it replaced none, and it
-caught all 24 clinical replies written to test it.
+caught all 24 clinical replies written to test it. The cheaper model the
+budget falls back to now runs the same evals: it met the clinical boundary
+in two runs of three, and in the third the judge took the system's fixed
+emergency line for a method the reply named, so the file that lets the
+cheaper model serve stays closed until the judge reads the system's lines
+as the system's.
 
 Next, in two blocks (design §9.2, where a milestone's number is a label for
 its content, not its place in the order;
 [ADR-0022](docs/adr/0022-what-publishing-the-demo-needs-first-the-showcase-after.md)
 says why):
 
-- **First, what publishing the demo needs:** the cheaper model the budget
-  falls back to, and the budget's modes; ten prompt-injection eval cases; a
+- **First, what publishing the demo needs:** the judge's fix that lets the
+  cheaper model the budget falls back to serve, and the budget's modes; ten
+  prompt-injection eval cases; a
   test conversation the app runs on a schedule (the canary); the CI's
   remaining checks; and
   production on a host of its own (until then the demo runs on the
@@ -285,7 +291,7 @@ says why):
   visitors come from, the landing's final copy, a review of the Spanish
   texts and the README's final tour.
 
-Design §9.2 lists the 35 slices of that plan in order, and
+Design §9.2 lists the 36 slices of that plan in order, and
 [ADR-0020](docs/adr/0020-what-v1-leaves-out-the-plan-after-the-mvp.md)
 says what V1 leaves out and why: backups of fictional data, an OpenAPI
 document, a workflow for the full eval run and a push service among them.
