@@ -283,7 +283,8 @@ that a blood pressure taken at a pharmacy is never a diagnosis: the prompt
 and the second model's check now name what a medicine is for, how to use
 and store it and what a reading means, a medicine for an animal goes to a
 veterinarian, and the bot never judges an amount someone took, after a new
-case found it telling a visitor that an overdose "may be dangerous".
+case found it telling a visitor that an overdose "may be dangerous". On the
+full run that followed, both models met all 33.
 
 Next, in two blocks (design §9.2, where a milestone's number is a label for
 its content, not its place in the order;
