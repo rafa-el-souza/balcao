@@ -1,7 +1,8 @@
 # The texts the system writes instead of the model (NFR-09): the demo notice
 # before a conversation's first reply (FR-01), the commands' confirmations
 # (FR-04, FR-05, FR-12), the fallback of a turn the model could not answer
-# (NFR-03), FR-09's decline, the reply to a refusal (SR-19), the offer of the
+# (NFR-03), FR-09's decline, the reply to a refusal (SR-19), the call to call
+# now that opens a replaced emergency reply (FR-20), the offer of the
 # pharmacist (FR-10's MVP note), the emergency line (FR-09), the replies of a
 # month paused at its budget cap and of a pause the operator forced (FR-14),
 # the fixed line of each reservation a turn stored (NFR-02) and of each
@@ -31,6 +32,13 @@ module FixedReply
   # (FR-20). After a refusal the turn puts the emergency line after it, not
   # the offer (TurnProcessor; FR-09, the owner, 2026-11-15).
   def declined(locale) = I18n.t("turn.declined", locale:)
+
+  # FR-20 and FR-09: a reply the guardrail replaced where the model had asked
+  # for the emergency line opens with this, then the line, in place of the
+  # decline: an emergency's one instruction is to call for help, and the
+  # decline named the store's pharmacist before it (#59's M1; the owner,
+  # 2026-11-20).
+  def call_now(locale) = I18n.t("turn.call_now", locale:)
 
   # FR-10's MVP note: until M2 the offer of the pharmacist is this line, with
   # the pharmacy's phone and the counter's hours from the store sheet, so an

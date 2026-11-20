@@ -6,6 +6,11 @@ en:
   turn:
     notice: "Notice: portfolio demo of a fictional pharmacy; messages are kept for 7 days and you can delete them by sending /delete."
     declined: "I can't answer that here; the store's pharmacist can."
+    # FR-20 and FR-09: the opening of a reply the guardrail replaced where the
+    # model had asked for the emergency line, which follows it, in place of the
+    # decline: the call to call now, naming no pharmacist (the owner,
+    # 2026-11-20, pull request #59's M1).
+    call_now: "Call for help now."
     offer:
       line: "To talk to the store's pharmacist, call %{phone} or come to the counter (%{hours})."
       hours: "%{days}, %{opens} to %{closes}"

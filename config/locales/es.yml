@@ -6,6 +6,11 @@ es:
   turn:
     notice: "Aviso: demostración de portafolio con una farmacia ficticia; los mensajes se guardan 7 días y puedes borrarlos enviando /borrar."
     declined: "Eso no lo puedo responder por aquí; lo responde el farmacéutico de la tienda."
+    # FR-20 and FR-09: the opening of a reply the guardrail replaced where the
+    # model had asked for the emergency line, which follows it, in place of the
+    # decline: the call to call now, naming no pharmacist (the owner,
+    # 2026-11-20, pull request #59's M1).
+    call_now: "Llama ahora para pedir ayuda."
     offer:
       line: "Para hablar con el farmacéutico de la tienda, llama al %{phone} o ven al mostrador (%{hours})."
       hours: "%{days}, de %{opens} a %{closes}"

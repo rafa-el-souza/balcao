@@ -24,8 +24,9 @@
 #   for help (FR-09, the owner, 2026-11-15);
 # - the text the model wrote passes FR-20's check (Guardrail) before any of
 #   that, and a text it finds clinical is replaced by FR-09's decline and the
-#   facts the turn's tools produced (replaced); a check that gives no verdict
-#   lets the text go, traced and logged (threat model R4);
+#   facts the turn's tools produced, or by the call to call now in an
+#   emergency (replaced); a check that gives no verdict lets the text go,
+#   traced and logged (threat model R4);
 # - a turn the job gave up on after its attempts gets the fallback too
 #   (give_up, NFR-03).
 #
@@ -405,17 +406,21 @@ class TurnProcessor
   end
 
   # FR-20: a reply the check found clinical is FR-09's decline, followed by
-  # the offer of the pharmacist, or by the emergency line where the reply
-  # asked for it (FR-09), as any reply's lines are; then the facts the turn's
-  # tools produced, as fixed lines: the products it found that the visitor's
-  # message names, with their prices, and the reservations it stored or that
-  # the cap of open ones listed (FR-07). Nothing of the model's text is kept.
-  # A replacement that breaks breaks the turn, for the job's retry: the
-  # fail-open of threat model R4 is the check's alone, and the clinical text
-  # is never sent.
+  # the offer of the pharmacist, as any reply's lines are; then the facts the
+  # turn's tools produced, as fixed lines: the products it found that the
+  # visitor's message names, with their prices, and the reservations it
+  # stored or that the cap of open ones listed (FR-07). A reply that asked
+  # for the emergency line opens with the call to call now instead, then the
+  # line, and lists no product (FR-09: an emergency's one instruction is to
+  # call for help; #59's M1, the owner, 2026-11-20). Nothing of the model's
+  # text is kept. A replacement that breaks breaks the turn, for the job's
+  # retry: the fail-open of threat model R4 is the check's alone, and the
+  # clinical text is never sent.
   def replaced(result, language)
-    reply = with_lines(FixedReply.declined(language), language, offer: true, emergency: result.emergency)
-    FixedReply.with_reservations(FixedReply.with_products(reply, products_of(result), language), facts_of(result), language)
+    reply = if result.emergency then FixedReply.with_emergency(FixedReply.call_now(language), language)
+    else FixedReply.with_products(with_lines(FixedReply.declined(language), language, offer: true), products_of(result), language)
+    end
+    FixedReply.with_reservations(reply, facts_of(result), language)
   end
 
   # The products the turn's searches found that the visitor's message names,

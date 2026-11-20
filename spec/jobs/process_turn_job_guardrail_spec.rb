@@ -107,14 +107,77 @@ RSpec.describe "FR-20 SR-18 the guardrail in a turn (FR-09, FR-12, FR-14, NFR-02
     end
 
     # FR-09: the emergency line comes alone, in every reply that asks for it.
-    it "keeps the emergency line in place of the offer when the reply asked for it" do
+    # A replaced emergency reply opened with the decline, "quem responde é o
+    # farmacêutico da loja", before the line, where the model had urged the
+    # call (#59's M1; the owner, 2026-11-20, "Sim, a proxima fatia leva os
+    # consertos"): it opens with the call now, and names no pharmacist.
+    it "opens a replaced emergency reply with the call, then the emergency line, and never with the decline" do
       responses.replace([ reply("[pt] Dê bastante água e espere passar. [emergency]") ])
       clinical
       turn = inbound("meu filho engoliu uns comprimidos")
 
       perform(turn)
 
-      expect(turn.outbound_message.body).to eq(body(FixedReply.with_emergency(FixedReply.declined("pt-BR"), "pt-BR")))
+      expect(turn.outbound_message.body).to eq(body(FixedReply.with_emergency(FixedReply.call_now("pt-BR"), "pt-BR")))
+      expect(turn.outbound_message.body).not_to include(FixedReply.declined("pt-BR"))
+    end
+
+    { "en" => "my son swallowed some pills", "es" => "mi hijo se tragó unas pastillas" }.each do |language, message|
+      it "opens it with the call in the reply's language, #{language}" do
+        responses.replace([ reply("[#{language}] Give him water and wait. [emergency]") ])
+        clinical
+        turn = inbound(message)
+
+        perform(turn)
+
+        expect(turn.outbound_message.body).to eq(body(FixedReply.with_emergency(FixedReply.call_now(language), language), language))
+      end
+    end
+
+    # The emergency line comes alone: a product's price is not what the
+    # visitor needs then, even one the message names.
+    it "lists no product under a replaced emergency reply, and keeps the reservation the turn stored" do
+      product = create(:product, name: "Paracetamol 750 mg, 20 comprimidos", active_ingredient: "paracetamol", stock: 10)
+      responses.replace([ tool_turn(tool_use("search_products", { query: "paracetamol" })),
+                          tool_turn(tool_use("create_reservation", { product_id: product.id, quantity: 1 })),
+                          reply("[pt] Oito de 750 mg pode passar do limite; ligue agora. [emergency]") ])
+      clinical
+      turn = inbound("tomei 8 paracetamol, reserva mais uma caixa? é perigoso?")
+
+      perform(turn)
+
+      expect(turn.outbound_message.body)
+        .to eq(body(FixedReply.with_reservations(FixedReply.with_emergency(FixedReply.call_now("pt-BR"), "pt-BR"),
+                                                 turn.reservations.to_a, "pt-BR")))
+    end
+
+    # FR-10's MVP note: a reply that follows one carrying the offer in the
+    # same language leaves it out.
+    it "leaves the offer out after a reply that carried it, as any reply does" do
+      earlier = inbound("oi")
+      responses.replace([ reply("[pt] Isso é com o farmacêutico. [pharmacist]"), reply("[pt] Pode sim.") ])
+      verdicts.replace([ GuardrailVerdicts.verdict(false), GuardrailVerdicts.verdict(true) ])
+      perform(earlier)
+      turn = inbound("posso dar pro meu filho?")
+
+      perform(turn)
+
+      expect(turn.outbound_message.body).to eq(FixedReply.declined("pt-BR"))
+    end
+
+    it "keeps the products the turn found, with their prices, stock and prescription flag, as fixed lines" do
+      create(:product, name: "Dipirona 500 mg, 10 comprimidos", active_ingredient: "dipirona", price: BigDecimal("7.90"), stock: 12)
+      create(:product, name: "Dipirona gotas 20 ml", active_ingredient: "dipirona", price: BigDecimal("9.50"), stock: 0)
+      responses.replace([ tool_turn(tool_use("search_products", { query: "dipirona" })),
+                          reply("[pt] Temos as duas; para criança, 1 gota por quilo.") ])
+      clinical
+      turn = inbound("tem dipirona? quanto dou pro meu filho?")
+
+      perform(turn)
+
+      lines = turn.outbound_message.body.delete_prefix(body(FixedReply.with_offer(FixedReply.declined("pt-BR"), "pt-BR")))
+      expect(lines.delete_prefix("\n\n").split("\n"))
+        .to contain_exactly("Dipirona 500 mg, 10 comprimidos: R$ 7,90, em estoque.", "Dipirona gotas 20 ml: R$ 9,50, sem estoque.")
     end
 
     # #59's C2 and H2 (the owner, 2026-11-20): a replacement listed every
