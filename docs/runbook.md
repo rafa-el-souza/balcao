@@ -329,10 +329,13 @@ the host around the answer.
   forced economy pauses with the forced pause's text, and the command's
   line says so (`the forced economy mode may not serve yet, so the demo
   pauses`, then `mode="paused"`). What a boot of the running image reads:
-  `kamal app exec -d ensaio --roles=web --reuse "bin/rails runner 'p Budget.economy_allowed?'"`.
-  A file the boot could not read as the gate the eval run writes leaves one
-  `budget: <path> ...; the economy model may not serve` warning in each
-  container's log, at boot.
+  `kamal app exec -d ensaio --roles=web --reuse "bin/rails runner 'p Budget.economy_allowed?'"`;
+  and the file itself, to tell a gate that says no from one the boot set
+  aside: `kamal app exec -d ensaio --roles=web --reuse "cat evals/economy_allowed.yml"`.
+  A file missing, unreadable or written for another route, prompt or tool
+  set leaves one `budget: <path> ...; the economy model may not serve`
+  warning in each container's log, at boot, which says which; a gate that
+  says no (its boundary did not pass at 100 %) leaves none.
 - **The nightly job** runs at 03:00 São Paulo in the `job` container and
   writes one line, `nightly reset: expired N reservations, reset N
   products; deleted ...`. To run it by hand (it is safe to run again):

@@ -257,9 +257,12 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
       expect(Rails.logger).not_to have_received(:warn)
     end
 
-    it "reads no file as not allowed, with no line, as before the first full run" do
+    # The hunter's F3 on pull request #55: since the first full run the gate
+    # is committed, so an image without it is a fault, said like a file the
+    # boot cannot read, not the silence of the days before the run.
+    it "reads no file as not allowed, with a warning line, since the full run's gate is committed" do
       expect(Budget.read_economy_allowed(dir.join("economy_allowed.yml"))).to be(false)
-      expect(Rails.logger).not_to have_received(:warn)
+      expect(Rails.logger).to have_received(:warn).with(/economy_allowed\.yml is missing; the economy model may not serve\z/)
     end
 
     # Review finding S6 of pull request #29: a list raised TypeError and a

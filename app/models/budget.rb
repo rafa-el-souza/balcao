@@ -93,12 +93,13 @@ module Budget
   # tools the model read (PromptDigest). It allows the economy model only when
   # it says true for the economy route, the prompt and the tools as they are
   # now, since a run on another model, effort, prompt or tool set does not
-  # speak for this one (the hunter's F2 on pull request #55). No file is "not
-  # allowed", as before the first full run; a file that is anything else, or
-  # cannot be read, is "not allowed" too, said once in a warning line, never
-  # raised: a list or a scalar used to raise, so a forced economy answered 500
-  # on every session and poll (review finding S6 of pull request #29). An
-  # error is named by its class (threat model SR-30).
+  # speak for this one (the hunter's F2 on pull request #55). No file, a
+  # file that is anything else, or one that cannot be read, is "not allowed",
+  # said once in a warning line, never raised: a list or a scalar used to
+  # raise, so a forced economy answered 500 on every session and poll (review
+  # finding S6 of pull request #29); and since the first full run the gate is
+  # committed, so no file is a fault too (the hunter's F3). An error is named
+  # by its class (threat model SR-30).
   def read_economy_allowed(path = ECONOMY_ALLOWED)
     gate = YAML.safe_load_file(path)
     return closed(path, "is not a mapping with economy_allowed true or false") unless gate.is_a?(Hash) && [ true, false ].include?(gate["economy_allowed"])
@@ -114,7 +115,7 @@ module Budget
     closed(path, "was written for the system prompt #{gate["prompt"].inspect} and the tools #{gate["tools"].inspect}, " \
                  "not for the system prompt #{PromptDigest.prompt} and the tools #{PromptDigest.tools} the model reads now")
   rescue Errno::ENOENT
-    false
+    closed(path, "is missing")
   rescue Psych::Exception, ArgumentError, SystemCallError => e
     closed(path, "could not be read (#{e.class})")
   end
