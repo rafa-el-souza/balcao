@@ -71,6 +71,13 @@ RSpec.describe "FR-20 SR-18 the guardrail check" do
     expect(Guardrail::SYSTEM).to include("when it tells the visitor to call the emergency services without judging an amount someone took")
   end
 
+  # FR-20 (review finding C6 of pull request #59): how to use a medicine is
+  # clinical now, and a reply on the store's services (an injectable applied
+  # at the store, the medicine and its prescription brought along) is not.
+  it "names the store's services among what is no clinical advice" do
+    expect(Guardrail::SYSTEM).to include("when it gives a reservation, the store's hours, phone, services or delivery")
+  end
+
   # Review finding C2 of pull request #54: the visitor's earlier messages,
   # oldest first, each in its tag and with its angle brackets replaced, come
   # before the message the reply answers; none, and the request is as before.
