@@ -103,9 +103,9 @@ what each folder holds.
 - Refuses clinical advice (doses, interactions, diagnoses) and points to
   the store's pharmacist with a fixed line of phone and counter hours, or,
   when a message may be an emergency, to SAMU's 192 and the poison line —
-  a boundary checked by an eval suite at 100% and, after the MVP,
-  re-checked on every reply by a second, cheaper model (the glass box
-  shows it).
+  a boundary checked by an eval suite at 100% and re-checked on every
+  reply by a second, cheaper model, which replaces a reply that gives
+  clinical advice with that decline (the glass box shows each check).
 - Answers on Telegram too, since WhatsApp's business policy rules out a
   pharmacy without a licence
   ([ADR-0016](docs/adr/0016-telegram-bot-api-as-the-messaging-channel.md)),
@@ -260,17 +260,21 @@ the review's own two findings, the rest kept, planned or accepted
 Then the first slice of what publishing needs: a new web visitor is created
 only after Cloudflare Turnstile, a check that a visitor is a person, which
 the chat runs as it opens and which only asks a person to tick a box when
-Cloudflare wants one (threat model SR-39).
+Cloudflare wants one (threat model SR-39). And a second model now reads
+every reply the first one writes and replaces one that gives clinical
+advice with the fixed decline, keeping the prices and reservations the turn
+found (FR-20); on 464 replies of earlier eval runs it replaced none, and it
+caught all 24 clinical replies written to test it.
 
 Next, in two blocks (design §9.2, where a milestone's number is a label for
 its content, not its place in the order;
 [ADR-0022](docs/adr/0022-what-publishing-the-demo-needs-first-the-showcase-after.md)
 says why):
 
-- **First, what publishing the demo needs:** a second model checking
-  every reply; the cheaper model the budget falls back to, and the
-  budget's modes; ten prompt-injection eval cases; a test conversation the
-  app runs on a schedule (the canary); the CI's remaining checks; and
+- **First, what publishing the demo needs:** the cheaper model the budget
+  falls back to, and the budget's modes; ten prompt-injection eval cases; a
+  test conversation the app runs on a schedule (the canary); the CI's
+  remaining checks; and
   production on a host of its own (until then the demo runs on the
   rehearsal host). The demo is publicised the day it moves there.
 - **Then the showcase:** voice notes; service bookings and their calendar;

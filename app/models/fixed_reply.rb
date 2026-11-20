@@ -3,10 +3,11 @@
 # (FR-04, FR-05, FR-12), the fallback of a turn the model could not answer
 # (NFR-03), FR-09's decline, the reply to a refusal (SR-19), the offer of the
 # pharmacist (FR-10's MVP note), the emergency line (FR-09), the replies of a
-# month paused at its budget cap and of a pause the operator forced (FR-14)
-# and the fixed line of each
-# reservation a turn stored (NFR-02). They live in config/locales, in the
-# conversation's language.
+# month paused at its budget cap and of a pause the operator forced (FR-14),
+# the fixed line of each reservation a turn stored (NFR-02) and of each
+# product a replaced reply's turn found (FR-20). They live in config/locales,
+# in the conversation's language. None of them passes the guardrail's check
+# (FR-20): they are the system's own text.
 module FixedReply
   module_function
 
@@ -105,5 +106,23 @@ module FixedReply
     return text if reservations.empty?
 
     "#{text}\n\n#{self.reservations(reservations, locale)}"
+  end
+
+  # FR-20: a reply the guardrail replaced keeps the products its turn found,
+  # one line each, with the price, the stock and the prescription flag the
+  # catalogue gave the model (Tools::SearchProducts' entries), so the visitor
+  # still learns what the store has and what it costs.
+  def products(products, locale)
+    products.map do |product|
+      details = [ product.fetch("price"), I18n.t(product.fetch("stock").to_i.positive? ? "in_stock" : "out_of_stock", scope: "turn.product", locale:) ]
+      details << I18n.t("turn.product.prescription", locale:) if product.fetch("prescription_required")
+      I18n.t("turn.product.line", locale:, name: product.fetch("name"), details: details.join(", "))
+    end.join("\n")
+  end
+
+  def with_products(text, products, locale)
+    return text if products.empty?
+
+    "#{text}\n\n#{self.products(products, locale)}"
   end
 end

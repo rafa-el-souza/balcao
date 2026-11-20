@@ -51,8 +51,9 @@
   font-weight: 400;
 }
 
-/* A tool that refuses is a rule at work, not a failure: the instrument's own ink, no error colour. */
-.event[data-state="refused"] .outcome {
+/* A tool that refuses, and the guardrail that finds clinical advice, are a rule at work, not a failure: the instrument's own ink, no error colour. */
+.event[data-state="refused"] .outcome,
+.event[data-state="refused"] .verdict {
   color: var(--color-instrument-ink);
   font-weight: 700;
 }

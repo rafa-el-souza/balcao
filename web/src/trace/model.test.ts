@@ -639,6 +639,141 @@ describe("FR-12 the glass box's rows, one per model call, from the spans", () =>
   });
 });
 
+// FR-20: the guardrail's check of the reply is a span of its own
+// (app/models/turn_trace.rb, GUARDRAIL), after the model's last call and
+// before the reply, with its verdict, or the error that left it without one.
+describe("FR-20 FR-12 the guardrail's row", () => {
+  const checked = (
+    attributes: Record<string, unknown>,
+    until: string | null = T("45"),
+    outcome = "replied",
+  ): Span[] => [
+    ...answered("t1", outcome).filter(
+      (item) => item.name !== "balcao.outbound",
+    ),
+    span("balcao.guardrail", {
+      at: T("44"),
+      until,
+      attributes: {
+        "gen_ai.request.model": "claude-haiku-5-5",
+        "gen_ai.request.reasoning.level": "low",
+        ...attributes,
+      },
+    }),
+    span("balcao.outbound", { at: T("45") }),
+  ];
+  const passed = {
+    "gen_ai.response.model": "claude-haiku-5-5",
+    "anthropic.message.stop_reason": "end_turn",
+    "balcao.latency_ms": 420,
+    "gen_ai.usage.input_tokens": 640,
+    "gen_ai.usage.output_tokens": 38,
+    "balcao.cost.usd": 0.000083,
+    "balcao.guardrail.clinical": false,
+  };
+  const guardrail = (spans: Span[]) =>
+    turnsOf(spans)[0]?.rows.find((row) => row.kind === "guardrail");
+
+  it("draws the check after the model's calls and before the reply, with its verdict, model, time and cost", () => {
+    const [turn] = turnsOf(checked(passed));
+
+    expect(turn?.rows.map((row) => row.kind)).toEqual([
+      "received",
+      "model",
+      "tool",
+      "model",
+      "guardrail",
+      "sent",
+    ]);
+    expect(guardrail(checked(passed))).toMatchObject({
+      verdict: "pass",
+      running: false,
+      model: "claude-haiku-5-5",
+      latencyMs: 420,
+      input: 640,
+      output: 38,
+      cost: 0.000083,
+      error: null,
+    });
+  });
+
+  // The row says what the check found; what happened to the reply is the
+  // reply's own row's (review finding W1 of pull request #54).
+  it("says the check found clinical advice, and the reply's row that it was replaced", () => {
+    const spans = checked(
+      { ...passed, "balcao.guardrail.clinical": true },
+      T("45"),
+      "replaced",
+    );
+
+    expect(guardrail(spans)).toMatchObject({ verdict: "clinical" });
+    expect(turnsOf(spans)[0]?.rows.at(-1)).toMatchObject({
+      kind: "sent",
+      outcome: "replaced",
+    });
+  });
+
+  // Threat model R4: a check that gave no verdict closed its own span, with
+  // its time and its error, and the reply went as the model wrote it.
+  it("says the check gave no verdict, with its error, when it closed without one", () => {
+    expect(
+      guardrail(
+        checked({
+          "balcao.latency_ms": 5004,
+          "error.type": "Anthropic::Errors::APITimeoutError",
+        }),
+      ),
+    ).toMatchObject({
+      verdict: "failed",
+      error: "Anthropic::Errors::APITimeoutError",
+      cost: null,
+    });
+  });
+
+  // Review finding W1 of pull request #54: a span closed by a run that
+  // broke or stopped during the check (TraceRecorder.close_interrupted,
+  // TraceRecorder#abandon) has no time of the check's own; that run stored
+  // no reply, so the row may not say the check failed and the reply left.
+  it("tells a run that stopped during the check from a check that gave no verdict", () => {
+    for (const error of ["interrupted", "ActiveRecord::StatementInvalid"])
+      expect(
+        guardrail(checked({ "error.type": error }, T("45"), "dead_letter")),
+      ).toMatchObject({ verdict: "interrupted", error });
+  });
+
+  it("shows the check running until it answers", () => {
+    expect(guardrail(checked({}, null))).toMatchObject({
+      running: true,
+      verdict: null,
+    });
+  });
+
+  it("counts the check in the turn's tokens and cost, as the ledger charges it", () => {
+    const spans = checked(passed);
+    for (const call of spans.filter(
+      (item) => item.name === "anthropic.messages.create",
+    ))
+      call.attributes["balcao.cost.usd"] = 0.004;
+
+    const [turn] = turnsOf(spans);
+
+    expect(turn).toMatchObject({ input: 6800 + 640, output: 140 + 38 });
+    expect(turn?.cost).toBeCloseTo(0.008083, 9);
+  });
+
+  it("counts a check that failed as costing nothing", () => {
+    const spans = checked({
+      "error.type": "Anthropic::Errors::OverloadedError",
+    });
+    for (const call of spans.filter(
+      (item) => item.name === "anthropic.messages.create",
+    ))
+      call.attributes["balcao.cost.usd"] = 0.004;
+
+    expect(turnsOf(spans)[0]?.cost).toBeCloseTo(0.008, 9);
+  });
+});
+
 describe("FR-12 the glass box's own rows, for what the server did not trace", () => {
   it("puts each after the turn that had started before it, or first when none had", () => {
     const turns = turnsOf(answered());

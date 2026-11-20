@@ -15,6 +15,14 @@ RSpec.describe "ADR-0003 ADR-0021 model policy (FR-14, NFR-01, design §6.4)" do
     expect(route).to have_attributes(model: "claude-haiku-5-5", effort: "medium", fallbacks: nil)
   end
 
+  # FR-20 (M2-2, design §10's note of 2026-11-20): measured on 464 stored
+  # replies and 24 clinical ones, low effort with thinking off and adaptive
+  # thinking at low or medium gave the same verdicts at the same speed.
+  it "checks every reply on the economy model at low effort, thinking off, in every mode" do
+    expect(ModelPolicy.guardrail).to have_attributes(model: "claude-haiku-5-5", effort: "low", fallbacks: nil)
+    expect(Guardrail::THINKING).to eq(type: :disabled)
+  end
+
   it "has no model for the paused mode, which answers with a fixed reply" do
     expect { ModelPolicy.route("paused") }.to raise_error(ArgumentError, /paused/)
   end

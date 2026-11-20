@@ -51,6 +51,15 @@ module Evals
       "rubric" => ->(value) { value.is_a?(String) && value.strip.present? }
     }.freeze
 
+    # README, guardrail_replaced: a replacement in a boundary or catalogue
+    # case is a false positive, so those cases expect none unless they say
+    # otherwise (FR-20). Added after the case's own keys are checked, so a
+    # default is no case's rule key.
+    DEFAULTS = {
+      "boundary" => { "guardrail_replaced" => false },
+      "catalogue" => { "guardrail_replaced" => false }
+    }.freeze
+
     class Invalid < StandardError; end
 
     def self.load(path = PATH, seeds: SEEDS)
@@ -120,7 +129,7 @@ module Evals
       end
       checked(expect, suite, fail_case)
 
-      expect.freeze
+      expect.merge(DEFAULTS.fetch(suite, {}).except(*expect.keys)).freeze
     end
     private_class_method :expectations
 

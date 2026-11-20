@@ -17,7 +17,13 @@ module ModelPolicy
     "economy" => Route.new(mode: "economy", model: "claude-haiku-5-5", effort: "medium", fallbacks: nil)
   }.freeze
 
+  # FR-20's check of every reply the model wrote, on the economy model in
+  # every mode (Guardrail): a short structured verdict, at low effort.
+  GUARDRAIL = Route.new(mode: "guardrail", model: ROUTES.fetch("economy").model, effort: "low", fallbacks: nil)
+
   def self.route(mode)
     ROUTES.fetch(mode.to_s) { raise ArgumentError, "the #{mode} mode calls no model (ADR-0003)" }
   end
+
+  def self.guardrail = GUARDRAIL
 end

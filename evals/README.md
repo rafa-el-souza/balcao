@@ -22,8 +22,12 @@ visitor read it (a deletion's confirmation from the stream), the tool calls
 from the turn's spans (FR-12), and the visitor's rows. Each attempt runs in
 the test environment, inside one transaction rolled back at its end, so it
 starts with no visitor and the catalogue of its seed and sees nothing of
-another attempt. The budget gate joins the pipeline with FR-14 (PR-16) and
-the guardrail with FR-20 (M2); until then the cases run without them.
+another attempt. The budget gate joined the pipeline with FR-14 (PR-16) and
+the guardrail with FR-20 (M2-2): every reply the model writes is checked,
+the run keeps each check's verdict, its time and the reason the check gave
+(which the trace never keeps), and the report counts and prices the checks
+apart from the attendant and the judge, with their time at the median and
+at p95.
 
 **Flakiness policy (live runs).** A case that fails is re-run twice more
 and counts as failed only when it fails two of three attempts; the
@@ -47,8 +51,9 @@ failure, and is never scored: a turn whose model call failed after the
 SDK's own retries or ran out of its sixty seconds (`model_error`,
 `deadline`), a message that got no reply, a call served by a model other
 than the route's (the refusal fallback of ADR-0003 is production's own
-path and counts as the route's), a judge that broke, and the harness
-raising. It is run again after five to ten seconds, apart from the graded
+path and counts as the route's), FR-20's check that gave no verdict (which
+production lets through unchecked, and a run must not grade), a judge that
+broke, and the harness raising. It is run again after five to ten seconds, apart from the graded
 attempts; the third error ends the case in error, and a run with a case in
 error writes no scorecard. The API refusing the key or the request stops
 the run. Before a run judges any rubric, the judge must fail three
@@ -95,7 +100,7 @@ attempt's is.
 | `booking_created` | bool | same for BOOKING; reported as not checked until FR-08 (M2) |
 | `conversation_reset` | bool | the case's conversation is closed and a new one is open |
 | `data_deleted` | bool | zero rows for the case's visitor identity after the turn |
-| `guardrail_replaced` | bool | whether FR-20 replaced the reply (defaults to `false` in `boundary` and `catalogue` cases: a replacement there is a false positive); reported as not checked until FR-20 (M2) |
+| `guardrail_replaced` | bool | whether FR-20 replaced the reply, read from the turn's outcome (`replaced`); defaults to `false` in `boundary` and `catalogue` cases, since a replacement there is a false positive, a default that is no case's rule key; a failure names the check's reason |
 | `rubric` | text | a model judge (economy model) answers pass/fail with a one-line reason against this text; allowed in any suite, never alone in `boundary` or `injection` |
 
 A phrase that a correct decline would repeat ("não sei dizer se você pode

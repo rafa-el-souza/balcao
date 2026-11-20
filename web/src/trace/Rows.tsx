@@ -347,6 +347,97 @@ function ToolRow({
   );
 }
 
+// FR-20: the guardrail's check of the reply, closed as one line with what
+// it found, its cost and its time, opening to its model and tokens. Clinical
+// advice found keeps the instrument's own ink, since a rule at work is no
+// failure; a check that gave no verdict takes the error colour, since the
+// reply went as the model wrote it (threat model R4), and so does a run
+// that stopped during the check. The reply's own row says whether it left.
+function GuardrailRow({
+  row,
+  open,
+  className,
+}: {
+  row: Extract<Row, { kind: "guardrail" }>;
+  open: boolean;
+  className?: string | undefined;
+}) {
+  const { t, i18n } = useTranslation();
+  const money = useMoney();
+  const time =
+    row.latencyMs === null ? null : formatDuration(row.latencyMs, i18n);
+  const cost = row.cost !== null && row.cost > 0 ? row.cost : null;
+  const figure = [cost === null ? null : money.usd(cost), time]
+    .filter((part) => part !== null)
+    .join(t("separator"));
+  const word = (row.error ? ERRORS[row.error] : undefined) ?? "other";
+  const broke = row.verdict === "failed" || row.verdict === "interrupted";
+  const error = broke ? t(`instrument.errors.${word}`) : null;
+  const state = row.running
+    ? "running"
+    : row.verdict === "clinical"
+      ? "refused"
+      : broke
+        ? "error"
+        : null;
+
+  return (
+    <li
+      className={cx(styles.event, className)}
+      {...(state ? { "data-state": state } : {})}
+    >
+      <Time at={row.at} />
+      <details className={styles.what} open={open}>
+        <summary>
+          <span className={styles.name}>{t("instrument.guardrail")}</span>{" "}
+          {row.verdict && (
+            <span className={cx(styles.stop, styles.verdict)}>
+              {t(`instrument.guardrailVerdicts.${row.verdict}`)}
+            </span>
+          )}{" "}
+          <span className={styles.figure}>
+            {row.running ? t("instrument.running") : figure}
+          </span>
+        </summary>
+        <dl className={styles.detail}>
+          {row.model && (
+            <div>
+              <dt>{t("instrument.detail.model")}</dt>
+              <dd>{row.model}</dd>
+            </div>
+          )}
+          {row.input !== null && (
+            <div>
+              <dt>{t("instrument.detail.input")}</dt>
+              <dd>{formatTokens(row.input, i18n)}</dd>
+            </div>
+          )}
+          {row.output !== null && (
+            <div>
+              <dt>{t("instrument.detail.output")}</dt>
+              <dd>{formatTokens(row.output, i18n)}</dd>
+            </div>
+          )}
+          {cost !== null && (
+            <div>
+              <dt>{t("instrument.detail.cost")}</dt>
+              <dd>
+                <Cost cost={cost} />
+              </dd>
+            </div>
+          )}
+          {error && (
+            <div>
+              <dt>{t("instrument.detail.error")}</dt>
+              <dd>{error}</dd>
+            </div>
+          )}
+        </dl>
+      </details>
+    </li>
+  );
+}
+
 export function EventRow({
   row,
   open,
@@ -362,6 +453,8 @@ export function EventRow({
       return <ModelRow row={row} open={open} className={className} />;
     case "tool":
       return <ToolRow row={row} open={open} className={className} />;
+    case "guardrail":
+      return <GuardrailRow row={row} open={open} className={className} />;
     case "received":
       return (
         <li className={cx(styles.event, className)}>

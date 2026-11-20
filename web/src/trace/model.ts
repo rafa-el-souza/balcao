@@ -53,6 +53,26 @@ export type Row =
       // The code of the reservation the call made (create_reservation).
       reservation: string | null;
     }
+  // FR-20's check of the reply, by what the check itself found: nothing
+  // clinical (pass), clinical advice (clinical), no verdict (failed, which
+  // lets the reply go as written, threat model R4), or a run that stopped
+  // during it and stored no reply (interrupted); none while it runs. What
+  // happened to the reply is the reply's own row's (review finding W1 of
+  // pull request #54).
+  | {
+      kind: "guardrail";
+      key: string;
+      at: string;
+      running: boolean;
+      verdict: "pass" | "clinical" | "failed" | "interrupted" | null;
+      model: string | null;
+      latencyMs: number | null;
+      input: number | null;
+      output: number | null;
+      // In US dollars; none for a check that failed before an answer came.
+      cost: number | null;
+      error: string | null;
+    }
   // A fixed reply's sent row carries the turn's outcome.
   | { kind: "sent"; key: string; at: string; outcome: string | null }
   // A Telegram reply that never left: Telegram refused it, or it failed
@@ -98,6 +118,9 @@ export const MAX_RESULT = 500;
 const MODEL_CALL = "anthropic.messages.create";
 const TOOL_CALL = "anthropic.custom_tool_use ";
 const ROOTS = new Set(["balcao.turn", "balcao.command"]);
+// FR-20's check of the reply, a model call of its own, which the turn's
+// tokens and cost count as the ledger charges it.
+const GUARDRAIL = "balcao.guardrail";
 // A Telegram reply's way to the chat, open from its storage to Telegram's
 // answer (app/models/trace_recorder.rb, start_delivery and delivered).
 const DELIVERY = "balcao.delivery";
@@ -215,6 +238,40 @@ function toolRow(span: Span): Row {
   };
 }
 
+// The check closes its own span with its time (app/models/turn_trace.rb,
+// finish_guardrail), whatever it found; a span closed without that time was
+// closed by a run that broke or stopped during the check
+// (TraceRecorder.close_interrupted, TraceRecorder#abandon).
+function guardrailRow(span: Span): Row {
+  const a = span.attributes;
+  const running = span.finished_at === null;
+  const clinical = a["balcao.guardrail.clinical"];
+  const error = str(a, "error.type");
+  const own = num(a, "balcao.latency_ms") !== null;
+  return {
+    kind: "guardrail",
+    key: span.span_id,
+    at: span.started_at,
+    running,
+    verdict: running
+      ? null
+      : clinical === true
+        ? "clinical"
+        : clinical === false
+          ? "pass"
+          : own
+            ? "failed"
+            : "interrupted",
+    model: str(a, "gen_ai.response.model") ?? str(a, "gen_ai.request.model"),
+    latencyMs:
+      num(a, "balcao.latency_ms") ?? between(span.started_at, span.finished_at),
+    input: num(a, "gen_ai.usage.input_tokens"),
+    output: num(a, "gen_ai.usage.output_tokens"),
+    cost: num(a, "balcao.cost.usd"),
+    error,
+  };
+}
+
 function turnOf(id: string, spans: Span[]): Omit<Turn, "number"> | null {
   const sorted = [...spans].sort(byStart);
   // A turn run again (a crash, the job's next attempt or its dead letter,
@@ -266,6 +323,7 @@ function turnOf(id: string, spans: Span[]): Omit<Turn, "number"> | null {
     for (const span of sorted) {
       if (span.name === MODEL_CALL) rows.push(modelRow(span));
       else if (span.name.startsWith(TOOL_CALL)) rows.push(toolRow(span));
+      else if (span.name === GUARDRAIL) rows.push(guardrailRow(span));
       else if (span === delivery) {
         const reply = deliveryRow(span, outcome);
         if (reply) rows.push(reply);
@@ -286,7 +344,9 @@ function turnOf(id: string, spans: Span[]): Omit<Turn, "number"> | null {
     }
   }
 
-  const calls = sorted.filter((span) => span.name === MODEL_CALL);
+  const calls = sorted.filter(
+    (span) => span.name === MODEL_CALL || span.name === GUARDRAIL,
+  );
   const sum = (key: string) =>
     calls.reduce((total, span) => total + (num(span.attributes, key) ?? 0), 0);
   return {

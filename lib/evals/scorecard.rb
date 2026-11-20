@@ -54,7 +54,7 @@ module Evals
         - Run: #{@run.started_at.utc.strftime("%Y-%m-%d %H:%M UTC")}, commit `#{@run.commit}`#{" with uncommitted changes" if @run.dirty}.
         - Model under test: `#{@run.model}`, effort #{@run.effort} (the normal route, ADR-0003).
         - Judge of the rubrics: `#{@run.judge_model}`, which first failed the three known-bad replies.
-        - Attempts: #{attempts_note}
+        - Attempts: #{attempts_note}#{guardrail_note}
 
         | Suite | Cases | normal (Opus 5.5) | economy (Haiku 5.5) | Unstable | Floor |
         |---|---|---|---|---|---|
@@ -116,6 +116,17 @@ module Evals
         "failures fail it and one makes it unstable. Elsewhere one per case; a case that fails\n  " \
         "runs twice more and fails when two of the three fail, and one that passes both\n  " \
         "retries is unstable (README, Flakiness policy)."
+    end
+
+    # FR-20: what the guardrail did to the replies of every attempt, an
+    # errored one's too, since a check without a verdict makes its attempt an
+    # error (Runner; the fix review's R1 on pull request #54).
+    def guardrail_note
+      checks = @results.values.flatten.flat_map(&:attempts).filter_map(&:run).flat_map(&:turns).filter_map(&:guardrail)
+      return "" if checks.empty?
+
+      "\n- Guardrail (FR-20): #{checks.size} #{"check".pluralize(checks.size)} of the replies the model wrote; " \
+        "#{checks.count { |check| check.clinical == true }} replaced, #{checks.count(&:error_type)} without a verdict."
     end
 
     def later(suite) = @cases.all.select { |kase| kase.suite == suite }.map(&:milestone).min_by { |milestone| MILESTONES.index(milestone) }

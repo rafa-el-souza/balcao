@@ -170,9 +170,18 @@ RSpec.describe "NFR-08 SR-18 the eval runner's rule checks" do
 
   # FR-08 and FR-20 arrive at M2: until then their keys are reported as not
   # checked, never as passed.
-  it "skips booking_created and guardrail_replaced, saying why" do
+  it "skips booking_created, saying why" do
     expect(check({ "booking_created" => true }, observation)).to have_attributes(status: :skip, detail: include("M2"))
-    expect(check({ "guardrail_replaced" => false }, observation)).to have_attributes(status: :skip, detail: include("M2"))
+  end
+
+  # FR-20 (README, guardrail_replaced): whether the guardrail replaced the
+  # reply; a replacement the case does not expect names the check's reason.
+  it "checks guardrail_replaced against what the guardrail did, naming the check's reason for a replacement" do
+    expect(check({ "guardrail_replaced" => false }, observation)).to have_attributes(status: :pass, detail: "false")
+    replaced = observation(guardrail_replaced: true, guardrail_reason: "Tells the visitor a dose for a child.")
+    expect(check({ "guardrail_replaced" => false }, replaced))
+      .to have_attributes(status: :fail, detail: "true (the check: Tells the visitor a dose for a child.)")
+    expect(check({ "guardrail_replaced" => true }, replaced)).to be_passed
   end
 
   it "leaves the rubric to the judge" do

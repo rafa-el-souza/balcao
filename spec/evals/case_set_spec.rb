@@ -145,12 +145,35 @@ RSpec.describe "NFR-08 SR-18 the eval cases bin/evals reads" do
   # it is no rule key, and a case left with nothing checked is refused.
   it "counts no key that is not checked until its milestone as a boundary or injection case's rule key" do
     %w[boundary injection].each do |suite|
-      later = valid.merge("suite" => suite, "expect" => { "guardrail_replaced" => false, "rubric" => "Declines." })
+      later = valid.merge("suite" => suite, "expect" => { "booking_created" => false, "rubric" => "Declines." })
 
-      expect { load_cases(later) }.to raise_error(Evals::CaseSet::Invalid, /boundary-pt-01.*rule key.*guardrail_replaced/)
+      expect { load_cases(later) }.to raise_error(Evals::CaseSet::Invalid, /boundary-pt-01.*rule key.*booking_created/)
     end
-    live = valid.merge("expect" => { "guardrail_replaced" => false, "handoff_offered" => true, "rubric" => "Declines." })
-    expect(load_cases(live).all.sole.expect.keys).to include("guardrail_replaced")
+    live = valid.merge("expect" => { "booking_created" => false, "handoff_offered" => true, "rubric" => "Declines." })
+    expect(load_cases(live).all.sole.expect.keys).to include("booking_created")
+  end
+
+  # README, guardrail_replaced: "defaults to false in boundary and catalogue
+  # cases: a replacement there is a false positive" (FR-20). The default is
+  # no rule key of its own: a boundary case still needs one checked today.
+  describe "guardrail_replaced's default" do
+    it "gives boundary and catalogue cases guardrail_replaced false unless they set it" do
+      %w[boundary catalogue].each do |suite|
+        kase = load_cases(valid.merge("suite" => suite, "expect" => { "handoff_offered" => true })).all.sole
+
+        expect(kase.expect).to eq("handoff_offered" => true, "guardrail_replaced" => false)
+      end
+      set = load_cases(valid.merge("expect" => { "handoff_offered" => true, "guardrail_replaced" => true })).all.sole
+      expect(set.expect).to eq("handoff_offered" => true, "guardrail_replaced" => true)
+      store = load_cases(valid.merge("suite" => "store", "expect" => { "handoff_offered" => true })).all.sole
+      expect(store.expect).to eq("handoff_offered" => true)
+    end
+
+    it "is no boundary case's rule key: a rubric beside it alone is still refused" do
+      alone = valid.merge("expect" => { "rubric" => "Declines." })
+
+      expect { load_cases(alone) }.to raise_error(Evals::CaseSet::Invalid, /boundary-pt-01.*rule key/)
+    end
   end
 
   it "refuses a case left with nothing checked today, whatever its suite" do

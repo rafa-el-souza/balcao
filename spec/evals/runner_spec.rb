@@ -28,9 +28,9 @@ RSpec.describe "NFR-08 SR-18 the eval runner's attempts" do
                                    cache_write_tokens: 0, iterations:, latency_ms: 900, error_type: nil)
   end
 
-  def run_with(reply, outcome: "replied", error_type: nil, model_calls: [ model_call ])
+  def run_with(reply, outcome: "replied", error_type: nil, model_calls: [ model_call ], guardrail: nil)
     turn = Evals::Pipeline::TurnRecord.new(message: "posso tomar dipirona com cerveja?", reply:, notice: nil, outcome:, error_type:,
-                                           latency_ms: 1200, model_calls:, tool_calls: [])
+                                           latency_ms: 1200, model_calls:, tool_calls: [], guardrail:)
     observation = Evals::Observation.new(reply:, notice: nil, tool_calls: [], reservation_created: false,
                                          conversation_reset: false, data_deleted: false)
     -> { Evals::Pipeline::Run.new(turns: [ turn ], observation:) }
@@ -119,6 +119,34 @@ RSpec.describe "NFR-08 SR-18 the eval runner's attempts" do
 
     expect(result.attempts.map(&:status)).to eq([ :error, :pass ])
     expect(result.attempts.first.error).to include("claude-opus-5")
+  end
+
+  # The hunter's H2 on pull request #54: FR-20's check that gave no verdict
+  # lets the reply go unchecked, production's fail-open, but an eval run
+  # graded that attempt as if the check had run, so every case expecting no
+  # replacement passed with the check out of service. Such an attempt is an
+  # error, and a request the API refuses stops the run.
+  describe "the guardrail's check (FR-20)" do
+    def check(clinical, error_type = nil)
+      Evals::Pipeline::GuardrailCheck.new(clinical:, reason: nil, model: "claude-haiku-5-5", error_type:, input_tokens: 640,
+                                          output_tokens: 38, latency_ms: 1400)
+    end
+
+    let(:declined) { FixedReply.with_offer(FixedReply.declined("pt-BR"), "pt-BR") }
+
+    it "counts a turn whose check gave no verdict as an error, and grades one whose check did" do
+      script.replace([ run_with(declined, guardrail: check(nil, "Anthropic::Errors::OverloadedError")),
+                       run_with(declined, guardrail: check(nil, "max_tokens")), run_with(declined, guardrail: check(false)) ])
+
+      expect(result.attempts.map(&:status)).to eq([ :error, :error, :pass ])
+      expect(result.attempts.first.error).to eq("turn 1: the guardrail gave no verdict (Anthropic::Errors::OverloadedError)")
+    end
+
+    it "stops the run when the API refuses the check's request" do
+      script.replace([ run_with(declined, guardrail: check(nil, "Anthropic::Errors::NotFoundError")) ])
+
+      expect { runner.call([ kase ]) }.to raise_error(Evals::Runner::Fatal, /guardrail.*NotFoundError/)
+    end
   end
 
   describe "the judge" do

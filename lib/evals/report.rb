@@ -10,8 +10,11 @@ module Evals
   class Report
     # The outcomes of a turn the visitor got an answer from.
     ANSWERED = %w[replied command deleted].freeze
-    # The judge's usage is kept apart from the attendant's, under its model.
+    # The judge's usage is kept apart from the attendant's, under its model,
+    # and so is the guardrail's (FR-20).
     JUDGE = " (judge)".freeze
+    GUARDRAIL = " (guardrail)".freeze
+    APART = / \((?:judge|guardrail)\)\z/
 
     attr_accessor :preflight, :stopped, :finished_at
     attr_reader :results, :started_at
@@ -36,7 +39,7 @@ module Evals
     def summary
       [ format("%-12s %5s %6s %6s %9s %8s", "Suite", "Cases", "Passed", "Score", "95%", "Unstable"),
         *@results.group_by { |result| result.kase.suite }.map { |suite, results| suite_line(suite, results) },
-        attempts, totals, outcomes, tokens, dollars ].compact
+        attempts, totals, outcomes, guardrail, tokens, dollars ].compact
     end
 
     def write(dir)
@@ -60,7 +63,7 @@ module Evals
     # eval audit's finding 8).
     def cost_usd
       usage.to_h do |model, use|
-        billed = AgentRunner::Usage.new(model: model.delete_suffix(JUDGE), output_tokens: use[:output_tokens],
+        billed = AgentRunner::Usage.new(model: model.sub(APART, ""), output_tokens: use[:output_tokens],
                                         input_tokens: use[:input_tokens] - use[:cache_read_tokens] - use[:cache_write_tokens],
                                         cache_creation_tokens: use[:cache_write_tokens], cached_tokens: use[:cache_read_tokens])
         [ model, Prices.cost_usd(billed) ]
@@ -107,6 +110,27 @@ module Evals
       "Outcomes: #{unusual.map { |outcome, count| "#{count} #{outcome}" }.join(", ")}" if unusual.any?
     end
 
+    # FR-20: the checks of every attempt's replies, an errored attempt's too,
+    # since a check without a verdict makes its attempt an error (Runner,
+    # the fix review's R1 on pull request #54): how many replaced a reply or
+    # gave no verdict, and the time of those that gave one, at the median and
+    # at p95 (FR-20's figure).
+    def guardrail
+      checks = @results.flat_map(&:attempts).filter_map(&:run).flat_map(&:turns).filter_map(&:guardrail)
+      return if checks.empty?
+
+      times = checks.reject(&:error_type).filter_map(&:latency_ms).sort
+      time = "; time of the #{times.size} #{"verdict".pluralize(times.size)}: median #{seconds(percentile(times, 0.5))}, " \
+             "p95 #{seconds(percentile(times, 0.95))}" if times.any?
+      "Guardrail: #{checks.size} #{"check".pluralize(checks.size)}, #{checks.count { |check| check.clinical == true }} replaced, " \
+        "#{checks.count(&:error_type)} without a verdict#{time}"
+    end
+
+    # The nearest rank, so a figure is one that was measured.
+    def percentile(sorted, share) = sorted[((sorted.size * share).ceil - 1).clamp(0, sorted.size - 1)]
+
+    def seconds(milliseconds) = format("%.1f s", milliseconds / 1000.0)
+
     def tokens
       lines = usage.map do |model, use|
         "#{model} #{use[:input_tokens].to_fs(:delimited, locale: :en)} in (#{use[:cache_read_tokens].to_fs(:delimited, locale: :en)} cache read, " \
@@ -115,11 +139,13 @@ module Evals
       "Tokens: #{lines.join("; ")}" if lines.any?
     end
 
-    # The attendant's models first, the judge apart after them; a model the
-    # table has no row for is priced at its highest prices (Prices), and said.
+    # The attendant's models first, then the guardrail's and the judge's
+    # apart; a model the table has no row for is priced at its highest prices
+    # (Prices), and said.
     def dollars
-      costs = cost_usd.sort_by { |model, _| [ model.end_with?(JUDGE) ? 1 : 0, model ] }.map do |model, usd|
-        "#{model} US$ #{format("%.4f", usd)}#{" (no row in the table: its highest prices)" unless Prices.models.include?(model.delete_suffix(JUDGE))}"
+      order = ->(model) { model.end_with?(JUDGE) ? 2 : model.end_with?(GUARDRAIL) ? 1 : 0 }
+      costs = cost_usd.sort_by { |model, _| [ order.call(model), model ] }.map do |model, usd|
+        "#{model} US$ #{format("%.4f", usd)}#{" (no row in the table: its highest prices)" unless Prices.models.include?(model.sub(APART, ""))}"
       end
       "Dollars at config/prices.yml's prices of #{Prices.verified_on.iso8601}: #{costs.join("; ")}" if costs.any?
     end
@@ -145,6 +171,10 @@ module Evals
                                   cache_read_tokens: call.cache_read_tokens, cache_write_tokens: call.cache_write_tokens)
         end
       end
+      attempts.filter_map(&:run).flat_map(&:turns).filter_map(&:guardrail).each do |check|
+        add(totals["#{check.model}#{GUARDRAIL}"], input_tokens: check.input_tokens, output_tokens: check.output_tokens,
+                                                  cache_read_tokens: 0, cache_write_tokens: 0)
+      end
       (Array(preflight) + attempts.filter_map(&:verdict)).each do |verdict|
         use = verdict.usage
         add(totals["#{verdict.model} (judge)"], **use, input_tokens: use[:input_tokens] + use[:cache_read_tokens] + use[:cache_write_tokens])
@@ -162,7 +192,9 @@ module Evals
     def attempt_h(attempt)
       { status: attempt.status, error: attempt.error, started_at: attempt.started_at.utc.iso8601, seconds: attempt.seconds.round(1),
         checks: attempt.checks&.map(&:to_h), judge: attempt.verdict&.to_h,
-        turns: attempt.run&.turns&.map { |turn| turn.to_h.merge(model_calls: turn.model_calls.map(&:to_h), tool_calls: turn.tool_calls.map(&:to_h)) },
+        turns: attempt.run&.turns&.map do |turn|
+          turn.to_h.merge(model_calls: turn.model_calls.map(&:to_h), tool_calls: turn.tool_calls.map(&:to_h), guardrail: turn.guardrail&.to_h)
+        end,
         rows: attempt.run&.observation&.to_h&.slice(:reservation_created, :conversation_reset, :data_deleted) }
     end
   end

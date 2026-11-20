@@ -105,6 +105,13 @@
     "unsent": "message not sent",
     "model": "model",
     "stop": "stopped at {{reason}}",
+    "guardrail": "guardrail",
+    "guardrailVerdicts": {
+      "pass": "nothing clinical",
+      "clinical": "clinical advice",
+      "failed": "no verdict",
+      "interrupted": "interrupted"
+    },
     "command": "command",
     "queued": "message queued",
     "queuedWait": "waits for turn {{number}} to finish",
@@ -157,6 +164,7 @@
       "tool_limit": "too many tools",
       "incomplete": "incomplete answer",
       "refused": "the model refused",
+      "replaced": "replaced by the guardrail",
       "reservations": "no model",
       "paused": "demo paused",
       "dead_letter": "the system failed",
