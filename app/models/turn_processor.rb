@@ -60,10 +60,13 @@ class TurnProcessor
   # Which fixed text the system sent in the model's place, by the turn's
   # outcome, for the history of the later turns (Turn::REPLY_KINDS): a
   # replaced reply's is the decline, or the call to call now for an
-  # emergency (replace), and a command's its own (command).
+  # emergency (replaced_emergency), and a command's its own (command).
+  # ADR-0003's gate digests it (PromptDigest.history), so every kind the
+  # system writes is read from here (the fix review's R3 on pull request #62).
   IN_PLACE = { "refused" => "refusal", "incomplete" => "fallback", "tool_limit" => "fallback", "deadline" => "fallback",
                "model_error" => "fallback", "dead_letter" => "fallback", "paused" => "pause",
-               "reservations" => "reservations", "replaced" => "decline" }.freeze
+               "reservations" => "reservations", "replaced" => "decline", "replaced_emergency" => "call_now",
+               "command" => "command" }.freeze
 
   # A reply holds the system's texts beside the model's own words: the notice
   # before a conversation's first reply, the fixed lines after the words
@@ -314,7 +317,7 @@ class TurnProcessor
     @inbound.update_columns(source: "command")
     span = @recorder.start_span("balcao.command", started_at: @inbound.received_at,
                                                   attributes: { "balcao.command.name" => name.to_s })
-    broadcast_reply(replied("replied", span, kind: "command") { yield })
+    broadcast_reply(replied("replied", span, kind: IN_PLACE.fetch("command")) { yield })
   rescue StandardError => e
     broken(e)
     raise
@@ -449,7 +452,7 @@ class TurnProcessor
   # (review finding H-B4 of pull request #60).
   def replace(result)
     text, listed = replaced(result, @conversation.language)
-    finish("replaced", "replied", text, kind: result.emergency ? "call_now" : "decline")
+    finish("replaced", "replied", text, kind: IN_PLACE.fetch(result.emergency ? "replaced_emergency" : "replaced"))
     Rails.logger.warn("turn #{@turn.id}: FR-20's check replaced the model's reply (products listed: #{listed}, emergency: #{result.emergency})")
   end
 

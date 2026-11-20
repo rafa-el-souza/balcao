@@ -259,6 +259,21 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       expect(turns.map(&:model_reply)).to all(be_nil)
     end
 
+    # The fix review's R3 on pull request #62 (dono; the owner, 2026-11-20:
+    # "Corrigir direto, com os testes"): ADR-0003's gate digests which notice
+    # each turn the system answered gets (TurnProcessor::IN_PLACE), and a
+    # replaced emergency's and a command's were chosen apart from it.
+    it "takes the kind of a replaced emergency's reply and of a command's from the table the gate digests" do
+      stub_const("TurnProcessor::IN_PLACE", TurnProcessor::IN_PLACE.merge("replaced_emergency" => "refusal", "command" => "pause"))
+      allow(Guardrail).to receive(:default_client) { FakeModel.new([ GuardrailVerdicts.verdict(true, "Gives first aid.") ]).client }
+      responses.replace([ reply("[pt] Ligue para o socorro e dê água. [emergency]") ])
+      turns = [ "meu filho engoliu uns comprimidos", "/help" ].map { |text| inbound(text) }
+
+      turns.each { |turn| perform(turn) }
+
+      expect(turns.map { |turn| turn.reload.reply_kind }).to eq(%w[refusal pause])
+    end
+
     it "keeps the turn's tool calls and their results with its reply, encrypted at rest" do
       product = create(:product, name: "Dipirona 500 mg", active_ingredient: "dipirona", stock: 12)
       responses.replace([ tool_turn(tool_use("search_products", { query: "dipirona" }, id: "toolu_01")), reply("[pt] Temos.") ])
