@@ -42,7 +42,9 @@ module Budget
     state = month(at)
     automatic = automatic(state.spent_usd)
     record(state, automatic) unless state.automatic_mode == automatic
-    Status.new(mode: serving(state.forced_mode, automatic), forced: !state.forced_mode.nil?)
+    mode = serving(state.forced_mode, automatic)
+    line(state, automatic) if state.forced_mode && mode != state.forced_mode && !held?(state)
+    Status.new(mode:, forced: !state.forced_mode.nil?)
   end
 
   def mode(at = Time.current) = status(at).mode
@@ -151,15 +153,22 @@ module Budget
 
   # A forced mode that serves is named; a forced economy the eval run has not
   # allowed pauses the demo, which the line says (review finding R1 of pull
-  # request #29).
+  # request #29), once a process and month for the read that finds it (held?):
+  # a deploy whose gate reads closed under a month forced to economy writes no
+  # other line, and the boot's names the gate, not the pause (review finding
+  # H-B3 of pull request #60).
   def line(state, automatic)
     forced = state.forced_mode
     note = if forced.nil? then ""
     elsif serving(forced, automatic) == forced then "; the forced #{forced} mode serves"
-    else "; the forced #{forced} mode may not serve yet, so the demo pauses"
+    else
+      (@held ||= Set.new) << [ state.month, forced ]
+      "; the forced #{forced} mode may not serve yet, so the demo pauses"
     end
     Rails.logger.warn(format("budget: %s's automatic mode is %s at US$ %.2f of its cap of US$ %.2f%s",
                              state.month, automatic, state.spent_usd, cap, note))
   end
-  private_class_method :month, :write_usage, :record, :line, :closed
+
+  def held?(state) = @held&.include?([ state.month, state.forced_mode ])
+  private_class_method :month, :write_usage, :record, :line, :held?, :closed
 end

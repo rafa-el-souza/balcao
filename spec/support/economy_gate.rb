@@ -4,5 +4,10 @@
 # file says: each starts with the gate closed, and one that needs the economy
 # model to serve opens it.
 RSpec.configure do |config|
-  config.before { Rails.configuration.x.economy_allowed = false }
+  config.before do
+    Rails.configuration.x.economy_allowed = false
+    # The months whose forced economy this process already said pauses the
+    # demo (Budget.line): none, for each example.
+    Budget.instance_variable_set(:@held, nil)
+  end
 end

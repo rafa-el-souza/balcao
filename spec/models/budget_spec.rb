@@ -236,6 +236,22 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
       Rails.configuration.x.economy_allowed = true
       expect(Budget.mode).to eq("economy")
     end
+
+    # Review finding H-B3 of pull request #60 (dono, the verifier's): a
+    # deploy whose gate reads closed under a month forced to economy paused
+    # the demo, and the only line was the boot's, which names the gate, not
+    # the pause. The read that finds the forced mode cannot serve says so in
+    # the month's line, once a process.
+    it "says once a process that a forced economy the gate keeps closed pauses the demo" do
+      travel_to Time.zone.local(2026, 11, 21, 9, 0) do
+        BudgetState.for_month!.update!(forced_mode: "economy")
+        allow(Rails.logger).to receive(:warn)
+
+        2.times { expect(Budget.status).to eq(Budget::Status.new(mode: "paused", forced: true)) }
+
+        expect(Rails.logger).to have_received(:warn).with(/; the forced economy mode may not serve yet, so the demo pauses\z/).once
+      end
+    end
   end
 
   describe "ADR-0003's gate, the full eval run's word, read at boot" do
