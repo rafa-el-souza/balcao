@@ -149,9 +149,10 @@ module Evals
       attempt
     rescue Interrupt
       # The attempt's own transaction rolled back with its spans, so its
-      # tokens are not known; it is kept to say where the run stopped.
+      # tokens are not known; it is kept to say where the run stopped, its
+      # start and time as far as it had read them (the review of #62, C3).
       raise Interrupted.new(attempt: Attempt.new(status: :error, checks: nil, verdict: nil, error: "Interrupt: the run was stopped in this attempt",
-                                                 run:, started_at:, seconds: @clock.call - started))
+                                                 run:, started_at: started_at || Time.current, seconds: started ? @clock.call - started : 0.0))
     end
 
     def graded(kase, run)
