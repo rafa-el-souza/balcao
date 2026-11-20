@@ -161,16 +161,36 @@ class Guardrail
 
   def thinking = @thinking ? { thinking: @thinking } : {}
 
+  # Only a boolean clinical is a verdict: the SDK reads a structured answer
+  # leniently, so one that broke the schema came back with no clinical, or
+  # a string's "true", as a verdict with no error, and the reply went
+  # unchecked with no line; a read that raised lost the answer's usage,
+  # which was paid for (#54's C4 = H3 + H4 with V2, the owner, 2026-11-20).
+  # A reason that is not text is no reason, and the verdict stands.
   def verdict_of(response, started)
     usage = [ usage_of(response) ]
     stop = response.stop_reason.to_s
     return no_verdict(stop, started, response:, usage:) unless stop == "end_turn"
 
-    output = response.parsed_output
-    return no_verdict("unreadable", started, response:, usage:) unless output.is_a?(Output)
+    output = begin
+      response.parsed_output
+    rescue StandardError => e
+      return no_verdict(e.class.name, started, response:, usage:)
+    end
+    clinical = field(output, :clinical)
+    return no_verdict("unreadable", started, response:, usage:) unless [ true, false ].include?(clinical)
 
-    Verdict.new(clinical: output.clinical, reason: output.reason, model: response.model.to_s, effort: @route.effort,
+    reason = field(output, :reason)
+    Verdict.new(clinical:, reason: (reason if reason.is_a?(String)), model: response.model.to_s, effort: @route.effort,
                 stop_reason: stop, usage:, latency_ms: latency_ms(started), error: nil)
+  end
+
+  # A field of the parsed answer, nil when there is none or its read raises:
+  # the SDK raises on a value its type cannot take.
+  def field(output, name)
+    output.public_send(name) if output.is_a?(Output)
+  rescue StandardError
+    nil
   end
 
   def no_verdict(error, started, response: nil, usage: [])
