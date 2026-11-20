@@ -57,6 +57,16 @@ class TurnProcessor
   # the model, one the budget paused and one the job gave up on.
   OUTCOMES = [ *AgentRunner::OUTCOMES.map(&:to_s), "replaced", "reservations", "paused", "dead_letter" ].freeze
 
+  # A reply holds the system's texts beside the model's own words: the notice
+  # before a conversation's first reply, the fixed lines after the words
+  # (FixedReply), or a fixed text in their place. Each reply this class
+  # stores names, to whoever listens in the process, the words of it the
+  # model wrote, which it begins with after any notice (attendant: nil when
+  # it holds none). The app has no subscriber; the eval runner's judge reads
+  # the system's texts as the system's (lib/evals/pipeline.rb; design §10,
+  # M2-3b), since it took the emergency line for the attendant's words.
+  REPLY_EVENT = "reply.turn".freeze
+
   # The attempt of the job that runs the turn (ProcessTurnJob), and the turn
   # that job is for, which the deletion's confirmation counts and names in
   # its lines (FR-05): a later turn's job runs an earlier deletion with its
@@ -349,7 +359,7 @@ class TurnProcessor
     return finish("replaced", "replied", replaced(result, @conversation.language)) if verdict&.clinical?
 
     text, state = reply_of(result)
-    finish(result.outcome, state, text, error: result.error)
+    finish(result.outcome, state, text, error: result.error, own: (result.text if result.outcome == :replied))
   end
 
   # FR-20: the text the model wrote passes the guardrail's check before it is
@@ -473,11 +483,13 @@ class TurnProcessor
     Reservation.held_by(@conversation.visitor).includes(:product).order(:created_at, :id).to_a
   end
 
-  def finish(outcome, state, text, error: nil)
+  # own is the model's words the text begins with, nil when it holds none
+  # (REPLY_EVENT).
+  def finish(outcome, state, text, error: nil, own: nil)
     raise ArgumentError, "#{outcome} is not in TurnProcessor::OUTCOMES" unless OUTCOMES.include?(outcome.to_s)
 
     outbound = @recorder.start_span("balcao.outbound", parent: @root, attributes: { "balcao.message.author" => "bot" })
-    message = replied(state, @root) { record_reply(text, conversation: @conversation, language: @conversation.language) }
+    message = replied(state, @root) { record_reply(text, conversation: @conversation, language: @conversation.language, own:) }
     broadcast_reply(message)
     outbound.finish(attributes: { "balcao.message.characters" => message.body.length })
     @root.finish(attributes: { "balcao.turn.mode" => @root.attributes["balcao.turn.mode"],
@@ -532,9 +544,11 @@ class TurnProcessor
   # stored, to the page's stream.
   def delivery(parent) = (@recorder.start_delivery(parent) if @inbound.channel == "telegram")
 
-  def record_reply(text, conversation:, language:)
+  def record_reply(text, conversation:, language:, own: nil)
     body = conversation.messages.outbound.exists? ? text : FixedReply.with_notice(text, language)
-    Message.record_outbound!(turn: @turn, body:, conversation:)
+    Message.record_outbound!(turn: @turn, body:, conversation:).tap do
+      ActiveSupport::Notifications.instrument(REPLY_EVENT, turn_id: @turn.id, attendant: own.presence)
+    end
   end
 
   # The stored reply to the conversation's stream, after the commit. The
