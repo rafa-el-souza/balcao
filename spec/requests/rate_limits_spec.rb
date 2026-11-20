@@ -18,8 +18,15 @@ RSpec.describe "FR-14 SR-01 SR-36 per-IP and per-visitor limits", type: :request
 
   def from(ip) = { "REMOTE_ADDR" => ip }
 
+  # A session as the page asks for one: the widget's token, which the suite's
+  # siteverify passes (spec/support/turnstile.rb, threat model SR-39), is
+  # read only when the request mints an identity.
+  def minting = { turnstile_token: TurnstileStubs::DUMMY_TOKEN }.to_json
+
+  before { stub_siteverify }
+
   def session_from(ip)
-    post "/api/session", params: "{}", headers: { "Content-Type" => "application/json", "Origin" => origin }, env: from(ip)
+    post "/api/session", params: minting, headers: { "Content-Type" => "application/json", "Origin" => origin }, env: from(ip)
   end
 
   def message_from(ip, text = "oi")
@@ -305,7 +312,7 @@ RSpec.describe "FR-14 SR-01 SR-36 per-IP and per-visitor limits", type: :request
     end
 
     def raw_session
-      _, headers = raw("POST", "/api/session", body: "{}")
+      _, headers = raw("POST", "/api/session", body: minting)
       Array(headers["set-cookie"]).join("\n")[/#{WebSession::COOKIE}=[^;]+/o]
     end
 
@@ -320,9 +327,9 @@ RSpec.describe "FR-14 SR-01 SR-36 per-IP and per-visitor limits", type: :request
     end
 
     it "counts a session minted on a path with a repeated or trailing slash" do
-      expect(20.times.map { |index| raw("POST", index.even? ? "//api/session" : "/api/session/", body: "{}").first }).to all(eq(201))
+      expect(20.times.map { |index| raw("POST", index.even? ? "//api/session" : "/api/session/", body: minting).first }).to all(eq(201))
 
-      expect { expect(raw("POST", "//api/session", body: "{}").first).to eq(429) }.not_to change(Visitor, :count)
+      expect { expect(raw("POST", "//api/session", body: minting).first).to eq(429) }.not_to change(Visitor, :count)
     end
 
     # Review finding V4 of pull request #17: the edge's checks hold only

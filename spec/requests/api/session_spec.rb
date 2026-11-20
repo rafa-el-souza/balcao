@@ -1,10 +1,18 @@
 require "rails_helper"
 
-# FR-18's MVP note: until Turnstile ships after the MVP, POST /api/session is
-# gated by the per-IP limits alone (spec/requests/rate_limits_spec.rb).
+# A new visitor identity is minted only with the token of Turnstile's widget,
+# which Cloudflare's siteverify accepts (SR-39, from M2's first slice), beside
+# the per-IP limit on new sessions (spec/requests/rate_limits_spec.rb). The
+# suite's siteverify answers as Cloudflare answers the published test keys
+# (spec/support/turnstile.rb).
 RSpec.describe "FR-18 SR-03 POST /api/session issues the visitor cookie", type: :request do
+  before { stub_siteverify }
+
+  # The body of a session the page mints: the widget's token beside the rest.
+  def minting(body = {}) = { turnstile_token: TurnstileStubs::DUMMY_TOKEN }.merge(body)
+
   it "sets an HttpOnly, SameSite=Strict cookie and answers the open conversation, its trace token and language" do
-    expect { api_post "/api/session" }.to change(Visitor, :count).by(1).and change(Conversation, :count).by(1)
+    expect { api_post "/api/session", minting }.to change(Visitor, :count).by(1).and change(Conversation, :count).by(1)
 
     expect(response).to have_http_status(:created)
     conversation = Conversation.sole
@@ -20,7 +28,7 @@ RSpec.describe "FR-18 SR-03 POST /api/session issues the visitor cookie", type: 
   # The glass box's head shows the budget's mode, and its costs in reais
   # beside the dollars (FR-12, FR-14; design §10, note of 2026-11-12).
   it "answers the month's budget mode and the rate of the real with its date" do
-    api_post "/api/session"
+    api_post "/api/session", minting
 
     expect(json).to include("mode" => "normal", "brl" => { "per_usd" => 5.6518, "verified_on" => "2026-11-13" })
 
@@ -32,13 +40,13 @@ RSpec.describe "FR-18 SR-03 POST /api/session issues the visitor cookie", type: 
 
   it "marks the cookie Secure over HTTPS, as production always is" do
     https!
-    api_post "/api/session", {}, headers: { "Origin" => origin }
+    api_post "/api/session", minting, headers: { "Origin" => origin }
 
     expect(response.headers["Set-Cookie"]).to include("secure")
   end
 
   it "keeps the visitor's token out of the body and of every header but Set-Cookie (no token in a header)" do
-    api_post "/api/session"
+    api_post "/api/session", minting
 
     expect(cookie_token).to match(/\A[1-9A-HJ-NP-Za-km-z]{24}\z/)
     expect(response.body).not_to include(cookie_token)
@@ -46,7 +54,7 @@ RSpec.describe "FR-18 SR-03 POST /api/session issues the visitor cookie", type: 
   end
 
   it "stores the SHA-256 of the token, never the token" do
-    api_post "/api/session"
+    api_post "/api/session", minting
 
     expect(cookie_visitor.identity_hash).to eq Digest::SHA256.hexdigest(cookie_token)
     expect(Visitor.where(identity_hash: cookie_token)).to be_empty
@@ -81,17 +89,20 @@ RSpec.describe "FR-18 SR-03 POST /api/session issues the visitor cookie", type: 
 
   [ "fr", "", 1, nil, [ "es" ], { "x" => 1 } ].each do |language|
     it "ignores a language outside the three (#{language.inspect})" do
-      api_post "/api/session", { language: }
+      api_post "/api/session", minting(language:)
 
       expect(response).to have_http_status(:created)
       expect(json["language"]).to eq "pt-BR"
     end
   end
 
-  it "mints a new visitor for a cookie whose signature does not verify" do
+  it "mints a new visitor for a cookie whose signature does not verify, with the widget's token" do
     cookies[WebSession::COOKIE.to_s] = "forged-token"
 
-    expect { api_post "/api/session" }.to change(Visitor, :count).by(1)
+    expect { api_post "/api/session" }.not_to change(Visitor, :count)
+    expect(json).to eq("error" => "challenge")
+
+    expect { api_post "/api/session", minting }.to change(Visitor, :count).by(1)
     expect(cookie_visitor).to be_present
   end
 
@@ -102,6 +113,74 @@ RSpec.describe "FR-18 SR-03 POST /api/session issues the visitor cookie", type: 
 
     expect { api_post "/api/session" }.to change(Visitor, :count).by(1)
     expect(Visitor.sole.identity_hash).to eq identity
+  end
+
+  # Threat model SR-39, ADR-0012: a script that changes cookies mints no
+  # identity without solving Cloudflare's challenge.
+  describe "SR-39 Turnstile's token, where a session mints an identity" do
+    it "refuses a session without the token with the retry hint, creating nothing, setting no cookie and asking Cloudflare nothing" do
+      [ -> { api_post "/api/session" }, -> { api_post "/api/session", { language: "es" } },
+        -> { post "/api/session", headers: { "Origin" => origin } } ].each do |request|
+        expect(&request).not_to change(Visitor, :count)
+        expect(response).to have_http_status(:forbidden)
+        expect(json).to eq("error" => "challenge")
+        expect(response.headers["Set-Cookie"]).to be_nil
+      end
+      expect(Conversation.count).to eq 0
+      expect(a_request(:post, TurnstileStubs::SITEVERIFY)).not_to have_been_made
+    end
+
+    it "refuses a token Cloudflare refuses, creating nothing and setting no cookie" do
+      expect { api_post "/api/session", { turnstile_token: "0.a-token-the-test-secret-refuses" } }.not_to change(Visitor, :count)
+
+      expect(response).to have_http_status(:forbidden)
+      expect(json).to eq("error" => "challenge")
+      expect(response.headers["Set-Cookie"]).to be_nil
+      expect(a_request(:post, TurnstileStubs::SITEVERIFY)).to have_been_made.once
+    end
+
+    it "refuses when siteverify does not answer in time, creating nothing" do
+      stub_request(:post, TurnstileStubs::SITEVERIFY).to_timeout
+
+      expect { api_post "/api/session", minting }.not_to change(Visitor, :count)
+      expect(response).to have_http_status(:forbidden)
+      expect(json).to eq("error" => "challenge")
+    end
+
+    it "mints with the test keys' token, which the suite's siteverify passes as Cloudflare does" do
+      expect { api_post "/api/session", minting }.to change(Visitor, :count).by(1)
+
+      expect(response).to have_http_status(:created)
+      expect(a_request(:post, TurnstileStubs::SITEVERIFY)
+        .with(body: { secret: TurnstileStubs::TEST_SECRET, response: TurnstileStubs::DUMMY_TOKEN }.to_json)).to have_been_made.once
+    end
+
+    it "needs no token from a page that brings back its cookie, and asks Cloudflare nothing, whatever the body carries" do
+      visitor = start_session
+      WebMock.reset!
+
+      [ {}, { language: "es" }, { turnstile_token: "0.anything" } ].each do |body|
+        expect { api_post "/api/session", body }.not_to change(Visitor, :count)
+        expect(response).to have_http_status(:created)
+        expect(cookie_visitor).to eq visitor
+      end
+      expect(a_request(:post, TurnstileStubs::SITEVERIFY)).not_to have_been_made
+    end
+
+    it "keeps the token out of the answer and of the log" do
+      log = StringIO.new
+      logger = ActiveSupport::Logger.new(log)
+      allow(Rails).to receive(:logger).and_return(logger)
+      token = "0.a-token-the-test-secret-refuses"
+
+      api_post "/api/session", { turnstile_token: token }
+      api_post "/api/session", minting
+
+      expect(response.body).not_to include(TurnstileStubs::DUMMY_TOKEN)
+      expect(log.string).not_to include(token)
+      expect(log.string).not_to include(TurnstileStubs::DUMMY_TOKEN)
+      expect(log.string).not_to include(TurnstileStubs::TEST_SECRET)
+    end
   end
 
   describe "SR-03 Origin" do
