@@ -42,6 +42,15 @@ RSpec.describe "FR-06 SR-16 SR-21 search_products, the catalogue lookup" do
     )
   end
 
+  # The close's XF-C4 and the review of #62 (C1 = H5): ADR-0003's gate digests
+  # the shape of what the model reads of a result, so the tool answers by the
+  # very method PromptDigest.tools renders on placeholder values.
+  it "answers by the envelope ADR-0003's gate digests" do
+    products = Product.search("amoxicilina", limit: 5)
+
+    expect(search(query: "amoxicilina")).to eq(JSON.parse(JSON.generate(Tools::SearchProducts.result("amoxicilina", products))))
+  end
+
   it "tells the model that a partial match holds only some words of the query (review finding C1 of pull request #10)" do
     expect(search(query: "paracetamol infantil")["products"].pluck("match")).to eq(%w[partial partial])
     expect(Tools::SearchProducts.doc_string).to include("partial when only some words of the query are in it")

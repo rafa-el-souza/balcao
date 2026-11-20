@@ -33,6 +33,12 @@ RSpec.describe "FR-03 SR-16 get_store_info, the store sheet's topics" do
     StoreSheet::TOPICS.each { |topic| expect(ask(topic)).to eq({ "topic" => topic }.merge(StoreSheet.current.topic(topic))) }
   end
 
+  # The review of #62 (C1 = H5): ADR-0003's gate digests the shape of what
+  # the model reads of a result, rendered by this method on placeholder values.
+  it "answers by the envelope ADR-0003's gate digests" do
+    StoreSheet::TOPICS.each { |topic| expect(ask(topic)).to eq(Tools::GetStoreInfo.result(topic, StoreSheet.current.topic(topic))) }
+  end
+
   # The glass box writes "4 bairros" under a list and nothing under a single
   # fact (design §10, note of 2026-11-12, FR-12): the call it reports says
   # what the topic lists and how many, from the result before any cut.

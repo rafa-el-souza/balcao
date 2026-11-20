@@ -393,6 +393,26 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
       expect(Budget.read_economy_allowed(file)).to be(false)
     end
 
+    # The review of #62 (C1 = H5, dono): the envelopes the tools wrap their
+    # results in and which notice each outcome gets were code no digest read.
+    it "reads a gate written before a change of a result's envelope, or of which notice an outcome gets, as not allowed" do
+      file = gate("economy_allowed: true\n#{run}")
+
+      { "Tools::SearchProducts" => [ :result, ->(query, products) { { "q" => query, "items" => products } } ],
+        "Tools::GetStoreInfo" => [ :result, ->(topic, facts) { facts.merge("about" => topic) } ],
+        "Tools::CreateReservation" => [ :found_again, ->(reservation, note) { { "same" => reservation.code, "why" => note } } ] }
+        .each do |name, (method, shape)|
+        RSpec::Mocks.with_temporary_scope do
+          allow(name.constantize).to receive(method) { |*args| shape.call(*args) }
+          expect(Budget.read_economy_allowed(file)).to be(false), "#{name}.#{method}"
+        end
+      end
+      RSpec::Mocks.with_temporary_scope do
+        stub_const("TurnProcessor::IN_PLACE", TurnProcessor::IN_PLACE.merge("deadline" => "refusal"))
+        expect(Budget.read_economy_allowed(file)).to be(false)
+      end
+    end
+
     it "reads a gate written before a change of a text its tools' results carry as not allowed" do
       file = gate("economy_allowed: true\n#{run}")
 

@@ -27,7 +27,10 @@ module PromptDigest
   # Each tool's definition and the fixed texts its results carry (its own
   # text constants: its refusals and notes, AGAIN and OPEN_LIMIT among
   # them), the failure and the tool limit every tool's caller may read, and
-  # the shapes of the results the model reads, on placeholder values.
+  # the shapes of the results the model reads, rendered on placeholder
+  # values by the methods the tools answer with (the review of #62, C1 =
+  # H5). A refusal reaches the model as its text, a constant; how the SDK's
+  # runner carries a result or an error is the SDK's, pinned by its version.
   def tools(tools = Tools::ALL)
     definitions = tools.map { |tool| [ tool.name, tool.doc_string, tool.model&.to_json_schema, tool.tool_options, texts(tool) ] }
     digest([ definitions, AgentTool::FAILED, AgentRunner::TOOL_LIMIT, results ])
@@ -44,11 +47,13 @@ module PromptDigest
     product = SampleProduct.new(id: "ID", name: "NAME", active_ingredient: "INGREDIENT", price: 1, stock: 1, prescription_required: false,
                                 match: "exact", score: 1.0)
     reservation = SampleReservation.new(code: "CODE", quantity: 1, product:, pickup_until: SAMPLE_AT)
-    [ Tools::SearchProducts.entry(product), Tools::CreateReservation.result(reservation) ]
+    [ Tools::SearchProducts.result("QUERY", [ product ]), Tools::CreateReservation.result(reservation),
+      Tools::CreateReservation.found_again(reservation, "NOTE"), Tools::GetStoreInfo.result("TOPIC", { "FACT" => "VALUE" }) ]
   end
 
   # What the history gives the model back (AgentRunner::History): its window,
-  # the time line's format, the tools it replays, its notices, and a
+  # the time line's format, the tools it replays, its notices, which notice
+  # each outcome gets (TurnProcessor::IN_PLACE; the review of #62, H5), and a
   # conversation of placeholder words rendered through it, so a change of how
   # it arranges what it gives back changes the digest with no constant to
   # bump: a reply the model wrote with a lookup and a reservation, one turn
@@ -56,7 +61,7 @@ module PromptDigest
   # and the turn running.
   def history
     digest([ AgentRunner::History::TURNS, AgentRunner::History::SENT, AgentRunner::History::REPLAYED, AgentRunner::History::NOTICES,
-             AgentRunner::History.render(sample_turns, []) ])
+             TurnProcessor::IN_PLACE, AgentRunner::History.render(sample_turns, []) ])
   end
 
   def sample_turns

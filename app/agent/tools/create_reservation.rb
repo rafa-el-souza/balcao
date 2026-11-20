@@ -92,7 +92,7 @@ module Tools
 
       product_id = product_id.downcase
       held = Reservation.find_by(turn_id: turn.id, product_id:)
-      return result(held).merge("note" => again(held)) if held
+      return self.class.found_again(held, again(held)) if held
 
       product = Product.find_by(id: product_id, listed: true) or refuse(UNKNOWN, "unknown_product")
       refuse(PRESCRIPTION, "prescription") if product.prescription_required
@@ -165,5 +165,9 @@ module Tools
       { "code" => reservation.code, "quantity" => reservation.quantity, "product" => reservation.product.name,
         "pickup_until" => reservation.pickup_until.in_time_zone.iso8601 }
     end
+
+    # The turn's own reservation, found again, with the note that says so
+    # (ADR-0003's gate digests its shape, PromptDigest.tools).
+    def self.found_again(reservation, note) = result(reservation).merge("note" => note)
   end
 end

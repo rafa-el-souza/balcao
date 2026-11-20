@@ -47,9 +47,12 @@ module Tools
       refuse(EMPTY, "empty_query") if query.empty?
       refuse(LONG, "long_query") if query.length > MAX_QUERY
 
-      products = Product.search(query, limit: limit(input))
-      { "query" => query, "products" => products.map { |product| entry(product) } }
+      self.class.result(query, Product.search(query, limit: limit(input)))
     end
+
+    # The result as the model reads it: the query as searched and each
+    # product's entry (ADR-0003's gate digests its shape, PromptDigest.tools).
+    def self.result(query, products) = { "query" => query, "products" => products.map { |product| entry(product) } }
 
     def tally(result) = { unit: "products", count: result.fetch("products").size }
 
@@ -73,7 +76,5 @@ module Tools
     def limit(input)
       (Integer(input.to_h[:limit], exception: false) || MAX_RESULTS).clamp(1, MAX_RESULTS)
     end
-
-    def entry(product) = self.class.entry(product)
   end
 end

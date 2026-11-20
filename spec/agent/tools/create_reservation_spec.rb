@@ -94,6 +94,11 @@ RSpec.describe "FR-07 NFR-02 SR-16 create_reservation, units held for pickup at 
     expect(again.except("note")).to eq(first)
     expect(again["note"]).to include("same reservation", "not a new one", "nothing more was reserved")
     expect(calls.map(&:is_error)).to eq([ false, false ])
+    # The review of #62 (C1 = H5): ADR-0003's gate digests these shapes,
+    # rendered by the same methods on placeholder values.
+    held = Reservation.find_by!(turn:)
+    expect(first).to eq(JSON.parse(JSON.generate(Tools::CreateReservation.result(held))))
+    expect(again).to eq(JSON.parse(JSON.generate(Tools::CreateReservation.found_again(held, again["note"]))))
   end
 
   # The review's C1 on pull request #58: the next message reserves the
