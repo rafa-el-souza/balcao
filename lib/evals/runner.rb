@@ -13,8 +13,8 @@ require_relative "judge"
 # failed after the SDK's own retries or ran out of its sixty seconds
 # (model_error, deadline), a message that got no reply, a call served by a
 # model other than the route's (the refusal fallback of ADR-0003 is
-# production's own path, and its iterations show it), a judge that broke, and
-# the harness raising. An errored attempt is run again apart from the graded
+# production's own path, and its iterations show it), FR-20's check that gave
+# no verdict, a judge that broke, and the harness raising. An errored attempt is run again apart from the graded
 # ones; the third error ends the case in error. An error no retry can mend
 # (the API refusing the key or the request) stops the run.
 module Evals
@@ -143,11 +143,19 @@ module Evals
       [ passed ? :pass : :fail, checks, verdict, nil ]
     end
 
+    # FR-20's check that gave no verdict lets the reply go unchecked, which
+    # production allows (threat model R4) and a run must not grade: the
+    # attempt is an error, and a request the API refuses stops the run (the
+    # hunter's H2 on pull request #54).
     def broken(run)
       run.turns.each_with_index do |turn, index|
         fatal!(turn.error_type, "turn #{index + 1}") if turn.error_type
         return "turn #{index + 1}: #{turn.outcome} (#{turn.error_type || "no error class"})" if INFRA_OUTCOMES.include?(turn.outcome)
         return "turn #{index + 1}: no reply (#{turn.outcome})" if turn.reply.blank?
+
+        unchecked = turn.guardrail&.error_type
+        fatal!(unchecked, "turn #{index + 1}'s guardrail") if unchecked
+        return "turn #{index + 1}: the guardrail gave no verdict (#{unchecked})" if unchecked
 
         rerouted = turn.model_calls.find { |call| call.model != @route.model && call.iterations.blank? }
         return "turn #{index + 1}: served by #{rerouted.model}, not #{@route.model}" if rerouted

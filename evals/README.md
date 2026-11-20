@@ -51,8 +51,9 @@ failure, and is never scored: a turn whose model call failed after the
 SDK's own retries or ran out of its sixty seconds (`model_error`,
 `deadline`), a message that got no reply, a call served by a model other
 than the route's (the refusal fallback of ADR-0003 is production's own
-path and counts as the route's), a judge that broke, and the harness
-raising. It is run again after five to ten seconds, apart from the graded
+path and counts as the route's), FR-20's check that gave no verdict (which
+production lets through unchecked, and a run must not grade), a judge that
+broke, and the harness raising. It is run again after five to ten seconds, apart from the graded
 attempts; the third error ends the case in error, and a run with a case in
 error writes no scorecard. The API refusing the key or the request stops
 the run. Before a run judges any rubric, the judge must fail three
