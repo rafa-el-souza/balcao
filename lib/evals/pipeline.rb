@@ -72,7 +72,8 @@ module Evals
           prepare(kase.seed)
           identity_hash = SecureRandom.hex(32)
           said = kase.messages.map { |text| say(identity_hash, text) }
-          result = Run.new(turns: said.map(&:first), observation: observe(identity_hash, *said.last, earlier: said[...-1].map { |record, _| record.reply }))
+          turns = said.map(&:first)
+          result = Run.new(turns:, observation: observe(identity_hash, turns, *said.last.drop(1)))
           raise ActiveRecord::Rollback
         end
       end
@@ -218,17 +219,31 @@ module Evals
     # The last message's reply, the turn's tool calls, and the rows of the
     # visitor who sent it: a reservation (FR-07), the case's conversation
     # closed with another open (FR-04), nothing left under the visitor's
-    # identity (FR-05); and the replies to the earlier messages.
-    def observe(identity_hash, last, conversation_id, visitor, earlier:)
+    # identity (FR-05); the replies to the earlier messages; and whether
+    # FR-20's check replaced the reply of any of the case's turns, an earlier
+    # one's too, with that check's reason (#54's C3 = H5, the owner,
+    # 2026-11-20).
+    def observe(identity_hash, turns, conversation_id, visitor)
+      last = turns.last
       Observation.new(
-        reply: last.reply, notice: last.notice, parts: parts_of(last), tool_calls: last.tool_calls, earlier:,
-        guardrail_replaced: last.outcome == "replaced", guardrail_reason: last.guardrail&.reason,
+        reply: last.reply, notice: last.notice, parts: parts_of(last), tool_calls: last.tool_calls, earlier: turns[...-1].map(&:reply),
+        guardrail_replaced: turns.any? { |turn| turn.outcome == "replaced" }, guardrail_reason: guardrail_reason(turns),
         reservation_created: Reservation.exists?(visitor_id: visitor.id),
         conversation_reset: Conversation.where(id: conversation_id).where.not(closed_at: nil).exists? &&
           Conversation.where(visitor_id: visitor.id, closed_at: nil).where.not(id: conversation_id).exists?,
         data_deleted: !Visitor.exists?(channel: "web", identity_hash:) && !Conversation.exists?(visitor_id: visitor.id) &&
           !Reservation.exists?(visitor_id: visitor.id)
       )
+    end
+
+    # The check's reason for the first turn it replaced, named by its number
+    # when it is not the last message's, else for the last turn.
+    def guardrail_reason(turns)
+      index = turns.index { |turn| turn.outcome == "replaced" }
+      return turns.last.guardrail&.reason unless index
+
+      reason = turns[index].guardrail&.reason
+      reason && index < turns.size - 1 ? "turn #{index + 1}: #{reason}" : reason
     end
 
     # The jobs Intake enqueued are run inline here; the test adapter keeps

@@ -167,15 +167,18 @@ module Evals
 
     # FR-20: what the guardrail did to the replies of every attempt, an
     # errored one's too, since a check without a verdict makes its attempt an
-    # error (Runner; the fix review's R1 on pull request #54), on each model.
+    # error (Runner; the fix review's R1 on pull request #54), on each model;
+    # a replacement counted by the turn's outcome, what the visitor got
+    # (#54's V4).
     def guardrail_note
       notes = @columns.filter_map do |model, grouped|
-        checks = grouped.values.flatten.flat_map(&:attempts).filter_map(&:run).flat_map(&:turns).filter_map(&:guardrail)
+        turns = grouped.values.flatten.flat_map(&:attempts).filter_map(&:run).flat_map(&:turns)
+        checks = turns.filter_map(&:guardrail)
         next if checks.empty?
 
         whose = @economy ? "the #{model} model" : "the model"
         "#{checks.size} #{"check".pluralize(checks.size)} of the replies #{whose} wrote; " \
-          "#{checks.count { |check| check.clinical == true }} replaced, #{checks.count(&:error_type)} without a verdict"
+          "#{turns.count { |turn| turn.outcome == "replaced" }} replaced, #{checks.count(&:error_type)} without a verdict"
       end
       return "" if notes.empty?
 

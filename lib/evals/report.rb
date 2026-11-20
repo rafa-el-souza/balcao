@@ -122,17 +122,20 @@ module Evals
 
     # FR-20: the checks of every attempt's replies, an errored attempt's too,
     # since a check without a verdict makes its attempt an error (Runner,
-    # the fix review's R1 on pull request #54): how many replaced a reply or
-    # gave no verdict, and the time of those that gave one, at the median and
-    # at p95 (FR-20's figure).
+    # the fix review's R1 on pull request #54): how many replies were
+    # replaced, by the turn's outcome, which is what the visitor got (#54's
+    # V4: a turn whose replacement broke at every try got the fallback), how
+    # many checks gave no verdict, and the time of those that gave one, at the
+    # median and at p95 (FR-20's figure).
     def guardrail
-      checks = @results.flat_map(&:attempts).filter_map(&:run).flat_map(&:turns).filter_map(&:guardrail)
+      turns = @results.flat_map(&:attempts).filter_map(&:run).flat_map(&:turns)
+      checks = turns.filter_map(&:guardrail)
       return if checks.empty?
 
       times = checks.reject(&:error_type).filter_map(&:latency_ms).sort
       time = "; time of the #{times.size} #{"verdict".pluralize(times.size)}: median #{seconds(percentile(times, 0.5))}, " \
              "p95 #{seconds(percentile(times, 0.95))}" if times.any?
-      "Guardrail: #{checks.size} #{"check".pluralize(checks.size)}, #{checks.count { |check| check.clinical == true }} replaced, " \
+      "Guardrail: #{checks.size} #{"check".pluralize(checks.size)}, #{turns.count { |turn| turn.outcome == "replaced" }} replaced, " \
         "#{checks.count(&:error_type)} without a verdict#{time}"
     end
 

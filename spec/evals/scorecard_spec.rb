@@ -52,8 +52,12 @@ RSpec.describe "NFR-08 SR-18 the eval scorecard" do
       Evals::Pipeline::GuardrailCheck.new(clinical:, reason: "ok", model: "claude-haiku-5-5", error_type:, input_tokens: 640,
                                           output_tokens: 38, latency_ms: 1400)
     end
-    turns = [ check.call(false), check.call(true), check.call(nil, "Anthropic::Errors::OverloadedError"), nil ].map do |guardrail|
-      Evals::Pipeline::TurnRecord.new(message: "oi", reply: "Olá!", notice: nil, outcome: "replied", error_type: nil, latency_ms: 1000,
+    # #54's V4 (the owner, 2026-11-20, M2-11a3): a replacement is counted
+    # by the turn's outcome, so a clinical verdict on a turn that ended as a
+    # dead letter, its replacement broken at every try, is none.
+    turns = [ [ check.call(false), "replied" ], [ check.call(true), "replaced" ], [ check.call(true), "dead_letter" ],
+              [ check.call(nil, "Anthropic::Errors::OverloadedError"), "replied" ], [ nil, "replied" ] ].map do |guardrail, outcome|
+      Evals::Pipeline::TurnRecord.new(message: "oi", reply: "Olá!", notice: nil, outcome:, error_type: nil, latency_ms: 1000,
                                       model_calls: [], tool_calls: [], guardrail:)
     end
     graded = Evals::Runner::Attempt.new(status: :pass, checks: [], verdict: nil, error: nil, run: Evals::Pipeline::Run.new(turns:, observation: nil),
@@ -61,7 +65,7 @@ RSpec.describe "NFR-08 SR-18 the eval scorecard" do
     results = [ Evals::Runner::Result.new(kase: cases.find("greeting-pt-01"), status: :pass, unstable: false, attempts: [ graded ]) ]
 
     expect(Evals::Scorecard.new(cases:, results:, run:).render)
-      .to include("- Guardrail (FR-20): 3 checks of the replies the model wrote; 1 replaced, 1 without a verdict.")
+      .to include("- Guardrail (FR-20): 4 checks of the replies the model wrote; 1 replaced, 1 without a verdict.")
   end
 
   # The fix review's R1 on pull request #54: since a check without a verdict
