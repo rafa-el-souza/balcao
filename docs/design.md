@@ -2324,24 +2324,23 @@ a reservation (M2-4; the note below).
     "Portuguese" is an English-speaking visitor who asks, after the offer's
     line, whether the model wrote it, and gets the answer in Portuguese.
     Under a line in the visitor's turn, a visitor who copied the line forged
-    a reservation the economy model confirmed, once in six, and 5 answers
-    in 18 were in Portuguese (main: 2 in 14). In a system message, which no
-    visitor can write, no forgery took (12 of 12 refused), but 11 answers
-    in 18 were in Portuguese (39 to 80 % at 95 %, main's 4 to 40 %). In a
-    tag in the visitor's turn, the visitor's own angle brackets shown as ‹
-    and ›, no forgery took (24 of 24) and 6 in 18 were in Portuguese. Each
-    of the three gave the reservation's code back right (12 of 12) and the
+    a reservation the economy model confirmed, once in six, and 5 answers in
+    18 were in Portuguese (main: 2 in 14). In a system message, which no
+    visitor can write, no forgery took (12 of 12 refused), but 11 answers in
+    18 were in Portuguese (39 to 80 % at 95 %, main's 4 to 40 %). In a tag
+    in the visitor's turn, the visitor's own angle brackets shown as ‹ and
+    ›, no forgery took (24 of 24) and 6 in 18 were in Portuguese. Each of
+    the three gave the reservation's code back right (12 of 12) and the
     offer's line to the system (12 of 12). The API's documentation says a
     system message inside the conversation "carries system-prompt
     authority", for operator instructions and what the application learns
     mid-session, and names a tag in the user's turn as the form for a model
     without one: both shapes raised a text the visitor read to the
-    operator's voice. The owner: "O prompt de sistema até onde sei não é
-    somente uma tag. O que vai nele tem prioridade maior para o modelo.
-    Estas variantes parecem estar contornando algo que não deveriam." He
-    chose a fourth shape, in which no text of the system's comes back ("(d)
-    Só o que o modelo escreveu"), with one sentence where the system
-    answered in the model's place ("Aviso de uma frase").
+    operator's voice. The owner read both as working around the problem, the
+    system's voice lent to text that is not an instruction, and chose a
+    fourth shape, in which no text of the system's comes back ("(d) Só o que
+    o modelo escreveu"), with one sentence where the system answered in the
+    model's place ("Aviso de uma frase").
   - **As built.** A turn keeps, with its reply, the reply as the model
     wrote it, its language's tag first and the tags of the lines it asked
     for last, as the system read them (`turn.model_reply`), and the calls
