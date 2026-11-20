@@ -109,6 +109,19 @@ RSpec.describe "FR-07 NFR-02 SR-16 create_reservation, units held for pickup at 
     expect(again["note"]).not_to include("pharmacist")
   end
 
+  # The verifier's V1 on pull request #58: a visitor may hold reservations
+  # from earlier messages, so the note speaks of this message's reservation
+  # and never says it is the only one the visitor holds.
+  it "speaks of the current message's reservation, never of the only one the visitor holds" do
+    open_reservation
+    reserve(quantity: 2)
+    again = reserve(quantity: 2)
+
+    expect(Reservation.held_by(visitor).count).to eq(2)
+    expect(again["note"]).to include("reserved for the visitor's current message")
+    expect(again["note"]).not_to match(/this one reservation|only reservation|hold this/)
+  end
+
   # Review finding RN2 of pull request #7: a check made before the lookup
   # would refuse a turn run again because of its own first reservation.
   it "finds the turn's own reservation before any check, so the stock it took or the cap it filled never refuses it" do
