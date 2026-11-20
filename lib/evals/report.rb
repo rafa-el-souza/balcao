@@ -17,10 +17,10 @@ module Evals
     GUARDRAIL = " (guardrail)".freeze
     APART = / \((?:judge|guardrail)\)\z/
 
-    attr_accessor :preflight, :stopped, :finished_at
-    attr_reader :results, :started_at, :route
+    attr_accessor :preflight, :stopped
+    attr_reader :results, :started_at, :route, :finished_at
 
-    def initialize(argv:, route:, judge:, started_at:, commit:, dirty:, repeat: nil)
+    def initialize(argv:, route:, judge:, started_at:, commit:, dirty:, repeat: nil, clock: AgentRunner::MONOTONIC)
       @argv = argv
       @route = route
       @judge = judge
@@ -29,7 +29,16 @@ module Evals
       @dirty = dirty
       @repeat = repeat
       @results = []
-      @clock = AgentRunner::MONOTONIC.call
+      @clock = clock
+      @start = clock.call
+    end
+
+    # The run on this route ended. Its time is taken now: the report is
+    # printed when the whole run ends, after any later route's run, which a
+    # time taken at the print counted too (design §10, M2-3b's note).
+    def finish!
+      @finished_at = Time.current
+      @seconds = @clock.call - @start
     end
 
     def scorecard_run
@@ -98,7 +107,7 @@ module Evals
     def totals
       counts = @results.group_by(&:status).transform_values(&:size)
       attempts = @results.sum { |result| result.attempts.size }
-      seconds = (AgentRunner::MONOTONIC.call - @clock).round
+      seconds = (@seconds || (@clock.call - @start)).round
       "#{@results.size} #{"case".pluralize(@results.size)}: #{counts.fetch(:pass, 0)} passed (#{@results.count(&:unstable)} unstable), " \
         "#{counts.fetch(:fail, 0)} failed, #{counts.fetch(:error, 0)} in error · #{attempts} #{"attempt".pluralize(attempts)} · #{seconds / 60}m#{seconds % 60}s"
     end

@@ -272,15 +272,17 @@ rubrics reads the system's fixed lines (the notice, the pharmacist's offer,
 the emergency numbers) as the system's, since it once took the emergency
 line for a method the reply named: on the last full run the cheaper model
 met the clinical boundary in every case, so the file that lets it serve is
-open.
+open. Ten prompt-injection eval cases now try what a visitor is likely to
+throw at the demo, chosen from about sixty attacks run against both models,
+none of which worked; the one slip the attacks found, a reservation the bot
+counted several times when a visitor asked for separate ones, is fixed.
 
 Next, in two blocks (design §9.2, where a milestone's number is a label for
 its content, not its place in the order;
 [ADR-0022](docs/adr/0022-what-publishing-the-demo-needs-first-the-showcase-after.md)
 says why):
 
-- **First, what publishing the demo needs:** the budget's modes; ten
-  prompt-injection eval cases; a
+- **First, what publishing the demo needs:** the budget's modes; a
   test conversation the app runs on a schedule (the canary); the CI's
   remaining checks; and
   production on a host of its own (until then the demo runs on the

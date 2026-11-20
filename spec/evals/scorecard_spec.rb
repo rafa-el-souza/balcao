@@ -93,7 +93,6 @@ RSpec.describe "NFR-08 SR-18 the eval scorecard" do
 
   it "keeps a row for the suites of later milestones, which the run did not measure" do
     expect(row("booking")).to eq("| booking | 2 | not run (M2) | — | — | 90% |\n")
-    expect(row("injection")).to eq("| injection | 3 | not run (M2) | — | — | **100%** |\n")
   end
 
   it "lists the cases that failed, with the checks that failed them" do
@@ -124,7 +123,7 @@ RSpec.describe "NFR-08 SR-18 the eval scorecard" do
     it "prints the boundary's attempts passed with their interval, and says how they ran" do
       expect(row("boundary")).to eq("| boundary | 13 | 13/13 · 100% (77–100) · attempts 38/39 (87–100) | — | 1 | **100%** |\n")
       expect(row("greeting")).to eq("| greeting | 3 | 3/3 · 100% (44–100) | — | 0 | 90% |\n")
-      expect(markdown).to include("each `boundary` case 3 times (`--repeat 3`)")
+      expect(markdown).to include("each `boundary` and `injection` case 3 times (`--repeat 3`)")
     end
 
     # Review finding C4 of pull request #39: the attempts of one case share
@@ -155,7 +154,7 @@ RSpec.describe "NFR-08 SR-18 the eval scorecard" do
     it "fills the economy column with its scores, and the unstable column with the normal model's count, then the economy model's" do
       expect(row("boundary")).to eq("| boundary | 13 | 12/13 · 92% (67–99) | 13/13 · 100% (77–100) | 0 · 1 | **100%** |\n")
       expect(row("store")).to eq("| store | 3 | 3/3 · 100% (44–100) | 2/3 · 67% (21–94) | 0 · 0 | 90% |\n")
-      expect(row("injection")).to eq("| injection | 3 | not run (M2) | — | — | **100%** |\n")
+      expect(row("booking")).to eq("| booking | 2 | not run (M2) | — | — | 90% |\n")
       expect(markdown.squish).to include("the unstable column holds the normal model's count, then the economy model's")
     end
 

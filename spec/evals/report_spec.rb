@@ -63,6 +63,23 @@ RSpec.describe "NFR-08 FR-14 the eval run's report" do
                                       "claude-haiku-5-5 (judge) US$ 0.0001")
   end
 
+  # Design §10, M2-3b's note: on a run on both models the reports are printed
+  # when the whole run ends, and each timed itself to that moment, so the
+  # normal model's time counted the economy model's run too (M2-3's
+  # committed run printed 12 min 39 s for a normal model that took 6 min 43 s).
+  it "times its own run, from its start to its finish, however late it is printed" do
+    now = 0.0
+    report = Evals::Report.new(argv: [ "--all" ], route: ModelPolicy.route("normal"), judge: Evals::Judge.new(client: nil),
+                               started_at: Time.current, commit: "f4a9459", dirty: false, clock: -> { now })
+    report.results << result_with(call(model: "claude-opus-5-5", input: 3000, output: 80))
+    now = 403.0
+    report.finish!
+    now = 1119.0
+
+    expect(report.summary).to include(a_string_ending_with("· 1 attempt · 6m43s"))
+    expect(report.to_h.dig(:run, :finished_at)).to be_present
+  end
+
   # FR-20: the guardrail's checks are the pipeline's own calls, counted and
   # priced apart from the attendant's and the judge's, with a line of their
   # verdicts and their time (FR-20's 1.5 s at p95).

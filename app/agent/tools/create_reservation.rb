@@ -26,6 +26,12 @@ module Tools
   # and a stock the seed writes meanwhile keeps the units (CatalogueSeed,
   # FR-15). The pickup deadline is the end of the next business day
   # (StoreSheet#pickup_until).
+  #
+  # The turn's own reservation, found again, comes with a note saying it is
+  # the same one: asked for four separate reservations of ten boxes, the
+  # model called the tool four times in one turn, read the one reservation
+  # the key keeps as four new ones and told the visitor that thirty boxes
+  # were held when ten were (design §10, M2-4's probe).
   class CreateReservation < AgentTool
     MAX_QUANTITY = 10
     MAX_OPEN = 3
@@ -48,6 +54,15 @@ module Tools
     OUT_OF_STOCK = "This product is out of stock, so nothing was reserved. Tell the visitor, and offer the " \
                    "store's pharmacist.".freeze
     LOW_STOCK = "Only %<units>s in stock, fewer than asked, so nothing was reserved. Offer %<units>s.".freeze
+    AGAIN = "This product was already reserved for the visitor's current message, so this is the same reservation, " \
+            "not a new one, and nothing more was reserved: a message reserves each product once. Give the visitor its " \
+            "code and quantity; %<next>s".freeze
+    # What the visitor can do next, as the server would answer it: another
+    # message reserves the product again only while the visitor holds fewer
+    # than MAX_OPEN open reservations and units are left (the fix review's R1
+    # on pull request #58).
+    AGAIN_NEXT = "another reservation of this product takes a new message, within the limits.".freeze
+    AGAIN_NO_MORE = "no more of it can be reserved now, so if they asked for more, offer the store's pharmacist.".freeze
     OPEN_LIMIT = "The visitor already holds #{MAX_OPEN} open reservations, the most allowed, so nothing was " \
                  "reserved. Tell the visitor so. The reservations they hold are listed after your reply, so do not " \
                  "list them yourself.".freeze
@@ -77,7 +92,7 @@ module Tools
 
       product_id = product_id.downcase
       held = Reservation.find_by(turn_id: turn.id, product_id:)
-      return result(held) if held
+      return result(held).merge("note" => again(held)) if held
 
       product = Product.find_by(id: product_id, listed: true) or refuse(UNKNOWN, "unknown_product")
       refuse(PRESCRIPTION, "prescription") if product.prescription_required
@@ -112,6 +127,14 @@ module Tools
     end
 
     def stock_of(product) = Product.where(id: product.id).pick(:stock).to_i
+
+    # The note on the turn's own reservation, found again. It reads the cap
+    # and the stock to say what a next message can do, and refuses nothing:
+    # the reservation is returned whatever they say (NFR-02).
+    def again(held)
+      more = Reservation.held_by(held.visitor).count < MAX_OPEN && stock_of(held.product).positive?
+      format(AGAIN, next: more ? AGAIN_NEXT : AGAIN_NO_MORE)
+    end
 
     # The units asked against the stock as it is and the limit, refused with
     # what can be had instead: nothing, the stock, or MAX_QUANTITY.
