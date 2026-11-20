@@ -18,6 +18,8 @@ export interface FakeTurnstile {
   fail(code?: string): void;
   expire(): void;
   unsupported(): void;
+  // The challenge turns interactive: the widget asks for a tick.
+  interactive(): void;
 }
 
 export function fakeTurnstile(answer: FakeTurnstile["answer"] = "token") {
@@ -52,6 +54,9 @@ export function fakeTurnstile(answer: FakeTurnstile["answer"] = "token") {
     },
     unsupported() {
       options()["unsupported-callback"]?.();
+    },
+    interactive() {
+      options()["before-interactive-callback"]?.();
     },
   };
   function options(): RenderOptions {

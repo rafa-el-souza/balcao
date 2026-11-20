@@ -38,6 +38,7 @@ export interface RenderOptions {
   "error-callback"?: (code: string) => void;
   "expired-callback"?: () => void;
   "unsupported-callback"?: () => void;
+  "before-interactive-callback"?: () => void;
 }
 
 // What Cloudflare's script leaves on window, as far as the page uses it.
@@ -93,6 +94,8 @@ export function createChallenge(language: () => string): Challenge {
   let container: HTMLElement | null = null;
   let script: HTMLScriptElement | null = null;
   let widget: string | null = null;
+  // The element the widget was drawn in.
+  let drawnIn: HTMLElement | null = null;
   // A token the widget gave that nobody has asked for yet.
   let held: string | null = null;
   // A challenge is running: drawn or started again, no answer yet.
@@ -149,6 +152,7 @@ export function createChallenge(language: () => string): Challenge {
   function next(api: TurnstileApi) {
     if (waiters.length === 0 || running || widget === null) return;
     running = true;
+    drawnIn?.removeAttribute("data-asking");
     try {
       api.reset(widget);
     } catch {
@@ -166,6 +170,7 @@ export function createChallenge(language: () => string): Challenge {
     }
     if (typeof id !== "string") return false;
     widget = id;
+    drawnIn = element;
     return true;
   }
 
@@ -198,6 +203,12 @@ export function createChallenge(language: () => string): Challenge {
         unsupported = true;
         running = false;
         for (const waiter of waiters.splice(0)) waiter(null);
+      },
+      // The widget takes no room until it asks for a tick, but its element
+      // is never empty once drawn: the page spaces it by this mark, which
+      // stays while the widget shows the tick's result.
+      "before-interactive-callback": () => {
+        element.setAttribute("data-asking", "");
       },
     });
   }

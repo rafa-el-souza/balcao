@@ -155,6 +155,29 @@ describe("SR-39 FR-18 the challenge", () => {
     expect(fake.resets).toEqual([]);
   });
 
+  // The widget takes no room until it asks for a tick (interaction-only),
+  // but its element is never empty once drawn: the page spaces it by this
+  // mark (docs/prototype/chat.html draws the line 12 px under the
+  // suggestions).
+  it("marks its element while the widget asks the visitor to tick, until the challenge starts again", async () => {
+    const fake = fakeTurnstile("hold");
+    window.turnstile = fake.api;
+    const element = container();
+    const challenge = createChallenge(() => "pt-BR");
+    challenge.attach(element);
+
+    const first = challenge.token();
+    expect(element).not.toHaveAttribute("data-asking");
+    fake.interactive();
+    expect(element).toHaveAttribute("data-asking");
+    fake.solve("ticked");
+    await expect(first).resolves.toBe("ticked");
+    expect(element).toHaveAttribute("data-asking");
+
+    void challenge.token();
+    expect(element).not.toHaveAttribute("data-asking");
+  });
+
   it("gives two callers a token each, one challenge after the other", async () => {
     const fake = fakeTurnstile("hold");
     window.turnstile = fake.api;

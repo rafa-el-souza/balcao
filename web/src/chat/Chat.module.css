@@ -289,14 +289,15 @@
 }
 
 /* Cloudflare Turnstile's widget, which shows itself only when the check wants the visitor to tick
-   it, centred under the suggestions; and the line that says who runs the check (FR-18,
+   it (data-asking, set by web/src/chat/challenge.ts), centred under the suggestions; and the line
+   that says who runs the check, 12 px under them while the widget takes no room (FR-18,
    docs/prototype/chat.html). */
 .challenge {
   display: flex;
   justify-content: center;
 }
 
-.challenge:not(:empty) {
+.challenge[data-asking] {
   margin-top: var(--space-3);
 }
 
