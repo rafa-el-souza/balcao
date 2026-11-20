@@ -372,6 +372,16 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
     FileUtils.remove_entry(repo) if repo
   end
 
+  # Review finding V2 of pull request #55 (FR-09): the script's header gave
+  # the close's run on the normal model alone, which writes no gate, so the
+  # economy model would go on serving on an older measurement.
+  it "names in its header the close's run on both models, the one that writes the economy model's gate" do
+    header = Rails.root.join("bin/evals").read.lines.take_while { |line| line.start_with?("#") }.join
+
+    expect(header).to include("bin/evals --all --both-models --scorecard --repeat 3", "evals/economy_allowed.yml")
+    expect(header).not_to include("--model normal --scorecard --repeat 3   (at a close)")
+  end
+
   it "runs from bin/, in the test environment and nowhere else" do
     clean = { "ANTHROPIC_API_KEY" => nil, "RAILS_ENV" => nil }
     listed, status = Open3.capture2e(clean, Rails.root.join("bin/evals").to_s, "--list", "--all")
