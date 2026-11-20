@@ -1951,8 +1951,8 @@ revised. A slice that splits keeps its number with a letter; one that
 appears on the way (a dependency's bump, a defect met on the demo) takes no
 number, as in the MVP.
 
-*Block 1, what publishing the demo needs (ADR-0022).* M4-1 to M4-4, M4-6a
-and M4-6b are done (#44, #45, #47, #48, #51, #52). The demo is publicised on the day of M3-7, and
+*Block 1, what publishing the demo needs (ADR-0022).* M4-1 to M4-4, M4-6a,
+M4-6b and M2-1 are done (#44, #45, #47, #48, #51, #52, #53). The demo is publicised on the day of M3-7, and
 until the console comes in block 2 the operator pauses it or forces a mode
 with the runbook's command; no visitor identity can be blocked before
 M2-7 (threat model R2).
@@ -2207,55 +2207,92 @@ exception, the same day: the application's connections run with the
 database's JIT compiler off, which changes no result of the search
 (M4-1; the note below).
 
-- Note 2026-11-20 (M2-1, Turnstile at session creation; FR-18, threat
-  model SR-39, SR-03, SR-25; ADR-0012). Built as FR-18 says, with four
-  choices its text left open:
+- Note 2026-11-20 (M2-1, Turnstile at session creation; FR-18, FR-14,
+  threat model SR-39, SR-01, SR-03, SR-25; ADR-0012). Built as FR-18 says,
+  with these choices its text left open, as the review of pull request #53
+  left them:
   - **Where the token is required.** A session request that mints a
     visitor identity, one without a cookie whose signature verifies, needs
     the widget's token, which Cloudflare's siteverify accepts; one that
     brings back its cookie mints nothing and needs none, as SR-01 counts
-    only a mint (`EdgeLimits.new_session?`). So a returning visitor's page
-    load and a language switch run no check, and a Cloudflare outage stops
-    new visitors only. The cookies minted before this slice keep working
-    until they lapse, seven days unseen; production's own
-    `SECRET_KEY_BASE` voids every one at M3-7.
+    only a request that would mint (`EdgeLimits.new_session?`). So a
+    returning visitor's page load and a language switch run no check, and a
+    Cloudflare that answers no, or fails fast, stops new visitors only. The
+    cookies minted before this slice keep working until they lapse, seven
+    days unseen; production's own `SECRET_KEY_BASE` voids every one at
+    M3-7.
+  - **What the limit counts.** The edge counts a request that would mint
+    before the check answers it, so a refused one counts against the
+    address's twenty an hour too; that count is also what bounds the calls
+    to Cloudflare. The owner kept it so (2026-11-20, the review's Rails
+    C1), the page sending no request it knows the server would refuse
+    again (below).
   - **The page.** Its first session, and one asked for because the cookie
     is gone, wait for a token; a language switch brings none. The widget is
     managed, shown only when Cloudflare wants a tick, in the page's
-    language (lower-cased, as Cloudflare names them: "pt-BR" warns), and
-    nothing retries or refreshes it by itself, so a page left open runs no
-    challenge every five minutes. A failed challenge, an unsupported
-    browser and Cloudflare's script not loaded in 15 s give no token, and
-    the session goes without one: a page with its cookie opens, a new one is
-    refused with "challenge", and the thread's stamp offers "tentar de
-    novo", which runs the check again. A token is used once; the next ask
-    starts a new challenge.
-  - **The site key by the page's hostname**, a tracked constant: the
-    owner's widget on `balcao.rafasouza.dev.br`, Cloudflare's published
-    test key on any other name (development, the tests, a rehearsal host
-    from M3), since a test secret accepts only the test key's dummy token
-    and the real one only real tokens. The boot refuses a test secret when
-    `APP_HOST` is the public name, where anyone could send that token.
-  - **The ten seconds** are Net::HTTP's phases, adding up to them: 2 s for
-    the name and the connection, 2 s for the TLS handshake, 2 s to write,
-    4 s to read, no retry. With a real secret, Cloudflare's yes counts only
-    for the public name and the `session` action. The visitor's address is
-    not sent: the host has no IPv6, so a visitor on both families may solve
-    the challenge from one address and reach the server from another. The
-    log names a refusal by Cloudflare's codes (a wrong secret as an
-    error), a failure by its class, never the token or the secret.
-  - **Re-verified on 2026-11-20** (SR-39's list, from Cloudflare's docs):
-    the free plan has unlimited challenges, 20 widgets and 10 hostnames a
-    widget; the test keys and their dummy token as above; the endpoint and
-    its answer; what the widget collects, per Cloudflare's Turnstile
-    privacy addendum (the IP address, the TLS fingerprint, the user agent,
-    the site key and its origin), which `/privacy`'s new line says. The
-    frame asks for `fullscreen`, `autoplay` and `xr-spatial-tracking`,
-    which SR-03's Permissions-Policy denies; with them denied it renders,
-    solves the test keys and gives its token, and the console says nothing
-    (headless Chromium, the built page under the production headers).
-    Whether a person's browser passes the real challenge as easily is seen
-    on the demo after the deploy.
+    language (lower-cased, as Cloudflare names them: "pt-BR" warns; drawn
+    again when the language changed before the next challenge), and hidden
+    while the drawer is open at 390 px. Nothing retries a failure or
+    refreshes an expired token or an unanswered tick by itself, so a page
+    left open runs no challenge every five minutes; a tick left unanswered
+    past Cloudflare's time answers no token. A failed challenge, Cloudflare's
+    script not loaded in 15 s (or loaded with no Turnstile) and an
+    unanswered tick give no token, and the session goes without one: a page
+    with its cookie opens, a new one is refused with "challenge", and the
+    thread ends with the stamp and "tentar de novo", which runs the check
+    again; a browser Cloudflare does not support gets a line of its own and
+    no button. The stamp follows whichever session the check refused, the
+    page's first or one a poll or a message asked for because the cookie
+    was gone. Those that ask while one is on its way wait on that one, and
+    once the server refused the check the page asks no session without a
+    token, nor one for a language. A token is used once; the next ask starts
+    a new challenge. An opener the address brought that could not go before
+    the visitor wrote is dropped, never sent after the visitor's words.
+  - **The site key by the page's hostname**, a tracked constant copied
+    from Cloudflare's dashboard (a typed copy had one character more, which
+    only the public name would have shown: the review's C1): the owner's
+    widget on `balcao.rafasouza.dev.br`, Cloudflare's published test key on
+    any other name (development, the tests, a rehearsal host from M3). The
+    real secret refuses the test key's dummy token; a test secret, probed
+    on 2026-11-20, said yes to any token, though Cloudflare's docs say it
+    refuses a real one. So the boot refuses a test secret when `APP_HOST`
+    is the public name, and reads the secret without the spaces a paste
+    leaves, as the boot check does.
+  - **A token mints once.** Cloudflare's check of a spent token converges
+    in seconds ("Validate the token", token reuse and network convergence),
+    so one solved token sent in requests close together could each hear
+    yes. The digest of a token that minted is kept (`turnstile_redemptions`,
+    whose key refuses a second, two requests at once included; the nightly
+    job deletes it with the rest after seven days); the test keys skip it,
+    since every page on them sends the one dummy token (the review's Rails
+    C2).
+  - **The ten seconds** are Net::HTTP's waits: 2 s for the name and the
+    connection, 2 s for the TLS handshake, 2 s for each write, 4 s for each
+    read, no retry. An answer that came in pieces, each under 4 s apart,
+    could take longer, which only Cloudflare or the network could cause;
+    and while siteverify is slow each new visitor's request holds one of
+    the server's three threads (the review's C3 and C4, for the owner).
+    With a real secret, Cloudflare's yes counts only for the public name
+    and the `session` action. The visitor's address is not sent: the host
+    has no IPv6, so a visitor on both families may solve the challenge from
+    one address and reach the server from another. The log names a refusal
+    by Cloudflare's codes, a wrong secret as an error, from the 400
+    Cloudflare answers it with (a refused token is answered 200), and a
+    failure by its class, never the token or the secret.
+  - **Re-verified on 2026-11-20** (SR-39's list, from Cloudflare's docs and
+    siteverify probed): the free plan has unlimited challenges, 20 widgets
+    and 10 hostnames a widget; the test keys and their dummy token as above;
+    the endpoint and its answers; what the widget collects, per Cloudflare's
+    Turnstile privacy addendum (the IP address, the TLS fingerprint, the
+    user agent, the site key and its origin), which `/privacy`'s new line
+    says. The frame asks for `fullscreen`, `autoplay` and
+    `xr-spatial-tracking`, which SR-03's Permissions-Policy denies; with
+    them denied it renders, solves the test keys and gives its token, and
+    the console says nothing (headless Chromium, the built page under the
+    production headers). Whether a person's browser passes the real
+    challenge as easily is seen on the demo after the deploy, in a private
+    window, since a page with an old cookie needs no token (the runbook's
+    smoke).
 - Note 2026-11-19 (M4-6b, the review's fixes; FR-05, FR-09, FR-12, FR-19,
   NFR-02, NFR-03; `docs/reviews/m4-first-four-review.md`, "To fix in
   M4-6b"). The thirteen lines the owner gave a slice of their own are
