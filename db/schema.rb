@@ -125,9 +125,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_020500) do
     t.index ["inbound_message_id"], name: "index_turns_on_inbound_message_id", unique: true
   end
 
-  create_table "turnstile_redemptions", primary_key: "digest", id: :string, force: :cascade do |t|
+  create_table "turnstile_redemptions", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
+    t.string "digest", null: false
     t.datetime "created_at", null: false
     t.index ["created_at"], name: "index_turnstile_redemptions_on_created_at"
+    t.index ["digest"], name: "index_turnstile_redemptions_on_digest", unique: true
   end
 
   create_table "usage_records", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|

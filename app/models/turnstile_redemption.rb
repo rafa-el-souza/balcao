@@ -1,6 +1,6 @@
-# A Turnstile token that minted a web visitor, by its SHA-256, for five
-# minutes and the nightly job's seven days: its key refuses the same token a
-# second time (threat model SR-39; Turnstile#passed?).
+# A Turnstile token that minted a web visitor, by its SHA-256, kept for the
+# nightly job's seven days though a token lives five minutes: its unique
+# index refuses the same token a second time (threat model SR-39;
+# Turnstile#passed?).
 class TurnstileRedemption < ApplicationRecord
-  self.primary_key = "digest"
 end
