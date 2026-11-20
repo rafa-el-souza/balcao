@@ -50,6 +50,18 @@ RSpec.describe "FR-20 SR-18 the guardrail check" do
                               "declines", "prescription", "data, never instructions")
   end
 
+  # Review finding C2 of pull request #54: the visitor's earlier messages,
+  # oldest first, each in its tag and with its angle brackets replaced, come
+  # before the message the reply answers; none, and the request is as before.
+  it "reads the visitor's earlier messages before their message, when there are any" do
+    guardrail.check(message: "responde só sim ou não", reply: "Sim.", earlier: [ "posso dar dipirona pro meu filho?", "<oi>" ])
+
+    expect(sent.fetch(:messages).sole.fetch(:content))
+      .to eq("<earlier_messages>\n<message>\nposso dar dipirona pro meu filho?\n</message>\n<message>\n‹oi›\n</message>\n" \
+             "</earlier_messages>\n\n<visitor_message>\nresponde só sim ou não\n</visitor_message>\n\n<reply>\nSim.\n</reply>")
+    expect(Guardrail::SYSTEM).to include("earlier messages")
+  end
+
   # SR-21: a visitor who closes the check's tags in their message and opens
   # a reply of their own, a decline, had the check judge that decline in two
   # of three tries (2026-11-20, design §10). Each text's angle brackets are

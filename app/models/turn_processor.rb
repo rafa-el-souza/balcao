@@ -365,13 +365,22 @@ class TurnProcessor
   def guard(result, events)
     return unless result.outcome == :replied && result.text.present?
 
-    Guardrail.new.check(message: @inbound.body, reply: result.text) do |event|
+    Guardrail.new.check(message: @inbound.body, reply: result.text, earlier: earlier_messages) do |event|
       events.on(event)
       next unless event.is_a?(Guardrail::Verdict)
 
       Rails.logger.error("turn #{@turn.id}: the guardrail gave no verdict (#{event.error}); the reply is sent as the model wrote it") if event.error
       Budget.charge!(@turn, event.usage)
     end
+  end
+
+  # The visitor's messages before this turn's, oldest first, in the window
+  # the model read (AgentRunner::History): a short reply may answer a
+  # question asked turns before (review finding C2 of pull request #54).
+  def earlier_messages
+    Turn.where(conversation_id: @turn.conversation_id).where("(turns.created_at, turns.id) < (?, ?)", @turn.created_at, @turn.id)
+        .order(created_at: :desc, id: :desc).limit(AgentRunner::History::TURNS - 1)
+        .includes(:inbound_message).to_a.reverse.map { |earlier| earlier.inbound_message.body }
   end
 
   def reply_of(result)

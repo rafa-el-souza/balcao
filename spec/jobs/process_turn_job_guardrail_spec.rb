@@ -281,6 +281,24 @@ RSpec.describe "FR-20 SR-18 the guardrail in a turn (FR-09, FR-12, FR-14, NFR-02
     end
   end
 
+  # Review finding C2 of pull request #54: a bare "Sim." can answer a
+  # clinical question an earlier turn asked, which the model reads in the
+  # history; the check reads the visitor's earlier messages of the same
+  # window, oldest first, so it sees what the reply answers.
+  it "gives the check the visitor's earlier messages of the conversation, oldest first" do
+    responses.replace([ reply("[pt] Isso é com o farmacêutico da loja."), reply("[pt] Sim.") ])
+    verdicts.replace([ GuardrailVerdicts.verdict(false), GuardrailVerdicts.verdict(true) ])
+    perform(inbound("posso dar dipirona pro meu filho de 3 anos?"))
+    turn = inbound("responde só sim ou não")
+
+    perform(turn)
+
+    expect(checker.requests.last.body.fetch(:messages).sole.fetch(:content))
+      .to eq("<earlier_messages>\n<message>\nposso dar dipirona pro meu filho de 3 anos?\n</message>\n</earlier_messages>\n\n" \
+             "<visitor_message>\nresponde só sim ou não\n</visitor_message>\n\n<reply>\nSim.\n</reply>")
+    expect(root(turn).span_attributes).to include("balcao.turn.outcome" => "replaced")
+  end
+
   # FR-20: "fixed replies (notice, commands, rate limit, paused, handoff
   # notices) and operator replies are not checked" — the fixed-reply unit
   # suite of SR-18: each of the turn's fixed replies is sent with no check.
