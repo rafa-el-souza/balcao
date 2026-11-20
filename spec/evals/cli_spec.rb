@@ -352,6 +352,26 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
     end
   end
 
+  # Review finding V1 of pull request #55 (SR-02): the run's dirty marker
+  # left untracked files out, so a new locale file or initializer that
+  # changed a turn ran under a commit that does not hold it, with no mark.
+  it "counts a file git does not track yet as a change of the tree, as bin/deploy does" do
+    repo = Pathname(Dir.mktmpdir("evals-git"))
+    run_git = ->(*args) { IO.popen([ "git", *args ], chdir: repo, err: File::NULL, &:read).to_s }
+    run_git.call("init", "-q")
+    repo.join("app.rb").write("1\n")
+    run_git.call("add", "app.rb")
+    run_git.call("-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-qm", "c")
+    cli = Evals::CLI.new([], out:, err:, env:, git: run_git)
+
+    expect(cli.send(:dirty?)).to be(false)
+    repo.join("config").mkpath
+    repo.join("config/zz-probe.yml").write("pt-BR: {}\n")
+    expect(cli.send(:dirty?)).to be(true)
+  ensure
+    FileUtils.remove_entry(repo) if repo
+  end
+
   it "runs from bin/, in the test environment and nowhere else" do
     clean = { "ANTHROPIC_API_KEY" => nil, "RAILS_ENV" => nil }
     listed, status = Open3.capture2e(clean, Rails.root.join("bin/evals").to_s, "--list", "--all")

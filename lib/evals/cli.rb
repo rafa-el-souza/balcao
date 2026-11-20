@@ -302,9 +302,12 @@ module Evals
 
     def commit = git("rev-parse", "--short", "HEAD").strip.presence || "unknown"
 
-    # The scorecard and the gate are the run's output, not its input.
+    # The scorecard and the gate are the run's output, not its input. A file
+    # git does not track yet changes the tree too (a new locale file or
+    # initializer is loaded by the run), as bin/deploy counts it (review
+    # finding V1 of pull request #55).
     def dirty?
-      git("status", "--porcelain", "--untracked-files=no").lines.map(&:chomp)
+      git("status", "--porcelain", "--untracked-files=all").lines.map(&:chomp)
                                                           .reject { |line| line.end_with?(" evals/scorecard.md", " evals/economy_allowed.yml") }.any?
     end
 
