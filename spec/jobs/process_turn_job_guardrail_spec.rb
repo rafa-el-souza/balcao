@@ -190,6 +190,50 @@ RSpec.describe "FR-20 SR-18 the guardrail in a turn (FR-09, FR-12, FR-14, NFR-02
     end
   end
 
+  # Review finding V1 of pull request #54 (and the hunter's H7): the ledger's
+  # charge of the check broke before the check's span was closed, so the
+  # run's abandon closed it with the ledger's error and no verdict, and the
+  # trace read a failed check where the check had found clinical advice.
+  # The verdict is traced, and a check without one logged, before the
+  # charge; a charge that breaks still breaks the turn, for the job's retry.
+  describe "a ledger that breaks on the check's charge" do
+    def charge_breaks_on_the_check
+      allow(Rails.logger).to receive(:error)
+      allow(Budget).to receive(:charge!).and_wrap_original do |original, turn, usages, **rest|
+        raise ActiveRecord::StatementInvalid, "the ledger broke" if usages.any? { |usage| usage.model == "claude-haiku-5-5" }
+
+        original.call(turn, usages, **rest)
+      end
+    end
+
+    it "keeps the check's clinical verdict in the trace, and sends nothing" do
+      responses.replace([ reply("[pt] Pode sim, uma latinha não faz mal.") ])
+      clinical
+      charge_breaks_on_the_check
+      turn = inbound("posso tomar dipirona com cerveja?")
+
+      perform(turn)
+
+      expect(check(turn).span_attributes).to include("balcao.guardrail.clinical" => true)
+      expect(check(turn).span_attributes).not_to include("error.type" => "ActiveRecord::StatementInvalid")
+      expect(Message.where(turn_id: turn.id)).to be_empty
+      expect(turn.reload.state).to eq("failed")
+    end
+
+    it "keeps the cause of a check without a verdict in the trace and the log" do
+      lines = []
+      charge_breaks_on_the_check
+      allow(Rails.logger).to receive(:error) { |line = nil| lines << line }
+      verdicts.replace([ GuardrailVerdicts.verdict(true, "cut", stop_reason: :max_tokens) ])
+      turn = inbound("tem dipirona?")
+
+      perform(turn)
+
+      expect(check(turn).span_attributes).to include("error.type" => "max_tokens", "anthropic.message.stop_reason" => "max_tokens")
+      expect(lines).to include("turn #{turn.id}: the guardrail gave no verdict (max_tokens); the reply is sent as the model wrote it")
+    end
+  end
+
   # Threat model R4: the check fails open on its own errors, and the trace
   # and the log say so.
   describe "a check that gives no verdict" do

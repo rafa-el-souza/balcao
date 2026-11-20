@@ -355,18 +355,23 @@ class TurnProcessor
   # FR-20: the text the model wrote passes the guardrail's check before it is
   # sent, while the chat still shows the typing status; a reply that is its
   # tags alone is the system's own line, and the fixed replies never come
-  # here. The check's usage is charged as it arrives and its span is the
-  # trace's, as a model call's are. A check that gave no verdict is a line,
-  # and the reply goes as the model wrote it (threat model R4).
+  # here. The check's span is the trace's and its usage is charged as it
+  # arrives, as a model call's are. A check that gave no verdict is a line,
+  # and the reply goes as the model wrote it (threat model R4). The verdict
+  # is traced, and a check without one logged, before the charge: a charge
+  # that breaks breaks the turn, for the job's retry, and the trace still
+  # says what the check found (review finding V1 of pull request #54, the
+  # hunter's H7).
   def guard(result, events)
     return unless result.outcome == :replied && result.text.present?
 
-    verdict = Guardrail.new.check(message: @inbound.body, reply: result.text) do |event|
-      Budget.charge!(@turn, event.usage) if event.is_a?(Guardrail::Verdict)
+    Guardrail.new.check(message: @inbound.body, reply: result.text) do |event|
       events.on(event)
+      next unless event.is_a?(Guardrail::Verdict)
+
+      Rails.logger.error("turn #{@turn.id}: the guardrail gave no verdict (#{event.error}); the reply is sent as the model wrote it") if event.error
+      Budget.charge!(@turn, event.usage)
     end
-    Rails.logger.error("turn #{@turn.id}: the guardrail gave no verdict (#{verdict.error}); the reply is sent as the model wrote it") if verdict.error
-    verdict
   end
 
   def reply_of(result)
