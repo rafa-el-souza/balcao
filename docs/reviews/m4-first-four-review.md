@@ -63,6 +63,10 @@ cut to one clause; *Outcome* names where it went.
 ## To fix in M4-6b (13)
 
 The owner gave these a slice of their own, the next one, before Turnstile (M2-1).
+All thirteen were fixed there, in pull request #52, each with its failing
+example first; its Review section and design §10's note of M4-6b are their
+record. #48's V5 turned out not to occur as it was read (the note says why);
+the run is counted first all the same.
 
 | Pull request | Line | What it said | Outcome |
 |---|---|---|---|

@@ -1,6 +1,6 @@
 # Balcão — design document
 
-**Status:** v1.16, 2026-11-19 (M4-6a: the review of M4's first four slices; NFR-01 measured on a second real conversation, §9.2's M4-6 split into its review and its fixes, M3-6 gains the runbook's terms, see §10); v1.15, 2026-11-19 (ADR-0022: what publishing the demo needs comes first, then the showcase; §9.2's slices in two blocks, M2-11 split, and FR-10, FR-14, FR-21 and §12 follow, see §10); v1.14, 2026-11-15 (M4-3: the bot's buttons as built in FR-19, FR-12 and FR-21, see §10); v1.13, 2026-11-15 (M4-2: NFR-01 at 7 s and 12 s, measured from a Telegram update's receipt to its reply's send; §6.4's normal route at low effort, ADR-0021; M3's list charges an abandoned call, see §10); v1.12, 2026-11-15 (the plan after the MVP: §9.2 lists its slices in order, behind the data-contract gate where it holds, and ADR-0020 says what V1 leaves out; §2.2, J3, FR-10, FR-14, NFR-03, NFR-08, §6.1, §6.6, §6.9, §8 and OD-2 follow it, see §10); v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
+**Status:** v1.17, 2026-11-19 (M4-6b: the review's fixes; FR-05 and FR-19's given-up update as built, see §10); v1.16, 2026-11-19 (M4-6a: the review of M4's first four slices; NFR-01 measured on a second real conversation, §9.2's M4-6 split into its review and its fixes, M3-6 gains the runbook's terms, see §10); v1.15, 2026-11-19 (ADR-0022: what publishing the demo needs comes first, then the showcase; §9.2's slices in two blocks, M2-11 split, and FR-10, FR-14, FR-21 and §12 follow, see §10); v1.14, 2026-11-15 (M4-3: the bot's buttons as built in FR-19, FR-12 and FR-21, see §10); v1.13, 2026-11-15 (M4-2: NFR-01 at 7 s and 12 s, measured from a Telegram update's receipt to its reply's send; §6.4's normal route at low effort, ADR-0021; M3's list charges an abandoned call, see §10); v1.12, 2026-11-15 (the plan after the MVP: §9.2 lists its slices in order, behind the data-contract gate where it holds, and ADR-0020 says what V1 leaves out; §2.2, J3, FR-10, FR-14, NFR-03, NFR-08, §6.1, §6.6, §6.9, §8 and OD-2 follow it, see §10); v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
 coding session, reading this file top to bottom.
 
 Balcão ("the counter", where a pharmacist serves customers) is an AI attendant
@@ -279,6 +279,17 @@ never through a tool, so no prompt injection can trigger it.
   breaking does not write "deleted" to the chat at every run. The line that
   the data went without the confirmation is written once it went. (M4-4;
   review findings C3, H1, H2, H3's third part and R1 of pull request #41.)
+  Whether an earlier turn is a deletion is read before it runs, so one that
+  cannot be run still holds the later messages, and an earlier turn that
+  cannot be read at all holds them as a deletion would; a turn a deletion
+  holds keeps no reply, whatever broke its last attempt. (M4-6b; review
+  finding C3 and the hunter's H5 of pull request #48.)
+- On Telegram the update that asked for the deletion goes with the data, in
+  the same transaction, so it is never read again after the deletion, nor
+  given up with the fallback's "try again" after "deleted"; a delete
+  command none of whose three reads got through keeps that "try again",
+  which is true, since the data stays. (M4-6b; the hunter's H4 on pull
+  request #48; the owner, 2026-11-19.)
 
 ### 4.2 Pharmacy work (tools)
 
@@ -798,10 +809,15 @@ revocable consent" (ADR-0016).
   row, gets the fallback's line in the language a reply would have, so no
   message the application accepted is dropped in silence (NFR-03), unless
   the update stored a message, whose turn answers it, or is one the bot
-  does not answer. While a person's earlier update is still unread, a later
+  does not answer. The line is read before the update is stripped and sent
+  after it, the way a read's line goes, so a strip that fails never sends
+  it twice; an update whose body no longer decrypts has no line, and is
+  stripped all the same (M4-6b; review findings C5, C7, H2 and H6 of pull
+  request #48). While a person's earlier update is still unread, a later
   one waits on a budget of its own, three waits of 3 s, 18 s and 83 s, and
   then is read all the same; the earlier one is read again at each wait,
-  so it is given up within them (review finding H6 of pull request #33).
+  so it is given up within them (review finding H6 of pull request #33),
+  and no update after it is read before it (M4-6b; #48's C1).
 
 *After the MVP (ADR-0017); none of these adds a kind of update.*
 - **M4, the bot's finish** (built in M4-3, 2026-11-15; §10's note): a
@@ -1929,8 +1945,8 @@ revised. A slice that splits keeps its number with a letter; one that
 appears on the way (a dependency's bump, a defect met on the demo) takes no
 number, as in the MVP.
 
-*Block 1, what publishing the demo needs (ADR-0022).* M4-1 to M4-4 and
-M4-6a are done (#44, #45, #47, #48, #51). The demo is publicised on the day of M3-7, and
+*Block 1, what publishing the demo needs (ADR-0022).* M4-1 to M4-4, M4-6a
+and M4-6b are done (#44, #45, #47, #48, #51, #52). The demo is publicised on the day of M3-7, and
 until the console comes in block 2 the operator pauses it or forces a mode
 with the runbook's command; no visitor identity can be blocked before
 M2-7 (threat model R2).
@@ -2185,6 +2201,63 @@ exception, the same day: the application's connections run with the
 database's JIT compiler off, which changes no result of the search
 (M4-1; the note below).
 
+- Note 2026-11-19 (M4-6b, the review's fixes; FR-05, FR-09, FR-12, FR-19,
+  NFR-02, NFR-03; `docs/reviews/m4-first-four-review.md`, "To fix in
+  M4-6b"). The thirteen lines the owner gave a slice of their own are
+  fixed, each with its failing example first.
+  - **A person's updates** (#48's C1, C5, H6, C7 and H2; the close's C2
+    and its sister): the pass over the earlier unread updates stops at the
+    first one still unread after its read. A given-up update's line is read
+    while the update is there, the update is stripped, written as it is
+    without decrypting the old body, and then the line goes the way a
+    read's goes: a strip that fails sends nothing, the next give-up sends
+    it once; an update whose body no longer decrypts is given up with no
+    line and stripped, where the sweep took it up every minute until the
+    purge; a drain that breaks before the line is said as "stored replies
+    not sent", and those replies are tried again a minute later.
+  - **The deletion** (#48's C3, H5 and H4): whether an earlier turn is a
+    deletion is read before its processor is built, and an earlier turn
+    that cannot be read holds the turns after it; at the dead letter, a turn
+    an earlier deletion holds keeps no reply, whatever broke its last
+    attempt. The owner's answer to H4 (no fallback line for a delete
+    command; the "try again" of one never read stays) is built by the
+    deletion stripping, with the data, the update that asked for it, rather
+    than by a rule on the given-up line: a delete command that became a turn
+    is never read again after its deletion, so it is neither answered
+    "deleted" again as a person the bot holds no row of, nor given up after
+    "deleted"; one none of whose reads got through keeps its "try again",
+    the person's data being still there. A person with no row whose delete
+    command's three reads broke gets that "try again" too, which is true.
+  - **The reply after its commit** (#48's C6 and H8): the stream's payload
+    is read inside the broadcast's rescue, and a turn whose reply is stored
+    is never marked failed by what breaks after the commit.
+  - **The trace** (#48's H3, H9 and the fix review's two sisters): a
+    Telegram reply's new status and the close of its way are one
+    transaction. The way (the turn's conversation and its open delivery
+    spans) is read first, by the turn's id and outside any transaction, so
+    that a statement a deploy's migration made stale is prepared again,
+    which Active Record does only outside one (#52's V3), and it is closed
+    in a savepoint of its own, so a statement the database breaks there
+    aborts the savepoint alone and the status commits (#52's C1, the
+    hunter's H1). A span an interrupted run left open that cannot be closed
+    is a line, and the turn runs.
+  - **V5's case does not occur:** #48's verifier read a message body that
+    does not decrypt as raising in the command match, so its turn was never
+    counted nor given up. `Message` keeps `support_unencrypted_data`, so
+    such a body is read as its stored envelope, which is no command: the
+    turn is counted and given up at its fourth run (a spec keeps the case).
+    The run is now counted before the message is read all the same. The
+    envelope would reach the model as the visitor's words, which only keys
+    changed in place could cause, and the keys never rotate in place
+    (`bin/secrets-example`).
+  - **The bare "sim, pode"** (the close's C1) is anchored on its verb in
+    the three boundary cases that had it, so "e sim, pode reservar" passes,
+    and in the verb's other forms, the pronoun attached ("Sim, pode
+    tomá-la") and the passive ("Sim, pode ser tomada"), which the infinitive
+    alone missed (#52's C2); the yes with no verb after it, "Sim, pode: os
+    dois tratam a pressão", is left to boundary-pt-05's rubric. None of the
+    319 stored final replies of the cases with a list fails either list,
+    main's or the new one.
 - Note 2026-11-19 (M4-6a, the review of M4's first four slices; NFR-01,
   FR-09; ADR-0019; `docs/reviews/m4-first-four-review.md`).
   - **The second real conversation** took place on 2026-11-19 between

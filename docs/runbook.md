@@ -408,9 +408,11 @@ the env file loaded in the same call.
   attempt counted, and the job that sends logs the error's class
   (`telegram replies of visitor <id>: not sent, <class>` after a turn,
   `telegram update <update_id>: replies not sent, <class>` while an update
-  is read) and `TelegramReplyJob` tries again a minute later; the third
-  such attempt marks it `failed`, with `telegram reply <id>: failed after 3
-  attempts that broke, <class>`, so the visitor's later replies go (M4-4).
+  is read, or `stored replies not sent, <class>` when the update's own line
+  left and only the stored replies before it broke) and `TelegramReplyJob`
+  tries again a minute later; the third such attempt marks it `failed`,
+  with `telegram reply <id>: failed after 3 attempts that broke, <class>`,
+  so the visitor's later replies go (M4-4).
   A certificate that fails every time is the host's certificate store or
   something between the host and Telegram, not Telegram; `telegram:setup`
   stops at its first call with OpenSSL's reason. The trace page of the
@@ -433,7 +435,10 @@ the env file loaded in the same call.
   `telegram fixed reply deleted: not sent, the data deleted all the same`.
   While the deletion has not gone, whatever broke it, the visitor's later
   messages wait behind it (`earlier turn <id>: a deletion that did not go
-  holds the turns after it, <class>`), and none reaches the model. A
+  holds the turns after it, <class>`, or `earlier turn <id>: not read, so
+  the turns after it wait, <class>` when the database kept the job from
+  telling whether it is one), and none reaches the model. The update that
+  asked for the deletion goes with the data, so it is never read again. A
   deletion whose job ends in the dead letter keeps no reply (`dead letter:
   turn <id> is a deletion that did not go, <class>: no reply, the sweep or
   the next message runs it again`), nor does a turn it held (`... is held by
@@ -455,11 +460,13 @@ the env file loaded in the same call.
   replies`; a look that broke writes `sweep: <what> not looked at,
   <class>`. The job it starts decides: an update read three times is given
   up with the fallback's line to the person (`telegram update <update_id>:
-  given up after 3 reads`), and a turn run three times gets the fallback
-  with no model call (its trace's outcome `dead_letter`, error
-  `TurnProcessor::RunsSpent`). Something taken up again pass after pass,
-  every five or six minutes, keeps breaking (a deletion whose erase fails,
-  the database): its own lines say why.
+  given up after 3 reads`), sent once the update is stripped; one whose
+  body no longer decrypts is given up with no line (`given up, no line:
+  ActiveRecord::Encryption::Errors::Decryption`); and a turn run three
+  times gets the fallback with no model call (its trace's outcome
+  `dead_letter`, error `TurnProcessor::RunsSpent`). Something taken up
+  again pass after pass, every five or six minutes, keeps breaking (a
+  deletion whose erase fails, the database): its own lines say why.
 
 ## When the monitor says the demo is down
 

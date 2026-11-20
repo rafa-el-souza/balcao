@@ -371,6 +371,26 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       expect(left_open.reload).to have_attributes(finished_at: be_present,
                                                   span_attributes: include("error.type" => "interrupted"))
     end
+
+    # The hunter's H9 on pull request #48: closing a span an interrupted run
+    # left open had no rescue, so a span that could not be closed broke every
+    # run of its turn, and NFR-03's sweep ran it again every few minutes.
+    it "runs the turn though a span an interrupted run left open cannot be closed, with a line naming it" do
+      turn = inbound("oi")
+      left_open = create(:trace_event, turn:, name: "anthropic.messages.create")
+      allow_any_instance_of(TraceEvent).to receive(:update!).and_wrap_original do |original, *arguments|
+        raise ActiveRecord::QueryCanceled if original.receiver.id == left_open.id
+
+        original.call(*arguments)
+      end
+      lines = []
+      allow(Rails.logger).to receive(:error) { |line| lines << line }
+
+      perform(turn)
+
+      expect(turn.reload.state).to eq("replied")
+      expect(lines).to include("trace: span anthropic.messages.create of an interrupted run not closed: ActiveRecord::QueryCanceled")
+    end
   end
 
   describe "a turn the model cannot answer (NFR-03, SR-19, SR-20)" do
@@ -615,6 +635,34 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
         expect(turn.reload.runs).to eq(1)
       end
 
+      # The verifier's V5 on pull request #48: the run was counted after the
+      # message was read for a command, so a read that broke left it uncounted.
+      it "counts a run before it reads the message" do
+        turn = inbound("oi")
+        allow_any_instance_of(CommandPhrases).to receive(:match).and_raise(ActiveRecord::ConnectionFailed)
+        allow(Rails.logger).to receive(:error)
+
+        perform(turn)
+
+        expect(turn.reload.runs).to eq(1)
+      end
+
+      # V5's case, a message that does not decrypt, cannot break that read:
+      # Message keeps support_unencrypted_data, so such a body is read as its
+      # stored envelope, which is no command; its turn is counted, never taken
+      # for a deletion, and given up at its fourth run.
+      it "counts and gives up at its fourth run a turn whose message does not decrypt, which is no deletion" do
+        other_keys = ActiveRecord::Encryption::DerivedSecretKeyProvider.new("another-primary-key-for-the-spec")
+        turn = ActiveRecord::Encryption.with_encryption_context(key_provider: other_keys) { inbound("/apagar") }
+        turn.update_columns(runs: 3)
+
+        perform(turn)
+
+        expect(turn.reload).to have_attributes(runs: 4, state: "failed")
+        expect(turn.outbound_message.body).to end_with(FixedReply.fallback(conversation.language))
+        expect(Visitor.exists?(visitor.id)).to be(true)
+      end
+
       it "answers a turn run three times already with the fallback, calling and billing nothing" do
         product = create(:product, sku: "DIP-500")
         turn = inbound("reserva duas dipironas")
@@ -715,6 +763,33 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
 
       expect(turn.reload.outbound_message).to be_nil
       expect(enqueued_jobs.sole).to include(job: ProcessTurnJob, args: [ turn.id ])
+    end
+
+    # Review finding C6 and the hunter's H8 of pull request #48: the stream's
+    # payload was read after the commit, outside a rescue, so a database error
+    # there marked a turn with its reply stored failed and closed its spans
+    # with the error.
+    it "keeps a turn replied, its spans clean, when the reply's payload for the stream cannot be read after the commit" do
+      turn = inbound("oi")
+      allow_any_instance_of(Message).to receive(:stream_payload).and_raise(ActiveRecord::ConnectionFailed)
+      lines = []
+      allow(Rails.logger).to receive(:error) { |line| lines << line }
+
+      perform(turn)
+
+      expect(turn.reload.state).to eq("replied")
+      expect(spans(turn).filter_map { |span| span.span_attributes["error.type"] }).to be_empty
+      expect(lines).to include("turn #{turn.id}: message not broadcast: ActiveRecord::ConnectionFailed")
+    end
+
+    it "leaves a turn that has its reply replied when the run breaks after the commit, a command's too" do
+      allow_any_instance_of(TurnProcessor).to receive(:broadcast_reply).and_raise(ActiveRecord::ConnectionFailed)
+      allow(Rails.logger).to receive(:error)
+      turns = [ inbound("oi"), inbound("/trace") ]
+
+      turns.each { |turn| perform(turn) }
+
+      expect(turns.map { |turn| turn.reload.state }).to eq(%w[replied replied])
     end
   end
 

@@ -254,7 +254,7 @@ first real conversation measured above its target, is measured and cut;
 the bot has its buttons; and a sweep, every minute, answers a message left
 without a reply, or gives it a fixed line (design §10). A review of those
 four slices and of the MVP review's own pull requests read the 101 lines
-they left for the owner: 16 already made, 10 to fix in the next slice with
+they left for the owner: 16 already made, 10 fixed in the next slice with
 the review's own two findings, the rest kept, planned or accepted
 ([`docs/reviews/m4-first-four-review.md`](docs/reviews/m4-first-four-review.md)).
 

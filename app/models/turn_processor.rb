@@ -87,11 +87,13 @@ class TurnProcessor
     @attempt = attempt
   end
 
+  # The run is counted before the message is read, so a read that breaks
+  # counts too (the verifier's V5 on pull request #48).
   def call
     return if Message.exists?(turn_id: @turn.id)
 
-    command = @commands.match(@inbound.body)
     @turn.increment!(:runs, touch: true)
+    command = @commands.match(@inbound.body)
     return delete if command == :delete
     return give_up(RunsSpent.new("the turn ran #{RUNS} times")) if @turn.runs > RUNS
 
@@ -117,11 +119,15 @@ class TurnProcessor
   # request #41): it keeps no reply, since a fallback after "deleted" would
   # say the opposite of what the visitor read, and a line names it, so the
   # sweep or the visitor's next message runs it again (ProcessTurnJob holds
-  # the turns after it meanwhile).
+  # the turns after it meanwhile). Nor is a turn an earlier deletion of its
+  # conversation holds, whatever broke its last attempt: it keeps no reply
+  # either, and goes with the deletion (the hunter's H5 on pull request #48).
   def give_up(error)
     return if Message.exists?(turn_id: @turn.id)
     return Rails.logger.error("dead letter: turn #{@turn.id} is a deletion that did not go, #{error.class}: no reply, " \
                               "the sweep or the next message runs it again") if deletion?
+    return Rails.logger.error("dead letter: turn #{@turn.id} is held by an earlier deletion that did not go, " \
+                              "#{error.class}: no reply, the sweep or the next message runs the deletion again") if held?
 
     TraceRecorder.close_interrupted(@turn)
     @recorder = TraceRecorder.new(@turn)
@@ -141,6 +147,14 @@ class TurnProcessor
 
   private
 
+  # An earlier turn of the conversation asks to delete and has no reply, so
+  # its deletion has not gone: one that went took the conversation with it.
+  def held?
+    Turn.where(conversation_id: @turn.conversation_id).where("(turns.created_at, turns.id) < (?, ?)", @turn.created_at, @turn.id)
+        .where.missing(:outbound_message).includes(:inbound_message)
+        .any? { |earlier| @commands.match(earlier.inbound_message.body) == :delete }
+  end
+
   # --- Commands -------------------------------------------------------------
 
   # FR-05: in the same run, the visitor's data goes, and the confirmation
@@ -158,10 +172,23 @@ class TurnProcessor
     tokens = visitor.conversations.pluck(:trace_token)
     chat = Telegram::Chat.of(visitor)
     unsent = confirm_deletion(chat, language) if chat
-    visitor.erase!
+    erase(visitor)
     Rails.logger.error("telegram fixed reply deleted: #{unsent}, the data deleted all the same") if unsent
     broadcast(type: "deleted", text: FixedReply.command(:delete, language))
     tokens.each { |token| broadcast({ type: "deleted" }, "trace:#{token}") }
+  end
+
+  # The data goes, and in the same transaction the Telegram update that asked
+  # for it is stripped, if its read is still open (its strip broke): it is
+  # never read again after the deletion, as a person the bot holds no row of,
+  # nor given up with the fallback after "deleted" (the hunter's H4 on pull
+  # request #48; the owner, 2026-11-19: a delete command never gets the
+  # fallback's line, but one never read keeps its "try again").
+  def erase(visitor)
+    ApplicationRecord.transaction do
+      WebhookEvent.strip_unread!(@inbound.webhook_event_id, "processed") if @inbound.webhook_event_id
+      visitor.erase!
+    end
   end
 
   # FR-05 on Telegram (the owner, 2026-11-15): the confirmation leaves before
@@ -403,10 +430,12 @@ class TurnProcessor
   end
 
   # A turn that broke outside the model (the database, a bug): its spans are
-  # closed with the error and it is marked failed, for the job's retry.
+  # closed with the error and it is marked failed, for the job's retry. One
+  # whose reply is stored keeps the state its reply's transaction wrote
+  # (review finding C6 and the hunter's H8 of pull request #48).
   def broken(error)
     @recorder.abandon(error.class.name)
-    @turn.update_columns(state: "failed")
+    @turn.update_columns(state: "failed") unless Message.exists?(turn_id: @turn.id)
   rescue StandardError => e
     Rails.logger.error("turn #{@turn.id} not marked failed: #{e.class}")
   end
@@ -443,9 +472,15 @@ class TurnProcessor
     Message.record_outbound!(turn: @turn, body:, conversation:)
   end
 
+  # The stored reply to the conversation's stream, after the commit. The
+  # codes and the payload are read here, so a read that breaks is a line, as
+  # a broadcast that fails is, and never breaks a turn whose reply is stored
+  # (review finding C6 and the hunter's H8 of pull request #48).
   def broadcast_reply(message)
     codes = Reservation.where(visitor_id: @conversation.visitor_id).pluck(:code)
     broadcast(type: "message", message: message.stream_payload(reservation_codes: codes))
+  rescue StandardError => e
+    Rails.logger.error("turn #{@turn.id}: message not broadcast: #{e.class}")
   end
 
   # On the stream of the turn's conversation, the one the visitor's page

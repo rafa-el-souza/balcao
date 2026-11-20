@@ -150,17 +150,31 @@ class ProcessTurnJob < ApplicationJob
   # the verifier's V1 and the fix review's R1 of pull request #41). The
   # deletion runs with this job's attempt, so at this job's last it goes
   # whether or not its confirmation left, and takes this job's turn with the
-  # rest.
+  # rest. Whether the earlier turn is a deletion is read before its processor
+  # is built, so one whose processor cannot be built holds the turns after it
+  # all the same; and an earlier turn that cannot be read at all may be one,
+  # so its error is raised and this job's turn waits for the job's next
+  # attempt (review finding C3 and the hunter's H5 of pull request #48).
   def run_earlier(turn_id, conversation_id, attempt)
-    turn = Turn.find_by(id: turn_id)
+    turn, deletion = classified(turn_id)
     return if turn.nil? || turn.conversation_id != conversation_id
 
-    processor = TurnProcessor.new(turn, attempt:)
-    processor.call
-  rescue StandardError => e
-    raise held(turn_id, e) if processor&.deletion?
+    begin
+      TurnProcessor.new(turn, attempt:).call
+    rescue StandardError => e
+      raise held(turn_id, e) if deletion
 
-    Rails.logger.error("earlier turn #{turn_id} failed: #{e.class}")
+      Rails.logger.error("earlier turn #{turn_id} failed: #{e.class}")
+    end
+  end
+
+  # The earlier turn and whether it asks to delete (FR-05).
+  def classified(turn_id)
+    turn = Turn.find_by(id: turn_id)
+    [ turn, turn.present? && CommandPhrases.current.match(turn.inbound_message.body) == :delete ]
+  rescue StandardError => e
+    Rails.logger.error("earlier turn #{turn_id}: not read, so the turns after it wait, #{e.class}")
+    raise
   end
 
   def held(turn_id, error)
@@ -173,8 +187,9 @@ class ProcessTurnJob < ApplicationJob
   # class alone, never its message, which may quote what the visitor wrote
   # (SR-30). Then the visitor gets the fallback, under the conversation's
   # lock like any reply of the turn; a deletion, or a turn an earlier
-  # deletion held, keeps no reply, with a line, so the sweep or the next
-  # message runs the deletion again (TurnProcessor#give_up).
+  # deletion holds, whatever broke its last attempt, keeps no reply, with a
+  # line, so the sweep or the next message runs the deletion again
+  # (TurnProcessor#give_up; the hunter's H5 on pull request #48).
   def dead_letter(error)
     turn_id = arguments.first
     Rails.logger.error("dead letter: #{self.class} #{job_id}, turn #{turn_id}, #{executions} attempts, #{error.class}")

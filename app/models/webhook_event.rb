@@ -44,6 +44,14 @@ class WebhookEvent < ApplicationRecord
   # The update as Telegram sent it, while it is unread.
   def update_hash = (JSON.parse(payload) if payload)
 
-  # Read: the body goes, and with it everything the update said and whose it was.
-  def strip!(status) = update!(payload: nil, identity_hash: nil, status:)
+  # Read: the body goes, and with it everything the update said and whose it
+  # was. Written as it is, never reading the stored body first, so an update
+  # whose body no longer decrypts is stripped all the same (the hunter's H6
+  # on pull request #48; update! decrypted the old value to compute its
+  # change); the row's clock moves with it.
+  def strip!(status) = update_columns(payload: nil, identity_hash: nil, status:, updated_at: Time.current)
+
+  # The same for the update with this id, if it is still unread: a deletion
+  # strips the update that asked for it (TurnProcessor, FR-05).
+  def self.strip_unread!(id, status) = received.where(id:).update_all(payload: nil, identity_hash: nil, status:, updated_at: Time.current)
 end

@@ -21,8 +21,8 @@ module Telegram
   # person's replies leave one at a time and in order: a reply that is not
   # stored goes after the person's stored replies still pending, in the same
   # hold of the lock (review finding C2 of pull request #33), unless one of
-  # them waits for its time or their sending breaks, whose error is raised
-  # once the reply has left (the fix review's R1 on pull request #47).
+  # them waits for its time or their sending breaks, which is raised once the
+  # reply has left, as StoredBroke (the fix review's R1 on pull request #47).
   # Nothing here waits:
   # each call tries each part once, so neither the lock nor a worker's thread
   # is held through a wait (review finding C3 of pull request #33).
@@ -123,12 +123,18 @@ module Telegram
       AdvisoryLock.hold(lock(chat)) { drain(visitor, chat) }
     end
 
+    # Raised by send_fixed when the person's stored replies before its reply
+    # broke, its cause the drain's error: the reply was not held back (it
+    # left, or failed with its own line), and the caller says so and tries the
+    # stored ones again (TelegramUpdateJob; the close's C2s of M4-6a).
+    class StoredBroke < StandardError; end
+
     # Sends a reply that is not stored, trying each part once, after the
     # pending replies of the visitor given; answers whether it left. The
     # attempt, when the caller tries it again (the deletion's confirmation,
     # by the turn's job, FR-05), is named in the line of a send that failed.
     # A drain that breaks (the database, or what the client raises as itself)
-    # does not hold the reply back: it leaves, and the drain's error is raised
+    # does not hold the reply back: it leaves, and StoredBroke is raised
     # after it, for the caller's line and its retry of the stored replies
     # (TelegramUpdateJob; the fix review's R1 on pull request #47).
     def send_fixed(chat, text, keyboard: nil, name: :reply, visitor: nil, attempt: nil)
@@ -136,7 +142,7 @@ module Telegram
         stored = visitor && Chat.of(visitor)
         broken = drained(visitor, stored) if stored
         left = send_parts(chat, text, keyboard, name, attempt)
-        raise broken if broken
+        raise StoredBroke, "the person's stored replies broke before a reply that is not stored", cause: broken if broken
 
         left
       end
@@ -151,10 +157,25 @@ module Telegram
     def unreadable(visitor)
       AdvisoryLock.hold("telegram-send:#{visitor.identity_hash}") do
         pending(visitor).each do |message|
-          message.update_columns(status: "failed", next_attempt_at: nil, updated_at: Time.current)
+          finished(message, error: "Telegram::Chat::Unreadable", status: "failed", next_attempt_at: nil)
           Rails.logger.error("telegram reply #{message.id}: failed, the visitor's chat cannot be read")
-          TraceRecorder.delivered(message.turn, error: "Telegram::Chat::Unreadable")
         end
+      end
+    end
+
+    # A reply's new status and the close of its way in its turn's trace, in
+    # one transaction, so a worker stopped between them leaves neither: the
+    # reply still pending, its way still open, for the next drain (the fix
+    # review's sister on pull request #48). The way is read first, outside
+    # any transaction, by the turn's id and inside the trace's own rescue
+    # (TraceRecorder.way; the hunter's H3 on the same review, the verifier's
+    # V3 on pull request #52), and closed in a savepoint, so its failure
+    # never undoes the status (review finding C1 of #52).
+    def finished(message, at: Time.current, error: nil, **columns)
+      way = TraceRecorder.way(message.turn_id)
+      Message.transaction do
+        message.update_columns(**columns, updated_at: at)
+        TraceRecorder.delivered(way, at:, error:)
       end
     end
 
@@ -203,9 +224,8 @@ module Telegram
         return again_or_failed(message, error, visitor, [ message.parts_sent + 1, parts.size ])
       end
       sent_at = Time.current
-      message.update_columns(status: "sent", next_attempt_at: nil, updated_at: sent_at)
+      finished(message, at: sent_at, status: "sent", next_attempt_at: nil)
       latency(message, sent_at)
-      TraceRecorder.delivered(message.turn, at: sent_at)
       true
     rescue StandardError => e
       broke(message, e)
@@ -221,9 +241,8 @@ module Telegram
         raise error
       end
 
-      message.update_columns(status: "failed", send_attempts: attempts, next_attempt_at: nil, updated_at: Time.current)
+      finished(message, error: error.class.name, status: "failed", send_attempts: attempts, next_attempt_at: nil)
       Rails.logger.error("telegram reply #{message.id}: failed after #{attempts} attempts that broke, #{error.class}")
-      TraceRecorder.delivered(message.turn, error: error.class.name)
       true
     end
 
@@ -249,8 +268,7 @@ module Telegram
     def again_or_failed(message, error, visitor, part)
       attempts = message.send_attempts + 1
       if error.refused? || attempts >= ATTEMPTS
-        message.update_columns(status: "failed", send_attempts: attempts, next_attempt_at: nil, updated_at: Time.current)
-        TraceRecorder.delivered(message.turn, error: error.class.name)
+        finished(message, error: error.class.name, status: "failed", send_attempts: attempts, next_attempt_at: nil)
         return !failed("telegram reply #{message.id}", error, attempts, part:)
       end
 
