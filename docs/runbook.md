@@ -320,6 +320,16 @@ the host around the answer.
   `kamal app exec -d ensaio --roles=web --reuse "bin/rails runner 'BudgetState.for_month!.update!(forced_mode: :paused.to_s)'"`;
   releasing: the same with `forced_mode: nil`. A forced mode holds into
   the next month until released.
+- **Economy by hand** (from M2-3; automatic at 70 % of the cap from M3-1):
+  the same line with `forced_mode: :economy.to_s`. The economy model serves
+  only on ADR-0003's gate, the committed `evals/economy_allowed.yml`, which
+  every container reads once, at boot; while it says no, or names another
+  model or effort than the economy route's, a forced economy pauses with
+  the forced pause's text. What a boot of the running image reads:
+  `kamal app exec -d ensaio --roles=web --reuse "bin/rails runner 'p Budget.economy_allowed?'"`.
+  A file the boot could not read as the gate the eval run writes leaves one
+  `budget: <path> ...; the economy model may not serve` warning in each
+  container's log, at boot.
 - **The nightly job** runs at 03:00 São Paulo in the `job` container and
   writes one line, `nightly reset: expired N reservations, reset N
   products; deleted ...`. To run it by hand (it is safe to run again):

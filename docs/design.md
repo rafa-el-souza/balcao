@@ -1482,7 +1482,9 @@ apart. `message.author` ∈ {visitor, bot, operator, system};
 (ADR-0010): 128-bit trace id, 64-bit span id, closed on finish.
 `economy_allowed` is not a column: it is the committed file
 `evals/economy_allowed.yml`, written by the full eval run and read at boot
-(ADR-0003).
+(ADR-0003); it names the model and the effort the run measured, and the app
+takes a gate written for another economy route as not allowed (§10, M2-3's
+note).
 
 ### 6.6 Interfaces
 
