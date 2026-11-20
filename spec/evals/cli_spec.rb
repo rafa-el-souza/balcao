@@ -355,6 +355,23 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
         expect(out.string).to include("the economy model may not serve")
       end
 
+      # The fix review's R2 on pull request #55: the commit was read again when
+      # the economy model's run started, so a commit made while the normal
+      # model ran was named in the gate as the commit the run measured.
+      it "names in the gate the commit the run started from, read once" do
+        heads = [ "aaaaaaa\n", "bbbbbbb\n" ]
+        moving = ->(*args) { args.first == "status" ? "" : (heads.size > 1 ? heads.shift : heads.first) }
+        responses.replace([ reply(hello), *Array.new(3) { reply(decline) }, haiku(hello), *Array.new(3) { haiku(decline) } ])
+
+        cli = Evals::CLI.new(%w[--all --both-models --scorecard --repeat 3], out:, err:, env:, cases_path:, results_dir: dir.join("results"),
+                                                                              scorecard_path: scorecard, economy_gate_path: gate, git: moving,
+                                                                              pause: ->(_) { })
+        expect(cli.run).to eq(0)
+
+        expect(YAML.safe_load_file(gate)).to include("commit" => "aaaaaaa", "economy_allowed" => true)
+        expect(scorecard.read).to include("commit `aaaaaaa`")
+      end
+
       it "writes neither the scorecard nor the gate when a case ended in error on the economy model" do
         responses.replace([ reply(hello), *Array.new(3) { reply(decline) }, haiku(hello), *([ error(:overloaded) ] * 9) ])
 

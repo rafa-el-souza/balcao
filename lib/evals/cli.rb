@@ -171,10 +171,15 @@ module Evals
     def live(cases, selected, scorecard:, repeat:, modes:)
       ActiveRecord::Migration.maintain_test_schema!
       judge = Judge.new(client: AgentRunner.default_client)
+      # The commit the run measured is the one it started from, read once: a
+      # commit made while the normal model ran is not the economy model's
+      # (the fix review's R2 on pull request #55).
+      head = commit
+      dirty = dirty?
       reports = []
       modes.each do |mode|
         route = ModelPolicy.route(mode)
-        report = Report.new(argv: @argv, route:, judge:, started_at: Time.current, commit: commit, dirty: dirty?, repeat:)
+        report = Report.new(argv: @argv, route:, judge:, started_at: Time.current, commit: head, dirty:, repeat:)
         reports << report
         @out.puts("bin/evals: #{selected.size} #{"case".pluralize(selected.size)} on #{route.model} (effort #{route.effort}), " \
                   "judged by #{judge.model}#{", each #{Runner::REPEATED_SUITES.join(", ")} case #{repeat} times" if repeat}")
