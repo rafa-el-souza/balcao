@@ -130,28 +130,40 @@ export function useConversation(challenge: Challenge) {
   // visitor (the page's first, and one asked for because the cookie is gone)
   // waits for a token of Turnstile's widget, or for the check to give none;
   // one that only names the page's language brings none (threat model SR-39).
-  // The server's refusal of the check shows its hint, from any session, until
-  // a session opens (review finding C3 of pull request #53). Asked for while
-  // another that may mint is on its way, it is that one: the polls and a
-  // message that find the cookie gone wait on one challenge (C4).
+  //
+  // Asked for while another that may mint is on its way, it is that one: the
+  // polls and a message that find the cookie gone wait on one challenge
+  // (review finding C4 of pull request #53). Once the server refused the
+  // check, no token means no request, since the server would refuse it again
+  // and the edge would count it against the address's twenty an hour (SR-01;
+  // C2 and the Rails finder's C1 of #53); the refusal shows its hint, from
+  // any session (C3), until a session opens.
   const sessions = useRef<Promise<unknown>>(Promise.resolve());
   const minting = useRef<Promise<Outcome<Session>> | null>(null);
+  const refusedCheck = useRef(false);
   const session = useCallback(
     (locale: Locale, mint = false): Promise<Outcome<Session>> => {
       if (mint && minting.current) return minting.current;
       const next = sessions.current.then(
         async (): Promise<Outcome<Session>> => {
           const token = mint ? await challenge.token() : null;
+          if (mint && token === null && refusedCheck.current) {
+            dispatch({ type: "challenged" });
+            return { kind: "challenge" };
+          }
           const opened = await api.session(locale, token);
-          if (opened.kind === "ok")
+          if (opened.kind === "ok") {
+            refusedCheck.current = false;
             dispatch({
               type: "session",
               conversationId: opened.value.conversation_id,
               mode: opened.value.mode,
               brl: opened.value.brl,
             });
-          else if (opened.kind === "challenge")
+          } else if (opened.kind === "challenge") {
+            refusedCheck.current = true;
             dispatch({ type: "challenged" });
+          }
           return opened;
         },
       );
@@ -197,8 +209,11 @@ export function useConversation(challenge: Challenge) {
           : 0,
       );
       setPollRefused(answer.kind === "limit" ? answer.text : null);
-      // The cookie is gone: a new session, and the polls go on.
-      if (answer.kind === "session") void session(language(), true);
+      // The cookie is gone: a new session, and the polls go on; while the
+      // server stands by its refusal of the check, the visitor's own try
+      // asks (C2 of #53).
+      if (answer.kind === "session" && !refusedCheck.current)
+        void session(language(), true);
     },
     [language, session],
   );
@@ -400,10 +415,12 @@ export function useConversation(challenge: Challenge) {
     [deliver],
   );
 
-  // The language of a conversation not yet answered follows the page's (FR-02).
+  // The language of a conversation not yet answered follows the page's
+  // (FR-02). A page whose check the server refused has no session to tell,
+  // and the request would only count against the address (SR-01).
   const changeLanguage = useCallback(
     (locale: Locale) => {
-      void session(locale);
+      if (!refusedCheck.current) void session(locale);
     },
     [session],
   );

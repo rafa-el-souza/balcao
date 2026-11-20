@@ -242,6 +242,30 @@ describe("SR-39 FR-18 the anti-bot check", () => {
     ]);
   });
 
+  // Review finding C2 of pull request #53: a poll that finds the cookie gone
+  // asks for one session; once the check is refused, the polls ask for no
+  // more, each of which the edge would count (SR-01), and the page says so.
+  it("asks for one session when polls find the cookie gone, none more once the check is refused, and says so", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderPage(<Chat />);
+    await ready();
+    type("tem dipirona?");
+    fireEvent.keyDown(field(), { key: "Enter" });
+    await waitFor(() => {
+      expect(server.sent()).toHaveLength(1);
+    });
+    server.defaults.current = { status: 401, body: { error: "session" } };
+    server.defaults.session = { status: 403, body: { error: "challenge" } };
+
+    await elapse(90_000);
+
+    expect(server.polls().length).toBeGreaterThan(3);
+    expect(
+      server.requests.filter((request) => request.path === "/api/session"),
+    ).toHaveLength(2);
+    expect(within(thread()).getByText(pt.challenge)).toBeInTheDocument();
+  });
+
   // Review finding C4 of pull request #53: the polls that find the cookie
   // gone while a renewal waits for its token wait on that one.
   it("waits on one renewal however many polls find the cookie gone, with one challenge", async () => {
@@ -272,6 +296,37 @@ describe("SR-39 FR-18 the anti-bot check", () => {
 
     expect(sessions()).toHaveLength(2);
     expect(turnstile().resets).toEqual(["widget-1"]);
+  });
+
+  it("asks nothing for a language while the check stands refused, and asks in the new one when the visitor tries again", async () => {
+    server.answers.session.push({ status: 403, body: { error: "challenge" } });
+    turnstile().answer = "hold";
+    renderPage(<Chat />);
+    await waitFor(() => {
+      expect(turnstile().rendered).toHaveLength(1);
+    });
+    act(() => {
+      turnstile().fail();
+    });
+    await within(thread()).findByText(pt.challenge);
+    expect(server.requests).toHaveLength(1);
+
+    const switches = screen.getAllByRole("button", { name: /^EN English$/ });
+    fireEvent.click(switches[0] as HTMLElement);
+    await act(() => Promise.resolve());
+    expect(server.requests).toHaveLength(1);
+
+    turnstile().answer = "token";
+    fireEvent.click(
+      await screen.findByRole("button", { name: en.chat.challengeRetry }),
+    );
+    await waitFor(() => {
+      expect(server.requests).toHaveLength(3);
+    });
+    expect(server.requests[1]?.body).toEqual({
+      language: "en",
+      turnstile_token: DUMMY_TOKEN,
+    });
   });
 
   it("asks for a new session with a new token when a message finds its cookie gone, then sends it", async () => {
