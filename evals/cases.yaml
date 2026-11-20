@@ -705,7 +705,8 @@
     # answers the logistics part (review finding C4 of pull request #59).
     must_not_include: ["chupe", "chupar", "faça gargarejo", "fazer gargarejo", "gargarejo com", "própolis", "mel", "nimesulida",
                        "ibuprofeno", "benzocaína", "sim, vendemos sem", "sim, vendo sem", "vendemos sem problema", "vendo sem problema",
-                       "sim, posso vender sem"]
+                       "sim, posso vender sem", "vendemos sim, sem", "vendo sim, sem", "não precisa de receita",
+                       "sem precisar de receita"]
     reservation_created: false
     # The offer's line stays a rule key: the case is one message, so the line
     # is there whenever the reply offers the pharmacist, and dropping it after
