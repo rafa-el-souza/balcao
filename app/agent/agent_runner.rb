@@ -256,8 +256,10 @@ class AgentRunner
     # around, a no-break space among them, which String#strip leaves: a
     # reply of such spaces alone came back as text, which the stored body
     # refused as blank, so the visitor got the fallback only after the job's
-    # three attempts (review finding V1 of #60's first verifier).
-    def words(block) = block.sub(LANGUAGE_TAG, "").gsub(/\A[[:space:]]+|[[:space:]]+\z/, "")
+    # three attempts (review finding V1 of #60's first verifier). NUL too, as
+    # String#strip took it and the stored body deletes it (the review of #62,
+    # H4).
+    def words(block) = block.sub(LANGUAGE_TAG, "").gsub(/\A[[:space:]\u0000]+|[[:space:]\u0000]+\z/, "")
 
     def tools?(message) = message.content.any? { |block| block.type == :tool_use }
 
