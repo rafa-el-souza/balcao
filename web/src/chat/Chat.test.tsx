@@ -264,6 +264,30 @@ describe("SR-39 FR-18 the anti-bot check", () => {
     ).toBeNull();
   });
 
+  // The fix review of pull request #53 (R1): a message that goes through,
+  // or a conversation the server answers, proves a cookie, this tab's
+  // session's or another tab's: the refusal goes with it.
+  it("drops the refusal once a message goes through on a cookie another tab got", async () => {
+    server.answers.session.push({ status: 403, body: { error: "challenge" } });
+    renderPage(<Chat />);
+    await within(thread()).findByText(pt.challenge);
+
+    type("tem dipirona?");
+    fireEvent.keyDown(field(), { key: "Enter" });
+    await ready();
+
+    await waitFor(() => {
+      expect(within(thread()).queryByText(pt.challenge)).toBeNull();
+    });
+    const switches = screen.getAllByRole("button", { name: /^ES Español$/ });
+    fireEvent.click(switches[0] as HTMLElement);
+    await waitFor(() => {
+      expect(server.requests.map((request) => request.body)).toContainEqual({
+        language: "es",
+      });
+    });
+  });
+
   // Review finding C3 of pull request #53: the hint follows any session
   // the check refused, not only the page's first.
   it("says the check did not pass when a message finds its cookie gone and the check fails, and offers the message again", async () => {

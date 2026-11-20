@@ -308,8 +308,11 @@ export function reduce(state: State, action: Action): State {
           ? { ...state.langs, [action.clientId]: action.lang }
           : state.langs,
       };
+    // An answer of the server to a request with the cookie proves one, this
+    // tab's session's or another tab's: a refusal of the check goes with it
+    // (the fix review of pull request #53, R1).
     case "accepted": {
-      const accepted = update(state, action.clientId, {
+      const accepted = update({ ...state, challenged: null }, action.clientId, {
         status: "sent",
         conversationId: action.conversationId,
         ...(action.turnId ? { turnId: action.turnId } : {}),
@@ -356,7 +359,7 @@ export function reduce(state: State, action: Action): State {
       };
     }
     case "snapshot":
-      return merge(state, action.answer);
+      return { ...merge(state, action.answer), challenged: null };
     case "message":
       return answersHeld(state, action.message)
         ? place(state, [action.message])

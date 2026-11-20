@@ -193,8 +193,12 @@ export function useConversation(challenge: Challenge) {
   const loaded = useRef(false);
   const answered = useCallback(
     (answer: Outcome<Snapshot | Deleted>) => {
-      if (answer.kind === "ok")
+      // The server answered with the cookie: whatever refused the check before,
+      // a session stands now (the fix review of pull request #53, R1).
+      if (answer.kind === "ok") {
+        refusedCheck.current = false;
         dispatch({ type: "snapshot", answer: answer.value });
+      }
       if (!loaded.current) {
         loaded.current = true;
         // The edge's refusal is its limit, with its text (review finding R5).
@@ -342,6 +346,7 @@ export function useConversation(challenge: Challenge) {
       }
       const at = new Date(serverNow()).toISOString();
       if (outcome.kind === "ok") {
+        refusedCheck.current = false;
         // A page whose first session failed, or met the edge's limit, has not
         // asked for its conversation: the message's session lets it, and the
         // conversation's answer sets the conversation the page follows (the
