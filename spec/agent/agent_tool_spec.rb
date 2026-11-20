@@ -36,6 +36,12 @@ RSpec.describe "SR-16 AgentTool, the base of the attendant's tools (design §6.3
     expect(JSON.parse(tool(SpecTools::Echo).call(input))).to eq("echo" => "dipirona", "turn_id" => turn.id)
   end
 
+  # The fix review's R2 on pull request #62: ADR-0003's gate digests how a
+  # result is encoded for the model, by the method the tools answer with.
+  it "answers by the encoding ADR-0003's gate digests" do
+    expect(tool(SpecTools::Echo).call(input)).to eq(AgentTool.encode("echo" => "dipirona", "turn_id" => turn.id))
+  end
+
   it "reports each call with its input, output and time" do
     tool(SpecTools::Echo).call(input)
 

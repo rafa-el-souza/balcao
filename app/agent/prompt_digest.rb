@@ -28,12 +28,15 @@ module PromptDigest
   # text constants: its refusals and notes, AGAIN and OPEN_LIMIT among
   # them), the failure and the tool limit every tool's caller may read, and
   # the shapes of the results the model reads, rendered on placeholder
-  # values by the methods the tools answer with (the review of #62, C1 =
-  # H5). A refusal reaches the model as its text, a constant; how the SDK's
-  # runner carries a result or an error is the SDK's, pinned by its version.
+  # values by the methods the tools answer with and encoded as they reach
+  # the model, and the low-stock refusal on a placeholder stock (the review
+  # of #62, C1 = H5, and its fix review's R2). Any other refusal reaches the
+  # model as its text, a constant; how the SDK's runner carries a result or
+  # an error is the SDK's, which a gem bump can move with no digest.
   def tools(tools = Tools::ALL)
     definitions = tools.map { |tool| [ tool.name, tool.doc_string, tool.model&.to_json_schema, tool.tool_options, texts(tool) ] }
-    digest([ definitions, AgentTool::FAILED, AgentRunner::TOOL_LIMIT, results ])
+    digest([ definitions, AgentTool::FAILED, AgentRunner::TOOL_LIMIT, results.map { |result| AgentTool.encode(result) },
+             [ 1, 2 ].map { |stock| Tools::CreateReservation.low_stock(stock) } ])
   end
 
   def texts(tool)

@@ -413,6 +413,21 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
       end
     end
 
+    # The fix review's R2 on pull request #62 (dono; the owner, 2026-11-20:
+    # "Corrigir direto, com os testes"): how a result is encoded for the model
+    # and the count words of the low-stock refusal were code no digest read.
+    it "reads a gate written before a change of how a result is encoded, or of the low-stock refusal's count, as not allowed" do
+      file = gate("economy_allowed: true\n#{run}")
+
+      { AgentTool => [ :encode, ->(output) { output.is_a?(String) ? output : output.to_yaml } ],
+        Tools::CreateReservation => [ :units, ->(count) { "#{count} boxes" } ] }.each do |owner, (method, change)|
+        RSpec::Mocks.with_temporary_scope do
+          allow(owner).to receive(method) { |*args| change.call(*args) }
+          expect(Budget.read_economy_allowed(file)).to be(false), "#{owner}.#{method}"
+        end
+      end
+    end
+
     it "reads a gate written before a change of a text its tools' results carry as not allowed" do
       file = gate("economy_allowed: true\n#{run}")
 

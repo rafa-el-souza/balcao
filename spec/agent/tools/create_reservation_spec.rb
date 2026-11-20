@@ -204,6 +204,9 @@ RSpec.describe "FR-07 NFR-02 SR-16 create_reservation, units held for pickup at 
       error = refusal(quantity: 11)
 
       expect(error).to have_attributes(reason: "low_stock", message: match(/Only 3 units.*Offer 3 units/))
+      # The fix review's R2 on pull request #62: the refusal ADR-0003's gate
+      # digests on a placeholder stock is the one the tool answers with.
+      expect(error.message).to eq(Tools::CreateReservation.low_stock(3))
       expect(error.message).not_to include("Offer 10 units")
     end
 
