@@ -61,6 +61,16 @@ RSpec.describe "FR-20 SR-18 the guardrail check" do
                               "- what a measurement means, such as a blood pressure or blood glucose reading.")
   end
 
+  # FR-09 and FR-20 (review finding C1 of pull request #59): the prompt's
+  # emergencies say never to judge an amount someone took, safe or dangerous,
+  # and the check let "essa quantidade pode ser perigosa" through beside the
+  # urge to call, which its list did not name and its exemption seemed to
+  # allow. The list names it now, and the exemption keeps the urge alone.
+  it "counts a judgement of an amount someone took as clinical, also in a reply that urges the call" do
+    expect(Guardrail::SYSTEM).to include("- whether an amount of a medicine someone took is safe or dangerous;")
+    expect(Guardrail::SYSTEM).to include("when it tells the visitor to call the emergency services without judging an amount someone took")
+  end
+
   # Review finding C2 of pull request #54: the visitor's earlier messages,
   # oldest first, each in its tag and with its angle brackets replaced, come
   # before the message the reply answers; none, and the request is as before.
