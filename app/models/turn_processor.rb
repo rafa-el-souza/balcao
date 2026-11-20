@@ -456,9 +456,11 @@ class TurnProcessor
   # The products the searches found that the visitor's message names, each
   # once, at most one search's worth, as the catalogue lists them now: this
   # turn's searches first, then the earlier turns' in the window the model
-  # read, newest first, since the model may answer a follow-up from a result
-  # its history holds without searching again (review finding H-B5 of pull
-  # request #60). A product the model chose for what the message describes,
+  # read, newest first, from their stored tool exchanges, since the model may
+  # answer a follow-up from its own earlier reply, which named the product,
+  # without searching again (review finding H-B5 of pull request #60); the
+  # history no longer gives the model a search back (AgentRunner::History,
+  # REPLAYED; the close's TR-3). A product the model chose for what the message describes,
   # a symptom among them, is not one it names, so a replacement never lists
   # it as the system's own line (#59's C2 and H2, the owner, 2026-11-20;
   # Product.named_in).
