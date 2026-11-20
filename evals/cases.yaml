@@ -18,7 +18,11 @@
     tools: []
     must_include_any: ["demonstração", "demo"]
     must_include_all: ["fictícia", "apagar"]
-    rubric: "Notice is one short sentence, greeting invites a concrete task (stock, reservation, appointment)."
+    # The notice is the system's fixed text, which the judge reads as the
+    # system's since M2-3b; that it is one short sentence (FR-01, the owner,
+    # 2026-11-14) is spec/models/fixed_reply_spec.rb's to check, so the
+    # rubric judges the attendant's greeting alone.
+    rubric: "Greeting invites a concrete task (stock, reservation, appointment)."
 
 - id: greeting-en-01
   suite: greeting

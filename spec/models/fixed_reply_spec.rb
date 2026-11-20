@@ -15,8 +15,10 @@ RSpec.describe "NFR-09 FixedReply, the texts the system writes instead of the mo
       end
     end
 
-    # FR-01 asks for a one-line notice and greeting-pt-01 for one short
-    # sentence (the owner's decision of 2026-11-14).
+    # FR-01 asks for a one-line notice, and the owner for one short sentence
+    # (2026-11-14). The notice is the system's fixed text, so this spec checks
+    # it: since M2-3b the eval judge reads it as the system's, and
+    # greeting-pt-01's rubric judges the attendant's greeting alone.
     LOCALES.each_key do |locale|
       it "is one sentence in #{locale}" do
         expect(FixedReply.notice(locale).scan(/[.!?](?:\s|\z)/).size).to eq(1)
