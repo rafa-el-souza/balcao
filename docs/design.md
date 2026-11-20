@@ -2328,63 +2328,6 @@ database's JIT compiler off, which changes no result of the search
     challenge as easily is seen on the demo after the deploy, in a private
     window, since a page with an old cookie needs no token (the runbook's
     smoke).
-- Note 2026-11-19 (M4-6b, the review's fixes; FR-05, FR-09, FR-12, FR-19,
-  NFR-02, NFR-03; `docs/reviews/m4-first-four-review.md`, "To fix in
-  M4-6b"). The thirteen lines the owner gave a slice of their own are
-  fixed, each with its failing example first.
-  - **A person's updates** (#48's C1, C5, H6, C7 and H2; the close's C2
-    and its sister): the pass over the earlier unread updates stops at the
-    first one still unread after its read. A given-up update's line is read
-    while the update is there, the update is stripped, written as it is
-    without decrypting the old body, and then the line goes the way a
-    read's goes: a strip that fails sends nothing, the next give-up sends
-    it once; an update whose body no longer decrypts is given up with no
-    line and stripped, where the sweep took it up every minute until the
-    purge; a drain that breaks before the line is said as "stored replies
-    not sent", and those replies are tried again a minute later.
-  - **The deletion** (#48's C3, H5 and H4): whether an earlier turn is a
-    deletion is read before its processor is built, and an earlier turn
-    that cannot be read holds the turns after it; at the dead letter, a turn
-    an earlier deletion holds keeps no reply, whatever broke its last
-    attempt. The owner's answer to H4 (no fallback line for a delete
-    command; the "try again" of one never read stays) is built by the
-    deletion stripping, with the data, the update that asked for it, rather
-    than by a rule on the given-up line: a delete command that became a turn
-    is never read again after its deletion, so it is neither answered
-    "deleted" again as a person the bot holds no row of, nor given up after
-    "deleted"; one none of whose reads got through keeps its "try again",
-    the person's data being still there. A person with no row whose delete
-    command's three reads broke gets that "try again" too, which is true.
-  - **The reply after its commit** (#48's C6 and H8): the stream's payload
-    is read inside the broadcast's rescue, and a turn whose reply is stored
-    is never marked failed by what breaks after the commit.
-  - **The trace** (#48's H3, H9 and the fix review's two sisters): a
-    Telegram reply's new status and the close of its way are one
-    transaction. The way (the turn's conversation and its open delivery
-    spans) is read first, by the turn's id and outside any transaction, so
-    that a statement a deploy's migration made stale is prepared again,
-    which Active Record does only outside one (#52's V3), and it is closed
-    in a savepoint of its own, so a statement the database breaks there
-    aborts the savepoint alone and the status commits (#52's C1, the
-    hunter's H1). A span an interrupted run left open that cannot be closed
-    is a line, and the turn runs.
-  - **V5's case does not occur:** #48's verifier read a message body that
-    does not decrypt as raising in the command match, so its turn was never
-    counted nor given up. `Message` keeps `support_unencrypted_data`, so
-    such a body is read as its stored envelope, which is no command: the
-    turn is counted and given up at its fourth run (a spec keeps the case).
-    The run is now counted before the message is read all the same. The
-    envelope would reach the model as the visitor's words, which only keys
-    changed in place could cause, and the keys never rotate in place
-    (`bin/secrets-example`).
-  - **The bare "sim, pode"** (the close's C1) is anchored on its verb in
-    the three boundary cases that had it, so "e sim, pode reservar" passes,
-    and in the verb's other forms, the pronoun attached ("Sim, pode
-    tomá-la") and the passive ("Sim, pode ser tomada"), which the infinitive
-    alone missed (#52's C2); the yes with no verb after it, "Sim, pode: os
-    dois tratam a pressão", is left to boundary-pt-05's rubric. None of the
-    319 stored final replies of the cases with a list fails either list,
-    main's or the new one.
 - Note 2026-11-20 (M2-2, FR-20's guardrail; FR-09, FR-10, FR-12, FR-14,
   NFR-01, NFR-02; threat model SR-18, SR-21, R4). Every reply the model
   writes now passes the check before it is sent, as FR-20 says, with these
@@ -2493,6 +2436,63 @@ database's JIT compiler off, which changes no result of the search
   - **For M3-4.** SR-20's hard edge now bounds a turn whose check runs
     after the model's sixty seconds: the check's own bound is about 11 s
     (two attempts of 5 s and at most a second between them).
+- Note 2026-11-19 (M4-6b, the review's fixes; FR-05, FR-09, FR-12, FR-19,
+  NFR-02, NFR-03; `docs/reviews/m4-first-four-review.md`, "To fix in
+  M4-6b"). The thirteen lines the owner gave a slice of their own are
+  fixed, each with its failing example first.
+  - **A person's updates** (#48's C1, C5, H6, C7 and H2; the close's C2
+    and its sister): the pass over the earlier unread updates stops at the
+    first one still unread after its read. A given-up update's line is read
+    while the update is there, the update is stripped, written as it is
+    without decrypting the old body, and then the line goes the way a
+    read's goes: a strip that fails sends nothing, the next give-up sends
+    it once; an update whose body no longer decrypts is given up with no
+    line and stripped, where the sweep took it up every minute until the
+    purge; a drain that breaks before the line is said as "stored replies
+    not sent", and those replies are tried again a minute later.
+  - **The deletion** (#48's C3, H5 and H4): whether an earlier turn is a
+    deletion is read before its processor is built, and an earlier turn
+    that cannot be read holds the turns after it; at the dead letter, a turn
+    an earlier deletion holds keeps no reply, whatever broke its last
+    attempt. The owner's answer to H4 (no fallback line for a delete
+    command; the "try again" of one never read stays) is built by the
+    deletion stripping, with the data, the update that asked for it, rather
+    than by a rule on the given-up line: a delete command that became a turn
+    is never read again after its deletion, so it is neither answered
+    "deleted" again as a person the bot holds no row of, nor given up after
+    "deleted"; one none of whose reads got through keeps its "try again",
+    the person's data being still there. A person with no row whose delete
+    command's three reads broke gets that "try again" too, which is true.
+  - **The reply after its commit** (#48's C6 and H8): the stream's payload
+    is read inside the broadcast's rescue, and a turn whose reply is stored
+    is never marked failed by what breaks after the commit.
+  - **The trace** (#48's H3, H9 and the fix review's two sisters): a
+    Telegram reply's new status and the close of its way are one
+    transaction. The way (the turn's conversation and its open delivery
+    spans) is read first, by the turn's id and outside any transaction, so
+    that a statement a deploy's migration made stale is prepared again,
+    which Active Record does only outside one (#52's V3), and it is closed
+    in a savepoint of its own, so a statement the database breaks there
+    aborts the savepoint alone and the status commits (#52's C1, the
+    hunter's H1). A span an interrupted run left open that cannot be closed
+    is a line, and the turn runs.
+  - **V5's case does not occur:** #48's verifier read a message body that
+    does not decrypt as raising in the command match, so its turn was never
+    counted nor given up. `Message` keeps `support_unencrypted_data`, so
+    such a body is read as its stored envelope, which is no command: the
+    turn is counted and given up at its fourth run (a spec keeps the case).
+    The run is now counted before the message is read all the same. The
+    envelope would reach the model as the visitor's words, which only keys
+    changed in place could cause, and the keys never rotate in place
+    (`bin/secrets-example`).
+  - **The bare "sim, pode"** (the close's C1) is anchored on its verb in
+    the three boundary cases that had it, so "e sim, pode reservar" passes,
+    and in the verb's other forms, the pronoun attached ("Sim, pode
+    tomá-la") and the passive ("Sim, pode ser tomada"), which the infinitive
+    alone missed (#52's C2); the yes with no verb after it, "Sim, pode: os
+    dois tratam a pressão", is left to boundary-pt-05's rubric. None of the
+    319 stored final replies of the cases with a list fails either list,
+    main's or the new one.
 - Note 2026-11-19 (M4-6a, the review of M4's first four slices; NFR-01,
   FR-09; ADR-0019; `docs/reviews/m4-first-four-review.md`).
   - **The second real conversation** took place on 2026-11-19 between
