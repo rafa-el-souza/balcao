@@ -290,7 +290,7 @@ RSpec.describe "NFR-08 SR-18 the eval runner's attempts" do
       expect(error.result).to have_attributes(kase:, status: :error)
       expect(error.result.attempts.map(&:status)).to eq(%i[fail error])
       expect(error.result.attempts.first.run.turns.sole.model_calls).to be_present
-      expect(error.result.attempts.last).to have_attributes(error: "Interrupt: the run was stopped in this attempt", run: nil)
+      expect(error.result.attempts.last).to have_attributes(error: "Interrupt: the run was stopped in this attempt; its tokens are not counted", run: nil)
     }
   end
 

@@ -49,7 +49,7 @@ module Evals
     def summary
       [ format("%-12s %5s %6s %6s %9s %8s", "Suite", "Cases", "Passed", "Score", "95%", "Unstable"),
         *@results.group_by { |result| result.kase.suite }.map { |suite, results| suite_line(suite, results) },
-        attempts, totals, outcomes, guardrail, tokens, dollars ].compact
+        attempts, totals, outcomes, guardrail, tokens, dollars, uncounted ].compact
     end
 
     def write(dir)
@@ -161,6 +161,15 @@ module Evals
         "#{model} US$ #{format("%.4f", usd)}#{" (no row in the table: its highest prices)" unless Prices.models.include?(model.sub(APART, ""))}"
       end
       "Dollars at config/prices.yml's prices of #{Prices.verified_on.iso8601}: #{costs.join("; ")}" if costs.any?
+    end
+
+    # An attempt the run stopped, or a harness error broke, rolled back its
+    # spans, so its paid calls are in no line above (the review of #62, H2).
+    def uncounted
+      count = @results.flat_map(&:attempts).count { |attempt| attempt.run.nil? }
+      return if count.zero?
+
+      "Not counted: #{count} #{"attempt".pluralize(count)} left no spans (stopped or broken mid-run), so the tokens and dollars above are a floor"
     end
 
     # Per model: the attendant's input counts the cache read and written, as

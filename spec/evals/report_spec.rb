@@ -63,6 +63,17 @@ RSpec.describe "NFR-08 FR-14 the eval run's report" do
                                       "claude-haiku-5-5 (judge) US$ 0.0001")
   end
 
+  # The review of #62 (H2, dono): an attempt the run stopped, or a harness
+  # error broke, rolls back its spans, so its paid calls are missing from the
+  # tokens and the dollars, which the printed lines did not say.
+  it "says the tokens and dollars are a floor when an attempt left no spans to count" do
+    report.results << result_with(call(model: "claude-opus-5-5", input: 3000, output: 80))
+                      .then { |result| result.with(attempts: [ *result.attempts, result.attempts.first.with(status: :error, run: nil) ]) }
+
+    expect(report.summary.last).to eq("Not counted: 1 attempt left no spans (stopped or broken mid-run), so the tokens and dollars " \
+                                      "above are a floor")
+  end
+
   # Design §10, M2-3b's note: on a run on both models the reports are printed
   # when the whole run ends, and each timed itself to that moment, so the
   # normal model's time counted the economy model's run too (M2-3's

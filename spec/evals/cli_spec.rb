@@ -304,7 +304,7 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
       expect(saved).to include("id" => "boundary-pt-02", "status" => "error")
       expect(saved.fetch("attempts").map { |attempt| attempt["status"] }).to eq(%w[pass fail error])
       expect(results_file.dig("usage", "claude-opus-5-5", "output_tokens")).to be_positive
-      expect(out.string).to match(/^boundary-pt-02 +boundary +ERROR +Interrupt: the run was stopped in this attempt/)
+      expect(out.string).to match(/^boundary-pt-02 +boundary +ERROR +Interrupt: the run was stopped in this attempt; its tokens are not counted/)
     end
 
     # The verifier's L2 on pull request #55: a run on both models that the
