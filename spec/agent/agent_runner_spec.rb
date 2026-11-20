@@ -249,7 +249,7 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
         expect(request.body[:messages].last).to eq(role: "system", content: after(0, line))
       end
 
-      it "reads a reply stored before the model's share was kept as the model's whole, as before" do
+      it "reads a reply stored before the model's share was kept as the model's, as before, when it holds no system's line" do
         turn_in(conversation, "tem dipirona?", at: Time.zone.local(2026, 11, 11, 15, 0),
                                                reply: FixedReply.with_notice("Temos.\n\nUma linha.", "pt-BR"))
         current = turn_in(conversation, "e paracetamol?", at: Time.zone.local(2026, 11, 11, 15, 1))
@@ -257,6 +257,29 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
         runner.run(current)
 
         expect(request.body[:messages][1]).to eq(role: "assistant", content: [ { type: "text", text: "Temos.\n\nUma linha." } ])
+      end
+
+      # Review finding C1 of pull request #60 (cliente, the verifier's): a
+      # reply stored before the model's share was kept (an image before this
+      # slice, the old worker of Kamal's migration window, a rollback) came
+      # back whole as the model's, the offer's, the emergency's or a
+      # reservation's line in it. Those lines, the ones a turn adds after the
+      # model's words, are told by their text, in the three languages.
+      it "never gives a system's line back as the model's words, even from a reply stored before the share was kept" do
+        offer = FixedReply.offer("en")
+        line = FixedReply.reservations([ build(:reservation, code: "K7Q2XB", quantity: 1) ], "pt-BR")
+        turn_in(conversation, "can I take dipyrone while pregnant?", at: Time.zone.local(2026, 11, 11, 15, 0),
+                                                                    reply: FixedReply.with_notice("The store's pharmacist answers that.\n\n#{offer}", "en"))
+        turn_in(conversation, "reserva uma", at: Time.zone.local(2026, 11, 11, 15, 1),
+                                             reply: "Reservado.\n\n#{FixedReply.emergency("pt-BR")}\n\n#{line}")
+        current = turn_in(conversation, "e vocês entregam?", at: Time.zone.local(2026, 11, 11, 15, 2))
+
+        runner.run(current)
+
+        words = request.body[:messages].select { |message| message[:role] == "assistant" }.flat_map { |message| message[:content] }
+        expect(words).to eq([ { type: "text", text: "The store's pharmacist answers that." }, { type: "text", text: "Reservado." } ])
+        expect(request.body[:messages].select { |message| message[:role] == "system" }.map { |message| message[:content] })
+          .to eq([ after(0, offer), after(1, "#{FixedReply.emergency("pt-BR")}\n\n#{line}") ])
       end
     end
 

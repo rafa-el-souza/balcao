@@ -116,7 +116,7 @@ class Message < ApplicationRecord
 
   def authored(first_reply: first_reply?)
     text = body_without_notice(first_reply:)
-    return Authored.new(attendant: text, system: nil) if attendant_characters.nil?
+    return legacy_authored(text) if attendant_characters.nil?
 
     Authored.new(attendant: text[0, attendant_characters].presence,
                  system: text[attendant_characters..].to_s.delete_prefix("\n\n").presence)
@@ -137,6 +137,21 @@ class Message < ApplicationRecord
   end
 
   private
+
+  # A reply stored before the model's share was kept: an image before M2-11a,
+  # the old worker of Kamal's migration window, a rollback. The paragraphs a
+  # turn adds after the model's words, the offer of the pharmacist, the
+  # emergency line and a reservation's lines, are told by their text
+  # (FixedReply.added_line?) and are the system's; the rest reads as the
+  # model's, as the history read it then (review finding C1 of pull request
+  # #60: the history gave those lines back as the model's own words while
+  # the prompt says it never writes them).
+  def legacy_authored(text)
+    paragraphs = text.split("\n\n")
+    added = []
+    added.unshift(paragraphs.pop) while paragraphs.any? && FixedReply.added_line?(paragraphs.last)
+    Authored.new(attendant: paragraphs.join("\n\n").presence, system: added.join("\n\n").presence)
+  end
 
   def notice_and_text
     notice, text = body.split("\n\n", 2)
