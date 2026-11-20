@@ -33,7 +33,7 @@ module Evals
 
     def initialize(argv, out: $stdout, err: $stderr, env: ENV, cases_path: CaseSet::PATH,
                    results_dir: Rails.root.join("evals/results"), scorecard_path: Scorecard::PATH,
-                   economy_gate_path: EconomyGate::PATH, pause: ->(seconds) { sleep(seconds) })
+                   economy_gate_path: EconomyGate::PATH, git: nil, pause: ->(seconds) { sleep(seconds) })
       @argv = argv
       @out = out
       @err = err
@@ -42,6 +42,7 @@ module Evals
       @results_dir = Pathname(results_dir)
       @scorecard_path = Pathname(scorecard_path)
       @economy_gate_path = Pathname(economy_gate_path)
+      @git = git || ->(*args) { IO.popen([ "git", *args ], chdir: Rails.root, err: File::NULL, &:read).to_s }
       @pause = pause
     end
 
@@ -53,6 +54,12 @@ module Evals
       selected = select(cases, options)
       repeated!(selected, options[:repeat])
       return list(selected, options[:repeat]) if options[:list]
+      # The gate speaks for a commit, so the run that writes it reads one
+      # (review finding C2 of pull request #55).
+      if options[:both] && options[:scorecard] && dirty?
+        raise Usage, "--both-models --scorecard writes the economy model's gate, which speaks for a commit, and the tree has " \
+                     "uncommitted changes (git status lists them): commit or stash them first"
+      end
       raise Usage, "ANTHROPIC_API_KEY is blank: a live run needs the dev/eval key in the environment" if @env["ANTHROPIC_API_KEY"].to_s.strip.empty?
 
       live(cases, selected, scorecard: options[:scorecard], repeat: options[:repeat], modes: options[:modes])
@@ -301,7 +308,7 @@ module Evals
                                                           .reject { |line| line.end_with?(" evals/scorecard.md", " evals/economy_allowed.yml") }.any?
     end
 
-    def git(*args) = IO.popen([ "git", *args ], chdir: Rails.root, err: File::NULL, &:read).to_s
+    def git(*args) = @git.call(*args)
   end
 end
 

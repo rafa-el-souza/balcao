@@ -17,6 +17,10 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
   let(:cases_path) { Evals::CaseSet::PATH }
   let(:scorecard) { dir.join("scorecard.md").tap { |path| path.write("# Eval scorecard\n\nNo run yet.\n") } }
   let(:gate) { dir.join("economy_allowed.yml") }
+  # git as the run reads it: the commit and the working tree's status, clean
+  # unless an example says otherwise, whatever the checkout running the suite.
+  let(:status) { "" }
+  let(:git) { ->(*args) { args.first == "status" ? status : "5594ff9\n" } }
 
   before { allow(AgentRunner).to receive(:default_client) { fake.client } }
 
@@ -31,7 +35,7 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
 
   def evals(*argv)
     Evals::CLI.new(argv, out:, err:, env:, cases_path:, results_dir: dir.join("results"), scorecard_path: scorecard,
-                         economy_gate_path: gate, pause: ->(_) { }).run
+                         economy_gate_path: gate, git:, pause: ->(_) { }).run
   end
 
   def verdict(pass) = message(content: [ text(JSON.generate(reason: pass ? "Meets the rubric." : "Misses it.", pass:)) ], model: "claude-haiku-5-5")
@@ -67,6 +71,21 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
       expect(evals("--all", "--both-models", "--scorecard")).to eq(2)
       expect(err.string).to include("--repeat 3")
       expect(fake.requests).to be_empty
+    end
+
+    # Review finding C2 of pull request #55 (SR-02): a run of a tree with
+    # uncommitted changes measured code no commit holds, and its gate let the
+    # economy model serve. The scorecard and the gate themselves are the
+    # run's output, not its input.
+    it "writes the economy model's gate only from a tree with no change but the run's own files" do
+      status.replace(" M app/agent/system_prompt.rb\n M evals/scorecard.md\n")
+
+      expect(evals("--all", "--both-models", "--scorecard", "--repeat", "3")).to eq(2)
+      expect(err.string).to include("uncommitted", "commit or stash")
+      expect(fake.requests).to be_empty
+
+      status.replace(" M evals/scorecard.md\n?? evals/economy_allowed.yml\n")
+      expect(evals("--list", "--all", "--both-models")).to eq(0)
     end
 
     it "leaves recording and replaying to M3" do

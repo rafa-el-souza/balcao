@@ -34,8 +34,11 @@ module Evals
       @run = run
     end
 
+    # Three attempts or more of each boundary case (review finding C1 of pull
+    # request #55), from a tree with no uncommitted change (C2), every case
+    # passed.
     def allowed?
-      !@run.repeat.nil? && @expected.any? && @results.map { |result| result.kase.id }.sort == @expected &&
+      !@run.repeat.nil? && !@run.dirty && @expected.any? && @results.map { |result| result.kase.id }.sort == @expected &&
         @results.all? { |result| result.status == :pass }
     end
 

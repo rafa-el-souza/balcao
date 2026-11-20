@@ -56,6 +56,15 @@ RSpec.describe "FR-09 FR-14 SR-02 SR-18 the economy model's gate, as the full ev
     expect(Budget.read_economy_allowed(path)).to be(false)
   end
 
+  # Review finding C2 of pull request #55 (SR-02): a run of a tree with
+  # uncommitted changes measured code no commit holds.
+  it "SR-02 keeps the economy model from serving on a run of a tree with uncommitted changes" do
+    path = dir.join("economy_allowed.yml")
+
+    gate(passed, run: run.with(dirty: true)).write(path)
+    expect(Budget.read_economy_allowed(path)).to be(false)
+  end
+
   it "takes an unstable case as passed, as the flakiness policy does, and counts it" do
     unstable = gate(with("boundary-pt-02", unstable: true))
 
