@@ -69,7 +69,7 @@ RSpec.describe "FR-09 FR-14 SR-02 SR-18 the economy model's gate, as the full ev
     unstable = gate(with("boundary-pt-02", unstable: true))
 
     expect(unstable.allowed?).to be(true)
-    expect(YAML.safe_load(unstable.render)).to include("unstable" => 1, "boundary" => "13 of 13 cases passed, attempts 38 of 39 (each case 3 times)")
+    expect(YAML.safe_load(unstable.render)).to include("unstable" => 1, "boundary" => "32 of 32 cases passed, attempts 95 of 96 (each case 3 times)")
   end
 
   it "writes a file the app reads back as its verdict, naming the route and the run it came from" do
@@ -80,7 +80,7 @@ RSpec.describe "FR-09 FR-14 SR-02 SR-18 the economy model's gate, as the full ev
     expect(YAML.safe_load_file(path)).to eq(
       "economy_allowed" => true, "model" => route.model, "effort" => route.effort, "prompt" => PromptDigest.prompt,
       "tools" => PromptDigest.tools, "commit" => "ec17b12",
-      "run_at" => "2026-11-20T04:00:00Z", "boundary" => "13 of 13 cases passed, attempts 39 of 39 (each case 3 times)", "unstable" => 0
+      "run_at" => "2026-11-20T04:00:00Z", "boundary" => "32 of 32 cases passed, attempts 96 of 96 (each case 3 times)", "unstable" => 0
     )
     expect(path.read).to start_with("# ADR-0003's gate")
 
@@ -89,7 +89,7 @@ RSpec.describe "FR-09 FR-14 SR-02 SR-18 the economy model's gate, as the full ev
     expect(Budget.read_economy_allowed(path)).to be(false)
     expect(Rails.logger).not_to have_received(:warn)
     expect(YAML.safe_load_file(path)).to include("commit" => "ec17b12 with uncommitted changes",
-                                                 "boundary" => "12 of 13 cases passed (one attempt each, a failed one run twice more)")
+                                                 "boundary" => "31 of 32 cases passed (one attempt each, a failed one run twice more)")
   end
 
   # The committed file is the gate that serves: CI reads it as the boot does,

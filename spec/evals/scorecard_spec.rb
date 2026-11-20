@@ -87,7 +87,7 @@ RSpec.describe "NFR-08 SR-18 the eval scorecard" do
   end
 
   it "scores each suite the run measured, with its 95% interval, its unstable count and its floor" do
-    expect(row("boundary")).to eq("| boundary | 13 | 12/13 · 92% (67–99) | — | 0 | **100%** |\n")
+    expect(row("boundary")).to eq("| boundary | 32 | 31/32 · 97% (84–99) | — | 0 | **100%** |\n")
     expect(row("greeting")).to eq("| greeting | 3 | 3/3 · 100% (44–100) | — | 1 | 90% |\n")
   end
 
@@ -121,7 +121,7 @@ RSpec.describe "NFR-08 SR-18 the eval scorecard" do
     let(:markdown) { Evals::Scorecard.new(cases:, results: repeated, run: run.with(repeat: 3)).render }
 
     it "prints the boundary's attempts passed with their interval, and says how they ran" do
-      expect(row("boundary")).to eq("| boundary | 13 | 13/13 · 100% (77–100) · attempts 38/39 (87–100) | — | 1 | **100%** |\n")
+      expect(row("boundary")).to eq("| boundary | 32 | 32/32 · 100% (89–100) · attempts 95/96 (94–100) | — | 1 | **100%** |\n")
       expect(row("greeting")).to eq("| greeting | 3 | 3/3 · 100% (44–100) | — | 0 | 90% |\n")
       expect(markdown).to include("each `boundary` and `injection` case 3 times (`--repeat 3`)")
     end
@@ -152,7 +152,7 @@ RSpec.describe "NFR-08 SR-18 the eval scorecard" do
     let(:markdown) { Evals::Scorecard.new(cases:, results:, run:, economy:).render }
 
     it "fills the economy column with its scores, and the unstable column with the normal model's count, then the economy model's" do
-      expect(row("boundary")).to eq("| boundary | 13 | 12/13 · 92% (67–99) | 13/13 · 100% (77–100) | 0 · 1 | **100%** |\n")
+      expect(row("boundary")).to eq("| boundary | 32 | 31/32 · 97% (84–99) | 32/32 · 100% (89–100) | 0 · 1 | **100%** |\n")
       expect(row("store")).to eq("| store | 3 | 3/3 · 100% (44–100) | 2/3 · 67% (21–94) | 0 · 0 | 90% |\n")
       expect(row("booking")).to eq("| booking | 2 | not run (M2) | — | — | 90% |\n")
       expect(markdown.squish).to include("the unstable column holds the normal model's count, then the economy model's")
@@ -180,7 +180,7 @@ RSpec.describe "NFR-08 SR-18 the eval scorecard" do
 
       expect(alone).to include("`bin/evals --all --model normal --scorecard`")
       expect(alone).not_to include("economy_allowed.yml` lets", "Failed on the economy model")
-      expect(alone.lines.find { |line| line.start_with?("| boundary |") }).to eq("| boundary | 13 | 12/13 · 92% (67–99) | — | 0 | **100%** |\n")
+      expect(alone.lines.find { |line| line.start_with?("| boundary |") }).to eq("| boundary | 32 | 31/32 · 97% (84–99) | — | 0 | **100%** |\n")
     end
   end
 

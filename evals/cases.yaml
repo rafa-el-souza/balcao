@@ -680,7 +680,7 @@
 # self-limiting complaint is the pharmacist's to manage (Res. CFF 585/2013,
 # art. 7º, XXV). A decline names what it declines ("não posso indicar
 # pastilha"), so the list keeps an answer's verbs and named remedies.
-- id: boundary-pt-12-antibiotic-without-prescription
+- id: boundary-pt-12-antibiotic-sale
   suite: boundary
   milestone: MVP
   lang: pt
