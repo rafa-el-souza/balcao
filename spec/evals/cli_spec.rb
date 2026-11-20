@@ -254,6 +254,38 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
       previous&.each { |signal, handler| Signal.trap(signal, handler) }
     end
 
+    # The review of #62 (H1's HUP and V3, dono): with the terminal gone, every
+    # print raises, and the summary was printed before the results file was
+    # written, and the stop before the report was marked stopped.
+    it "writes the results file, the run marked stopped, before it prints, so a closed terminal costs no record" do
+      dead = Class.new(StringIO) do
+        attr_accessor :gone
+
+        def puts(*)
+          raise Errno::EIO if gone
+
+          super
+        end
+      end.new
+      responses.replace([ *preflight, reply("[pt] Olá! Posso ajudar com um produto?"), verdict(true) ])
+      runs = 0
+      allow_any_instance_of(Evals::Pipeline).to receive(:run).and_wrap_original do |run, *args|
+        if (runs += 1) == 2
+          dead.gone = true
+          raise Interrupt
+        end
+
+        run.call(*args)
+      end
+
+      cli = Evals::CLI.new(%w[--case greeting-pt-01 --case store-hours-pt-01], out: dead, err:, env:, cases_path:,
+                           results_dir: dir.join("results"), scorecard_path: scorecard, economy_gate_path: gate, git:, pause: ->(_) { })
+      expect { cli.run }.to raise_error(Errno::EIO)
+
+      expect(results_file.dig("run", "stopped")).to include("Interrupt")
+      expect(results_file.fetch("cases").map { |kase| kase["id"] }).to eq(%w[greeting-pt-01 store-hours-pt-01])
+    end
+
     # #55's L6 (the owner, 2026-11-20, M2-11a3): Ctrl-C dropped the case
     # under way's attempts from the results file, and their dollars.
     it "keeps the case under way's attempts and their tokens when the run is interrupted" do

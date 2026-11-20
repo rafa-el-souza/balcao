@@ -241,13 +241,15 @@ module Evals
     end
 
     # The case under way when the run stopped, with its attempts (review
-    # finding C3 of pull request #20), Ctrl-C's too (#55's L6).
+    # finding C3 of pull request #20), Ctrl-C's too (#55's L6). The report is
+    # marked stopped before anything is printed: with the terminal gone a
+    # print raises, and the record must still say the run stopped (the
+    # review of #62, V3).
     def stopped(report, error)
-      if (error.is_a?(Runner::Fatal) || error.is_a?(Runner::Interrupted)) && error.result
-        report.results << error.result
-        @out.puts(outcome(error.result))
-      end
+      kept = error.result if (error.is_a?(Runner::Fatal) || error.is_a?(Runner::Interrupted)) && error.result
+      report.results << kept if kept
       report.stopped = "#{error.class}: #{error.message}"
+      @out.puts(outcome(kept)) if kept
       @err.puts("bin/evals: the run stopped: #{report.stopped}")
     end
 
