@@ -254,6 +254,20 @@ RSpec.describe "FR-20 SR-18 the guardrail in a turn (FR-09, FR-12, FR-14, NFR-02
       expect(UsageRecord.where(turn_id: turn.id).pluck(:model)).to eq(%w[claude-opus-5-5])
     end
 
+    # Review finding V3 of pull request #54: the provider bills an attempt
+    # the client stopped waiting for.
+    it "charges an attempt of the check that timed out, at its input and its output cap" do
+      verdicts.replace([ error(:timeout), GuardrailVerdicts.verdict(false) ])
+      turn = inbound("tem dipirona?")
+
+      perform(turn)
+
+      records = UsageRecord.where(turn_id: turn.id).order(:created_at)
+      expect(records.map { |record| [ record.model, record.output_tokens ] })
+        .to eq([ [ "claude-opus-5-5", 80 ], [ "claude-haiku-5-5", Guardrail::MAX_TOKENS ], [ "claude-haiku-5-5", 38 ] ])
+      expect(turn.outbound_message.body).to end_with("Temos Dipirona 500 mg por R$ 7,90, em estoque.")
+    end
+
     it "charges an answer that came without a verdict" do
       allow(Rails.logger).to receive(:error)
       verdicts.replace([ GuardrailVerdicts.verdict(true, "cut", stop_reason: :max_tokens) ])

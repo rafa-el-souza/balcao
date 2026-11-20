@@ -85,11 +85,14 @@ class Guardrail
   def check(message:, reply:)
     yield Started.new(model: @route.model, effort: @route.effort) if block_given?
     started = @clock.call
+    content = "<visitor_message>\n#{data(message)}\n</visitor_message>\n\n<reply>\n#{data(reply)}\n</reply>"
+    watch = Watch.new(0)
     verdict = begin
-      verdict_of(request(message, reply), started)
+      verdict_of(request(content, watch), started)
     rescue StandardError => e
       no_verdict(e.class.name, started)
     end
+    verdict = verdict.with(usage: abandoned(content, watch.timed_out) + verdict.usage) if watch.timed_out.positive?
     yield verdict if block_given?
     ActiveSupport::Notifications.instrument(EVENT, verdict:)
     verdict
@@ -97,30 +100,45 @@ class Guardrail
 
   private
 
-  def request(message, reply)
+  def request(content, watch)
     @client.messages.create(
-      model: @route.model, max_tokens: MAX_TOKENS, system_: SYSTEM,
-      messages: [ { role: "user", content: "<visitor_message>\n#{data(message)}\n</visitor_message>\n\n<reply>\n#{data(reply)}\n</reply>" } ],
+      model: @route.model, max_tokens: MAX_TOKENS, system_: SYSTEM, messages: [ { role: "user", content: } ],
       output_config: { effort: @route.effort, format: Output }, **thinking,
-      request_options: { timeout: TIMEOUT, max_retries: MAX_RETRIES, middleware: [ WATCH ] }
+      request_options: { timeout: TIMEOUT, max_retries: MAX_RETRIES, middleware: [ watch ] }
     )
   end
 
-  # Around every attempt of the check: the SDK waits as long as a failed
+  # Around every attempt of the check. The SDK waits as long as a failed
   # attempt's retry-after asks before it retries, however long, holding the
-  # turn, the conversation's lock and the typing status; a wait past
+  # turn, the conversation's lock and the typing status: a wait past
   # MAX_WAIT is not made, and the SDK raises the attempt's error at once
-  # (review finding C1 of pull request #54; RetryAfter).
-  Watch = Class.new do
+  # (review finding C1 of pull request #54; RetryAfter). And it counts the
+  # attempts that timed out, which the provider bills though no answer came
+  # (review finding V3 of pull request #54).
+  Watch = Struct.new(:timed_out) do
     def call(request, nxt)
       response = nxt.call(request)
       return response if response.status < 300
 
       wait = RetryAfter.seconds(response.headers)
       wait && wait > MAX_WAIT ? RetryAfter.refused(response) : response
+    rescue Anthropic::Errors::APITimeoutError
+      self.timed_out += 1
+      raise
     end
   end
-  WATCH = Watch.new.freeze
+
+  # An attempt the client stopped waiting for is billed whole (design §10,
+  # M4-2's note on question 20), so it is charged at its input, counted high
+  # from the request's characters (about a third of a token's worth each),
+  # and at its output cap: the ledger errs on the side of the month's cap.
+  def abandoned(content, count)
+    input = ((SYSTEM.length + content.length) / 3.0).ceil
+    Array.new(count) do
+      AgentRunner::Usage.new(model: @route.model, input_tokens: input, output_tokens: MAX_TOKENS, cache_creation_tokens: 0,
+                             cached_tokens: 0)
+    end
+  end
 
   # A text's angle brackets, as single guillemets, so that neither text can
   # close the check's tags and open a reply of its own (threat model SR-21:

@@ -165,6 +165,28 @@ RSpec.describe "FR-20 SR-18 the guardrail check" do
       expect(result).to have_attributes(clinical: nil, error: "Anthropic::Errors::APITimeoutError")
     end
 
+    # Review finding V3 of pull request #54: the provider bills a call the
+    # client stopped waiting for whole (design §10, M4-2's note on question
+    # 20), so an attempt that timed out is charged at its input, counted
+    # high from the request's characters, and at its output cap.
+    it "keeps an attempt that timed out as a usage at its input and its output cap" do
+      fake = FakeModel.new([ error(:timeout), verdict(false, "ok") ])
+      result = Guardrail.new(client: fake.client).check(message: question, reply: answer)
+
+      abandoned, answered = result.usage
+      characters = fake.requests.first.body.then { |body| Array(body[:system]).sum { |block| block.is_a?(Hash) ? block[:text].length : block.length } + body.dig(:messages, 0, :content).length }
+      expect(abandoned).to have_attributes(model: "claude-haiku-5-5", output_tokens: Guardrail::MAX_TOKENS, input_tokens: (characters / 3.0).ceil,
+                                           cache_creation_tokens: 0, cached_tokens: 0)
+      expect(answered).to have_attributes(input_tokens: 640, output_tokens: 38)
+      expect(result).to have_attributes(clinical: false, error: nil)
+    end
+
+    it "keeps both attempts that timed out, for a check with no verdict" do
+      result = Guardrail.new(client: FakeModel.new([ error(:timeout), error(:timeout) ]).client).check(message: question, reply: answer)
+
+      expect(result.usage.map(&:output_tokens)).to eq([ Guardrail::MAX_TOKENS ] * 2)
+    end
+
     # The check's own bug fails open too (R4: "the check fails open on its
     # own errors"); the caller writes the line and the trace.
     it "is nil for a bug of the check, with the bug's class" do
