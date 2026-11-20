@@ -202,7 +202,7 @@ class Product < ApplicationRecord
       SELECT products.id, part.kind, part.text
       FROM products
       CROSS JOIN LATERAL (VALUES ('head', #{HEAD}), ('bare', #{BARE} $3#{BARE_END})) AS part (kind, text)
-      WHERE products.id = ANY (string_to_array($2, ',')::uuid[])
+      WHERE products.id = ANY (string_to_array($2, ',')::uuid[]) AND products.listed
     ),
     stemmed AS (
       SELECT id, kind, #{STEMS} AS stems FROM texts
@@ -226,19 +226,22 @@ class Product < ApplicationRecord
   private_constant :NAMED
 
   # FR-20 (#59's C2 and H2, the owner, 2026-11-20): the products among ids
-  # that a visitor's message names, as the search reads a name: every stem of
-  # the product's active ingredient, its salt set aside, or of the head of its
-  # name, alike a stem of the message, a typo included. So "tem losartana?"
-  # names the Losartana potássica though no one says "potássica", "do you have
-  # amoxicillin?" names the amoxicilina, and "tem alguma coisa pra azia?"
-  # names the omeprazol a search for it found no more than "potássio" names
-  # the losartana. A reply the guardrail replaced lists only these, so a
-  # product the model chose for a symptom never reaches the visitor as the
-  # system's own line (TurnProcessor#products_of). A word of the message over
-  # 64 characters names nothing: no product's word is that long, and the
-  # likeness asks levenshtein_less_equal, which refuses one over 255, where a
-  # visitor's message of up to 1,000 holds a pasted link as one word (review
-  # finding H-B1 of pull request #60). The message is a parameter of the
+  # that the catalogue still lists and a visitor's message names, as the
+  # search reads a name: every stem of the product's active ingredient, its
+  # salt set aside, or of the head of its name, alike a stem of the message, a
+  # typo included. So "tem losartana?" names the Losartana potássica though no
+  # one says "potássica", "do you have amoxicillin?" names the amoxicilina,
+  # and "tem alguma coisa pra azia?" names the omeprazol a search for it found
+  # no more than "potássio" names the losartana. A reply the guardrail
+  # replaced lists only these, so a product the model chose for a symptom
+  # never reaches the visitor as the system's own line
+  # (TurnProcessor#products_of). A word of the message over 64 characters
+  # names nothing: no product's word is that long, and the likeness asks
+  # levenshtein_less_equal, which refuses one over 255, where a visitor's
+  # message of up to 1,000 holds a pasted link as one word (review finding
+  # H-B1 of pull request #60). A product the catalogue's reload unlisted since
+  # an earlier turn's search found it names nothing, as no search finds it
+  # (review finding R3 of pull request #60). The message is a parameter of the
   # statement, never quoted into its text (threat model SR-28, SR-30).
   def self.named_in(text, ids)
     return none if ids.empty?

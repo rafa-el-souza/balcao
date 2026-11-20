@@ -59,6 +59,15 @@ RSpec.describe "FR-20 FR-09 the products a message names (FR-06)" do
     expect(named("#{"dipirona" * 40} 12345678901234567890123456789012345678901234567890")).to be_empty
   end
 
+  # Review finding R3 of pull request #60 (cliente, the verifier's): an
+  # earlier turn's search may have found a product the catalogue's reload
+  # unlisted since.
+  it "names no product the catalogue stopped listing" do
+    Product.where("name LIKE 'Dipirona%'").update_all(listed: false, stock: 0)
+
+    expect(named("tem dipirona?")).to be_empty
+  end
+
   it "names nothing for an empty message or no products" do
     expect(named("")).to be_empty
     expect(Product.named_in("tem dipirona?", [])).to be_empty

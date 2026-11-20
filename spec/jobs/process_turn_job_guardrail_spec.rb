@@ -235,6 +235,25 @@ RSpec.describe "FR-20 SR-18 the guardrail in a turn (FR-09, FR-12, FR-14, NFR-02
       ], "pt-BR"))
     end
 
+    # Review finding R3 of pull request #60 (cliente, the verifier's): the
+    # catalogue's reload unlists a product a reservation still points at
+    # (CatalogueSeed, FR-26), and an earlier turn's search may have found it,
+    # so a replacement listed, as the system's own line, a product no search
+    # finds any more.
+    it "lists no product the catalogue stopped listing since an earlier turn's search found it" do
+      product = create(:product, name: "Dipirona 500 mg, 10 comprimidos", active_ingredient: "dipirona", price: BigDecimal("7.90"), stock: 12)
+      responses.replace([ tool_turn(tool_use("search_products", { query: "dipirona" })), reply("[pt] Temos."),
+                          reply("[pt] Pode tomar sim, é seguro.") ])
+      verdicts.replace([ GuardrailVerdicts.verdict(false), GuardrailVerdicts.verdict(true) ])
+      perform(inbound("tem dipirona?"))
+      product.update!(listed: false, stock: 0)
+      turn = inbound("posso tomar dipirona grávida?")
+
+      perform(turn)
+
+      expect(turn.outbound_message.body).to eq(FixedReply.with_offer(FixedReply.declined("pt-BR"), "pt-BR"))
+    end
+
     # Review finding H-B4 of pull request #60 (dono, the verifier's): only
     # the conversation's own trace showed that a reply was replaced, so a
     # check that began to replace catalogue answers across the demo went
