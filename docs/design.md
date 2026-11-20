@@ -532,8 +532,10 @@ levels (ADR-0003), with a daily slice and per-source limits (ADR-0012).
   writes, Then it gets the same fixed reply and nothing is stored beyond
   the counter.
 - Given one client IP (IPv6 aggregated by /64, address taken from the
-  trusted proxy), When it sends its 61st request within a minute, creates
-  its 21st session within an hour or sends its 201st turn within a day,
+  trusted proxy), When it sends its 61st request within a minute, asks for
+  its 21st new session within an hour (a request that would mint one, which
+  counts whether Turnstile's check lets it or not, SR-39) or sends its 201st
+  turn within a day,
   Then the request gets the fixed "limite da demo" reply without a model
   call and nothing is stored beyond the counter (threat model SR-01, which
   cites these numbers; this scenario is their only home). The operator
@@ -638,7 +640,8 @@ Turnstile gate shipped in M2's first slice (ADR-0012; M2-1, §10's note of
   server-side within 10 seconds; a missing, invalid or timed-out token
   refuses the session with a retry hint, the thread's stamp with a button
   that runs the check again. A request that brings back its cookie mints
-  nothing and needs no token, as SR-01 counts only a mint. On success the
+  nothing and needs no token, as SR-01 counts only a request that would
+  mint, refused or not. On success the
   endpoint issues a visitor token in an HttpOnly, Secure, SameSite=Strict
   cookie and returns `{conversation_id, trace_token, language}`; the API
   and the cable both read the cookie, and state-changing requests are
@@ -4244,7 +4247,8 @@ database's JIT compiler off, which changes no result of the search
     request #12). `/up`, the shell and the static files are not counted. A
     "session" of the 20 per hour is one minted: a page load that brings its
     cookie back mints none, nor does a request from another origin, which
-    the app refuses. A "turn" is a `POST /api/messages` from the public
+    the app refuses. (Since M2-1, a request that would mint, which counts
+    whether Turnstile's check lets it or not: §10's note of 2026-11-20.) A "turn" is a `POST /api/messages` from the public
     origin, counted before its body is read, so a message sent again counts
     again. The API's routes take no format extension, so each endpoint has
     the one path the edge counts (C1 of pull request #12). The refusal is a 429 with

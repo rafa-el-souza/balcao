@@ -9,8 +9,9 @@ module Api
   # siteverify accepts (SR-39, ADR-0012): else it is refused with "challenge",
   # the page's hint to try the check again, and nothing is created. A page
   # that brings back its cookie mints nothing and needs none, as the per-IP
-  # limit on new sessions counts only a mint (SR-01, EdgeLimits.new_session?);
-  # its token, if it sent one, is not asked about.
+  # limit on new sessions counts only a request that would mint, refused or
+  # not (SR-01, EdgeLimits.new_session?); its token, if it sent one, is not
+  # asked about.
   class SessionsController < BaseController
     def create
       body = request.content_length.to_i.zero? ? {} : json_body

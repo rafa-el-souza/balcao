@@ -77,6 +77,22 @@ RSpec.describe "FR-14 SR-01 SR-36 per-IP and per-visitor limits", type: :request
       expect(limited?("limits.now")).to be true
     end
 
+    # The review of pull request #53 (its Rails finder's C1): the edge counts
+    # the request before Turnstile's check answers, and the count is also
+    # what bounds the calls to Cloudflare, so a refused request counts too;
+    # the page sends none it knows the server would refuse again (the
+    # owner, 2026-11-20).
+    it "counts a session request the check refuses toward the twenty, as the edge cannot know the check's answer (SR-39)" do
+      20.times do
+        post "/api/session", params: { language: "pt-BR" }.to_json,
+                             headers: { "Content-Type" => "application/json", "Origin" => origin }, env: from("203.0.113.7")
+        expect(json).to eq("error" => "challenge")
+      end
+
+      expect { session_from("203.0.113.7") }.not_to change(Visitor, :count)
+      expect(limited?("limits.now")).to be true
+    end
+
     it "does not count a page load whose cookie names a session already issued as a new session" do
       25.times do
         session_from("203.0.113.7")
