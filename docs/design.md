@@ -579,8 +579,9 @@ levels (ADR-0003), with a daily slice and per-source limits (ADR-0012).
   attempt of a model call that the turn's hard edge abandoned once it was
   sent is charged at its input, counted high from the request's
   characters, and its output cap, since the provider runs it to its end and
-  bills it whole, §10's question 20; one whose connection never opened is
-  not. As built in M3-1: the
+  bills it whole, §10's question 20; one that never reached the provider
+  whole, its connection never opened or its request never fully written,
+  is not. As built in M3-1: the
   day's spend is kept on the month's row beside the month's, since a day
   never straddles two months in São Paulo, and the charge that opens a new
   day starts it over; the status page, M3-3, reads it there.)
@@ -2476,7 +2477,18 @@ a reservation (M2-4; the note below).
     is refused past it. The eval runner runs each case through the same
     turn job, so the evals measure the model and the check inside the same
     edge as production (#65's C3: two comments had said the evals ran
-    without one). What can still pass the edge: a tool call already
+    without one). An attempt starts only with the least time it needs left
+    of the edge, 3 s for a step's (a first token comes about a second after
+    the request, §10's note of M4-2) and 2 s for the check's (its p95 with
+    earlier messages, M2-2's note), and a retry only when its wait leaves
+    that much: an attempt with less was billed and could not answer (#65's
+    F2). The error, not the clock alone, says whether the edge cut a call:
+    a timeout or a lost connection once the edge has passed; an API's
+    answer landing at the edge, a refusal or an overload, stays a model
+    error, which FR-17's canary counts, and the check's own failure keeps
+    its class and R4's fail-open (#65's C5 and F7). A retry the edge refuses
+    ends a step with the API's error, and the check with the edge's cut,
+    since a check cut a moment later gives the fallback (#65's F4). What can still pass the edge: a tool call already
     started, whose statements the database's 5 s bound, and the storing and
     sending of the fallback.
   - **A check the edge cut.** No time left to ask, or no answer once the
@@ -2495,9 +2507,13 @@ a reservation (M2-4; the note below).
     read 2.96 characters a token for a turn's first request and 3.02 for the
     check's on 2026-11-21, so 2.5 counts about a fifth high, which also
     covers a cache write's 1.25 price; the check's count, which divided by
-    3, divides by 2.5 too. An attempt whose connection never opened sent
-    nothing and is not charged: a host whose network is down would
-    otherwise charge a whole call for every turn it met.
+    3, divides by 2.5 too. Only an attempt whose answer timed out once its
+    request was sent is charged: one that never got a connection from the
+    pool, never opened one or never finished writing its request reached
+    nothing the provider runs, and a host whose network is down would
+    otherwise charge a whole call for every turn it met (#65's F2). The
+    check's answer is read where its time out is counted, since the SDK
+    reads a body after the middleware returns (#65's F6).
   - **Cloudflare's whole answer** (FR-18; #53's C3 and C4, M2's first
     close). Net::HTTP bounds each phase and each read, not the answer, so
     the whole call now runs inside `Timeout.timeout` for FR-18's ten
