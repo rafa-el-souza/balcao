@@ -18,7 +18,13 @@ RSpec.describe "FR-14 SR-01 a limit's first count in a window, two at once" do
     allow(Rack::Attack.cache).to receive(:store).and_return(store)
   end
 
-  after { SolidCache::Entry.delete_all }
+  # The cache's table lives in its own database in production; here it is
+  # made in the suite's, outside a transaction, so it goes with the example,
+  # as the primary database's tables are all the app's own (spec/db/schema_spec.rb).
+  after do
+    ActiveRecord::Base.connection.drop_table(:solid_cache_entries, if_exists: true)
+    SolidCache::Entry.reset_column_information
+  end
 
   def monotonic = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
