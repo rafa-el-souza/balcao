@@ -46,6 +46,19 @@ module Evals
       @pause = pause
     end
 
+    # TERM and HUP (a kill, a timeout, a closed session) as Ctrl-C: an
+    # Interrupt, which the run rescues to write what ran. Left to Ruby, they
+    # raised SignalException, which nothing rescued, and the run's record was
+    # lost whole (the review of #62, H1). A signal the run started with
+    # ignored, as nohup leaves HUP, stays ignored, so a run meant to outlive
+    # its session does (the fix review's R1). bin/evals installs them.
+    def self.trap_signals!
+      %w[TERM HUP].each do |signal|
+        previous = Signal.trap(signal) { raise Interrupt }
+        Signal.trap(signal, previous) if previous == "IGNORE"
+      end
+    end
+
     # git in the directory: its output, or nil when git failed. A checkout
     # git refuses to read prints nothing, which read as a clean tree (the
     # fix review's R3 on pull request #55).
@@ -233,13 +246,15 @@ module Evals
     end
 
     # The case under way when the run stopped, with its attempts (review
-    # finding C3 of pull request #20).
+    # finding C3 of pull request #20), Ctrl-C's too (#55's L6). The report is
+    # marked stopped before anything is printed: with the terminal gone a
+    # print raises, and the record must still say the run stopped (the
+    # review of #62, V3).
     def stopped(report, error)
-      if error.is_a?(Runner::Fatal) && error.result
-        report.results << error.result
-        @out.puts(outcome(error.result))
-      end
+      kept = error.result if (error.is_a?(Runner::Fatal) || error.is_a?(Runner::Interrupted)) && error.result
+      report.results << kept if kept
       report.stopped = "#{error.class}: #{error.message}"
+      @out.puts(outcome(kept)) if kept
       @err.puts("bin/evals: the run stopped: #{report.stopped}")
     end
 
@@ -262,10 +277,13 @@ module Evals
     end
 
     # headed: the run was on more than one model, so each table names its own.
+    # The results files are written before anything is printed, so a closed
+    # terminal, whose prints raise, costs no record (the review of #62, H1).
     def finish(reports, cases, scorecard:, headed:)
-      reports.each do |report|
+      paths = reports.map { |report| report.write(@results_dir) }
+      reports.zip(paths).each do |report, path|
         @out.puts(*[ "", ("On the #{report.route.mode} model, #{report.route.model}:" if headed), *report.summary ].compact)
-        @out.puts("Results: #{report.write(@results_dir)}")
+        @out.puts("Results: #{path}")
       end
       write_scorecard(reports, cases) if scorecard
       ok = reports.all? { |report| report.stopped.nil? && report.results.all? { |result| result.status == :pass } }
@@ -273,7 +291,10 @@ module Evals
     end
 
     # The scorecard from the normal model's report, with the economy model's
-    # column and ADR-0003's gate when the run had both (EconomyGate).
+    # column and ADR-0003's gate when the run had both (EconomyGate). The gate
+    # the app reads is written first, and each file through a temporary one
+    # renamed, so a run that breaks while writing leaves no half of either
+    # (#55's L1, the owner, 2026-11-20).
     def write_scorecard(reports, cases)
       errored = reports.flat_map(&:results).select { |result| result.status == :error }.map { |result| result.kase.id }.uniq
       if reports.any?(&:stopped) || errored.any?
@@ -284,12 +305,12 @@ module Evals
       normal, economy = %w[normal economy].map { |mode| reports.find { |report| report.route.mode == mode } }
       gate = EconomyGate.new(cases:, results: economy.results, route: economy.route, run: economy.scorecard_run) if economy
       column = Scorecard::Economy.new(results: economy.results, model: economy.route.model, effort: economy.route.effort, allowed: gate.allowed?) if gate
-      @scorecard_path.write(Scorecard.new(cases:, results: normal.results, run: normal.scorecard_run, economy: column).render)
+      if gate
+        gate.write(@economy_gate_path)
+        @out.puts("Economy gate: #{@economy_gate_path} rewritten: the economy model #{gate.allowed? ? "may" : "may not"} serve (ADR-0003)")
+      end
+      File.atomic_write(@scorecard_path.to_s) { |file| file.write(Scorecard.new(cases:, results: normal.results, run: normal.scorecard_run, economy: column).render) }
       @out.puts("Scorecard: #{@scorecard_path} rewritten")
-      return true unless gate
-
-      gate.write(@economy_gate_path)
-      @out.puts("Economy gate: #{@economy_gate_path} rewritten: the economy model #{gate.allowed? ? "may" : "may not"} serve (ADR-0003)")
       true
     end
 

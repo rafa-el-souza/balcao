@@ -54,6 +54,20 @@ module Evals
       end
     end
 
+    # Ctrl-C, as Interrupt still: it carries the case under way's result,
+    # status error, with its attempts so far and the one it stopped in, so
+    # the results file keeps them and their tokens (#55's L6, the owner,
+    # 2026-11-20).
+    class Interrupted < Interrupt
+      attr_reader :attempt, :result
+
+      def initialize(message = "the run was interrupted", attempt: nil, result: nil)
+        super(message)
+        @attempt = attempt
+        @result = result
+      end
+    end
+
     # Seconds to wait before running again an attempt the API broke: the
     # SDK's retries back off within the turn already, so a new attempt waits
     # longer, with jitter.
@@ -96,6 +110,9 @@ module Evals
       end
     rescue Fatal => e
       raise Fatal.new(e.message, result: Result.new(kase:, status: :error, unstable: false, attempts: [ *attempts, e.attempt ].compact))
+    rescue Interrupt => e
+      stopped = e.attempt if e.is_a?(Interrupted)
+      raise Interrupted.new(result: Result.new(kase:, status: :error, unstable: false, attempts: [ *attempts, stopped ].compact))
     end
 
     def decided(attempts, repeat)
@@ -130,6 +147,13 @@ module Evals
       raise Fatal.new("#{error}; no retry mends it, so the run stops", attempt:) if fatal
 
       attempt
+    rescue Interrupt
+      # The attempt's own transaction rolled back with its spans, so its
+      # tokens are not known; it is kept to say where the run stopped, its
+      # start and time as far as it had read them (the review of #62, C3).
+      raise Interrupted.new(attempt: Attempt.new(status: :error, checks: nil, verdict: nil,
+                                                 error: "Interrupt: the run was stopped in this attempt; its tokens are not counted",
+                                                 run:, started_at: started_at || Time.current, seconds: started ? @clock.call - started : 0.0))
     end
 
     def graded(kase, run)

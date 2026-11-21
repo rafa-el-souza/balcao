@@ -94,6 +94,11 @@ RSpec.describe "FR-07 NFR-02 SR-16 create_reservation, units held for pickup at 
     expect(again.except("note")).to eq(first)
     expect(again["note"]).to include("same reservation", "not a new one", "nothing more was reserved")
     expect(calls.map(&:is_error)).to eq([ false, false ])
+    # The review of #62 (C1 = H5): ADR-0003's gate digests these shapes,
+    # rendered by the same methods on placeholder values.
+    held = Reservation.find_by!(turn:)
+    expect(first).to eq(JSON.parse(JSON.generate(Tools::CreateReservation.result(held))))
+    expect(again).to eq(JSON.parse(JSON.generate(Tools::CreateReservation.found_again(held, again["note"]))))
   end
 
   # The review's C1 on pull request #58: the next message reserves the
@@ -199,6 +204,9 @@ RSpec.describe "FR-07 NFR-02 SR-16 create_reservation, units held for pickup at 
       error = refusal(quantity: 11)
 
       expect(error).to have_attributes(reason: "low_stock", message: match(/Only 3 units.*Offer 3 units/))
+      # The fix review's R2 on pull request #62: the refusal ADR-0003's gate
+      # digests on a placeholder stock is the one the tool answers with.
+      expect(error.message).to eq(Tools::CreateReservation.low_stock(3))
       expect(error.message).not_to include("Offer 10 units")
     end
 

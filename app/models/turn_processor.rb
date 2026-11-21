@@ -60,19 +60,26 @@ class TurnProcessor
   # Which fixed text the system sent in the model's place, by the turn's
   # outcome, for the history of the later turns (Turn::REPLY_KINDS): a
   # replaced reply's is the decline, or the call to call now for an
-  # emergency (replace), and a command's its own (command).
+  # emergency (replaced_emergency), and a command's its own (command).
+  # ADR-0003's gate digests it (PromptDigest.history), so every kind the
+  # system writes is read from here (the fix review's R3 on pull request #62).
   IN_PLACE = { "refused" => "refusal", "incomplete" => "fallback", "tool_limit" => "fallback", "deadline" => "fallback",
                "model_error" => "fallback", "dead_letter" => "fallback", "paused" => "pause",
-               "reservations" => "reservations", "replaced" => "decline" }.freeze
+               "reservations" => "reservations", "replaced" => "decline", "replaced_emergency" => "call_now",
+               "command" => "command" }.freeze
 
   # A reply holds the system's texts beside the model's own words: the notice
   # before a conversation's first reply, the fixed lines after the words
   # (FixedReply), or a fixed text in their place. Each reply this class
   # stores names, to whoever listens in the process, the words of it the
   # model wrote, which it begins with after any notice (attendant: nil when
-  # it holds none). The app has no subscriber; the eval runner's judge reads
-  # the system's texts as the system's (lib/evals/pipeline.rb; design §10,
-  # M2-3b), since it took the emergency line for the attendant's words.
+  # it holds none), and those of them it wrote before a tool call
+  # (before_tools: empty when none). The app has no subscriber; the eval
+  # runner's judge reads the system's texts as the system's
+  # (lib/evals/pipeline.rb; design §10, M2-3b), since it took the emergency
+  # line for the attendant's words, and the evals fail words written before
+  # a tool call, which the prompt asks the model never to write (the close
+  # of M2-11a2's XC-1).
   REPLY_EVENT = "reply.turn".freeze
 
   # The attempt of the job that runs the turn (ProcessTurnJob), and the turn
@@ -157,7 +164,9 @@ class TurnProcessor
       "balcao.channel" => @inbound.channel, "balcao.message.source" => @inbound.source
     })
     language = @conversation.language
-    finish("dead_letter", "failed", FixedReply.with_reservations(FixedReply.fallback(language), reservations, language), error:)
+    stored = reservations
+    @exchange = rebuilt(stored)
+    finish("dead_letter", "failed", FixedReply.with_reservations(FixedReply.fallback(language), stored, language), error:)
   rescue StandardError => e
     @recorder&.abandon(e.class.name)
     raise
@@ -308,7 +317,7 @@ class TurnProcessor
     @inbound.update_columns(source: "command")
     span = @recorder.start_span("balcao.command", started_at: @inbound.received_at,
                                                   attributes: { "balcao.command.name" => name.to_s })
-    broadcast_reply(replied("replied", span, kind: "command") { yield })
+    broadcast_reply(replied("replied", span, kind: IN_PLACE.fetch("command")) { yield })
   rescue StandardError => e
     broken(e)
     raise
@@ -331,7 +340,10 @@ class TurnProcessor
       "balcao.channel" => @inbound.channel, "balcao.message.source" => @inbound.source
     })
     stored = reservations
-    return finish("reservations", "replied", FixedReply.reservations(stored, @conversation.language)) if stored.any?
+    if stored.any?
+      @exchange = rebuilt(stored)
+      return finish("reservations", "replied", FixedReply.reservations(stored, @conversation.language))
+    end
 
     budget = Budget.status
     return paused(forced: budget.forced) if budget.mode == "paused"
@@ -369,7 +381,8 @@ class TurnProcessor
 
     text, state = reply_of(result)
     wrote = result.outcome == :replied
-    finish(result.outcome, state, text, error: result.error, own: (result.text if wrote), written: (result.written if wrote))
+    finish(result.outcome, state, text, error: result.error, own: (result.text if wrote), written: (result.written if wrote),
+                                        before_tools: (result.before_tools if wrote))
   end
 
   # FR-20: the text the model wrote passes the guardrail's check before it is
@@ -439,16 +452,18 @@ class TurnProcessor
   # (review finding H-B4 of pull request #60).
   def replace(result)
     text, listed = replaced(result, @conversation.language)
-    finish("replaced", "replied", text, kind: result.emergency ? "call_now" : "decline")
+    finish("replaced", "replied", text, kind: IN_PLACE.fetch(result.emergency ? "replaced_emergency" : "replaced"))
     Rails.logger.warn("turn #{@turn.id}: FR-20's check replaced the model's reply (products listed: #{listed}, emergency: #{result.emergency})")
   end
 
   # The products the searches found that the visitor's message names, each
   # once, at most one search's worth, as the catalogue lists them now: this
   # turn's searches first, then the earlier turns' in the window the model
-  # read, newest first, since the model may answer a follow-up from a result
-  # its history holds without searching again (review finding H-B5 of pull
-  # request #60). A product the model chose for what the message describes,
+  # read, newest first, from their stored tool exchanges, since the model may
+  # answer a follow-up from its own earlier reply, which named the product,
+  # without searching again (review finding H-B5 of pull request #60); the
+  # history no longer gives the model a search back (AgentRunner::History,
+  # REPLAYED; the close's TR-3). A product the model chose for what the message describes,
   # a symptom among them, is not one it names, so a replacement never lists
   # it as the system's own line (#59's C2 and H2, the owner, 2026-11-20;
   # Product.named_in).
@@ -477,6 +492,33 @@ class TurnProcessor
   end
 
   def reservations = Reservation.where(turn_id: @turn.id).includes(:product).order(:created_at, :id).to_a
+
+  # The tool exchange of a reply the system sent without running the model,
+  # a run's again that found the turn's reservations stored or the dead
+  # letter's fallback: the calls that made the turn's reservations and their
+  # results, rebuilt from the stored rows, in the shape AgentRunner::Run
+  # keeps (Turn#tool_exchange), or nil for a turn that reserved nothing.
+  # Each reservation of a turn was made by the model's own call in an
+  # earlier run of it, whose exchange was lost when that run broke before
+  # its reply was stored; without it, the next turn's history named no code
+  # for the reservations the visitor read, and the model has no tool to look
+  # them up (the close's XF-C2, the owner, 2026-11-20). A call's id is the
+  # reservation's, so the history reads the same on every turn and its
+  # cached prefix holds.
+  def rebuilt(stored)
+    return if stored.empty?
+
+    ids = stored.to_h { |reservation| [ reservation, "toolu_#{reservation.id.delete("-")}" ] }
+    calls = stored.map do |reservation|
+      { "type" => "tool_use", "id" => ids[reservation], "name" => Tools::CreateReservation.api_name,
+        "input" => { "product_id" => reservation.product_id, "quantity" => reservation.quantity } }
+    end
+    results = stored.map do |reservation|
+      { "type" => "tool_result", "tool_use_id" => ids[reservation], "content" => JSON.generate(Tools::CreateReservation.result(reservation)),
+        "is_error" => false }
+    end
+    [ { "role" => "assistant", "content" => calls }, { "role" => "user", "content" => results } ]
+  end
 
   # The turn's reservations and, when the cap of open reservations refused
   # one, those the visitor holds (FR-07).
@@ -535,18 +577,18 @@ class TurnProcessor
     Reservation.held_by(@conversation.visitor).includes(:product).order(:created_at, :id).to_a
   end
 
-  # own is the model's words the text begins with, nil when it holds none
-  # (REPLY_EVENT); written, the reply as the model wrote it, and kind, what
-  # the later turns' history gives back of the turn (Turn::REPLY_KINDS):
-  # model for a reply the model wrote, else the fixed text sent in its
-  # place.
-  def finish(outcome, state, text, error: nil, own: nil, written: nil, kind: nil)
+  # own is the model's words the text begins with, nil when it holds none,
+  # and before_tools those of them written before a tool call (REPLY_EVENT);
+  # written, the reply as the model wrote it, and kind, what the later
+  # turns' history gives back of the turn (Turn::REPLY_KINDS): model for a
+  # reply the model wrote, else the fixed text sent in its place.
+  def finish(outcome, state, text, error: nil, own: nil, written: nil, kind: nil, before_tools: nil)
     raise ArgumentError, "#{outcome} is not in TurnProcessor::OUTCOMES" unless OUTCOMES.include?(outcome.to_s)
 
     kind ||= outcome.to_s == "replied" ? "model" : IN_PLACE.fetch(outcome.to_s)
     outbound = @recorder.start_span("balcao.outbound", parent: @root, attributes: { "balcao.message.author" => "bot" })
     message = replied(state, @root, kind:, written:) do
-      record_reply(text, conversation: @conversation, language: @conversation.language, own:)
+      record_reply(text, conversation: @conversation, language: @conversation.language, own:, before_tools:)
     end
     broadcast_reply(message)
     outbound.finish(attributes: { "balcao.message.characters" => message.body.length })
@@ -608,10 +650,10 @@ class TurnProcessor
   # stored, to the page's stream.
   def delivery(parent) = (@recorder.start_delivery(parent) if @inbound.channel == "telegram")
 
-  def record_reply(text, conversation:, language:, own: nil)
+  def record_reply(text, conversation:, language:, own: nil, before_tools: nil)
     body = conversation.messages.outbound.exists? ? text : FixedReply.with_notice(text, language)
     Message.record_outbound!(turn: @turn, body:, conversation:).tap do
-      ActiveSupport::Notifications.instrument(REPLY_EVENT, turn_id: @turn.id, attendant: own.presence)
+      ActiveSupport::Notifications.instrument(REPLY_EVENT, turn_id: @turn.id, attendant: own.presence, before_tools: Array(before_tools))
     end
   end
 

@@ -92,7 +92,7 @@ module Tools
 
       product_id = product_id.downcase
       held = Reservation.find_by(turn_id: turn.id, product_id:)
-      return result(held).merge("note" => again(held)) if held
+      return self.class.found_again(held, again(held)) if held
 
       product = Product.find_by(id: product_id, listed: true) or refuse(UNKNOWN, "unknown_product")
       refuse(PRESCRIPTION, "prescription") if product.prescription_required
@@ -143,7 +143,7 @@ module Tools
 
       refuse(OUT_OF_STOCK, "out_of_stock") if stock.zero?
       refuse(OVER_LIMIT, "over_limit") if quantity > MAX_QUANTITY && stock >= MAX_QUANTITY
-      refuse(format(LOW_STOCK, units: units(stock)), "low_stock")
+      refuse(self.class.low_stock(stock), "low_stock")
     end
 
     # The units leave the stock as it is in the database, never below zero;
@@ -154,11 +154,25 @@ module Tools
       raise Shortage if taken.zero?
     end
 
-    def units(count) = count == 1 ? "1 unit" : "#{count} units"
+    def result(reservation) = self.class.result(reservation)
 
-    def result(reservation)
+    # The low-stock refusal, with the units the stock holds (ADR-0003's gate
+    # digests it on a placeholder stock, PromptDigest.tools; the fix review's
+    # R2 on pull request #62).
+    def self.low_stock(stock) = format(LOW_STOCK, units: units(stock))
+
+    def self.units(count) = count == 1 ? "1 unit" : "#{count} units"
+
+    # A reservation as the tool's result gives it to the model, and as a
+    # turn the system answered without the model keeps it for the next
+    # turns' history (TurnProcessor#rebuilt).
+    def self.result(reservation)
       { "code" => reservation.code, "quantity" => reservation.quantity, "product" => reservation.product.name,
         "pickup_until" => reservation.pickup_until.in_time_zone.iso8601 }
     end
+
+    # The turn's own reservation, found again, with the note that says so
+    # (ADR-0003's gate digests its shape, PromptDigest.tools).
+    def self.found_again(reservation, note) = result(reservation).merge("note" => note)
   end
 end

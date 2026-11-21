@@ -259,7 +259,7 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
     let(:route) { ModelPolicy.route("economy") }
     let(:run) do
       "model: #{route.model}\neffort: #{route.effort}\nprompt: #{PromptDigest.prompt}\ntools: #{PromptDigest.tools}\n" \
-        "guardrail: #{PromptDigest.guardrail}\ncommit: ec17b12\nrun_at: '2026-11-20T04:00:00Z'\n"
+        "guardrail: #{PromptDigest.guardrail}\nhistory: #{PromptDigest.history}\ncommit: ec17b12\nrun_at: '2026-11-20T04:00:00Z'\n"
     end
 
     before { allow(Rails.logger).to receive(:warn) }
@@ -295,6 +295,22 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
       expect(Budget.read_economy_allowed(dir)).to be(false)
 
       expect(Rails.logger).to have_received(:warn).with(/\Abudget: .+; the economy model may not serve\z/).exactly(files.size + 1).times
+    end
+
+    # #55's F4 and #60's H-B6 (the owner, 2026-11-20, M2-11a3): the rescue
+    # of a file that cannot be read covered the route's lookup and the
+    # digests too, so a bug there read as an unreadable gate, closed, with a
+    # line that blamed the file. Only the file's read and parse are rescued;
+    # a bug raises, at boot, where CI's boot specs see it first.
+    it "raises a bug of the route's lookup or of a digest, rather than reading it as an unreadable file" do
+      file = gate("economy_allowed: true\n#{run}")
+      allow(PromptDigest).to receive(:guardrail).and_raise(ArgumentError, "a bug in the digest")
+      expect { Budget.read_economy_allowed(file) }.to raise_error(ArgumentError, "a bug in the digest")
+
+      allow(ModelPolicy).to receive(:route).and_call_original
+      allow(ModelPolicy).to receive(:route).with("economy").and_raise(ArgumentError, "a bug in the route")
+      expect { Budget.read_economy_allowed(file) }.to raise_error(ArgumentError, "a bug in the route")
+      expect(Rails.logger).not_to have_received(:warn)
     end
 
     # The boundary passed on the model the run measured: a gate written
@@ -342,6 +358,89 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
       expect(Rails.logger).to have_received(:warn).with(/check nil/)
     end
 
+    # The close's XF-C4 and #60's C3 (the owner, 2026-11-20, "Amarrar no
+    # portão"): the boundary suite measured the economy model on what the
+    # history gives it back too, the notices in system messages among it, and
+    # on the texts its tools' results carry; a change of either kept the gate
+    # open with no new run.
+    it "reads a gate written before a change of what the history gives the model as not allowed, and says so" do
+      file = gate("economy_allowed: true\n#{run}")
+      written = PromptDigest.history
+      expect(Budget.read_economy_allowed(file)).to be(true)
+
+      changes = {
+        "AgentRunner::History::NOTICES" => AgentRunner::History::NOTICES.merge("decline" => "Your reply was replaced."),
+        "AgentRunner::History::REPLAYED" => %w[create_reservation search_products],
+        "AgentRunner::History::SENT" => "%Y-%m-%d %H:%M",
+        "AgentRunner::History::TURNS" => 20
+      }
+      changes.each do |name, value|
+        RSpec::Mocks.with_temporary_scope do
+          stub_const(name, value)
+          expect(Budget.read_economy_allowed(file)).to be(false), name
+        end
+      end
+      expect(Budget.read_economy_allowed(gate("economy_allowed: true\n#{run.sub(/^history: .*\n/, "")}"))).to be(false)
+      expect(Rails.logger).to have_received(:warn).with(/the history "#{written}", not for .* the history (?!#{written})\h{16} that serve now/)
+                                                    .exactly(changes.size).times
+      expect(Rails.logger).to have_received(:warn).with(/the history nil, not for .* the history #{written} that serve now/)
+    end
+
+    it "digests how the history arranges what it gives back, and reads a gate written before a change of it as not allowed" do
+      file = gate("economy_allowed: true\n#{run}")
+      allow(AgentRunner::History).to receive(:arrange).and_wrap_original { |arrange, entries| arrange.call(entries).reverse }
+
+      expect(Budget.read_economy_allowed(file)).to be(false)
+    end
+
+    # The review of #62 (C1 = H5, dono): the envelopes the tools wrap their
+    # results in and which notice each outcome gets were code no digest read.
+    it "reads a gate written before a change of a result's envelope, or of which notice an outcome gets, as not allowed" do
+      file = gate("economy_allowed: true\n#{run}")
+
+      { "Tools::SearchProducts" => [ :result, ->(query, products) { { "q" => query, "items" => products } } ],
+        "Tools::GetStoreInfo" => [ :result, ->(topic, facts) { facts.merge("about" => topic) } ],
+        "Tools::CreateReservation" => [ :found_again, ->(reservation, note) { { "same" => reservation.code, "why" => note } } ] }
+        .each do |name, (method, shape)|
+        RSpec::Mocks.with_temporary_scope do
+          allow(name.constantize).to receive(method) { |*args| shape.call(*args) }
+          expect(Budget.read_economy_allowed(file)).to be(false), "#{name}.#{method}"
+        end
+      end
+      RSpec::Mocks.with_temporary_scope do
+        stub_const("TurnProcessor::IN_PLACE", TurnProcessor::IN_PLACE.merge("deadline" => "refusal"))
+        expect(Budget.read_economy_allowed(file)).to be(false)
+      end
+    end
+
+    # The fix review's R2 on pull request #62 (dono; the owner, 2026-11-20:
+    # "Corrigir direto, com os testes"): how a result is encoded for the model
+    # and the count words of the low-stock refusal were code no digest read.
+    it "reads a gate written before a change of how a result is encoded, or of the low-stock refusal's count, as not allowed" do
+      file = gate("economy_allowed: true\n#{run}")
+
+      { AgentTool => [ :encode, ->(output) { output.is_a?(String) ? output : output.to_yaml } ],
+        Tools::CreateReservation => [ :units, ->(count) { "#{count} boxes" } ] }.each do |owner, (method, change)|
+        RSpec::Mocks.with_temporary_scope do
+          allow(owner).to receive(method) { |*args| change.call(*args) }
+          expect(Budget.read_economy_allowed(file)).to be(false), "#{owner}.#{method}"
+        end
+      end
+    end
+
+    it "reads a gate written before a change of a text its tools' results carry as not allowed" do
+      file = gate("economy_allowed: true\n#{run}")
+
+      { "Tools::CreateReservation::AGAIN" => "The same reservation.", "Tools::CreateReservation::OPEN_LIMIT" => "Too many.",
+        "Tools::SearchProducts::EMPTY" => "Empty.", "Tools::GetStoreInfo::UNKNOWN" => "Unknown.", "AgentTool::FAILED" => "Failed.",
+        "AgentRunner::TOOL_LIMIT" => "No more tools." }.each do |name, value|
+        RSpec::Mocks.with_temporary_scope do
+          stub_const(name, value)
+          expect(Budget.read_economy_allowed(file)).to be(false), name
+        end
+      end
+    end
+
     it "digests FR-20's check: its system prompt, what it reads around the texts, its route and its answer's shape" do
       digest = PromptDigest.guardrail
       expect(digest).to match(/\A\h{16}\z/)
@@ -375,7 +474,7 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
 
       out, err, status = boot.call({ "economy_allowed" => true, "model" => route.model, "effort" => route.effort,
                                      "prompt" => PromptDigest.prompt, "tools" => PromptDigest.tools,
-                                     "guardrail" => PromptDigest.guardrail })
+                                     "guardrail" => PromptDigest.guardrail, "history" => PromptDigest.history })
       expect([ status.success?, out ]).to eq([ true, "true\n" ]), err
 
       out, err, status = boot.call([ true ])

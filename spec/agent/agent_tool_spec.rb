@@ -16,12 +16,30 @@ RSpec.describe "SR-16 AgentTool, the base of the attendant's tools (design §6.3
                                                   input_schema: include(additionalProperties: false, required: [ "text" ]))
   end
 
+  # The review of #62 (C2, teorico): a class method of the tool's own name
+  # shadowed the SDK's tool_name accessor, which the SDK reads for the name
+  # it sends and for whether a tool with no doc gets its name as description.
+  it "leaves the SDK's own tool_name unset, so the SDK names the tool and describes one with no doc" do
+    klass = stub_const("SpecTools::NoDoc", Class.new(AgentTool) { input_schema SpecTools::EchoInput })
+    param = Anthropic::Helpers::Messages.send(:tool_to_param, klass.new(turn:), tools: {}, strict: nil)
+
+    expect(klass.tool_name).to be_nil
+    expect(param).to include(name: "no_doc", description: "no_doc")
+    expect(Tools::CreateReservation.api_name).to eq(Tools::CreateReservation.new(turn:).name).and eq("create_reservation")
+  end
+
   it "holds the turn the runner gave it (SR-16)" do
     expect(tool(SpecTools::Echo).turn).to eq(turn)
   end
 
   it "answers the model in JSON" do
     expect(JSON.parse(tool(SpecTools::Echo).call(input))).to eq("echo" => "dipirona", "turn_id" => turn.id)
+  end
+
+  # The fix review's R2 on pull request #62: ADR-0003's gate digests how a
+  # result is encoded for the model, by the method the tools answer with.
+  it "answers by the encoding ADR-0003's gate digests" do
+    expect(tool(SpecTools::Echo).call(input)).to eq(AgentTool.encode("echo" => "dipirona", "turn_id" => turn.id))
   end
 
   it "reports each call with its input, output and time" do

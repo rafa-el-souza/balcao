@@ -38,9 +38,11 @@ module Evals
     # none (a command). attendant is the words of the reply the model wrote,
     # which it begins with after the notice, nil when it holds none (a
     # command's reply, a decline or a fallback in the model's place).
+    # before_tools is what of those words the model wrote before a tool call,
+    # as the turn named them (the close of M2-11a2's XC-1).
     TurnRecord = Data.define(:message, :reply, :notice, :outcome, :error_type, :latency_ms, :model_calls, :tool_calls, :guardrail, :mode,
-                             :attendant) do
-      def initialize(guardrail: nil, mode: nil, attendant: nil, **) = super
+                             :attendant, :before_tools) do
+      def initialize(guardrail: nil, mode: nil, attendant: nil, before_tools: [], **) = super
     end
     # FR-20's check of a turn's reply, as its span recorded it (TurnTrace),
     # with the reason the check gave, which only the run hears
@@ -72,7 +74,8 @@ module Evals
           prepare(kase.seed)
           identity_hash = SecureRandom.hex(32)
           said = kase.messages.map { |text| say(identity_hash, text) }
-          result = Run.new(turns: said.map(&:first), observation: observe(identity_hash, *said.last, earlier: said[...-1].map { |record, _| record.reply }))
+          turns = said.map(&:first)
+          result = Run.new(turns:, observation: observe(identity_hash, turns, *said.last.drop(1)))
           raise ActiveRecord::Rollback
         end
       end
@@ -141,7 +144,8 @@ module Evals
         model_calls: spans.select { |span| span.name == TurnTrace::MODEL_CALL }.map { |span| model_call(span.span_attributes) },
         tool_calls: spans.select { |span| span.name.start_with?("#{TurnTrace::TOOL_CALL} ") }.map { |span| tool_call(span.span_attributes) },
         guardrail: guardrail(spans.reverse.find { |span| span.name == TurnTrace::GUARDRAIL }, verdict),
-        mode: root&.span_attributes&.dig("balcao.turn.mode"), attendant: attendant_of(turn, reply, named)
+        mode: root&.span_attributes&.dig("balcao.turn.mode"), attendant: attendant_of(turn, reply, named),
+        before_tools: (reply && named.reverse.find { |event| event[:turn_id] == turn.id }&.dig(:before_tools)) || []
       )
     end
 
@@ -218,17 +222,32 @@ module Evals
     # The last message's reply, the turn's tool calls, and the rows of the
     # visitor who sent it: a reservation (FR-07), the case's conversation
     # closed with another open (FR-04), nothing left under the visitor's
-    # identity (FR-05); and the replies to the earlier messages.
-    def observe(identity_hash, last, conversation_id, visitor, earlier:)
+    # identity (FR-05); the replies to the earlier messages; and whether
+    # FR-20's check replaced the reply of any of the case's turns, an earlier
+    # one's too, with that check's reason (#54's C3 = H5, the owner,
+    # 2026-11-20).
+    def observe(identity_hash, turns, conversation_id, visitor)
+      last = turns.last
       Observation.new(
-        reply: last.reply, notice: last.notice, parts: parts_of(last), tool_calls: last.tool_calls, earlier:,
-        guardrail_replaced: last.outcome == "replaced", guardrail_reason: last.guardrail&.reason,
+        reply: last.reply, notice: last.notice, parts: parts_of(last), tool_calls: last.tool_calls, earlier: turns[...-1].map(&:reply),
+        before_tools: turns.flat_map(&:before_tools),
+        guardrail_replaced: turns.any? { |turn| turn.outcome == "replaced" }, guardrail_reason: guardrail_reason(turns),
         reservation_created: Reservation.exists?(visitor_id: visitor.id),
         conversation_reset: Conversation.where(id: conversation_id).where.not(closed_at: nil).exists? &&
           Conversation.where(visitor_id: visitor.id, closed_at: nil).where.not(id: conversation_id).exists?,
         data_deleted: !Visitor.exists?(channel: "web", identity_hash:) && !Conversation.exists?(visitor_id: visitor.id) &&
           !Reservation.exists?(visitor_id: visitor.id)
       )
+    end
+
+    # The check's reason for the first turn it replaced, named by its number
+    # when it is not the last message's, else for the last turn.
+    def guardrail_reason(turns)
+      index = turns.index { |turn| turn.outcome == "replaced" }
+      return turns.last.guardrail&.reason unless index
+
+      reason = turns[index].guardrail&.reason
+      reason && index < turns.size - 1 ? "turn #{index + 1}: #{reason}" : reason
     end
 
     # The jobs Intake enqueued are run inline here; the test adapter keeps

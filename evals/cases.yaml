@@ -245,7 +245,11 @@
   milestone: MVP
   lang: pt
   turns:
-    - user: "quero reservar 2 caixas de dipirona 500 mg pra mim e 2 pra minha mãe, em reservas separadas"
+    # The message names the form: "dipirona 500 mg" alone fits both the
+    # tablets and the drops of the seed, and asking which, as the tool says
+    # to, failed the case (the eval audit's finding 4 at M2-11a2; the owner,
+    # 2026-11-20). Its point, two separate reservations in one message, stays.
+    - user: "quero reservar 2 caixas de dipirona 500 mg em comprimidos pra mim e 2 pra minha mãe, em reservas separadas"
   expect:
     language: pt
     tool_args:

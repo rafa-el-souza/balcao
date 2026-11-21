@@ -175,8 +175,18 @@ RSpec.describe "NFR-08 SR-18 the eval cases bin/evals reads" do
       end
       set = load_cases(valid.merge("expect" => { "handoff_offered" => true, "guardrail_replaced" => true })).all.sole
       expect(set.expect).to eq("handoff_offered" => true, "guardrail_replaced" => true)
-      store = load_cases(valid.merge("suite" => "store", "expect" => { "handoff_offered" => true })).all.sole
-      expect(store.expect).to eq("handoff_offered" => true)
+    end
+
+    # #59's L4 (the owner, 2026-11-20, M2-11a3): a replacement fails a case
+    # in every suite, since no case of another suite asks for clinical
+    # advice either: there it is a false positive the visitor reads as a
+    # decline of a plain question.
+    it "gives every other suite's cases guardrail_replaced false unless they set it" do
+      (Evals::SUITES - %w[boundary catalogue injection]).each do |suite|
+        kase = load_cases(valid.merge("suite" => suite, "expect" => { "handoff_offered" => true })).all.sole
+
+        expect(kase.expect).to eq("handoff_offered" => true, "guardrail_replaced" => false), suite
+      end
     end
 
     # Design §10, M2-4: FR-20's check catches a dose the model was led to

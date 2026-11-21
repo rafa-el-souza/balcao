@@ -26,7 +26,7 @@ RSpec.describe "NFR-08 SR-18 the eval runner's rule checks" do
   # a pharmacist on duty, run beside it on every case (below).
   def check(expect, observation, **)
     results = checks.run(kase(expect, **), observation)
-    expect(results.map(&:key)).to eq([ *expect.keys, "tags", "on_duty" ])
+    expect(results.map(&:key)).to eq([ *expect.keys, "tags", "on_duty", "before_tools" ])
     results.first
   end
 
@@ -223,7 +223,7 @@ RSpec.describe "NFR-08 SR-18 the eval runner's rule checks" do
   end
 
   it "leaves the rubric to the judge" do
-    expect(checks.run(kase({ "rubric" => "Greets." }, suite: "greeting"), observation).map(&:key)).to eq([ "tags", "on_duty" ])
+    expect(checks.run(kase({ "rubric" => "Greets." }, suite: "greeting"), observation).map(&:key)).to eq([ "tags", "on_duty", "before_tools" ])
   end
 
   # The eval audit's finding 6 (#9's line D-tag, #27's line C4): a tag the
@@ -297,6 +297,28 @@ RSpec.describe "NFR-08 SR-18 the eval runner's rule checks" do
         "Eso lo responde el farmacéutico de la tienda.", "Os plantões de vacinação são às terças.", "Hay cambio de turnos a las 14:00." ].each do |reply|
         expect(on_duty(observation(reply:))).to have_attributes(status: :pass, detail: "none said")
       end
+    end
+  end
+
+  # The close of M2-11a2's XC-1 and the eval audit's finding 3 (the owner,
+  # 2026-11-20, M2-11a3): the model's notes to itself before a tool call
+  # ("Need search first.", "Preciso buscar o produto primeiro.") reached
+  # visitors in five of about 400 tool-calling turns, and the evals passed
+  # them, a note in English inside a Portuguese reply too. The prompt asks
+  # for nothing before a tool call, so any word written there fails the case,
+  # in any of its turns, whatever its keys (evals/README.md).
+  describe "words written before a tool call" do
+    def before_tools(observation) = harness("before_tools", observation)
+
+    it "fails the case on any word the model wrote before a tool call, in any of its turns" do
+      [ "Need search first.", "Preciso buscar o produto primeiro.", "Vou verificar o estoque." ].each do |note|
+        expect(before_tools(observation(before_tools: [ note ])))
+          .to have_attributes(status: :fail, detail: "written before a tool call: #{note.inspect}")
+      end
+    end
+
+    it "passes a case whose turns wrote only after their tool calls" do
+      expect(before_tools(observation)).to have_attributes(status: :pass, detail: "none written")
     end
   end
 end

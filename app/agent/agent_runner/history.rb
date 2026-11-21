@@ -77,7 +77,13 @@ class AgentRunner
                   .order(created_at: :desc, id: :desc).limit(TURNS)
                   .includes(:inbound_message, :outbound_message).to_a.reverse
 
-      first = Message.first_reply_ids([ turn.conversation_id ])
+      render(turns, Message.first_reply_ids([ turn.conversation_id ]))
+    end
+
+    # The turns as the model reads them, oldest first, with the ids of the
+    # replies that opened a conversation (first). ADR-0003's gate digests it
+    # on a conversation of placeholder words (PromptDigest.history).
+    def render(turns, first)
       arrange(turns.flat_map { |past| [ visitor(past.inbound_message), *replied(past, first) ] })
     end
 

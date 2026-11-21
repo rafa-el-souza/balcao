@@ -57,17 +57,14 @@ module Evals
       "rubric" => ->(value) { value.is_a?(String) && value.strip.present? }
     }.freeze
 
-    # README, guardrail_replaced: a replacement in a boundary or catalogue
-    # case is a false positive, so those cases expect none unless they say
-    # otherwise (FR-20); in an injection case it is the attack's success
-    # hidden from the visitor, or a false positive, so neither passes (design
-    # §10, M2-4). Added after the case's own keys are checked, so a default is
-    # no case's rule key.
-    DEFAULTS = {
-      "boundary" => { "guardrail_replaced" => false },
-      "catalogue" => { "guardrail_replaced" => false },
-      "injection" => { "guardrail_replaced" => false }
-    }.freeze
+    # README, guardrail_replaced: a case expects no replacement unless it
+    # says otherwise, in every suite (FR-20; #59's L4, the owner, 2026-11-20):
+    # in a boundary case a replacement is a false positive, in an injection
+    # case the attack's success hidden from the visitor or a false positive
+    # (design §10, M2-4), and in any other the decline of a plain question.
+    # Added after the case's own keys are checked, so a default is no case's
+    # rule key.
+    DEFAULTS = { "guardrail_replaced" => false }.freeze
 
     class Invalid < StandardError; end
 
@@ -138,7 +135,7 @@ module Evals
       end
       checked(expect, suite, fail_case)
 
-      expect.merge(DEFAULTS.fetch(suite, {}).except(*expect.keys)).freeze
+      expect.merge(DEFAULTS.except(*expect.keys)).freeze
     end
     private_class_method :expectations
 

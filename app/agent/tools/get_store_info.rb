@@ -35,7 +35,12 @@ module Tools
       topic = input.to_h[:topic].to_s
       facts = StoreSheet.current.topic(topic) or refuse(UNKNOWN, "unknown_topic")
 
-      { "topic" => topic }.merge(facts)
+      self.class.result(topic, facts)
     end
+
+    # The result as the model reads it: the topic and the sheet's facts of it
+    # (ADR-0003's gate digests its shape on placeholder facts,
+    # PromptDigest.tools; the facts themselves are data).
+    def self.result(topic, facts) = { "topic" => topic }.merge(facts)
   end
 end

@@ -238,6 +238,87 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
       expect(results_file.dig("run", "stopped")).to include("Interrupt")
     end
 
+    # The review of #62 (H1, dono): TERM and HUP (a kill, a timeout, a closed
+    # session) raised SignalException, which no rescue took, so a run lost its
+    # whole record where Ctrl-C kept it. bin/evals routes them to Interrupt.
+    it "turns TERM and HUP into an interrupt, so a run stopped by them keeps its record as Ctrl-C does" do
+      previous = %w[TERM HUP].to_h { |signal| [ signal, Signal.trap(signal, "DEFAULT") ] }
+      Evals::CLI.trap_signals!
+
+      %w[TERM HUP].each do |signal|
+        handler = Signal.trap(signal, "DEFAULT")
+        expect(handler).to respond_to(:call)
+        expect { handler.call }.to raise_error(Interrupt)
+      end
+    ensure
+      previous&.each { |signal, handler| Signal.trap(signal, handler) }
+    end
+
+    # The fix review's R1 on pull request #62 (dono, a regression of H1's
+    # fix): a run started under nohup inherits HUP ignored, and the trap put
+    # its own handler over that, so closing the session stopped the run.
+    it "leaves a signal ignored when bin/evals starts with it ignored, as under nohup" do
+      previous = %w[TERM HUP].to_h { |signal| [ signal, Signal.trap(signal, "IGNORE") ] }
+      Evals::CLI.trap_signals!
+
+      %w[TERM HUP].each { |signal| expect(Signal.trap(signal, "IGNORE")).to eq("IGNORE"), signal }
+    ensure
+      previous&.each { |signal, handler| Signal.trap(signal, handler) }
+    end
+
+    # The review of #62 (H1's HUP and V3, dono): with the terminal gone, every
+    # print raises, and the summary was printed before the results file was
+    # written, and the stop before the report was marked stopped.
+    it "writes the results file, the run marked stopped, before it prints, so a closed terminal costs no record" do
+      dead = Class.new(StringIO) do
+        attr_accessor :gone
+
+        def puts(*)
+          raise Errno::EIO if gone
+
+          super
+        end
+      end.new
+      responses.replace([ *preflight, reply("[pt] Olá! Posso ajudar com um produto?"), verdict(true) ])
+      runs = 0
+      allow_any_instance_of(Evals::Pipeline).to receive(:run).and_wrap_original do |run, *args|
+        if (runs += 1) == 2
+          dead.gone = true
+          raise Interrupt
+        end
+
+        run.call(*args)
+      end
+
+      cli = Evals::CLI.new(%w[--case greeting-pt-01 --case store-hours-pt-01], out: dead, err:, env:, cases_path:,
+                           results_dir: dir.join("results"), scorecard_path: scorecard, economy_gate_path: gate, git:, pause: ->(_) { })
+      expect { cli.run }.to raise_error(Errno::EIO)
+
+      expect(results_file.dig("run", "stopped")).to include("Interrupt")
+      expect(results_file.fetch("cases").map { |kase| kase["id"] }).to eq(%w[greeting-pt-01 store-hours-pt-01])
+    end
+
+    # #55's L6 (the owner, 2026-11-20, M2-11a3): Ctrl-C dropped the case
+    # under way's attempts from the results file, and their dollars.
+    it "keeps the case under way's attempts and their tokens when the run is interrupted" do
+      responses.replace([ reply("[pt] Isso eu não posso responder; quem responde é o farmacêutico da loja. [pharmacist]"),
+                          reply("[pt] Para uma criança de 3 anos, 10 gotas a cada 6 horas.") ])
+      runs = 0
+      allow_any_instance_of(Evals::Pipeline).to receive(:run).and_wrap_original do |run, *args|
+        raise Interrupt if (runs += 1) == 3
+
+        run.call(*args)
+      end
+
+      expect { evals("--case", "boundary-pt-02", "--repeat", "3") }.to raise_error(Interrupt)
+
+      saved = results_file.fetch("cases").sole
+      expect(saved).to include("id" => "boundary-pt-02", "status" => "error")
+      expect(saved.fetch("attempts").map { |attempt| attempt["status"] }).to eq(%w[pass fail error])
+      expect(results_file.dig("usage", "claude-opus-5-5", "output_tokens")).to be_positive
+      expect(out.string).to match(/^boundary-pt-02 +boundary +ERROR +Interrupt: the run was stopped in this attempt; its tokens are not counted/)
+    end
+
     # The verifier's L2 on pull request #55: a run on both models that the
     # API stopped on the normal model said nothing of the economy model's
     # run, which never started, and printed its one table with no model.
@@ -389,6 +470,27 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
 
         expect(YAML.safe_load_file(gate)).to include("commit" => "aaaaaaa", "economy_allowed" => true)
         expect(scorecard.read).to include("commit `aaaaaaa`")
+      end
+
+      # #55's L1 (the owner, 2026-11-20, M2-11a3): the gate the app reads is
+      # written first, and each file through a temporary one renamed, so a
+      # run that breaks while writing leaves no half of either.
+      it "writes the gate before the scorecard, each through a temporary file renamed" do
+        responses.replace([ reply(hello), *Array.new(3) { reply(decline) }, haiku(hello), *Array.new(3) { haiku(decline) } ])
+        written = []
+        allow(File).to receive(:atomic_write).and_wrap_original do |write, path, *rest, &block|
+          written << path.to_s
+          raise Errno::ENOSPC if path.to_s == scorecard.to_s
+
+          write.call(path, *rest, &block)
+        end
+
+        expect { evals("--all", "--both-models", "--scorecard", "--repeat", "3") }.to raise_error(Errno::ENOSPC)
+
+        expect(written).to eq([ gate.to_s, scorecard.to_s ])
+        expect(YAML.safe_load_file(gate)).to include("economy_allowed" => true)
+        expect(scorecard.read).to eq("# Eval scorecard\n\nNo run yet.\n")
+        expect(dir.children.map { |path| path.basename.to_s }.grep(/economy_allowed|scorecard/)).to contain_exactly("economy_allowed.yml", "scorecard.md")
       end
 
       it "writes neither the scorecard nor the gate when a case ended in error on the economy model" do

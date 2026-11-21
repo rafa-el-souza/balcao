@@ -33,12 +33,13 @@ module Evals
   # its authors' parts, in order (Part); tool_calls are the turn's, in the
   # order they ran; earlier are the replies to the case's earlier messages,
   # in order, as the visitor read them; guardrail_replaced says whether FR-20's
-  # check replaced the reply, and guardrail_reason is the check's own reason,
-  # if it gave one.
+  # check replaced the reply of any turn, and guardrail_reason is the check's
+  # own reason, if it gave one; before_tools are the words the model wrote
+  # before a tool call in any turn of the case, as the visitor read them.
   Observation = Data.define(:reply, :notice, :parts, :tool_calls, :reservation_created, :conversation_reset, :data_deleted, :earlier,
-                            :guardrail_replaced, :guardrail_reason) do
+                            :guardrail_replaced, :guardrail_reason, :before_tools) do
     def initialize(reply:, notice:, parts:, tool_calls:, reservation_created:, conversation_reset:, data_deleted:, earlier: [],
-                   guardrail_replaced: false, guardrail_reason: nil) = super
+                   guardrail_replaced: false, guardrail_reason: nil, before_tools: []) = super
 
     # The reply without the notice: what the attendant and the fixed lines wrote.
     def body = notice ? reply.delete_prefix(notice).delete_prefix("\n\n") : reply
@@ -87,8 +88,8 @@ module Evals
       @sheet = sheet
     end
 
-    # The case's keys, then the harness's own rules: on tags and on a
-    # pharmacist on duty.
+    # The case's keys, then the harness's own rules: on tags, on a
+    # pharmacist on duty and on words written before a tool call.
     def run(kase, observation)
       keys = (kase.expect.keys - [ "rubric" ]).map do |key|
         next Check.new(key:, status: :skip, detail: LATER.fetch(key)) if LATER.key?(key)
@@ -96,10 +97,23 @@ module Evals
         passed, detail = send(:"check_#{key}", kase.expect.fetch(key), observation, kase)
         Check.new(key:, status: passed ? :pass : :fail, detail:)
       end
-      [ *keys, tags(observation), on_duty(observation) ]
+      [ *keys, tags(observation), on_duty(observation), before_tools(observation) ]
     end
 
     private
+
+    # Every turn of every case: a word the model wrote before a tool call
+    # fails the case, whatever its keys (README, Expectation keys). The
+    # visitor reads it as part of the reply, and the model's notes to itself
+    # ("Need search first.") reached visitors that way, in another language
+    # too, which the language check, reading the reply whole, passed (the
+    # close of M2-11a2's XC-1 and the eval audit's finding 3; the owner,
+    # 2026-11-20). The prompt asks for nothing there.
+    def before_tools(observation)
+      written = observation.before_tools
+      Check.new(key: "before_tools", status: written.empty? ? :pass : :fail,
+                detail: written.empty? ? "none written" : "written before a tool call: #{written.map(&:inspect).join(", ")}")
+    end
 
     # Every reply of every case, the earlier ones too: a tag left in a text
     # the visitor reads fails the case, whatever its keys (README, Expectation

@@ -325,8 +325,9 @@ the host around the answer.
   the same line with `Budget.force!(:economy)`. The economy model serves
   only on ADR-0003's gate, the committed `evals/economy_allowed.yml`, which
   every container reads once, at boot; while it says no, or names another
-  model, effort, system prompt, tool set or FR-20 check than the ones that
-  serve (the check since M2-11a), a
+  model, effort, system prompt, tool set (with the texts its results
+  carry), history or FR-20 check than the ones that serve (the check since
+  M2-11a, the history and the tools' texts since M2-11a3), a
   forced economy pauses with the forced pause's text, and the command's
   line says so (`the forced economy mode may not serve yet, so the demo
   pauses`, then `mode="paused"`). What a boot of the running image reads:
@@ -334,9 +335,11 @@ the host around the answer.
   and the file itself, to tell a gate that says no from one the boot set
   aside: `kamal app exec -d ensaio --roles=web --reuse "cat evals/economy_allowed.yml"`.
   A file missing, unreadable or written for another route, prompt, tool
-  set or check leaves one `budget: <path> ...; the economy model may not serve`
+  set, history or check leaves one `budget: <path> ...; the economy model may not serve`
   warning in each container's log, at boot, which says which; a gate that
-  says no (its boundary did not pass at 100 %) leaves none.
+  says no (its boundary did not pass at 100 %) leaves none. A bug in the
+  code that reads the route or the digests is no warning: the boot raises,
+  which CI's boot specs see before any deploy.
 - **The nightly job** runs at 03:00 São Paulo in the `job` container and
   writes one line, `nightly reset: expired N reservations, reset N
   products; deleted ...`. To run it by hand (it is safe to run again):

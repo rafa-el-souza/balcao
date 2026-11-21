@@ -182,8 +182,24 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
 
       events = named { perform(turn) }
 
-      expect(events).to eq([ { turn_id: turn.id, attendant: "Ligue agora para o socorro." } ])
+      expect(events).to eq([ { turn_id: turn.id, attendant: "Ligue agora para o socorro.", before_tools: [] } ])
       expect(turn.outbound_message.body).to eq(FixedReply.with_notice(FixedReply.with_emergency("Ligue agora para o socorro.", "pt-BR"), "pt-BR"))
+    end
+
+    # The close of M2-11a2's XC-1 (the owner, 2026-11-20, M2-11a3): the
+    # model's notes to itself before a tool call reached visitors; the turn
+    # names, for the evals, what of the reply was written before a tool call.
+    it "names the words the model wrote before a tool call, which the reply still carries" do
+      create(:product, name: "Dipirona 500 mg", active_ingredient: "dipirona", stock: 12)
+      responses.replace([ message(content: [ thinking, text("[pt] Preciso buscar o produto primeiro."), tool_use("search_products", { query: "dipirona" }) ],
+                                  stop_reason: :tool_use),
+                          reply("[pt] Temos Dipirona 500 mg.") ])
+      turn = inbound("tem dipirona?")
+
+      events = named { perform(turn) }
+
+      expect(events).to eq([ { turn_id: turn.id, attendant: "Preciso buscar o produto primeiro.\n\nTemos Dipirona 500 mg.",
+                               before_tools: [ "Preciso buscar o produto primeiro." ] } ])
     end
 
     it "names none for a reply the system wrote in the model's place: a refusal's, a tag's alone, a replaced one, a command's" do
@@ -193,7 +209,7 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
 
       events = named { turns.each { |turn| perform(turn) } }
 
-      expect(events).to eq(turns.map { |turn| { turn_id: turn.id, attendant: nil } })
+      expect(events).to eq(turns.map { |turn| { turn_id: turn.id, attendant: nil, before_tools: [] } })
       expect(turns.map { |turn| turn.reload.outbound_message.present? }).to all(be(true))
     end
   end
@@ -243,6 +259,21 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       expect(turns.map(&:model_reply)).to all(be_nil)
     end
 
+    # The fix review's R3 on pull request #62 (dono; the owner, 2026-11-20:
+    # "Corrigir direto, com os testes"): ADR-0003's gate digests which notice
+    # each turn the system answered gets (TurnProcessor::IN_PLACE), and a
+    # replaced emergency's and a command's were chosen apart from it.
+    it "takes the kind of a replaced emergency's reply and of a command's from the table the gate digests" do
+      stub_const("TurnProcessor::IN_PLACE", TurnProcessor::IN_PLACE.merge("replaced_emergency" => "refusal", "command" => "pause"))
+      allow(Guardrail).to receive(:default_client) { FakeModel.new([ GuardrailVerdicts.verdict(true, "Gives first aid.") ]).client }
+      responses.replace([ reply("[pt] Ligue para o socorro e dê água. [emergency]") ])
+      turns = [ "meu filho engoliu uns comprimidos", "/help" ].map { |text| inbound(text) }
+
+      turns.each { |turn| perform(turn) }
+
+      expect(turns.map { |turn| turn.reload.reply_kind }).to eq(%w[refusal pause])
+    end
+
     it "keeps the turn's tool calls and their results with its reply, encrypted at rest" do
       product = create(:product, name: "Dipirona 500 mg", active_ingredient: "dipirona", stock: 12)
       responses.replace([ tool_turn(tool_use("search_products", { query: "dipirona" }, id: "toolu_01")), reply("[pt] Temos.") ])
@@ -286,6 +317,51 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       line = FixedReply.reservations(first.reservations.to_a, "pt-BR")
       expect(first.outbound_message.body).to include(line)
       expect(messages.to_s).not_to include(line)
+    end
+
+    # The close's XF-C2 (cliente, the owner, 2026-11-20, M2-11a3): a reply
+    # the system sent without running the model, a run's again that found the
+    # turn's reservations stored or the dead letter's fallback, kept no tool
+    # exchange, so the next turn's model had no code for the reservations the
+    # visitor read, nor any tool to look them up. Each reservation of a turn
+    # was made by the model's own call in an earlier run of it, so the turn
+    # keeps that call and its result, rebuilt from the stored reservation.
+    describe "a reply the system sent without the model" do
+      let(:product) { create(:product, name: "Dipirona 500 mg, 10 comprimidos", stock: 10) }
+      let(:first) { inbound("reserva duas dipironas pra mim") }
+      let!(:reservation) { create(:reservation, turn: first, product:, quantity: 2) }
+
+      def gives_back(reservation, messages)
+        call = messages.flat_map { |message| message[:role] == "assistant" ? Array(message[:content]) : [] }
+                       .find { |block| block[:type] == "tool_use" && block[:name] == "create_reservation" }
+        expect(call).to include(input: { product_id: reservation.product_id, quantity: 2 }, id: match(/\A[a-zA-Z0-9_-]+\z/))
+        result = messages.flat_map { |message| message[:role] == "user" ? Array(message[:content]) : [] }
+                         .find { |block| block.is_a?(Hash) && block[:type] == "tool_result" && block[:tool_use_id] == call[:id] }
+        expect(JSON.parse(result[:content])).to include("code" => reservation.code, "quantity" => 2, "product" => product.name)
+      end
+
+      it "gives the next turn the reservations of a run's again that found them stored, as the model's calls and their results" do
+        responses.replace([ reply("[pt] O código é #{reservation.code}.") ])
+        perform(first)
+        expect(first.reload).to have_attributes(reply_kind: "reservations", tool_exchange: be_present)
+        second = inbound("qual era o código da reserva?")
+
+        perform(second)
+
+        gives_back(reservation, fake.requests.last.body[:messages])
+      end
+
+      it "gives the next turn the reservations of the dead letter's fallback, as the model's calls and their results" do
+        first.update!(state: "failed")
+        TurnProcessor.new(first).give_up(RuntimeError.new("a bug"))
+        expect(first.reload).to have_attributes(reply_kind: "fallback", tool_exchange: be_present)
+        responses.replace([ reply("[pt] O código é #{reservation.code}.") ])
+        second = inbound("qual era o código da reserva?")
+
+        perform(second)
+
+        gives_back(reservation, fake.requests.last.body[:messages])
+      end
     end
   end
 

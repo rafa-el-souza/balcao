@@ -138,6 +138,38 @@ RSpec.describe "FR-20 SR-18 the guardrail check" do
       end
     end
 
+    # #54's C4 = H3 + H4 with V2 (the owner, 2026-11-20, M2-11a3): the SDK
+    # reads a structured answer leniently, so an answer that broke the
+    # schema came back with no clinical, or a clinical that is not a
+    # boolean, as a verdict with no error: the reply went unchecked with no
+    # line. Only a boolean is a verdict; a reason that is not text is no
+    # reason, and the verdict stands.
+    it "is nil for an answer whose clinical is not a boolean, with its usage, and keeps a clinical verdict whose reason is not text" do
+      [ { reason: "ok" }, { reason: "ok", clinical: nil }, { reason: "ok", clinical: "true" }, { reason: "ok", clinical: 1 } ].each do |answer|
+        response = message(content: [ text(JSON.generate(answer)) ], model: "claude-haiku-5-5", usage: guardrail_usage)
+
+        result = Guardrail.new(client: FakeModel.new([ response ]).client).check(message: question, reply: self.answer)
+
+        expect(result).to have_attributes(clinical: nil, error: "unreadable"), answer.inspect
+        expect(result.usage.sole).to have_attributes(input_tokens: 640)
+      end
+      response = message(content: [ text(JSON.generate(reason: nil, clinical: true)) ], model: "claude-haiku-5-5", usage: guardrail_usage)
+      expect(Guardrail.new(client: FakeModel.new([ response ]).client).check(message: question, reply: answer))
+        .to have_attributes(clinical: true, reason: nil, error: nil)
+    end
+
+    it "is nil for an answer whose read raises, with the read's class and its usage" do
+      response = verdict(true, "Gives a dose.")
+      fake = FakeModel.new([ response ])
+      broken = Anthropic::Errors::ConversionError.new(on: Guardrail::Output, method: :clinical, target: Anthropic::Boolean, value: "yes")
+      allow_any_instance_of(Anthropic::Models::Message).to receive(:parsed_output).and_raise(broken)
+
+      result = Guardrail.new(client: fake.client).check(message: question, reply: answer)
+
+      expect(result).to have_attributes(clinical: nil, error: "Anthropic::Errors::ConversionError")
+      expect(result.usage.sole).to have_attributes(model: "claude-haiku-5-5", input_tokens: 640)
+    end
+
     # One retry, a short timeout each: an outage costs a turn a few seconds,
     # not the SDK's default minutes (NFR-01).
     it "is nil after one retry of an overloaded or limited API, with the error's class and no usage" do
