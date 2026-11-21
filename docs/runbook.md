@@ -693,7 +693,8 @@ this order; *owner* marks the steps that are the owner's alone.
 2. *Owner:* the production host, in the production project with the
    provider's CLI, as the MVP host was made: `ops/cloud-init.yml` with the
    operator account's public key, CX23, Ubuntu 24.04, no IPv6, a primary
-   IPv4 of its own, a cloud firewall with the same four rules; its address
+   IPv4 of its own, a cloud firewall that admits TCP 22 and ICMP alone
+   until step 5 opens 80 and 443; its address
    in the operator account's ssh config (above); then
    `kamal server exec 'cloud-init status --wait'`, repeated until SSH
    answers, and the host checklist.
@@ -705,11 +706,17 @@ this order; *owner* marks the steps that are the owner's alone.
    host.
 5. *Owner:* the DNS records: the `A` record of `balcao.rafasouza.dev.br` to
    the production host's address, and a new `A` record of
-   `ensaio.rafasouza.dev.br` to the reserved IP. Then the first HTTPS
-   request to production, which has the certificate issued, by its address
-   while caches still hold the old one:
+   `ensaio.rafasouza.dev.br` to the reserved IP. Then wait out the
+   record's TTL (an hour, or the five minutes set the day before): the
+   first HTTPS request has kamal-proxy ask Let's Encrypt for the
+   certificate, whose check resolves the name with Let's Encrypt's own
+   resolvers, and a check that still met the MVP host would fail and count
+   against the name's limit (#67's review, C6). Only then open TCP 80 and
+   443 in production's cloud firewall, so no request reaches it earlier,
+   and make the first request:
    `curl -s --resolve balcao.rafasouza.dev.br:443:<the production address> https://balcao.rafasouza.dev.br/up`
-   answers `200`.
+   answers `200`. The cloud firewall then admits exactly TCP 22, 80, 443
+   and ICMP, as the host contract says.
 6. *Owner:* production's first data: `bin/rails db:seed` (The deploy flow,
    step 5), the operator's chat linked again (The budget, below: a fresh
    database has none).
