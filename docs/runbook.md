@@ -187,10 +187,12 @@ Only a green `main` is deployed to the MVP host.
 
 1. `git switch main && git pull --ff-only`, then check that the CI of that
    commit is green:
-   `gh api repos/rafa-el-souza/balcao/commits/$(git rev-parse HEAD)/check-runs --jq '.check_runs[] | "\(.name): \(.conclusion)"'`.
-2. Load the destination's env file into the same shell as the deploy (with
-   `set -a`), never from a shell start-up file, so its keys reach only the
-   deploy. It holds the host address, the key and ssh config paths, and the
+   `gh api "repos/rafa-el-souza/balcao/commits/$(git rev-parse HEAD)/check-runs?per_page=100" --jq '.check_runs[] | "\(.name): \(.conclusion)"' | sort`
+   prints the four lines of the operator's checklist's step 1, each
+   `success`; a line missing is a check not run yet.
+2. Load the destination's env file, readable by its account alone (mode
+   600), into the same shell as the deploy (with `set -a`), never from a
+   shell start-up file, so its keys reach only the deploy. It holds the host address, the key and ssh config paths, and the
    secrets that `.kamal/secrets.ensaio` references. A missing secret is
    generated with `bin/secrets-example` (it prints only the names not yet
    set) and appended to that file, except those an outside console holds:
@@ -357,7 +359,8 @@ development account, which has no sudo:
    the temporary directory, so the account has its own, made once:
    `mkdir -m 700 -p ~/.kamal-tmp`.
 3. Ruby at the version `.tool-versions` names and the pinned Kamal:
-   `gem install kamal -v 2.12.0`, then `kamal version` prints `2.12.0`.
+   `gem install kamal -v 2.12.0`, then `kamal version` prints `2.12.0`;
+   `curl` and `jq`, which the checklist's first step reads CI with.
    No file of the clone may choose or configure them: if mise manages
    Ruby, the clone is never trusted in it (`mise trust` is never run there,
    and when mise asks to trust a configuration of the clone the answer is
@@ -464,8 +467,10 @@ never from a shell start-up file.
    run a command), in `config/deploy.yml` a new host, template tag or
    secret, in the `Dockerfile` a new `RUN`, `ARG` or base image, in the
    lockfile a package no pull request named. The first
-   deploy has no `.last-deployed-sha`: read those files whole at
-   `origin/main` instead.
+   deploy has no `.last-deployed-sha`: read those files whole, with the
+   same command against git's empty tree in its place,
+   `git diff 4b825dc642cb6eb9a060e54bf8d69288fbee4904 origin/main -- <the same paths>`
+   (`git ls-tree` refuses the glob patterns).
 3. `git merge --ff-only origin/main`; `git status --porcelain` then prints
    nothing.
 4. The pinned kamal-proxy on the host by its digest (SR-27), as
@@ -486,6 +491,10 @@ never from a shell start-up file.
    host with `-d ensaio` on 2026-11-21.)
 5. `kamal version` prints the pinned version; then `kamal deploy`, or on a
    fresh host `kamal setup`, which boots the database accessory first.
+   When step 2's diff changed the database's or the proxy's options in
+   `config/deploy.yml` (a limit, the logging), a deploy does not bring them:
+   reboot them after it, as the host contract says, on production's
+   commands.
 6. The host runs the image this checkout built (ADR-0023), read only after
    a deploy that passed: a failed one leaves the version before it
    running, whose image is another, and this step is then skipped:
@@ -720,8 +729,9 @@ this order; *owner* marks the steps that are the owner's alone.
    `bin/edge-check https://balcao.rafasouza.dev.br` against it: before the
    cut, the MVP host is the rehearsal of production's first deploy.
 4. *Owner:* the operator's checklist, with `kamal setup` (a fresh host).
-   The certificate cannot be issued yet: the name still points at the MVP
-   host.
+   The certificate cannot be issued yet, the name still pointing at the
+   MVP host, and the firewall closed to 80 and 443: the checklist's smoke
+   waits for step 5, and its other steps run as written.
 5. *Owner:* the DNS records: the `A` record of `balcao.rafasouza.dev.br` to
    the production host's address, and a new `A` record of
    `ensaio.rafasouza.dev.br` to the reserved IP. Then wait out the
@@ -734,7 +744,10 @@ this order; *owner* marks the steps that are the owner's alone.
    and make the first request:
    `curl -s --resolve balcao.rafasouza.dev.br:443:<the production address> https://balcao.rafasouza.dev.br/up`
    answers `200`. The cloud firewall then admits exactly TCP 22, 80, 443
-   and ICMP, as the host contract says.
+   and ICMP, as the host contract says; then the checklist's smoke. Until
+   the ports open, a visitor or the uptime monitor whose resolver already
+   has the new address meets a timeout: the monitor may write once, and
+   writes again on recovery.
 6. *Owner:* production's first data: `bin/rails db:seed` (The deploy flow,
    step 5), the operator's chat linked again (The budget, below: a fresh
    database has none).
