@@ -59,7 +59,7 @@ module Api
 
     # The hash of the cookie's token; a request without the cookie is refused.
     def require_session!
-      WebSession.identity_hash_of(cookies) or refuse!(:unauthorized, "session")
+      WebSession.identity_hash_of(request) or refuse!(:unauthorized, "session")
     end
 
     # The cookie's visitor. Nil when it deleted its data (FR-05) or the

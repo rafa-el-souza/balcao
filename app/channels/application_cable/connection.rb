@@ -13,7 +13,7 @@ module ApplicationCable
     identified_by :identity_hash, :source
 
     def connect
-      self.identity_hash = WebSession.identity_hash_of(cookies)
+      self.identity_hash = WebSession.identity_hash_of(request)
       self.source = EdgeLimits.source(request.env)
     end
 
