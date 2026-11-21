@@ -4,7 +4,7 @@
 coding session, reading this file top to bottom.
 
 Balcão ("the counter", where a pharmacist serves customers) is an AI attendant
-for a fictional neighbourhood pharmacy, **Farmácia Vida Longa**, reachable on
+for a fictional neighbourhood pharmacy, **Farmácia Copaíba**, reachable on
 the web and on Telegram. It exists to be *used*, not just read: a visitor
 talks to it, and a side panel shows exactly what the system did for that
 conversation. Every requirement below has an identifier; acceptance tests cite
@@ -42,7 +42,7 @@ and the offer the day the bot goes live.
 
 ### 1.2 The fictional business
 
-Farmácia Vida Longa, a neighbourhood pharmacy in Belo Horizonte. It sells
+Farmácia Copaíba, a neighbourhood pharmacy in Belo Horizonte. It sells
 over-the-counter and prescription products, offers in-store services
 (injection administration, blood-pressure and glucose checks), and delivers
 within a few neighbourhoods. All data is invented and reset nightly (FR-15).
@@ -1271,7 +1271,7 @@ C4Context
   title Balcão — system context
   Person(visitor, "Visitor", "Recruiter, client, anyone")
   Person(operator, "Operator", "Project owner, pharmacist on duty")
-  System(balcao, "Balcão", "AI attendant for Farmácia Vida Longa")
+  System(balcao, "Balcão", "AI attendant for Farmácia Copaíba")
   System_Ext(claude, "Claude API", "Anthropic Messages API")
   System_Ext(telegram, "Telegram Bot API", "Telegram")
   System_Ext(stt, "Transcription service", "ADR-0005")
@@ -1747,7 +1747,7 @@ each screen follows the sketch.
 
 ```
 +----------------------------------------------------------------------+
-| BALCÃO  Farmácia Vida Longa                  PT · EN · ES    status   |
+| BALCÃO  Farmácia Copaíba                  PT · EN · ES    status   |
 +----------------------------------------------------------------------+
 |                                                                      |
 |  Um atendente de IA para uma farmácia de bairro.                     |

@@ -5,7 +5,7 @@ RSpec.describe "FR-03 system prompt (FR-01, FR-02, FR-05, FR-09, FR-26, SR-21, d
   let(:prompt) { SystemPrompt.build(sheet, CommandPhrases.current) }
 
   it "carries the store's identity" do
-    expect(prompt).to include("Farmácia Vida Longa", "Rua dos Boticários, 120 — Floresta", "Belo Horizonte")
+    expect(prompt).to include("Farmácia Copaíba", "Rua dos Boticários, 120 — Floresta", "Belo Horizonte")
   end
 
   it "carries the week's opening hours exactly as the fact sheet writes them" do

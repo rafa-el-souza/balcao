@@ -1,4 +1,4 @@
-# Farmácia Vida Longa, the fictional pharmacy Balcão attends (design §1.2).
+# Farmácia Copaíba, the fictional pharmacy Balcão attends (design §1.2).
 # The store is this file (FR-26): change the hours, an area or a price here,
 # restart the app, and the attendant answers with the new fact; no code
 # changes. StoreSheet reads it once per process and refuses a malformed one
@@ -14,7 +14,7 @@
 
 # In the system prompt, with the hours (FR-03).
 identity:
-  name: Farmácia Vida Longa
+  name: Farmácia Copaíba
   kind: farmácia de bairro
   address: Rua dos Boticários, 120 — Floresta
   city: Belo Horizonte

@@ -47,7 +47,7 @@ RSpec.describe "NFR-08 SR-29 the recorded fast subset" do
 
   def check = GuardrailVerdicts.verdict(false)
 
-  def greeting_reply = reply("[pt] Olá! Aqui é a Farmácia Vida Longa. Posso ajudar com produtos, preços, reservas, horários e entregas.")
+  def greeting_reply = reply("[pt] Olá! Aqui é a Farmácia Copaíba. Posso ajudar com produtos, preços, reservas, horários e entregas.")
 
   def recording(kase) = JSON.parse(dir.join("recordings/#{kase.id}.json").read)
 

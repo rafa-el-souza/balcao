@@ -16,7 +16,7 @@ RSpec.describe "FR-17 NFR-04 the canary" do
   include ActiveJob::TestHelper
 
   let(:monitor) { "https://monitor.example/api/v1/heartbeat/canary-token-of-the-specs" }
-  let(:answer) { "[pt] Olá! A Farmácia Vida Longa fica na Rua dos Boticários, 120 — Floresta, em Belo Horizonte." }
+  let(:answer) { "[pt] Olá! A Farmácia Copaíba fica na Rua dos Boticários, 120 — Floresta, em Belo Horizonte." }
   let(:responses) { [ reply(answer, model: "claude-haiku-5-5") ] }
   let(:fake) { FakeModel.new(responses) }
   let!(:beat) { stub_request(:post, monitor).to_return(status: 200) }

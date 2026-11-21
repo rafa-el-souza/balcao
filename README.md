@@ -8,7 +8,7 @@
 > built to be used, watched and audited.
 
 **Try it:** [balcao.rafasouza.dev.br](https://balcao.rafasouza.dev.br), live
-— talk to the attendant of *Farmácia Vida Longa* (a fictional pharmacy) and
+— talk to the attendant of *Farmácia Copaíba* (a fictional pharmacy) and
 watch, beside the chat, every model call, tool call, token and cent it took
 to answer you. On Telegram the same attendant is
 [@BalcaoDemoBot](https://t.me/BalcaoDemoBot).

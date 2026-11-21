@@ -1,4 +1,4 @@
-# The catalogue of Farmácia Vida Longa (design §1.2, FR-06), loaded by
+# The catalogue of Farmácia Copaíba (design §1.2, FR-06), loaded by
 # `bin/rails db:seed` and, every night, brought back to these stocks and
 # prices (FR-15). CatalogueSeed reads it and refuses a malformed entry
 # (spec/models/catalogue_seed_spec.rb); spec/evals/seed_spec.rb checks that

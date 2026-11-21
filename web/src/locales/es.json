@@ -1,7 +1,7 @@
 {
   "app": {
     "name": "Balcão",
-    "pharmacy": "Farmácia Vida Longa"
+    "pharmacy": "Farmácia Copaíba"
   },
   "separator": " · ",
   "language": {
@@ -62,7 +62,7 @@
   "chat": {
     "title": "Conversación · Balcão",
     "conversation": "Conversación",
-    "heading": "Conversación con la Farmácia Vida Longa",
+    "heading": "Conversación con la Farmácia Copaíba",
     "greeting": "¡Hola! Puedo consultar existencias y precios o reservar un producto. Solo escribe, o empieza por una de estas:",
     "loadFailed": "No pude abrir la conversación ahora. Recarga la página en un rato.",
     "challenge": "La verificación antibots no pasó, y sin ella la conversación no se abre. Un bloqueador de contenido puede impedir la verificación.",
@@ -242,7 +242,7 @@
     "pageName": "privacidad",
     "link": "Privacidad",
     "heading": "Privacidad",
-    "what": "Balcão es una demostración de portafolio. La Farmácia Vida Longa no existe: los productos, los precios, la dirección y el teléfono son inventados, y nada de lo que dice el asistente es orientación de salud. Esta página vale para el sitio y para el bot de Balcão en Telegram.",
+    "what": "Balcão es una demostración de portafolio. La Farmácia Copaíba no existe: los productos, los precios, la dirección y el teléfono son inventados, y nada de lo que dice el asistente es orientación de salud. Esta página vale para el sitio y para el bot de Balcão en Telegram.",
     "advice": {
       "label": "Aviso:",
       "text": "no escribas aquí datos personales o de salud reales."
