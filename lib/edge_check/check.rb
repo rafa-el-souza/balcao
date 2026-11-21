@@ -69,9 +69,7 @@ module EdgeCheck
     LIMIT_TRIES = 70
 
     def initialize(origin, out: $stdout, requester: nil)
-      uri = URI(origin)
-      raise ArgumentError, "give the host's https origin, as https://ensaio.rafasouza.dev.br" unless uri.is_a?(URI::HTTPS) && uri.path.to_s.delete("/").empty?
-
+      uri = origin_of(origin)
       @host = uri.host
       @out = out
       @requester = requester || method(:request)
@@ -92,6 +90,19 @@ module EdgeCheck
     end
 
     private
+
+    # The host of an https origin with nothing the check would drop: no port,
+    # user, path, query or fragment (review finding C9 of pull request #67).
+    def origin_of(origin)
+      uri = URI(origin)
+      plain = uri.is_a?(URI::HTTPS) && uri.host.to_s != "" && uri.port == uri.default_port && !origin.match?(/:\d+\z/) &&
+              uri.userinfo.nil? && uri.path.to_s.delete("/").empty? && uri.query.nil? && uri.fragment.nil?
+      raise ArgumentError, "give the host's https origin, as https://ensaio.rafasouza.dev.br" unless plain
+
+      uri
+    rescue URI::InvalidURIError
+      raise ArgumentError, "give the host's https origin, as https://ensaio.rafasouza.dev.br"
+    end
 
     def judge(probe, answer, policy)
       problems = []

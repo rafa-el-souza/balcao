@@ -96,8 +96,13 @@ RSpec.describe "SR-03 bin/edge-check reads a deployed host's answers from outsid
     expect(out.string).to include("FAIL a request past the edge's limit: no 429 in 70 requests")
   end
 
-  it "takes only a host's https origin" do
-    expect { EdgeCheck::Check.new("http://#{host}") }.to raise_error(ArgumentError)
-    expect { EdgeCheck::Check.new("https://#{host}/chat") }.to raise_error(ArgumentError)
+  # Review finding C9 of pull request #67: a part of the origin the check
+  # would drop (a port, a user, a query) is refused, and so is an origin URI
+  # cannot read, which bin/edge-check answers with its usage line.
+  it "takes only a host's https origin, refusing what it would drop and what it cannot read" do
+    [ "http://#{host}", "https://#{host}/chat", "https://#{host}:8443", "https://user@#{host}", "https://#{host}?q=1",
+      "https://#{host}#top", "https:", "https://exa mple" ].each do |origin|
+      expect { EdgeCheck::Check.new(origin) }.to raise_error(ArgumentError), origin
+    end
   end
 end
