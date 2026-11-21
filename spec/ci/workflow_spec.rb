@@ -1,4 +1,6 @@
 require "rails_helper"
+require "open3"
+require "shellwords"
 
 # M3's CI furniture (design §9.2, NFR-08): the checks that are CI steps
 # rather than examples are found in the workflow here, so a step dropped or
@@ -63,6 +65,27 @@ RSpec.describe "NFR-08 the CI workflow runs M3's furniture in the jobs the branc
   end
 
   describe "SR-25 SR-38 the static secrets check and the hooks check" do
+    let(:command) { Shellwords.split(step("ruby_test", "-e SR-25")["run"]) }
+
+    def rspec(argv)
+      Open3.capture2e({ "COVERAGE" => nil }, *argv, chdir: Rails.root.to_s)
+    end
+
+    # The review of #66, C3: a filter that selects nothing passed the step.
+    it "selects the examples of each secrets file and the hooks example, and fails when a filter selects nothing" do
+      output, status = rspec([ *command, "--dry-run", "--format", "json" ])
+      expect(status).to be_success, output
+      examples = JSON.parse(output[/\{.*\}/m]).fetch("examples")
+
+      expect(examples.map { |example| File.basename(example["file_path"]) }.uniq)
+        .to include("image_spec.rb", "secrets_spec.rb", "required_environment_spec.rb", "kamal_config_spec.rb")
+      expect(examples.map { |example| example["full_description"] }).to include(a_string_including("runs no repository hook"))
+
+      unfiltered = command.each_with_index.reject { |word, index| word == "-e" || (index.positive? && command[index - 1] == "-e") }.map(&:first)
+      output, status = rspec([ *unfiltered, "-e", "NO-SUCH-ID" ])
+      expect(status).not_to be_success, output
+    end
+
     it "run as their own step before the whole suite" do
       check = step("ruby_test", "-e SR-25")
       whole = steps("ruby_test").index { |step| step["run"] == "bundle exec rspec" }
