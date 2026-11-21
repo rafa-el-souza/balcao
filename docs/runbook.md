@@ -399,12 +399,22 @@ runs in the operator account's clone, with production's env file loaded in
 the same shell (`set -a; . <the file>; set +a`), never from a shell
 start-up file.
 
-1. `git fetch origin`, then read the CI of `origin/main`'s commit, where
-   every check reads `success`:
+1. `git fetch origin`, then read the CI of `origin/main`'s commit:
 
    ```
-   curl -s "https://api.github.com/repos/rafa-el-souza/balcao/commits/$(git rev-parse origin/main)/check-runs" \
-     | jq -r '.check_runs[] | "\(.name): \(.conclusion)"'
+   curl -s "https://api.github.com/repos/rafa-el-souza/balcao/commits/$(git rev-parse origin/main)/check-runs?per_page=100" \
+     | jq -r '.check_runs[] | "\(.name): \(.conclusion)"' | sort
+   ```
+
+   It prints these four lines, one for each job of the workflow, and
+   nothing else; a line missing is a check not run yet, never a pass
+   (the verifier's V2 on #67):
+
+   ```
+   Ruby: RSpec: success
+   Ruby: RuboCop, Brakeman, bundler-audit: success
+   Secrets: gitleaks: success
+   Web: ESLint, Prettier, types, Vitest, build, npm audit: success
    ```
 
 2. The deploy-path review: the diff, between what runs and what will run,

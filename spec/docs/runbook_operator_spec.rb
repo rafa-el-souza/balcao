@@ -49,4 +49,15 @@ RSpec.describe "SR-37 SR-38 the operator's account and checklist in the runbook"
                                   "':(glob)**/mise/**'", "':(glob)**/.mise/**'", "':(glob)**/.config/mise*'",
                                   "':(glob)**/.config/mise/**'")
   end
+
+  # The verifier's V2 on pull request #67: "every check reads success" held
+  # over a list that lacked a check not created yet. The checklist names the
+  # four checks the workflow's jobs make, and a rename of a job must reach it.
+  it "reads the CI of origin/main by the names of the workflow's jobs, each one success" do
+    jobs = YAML.safe_load_file(Rails.root.join(".github/workflows/ci.yml")).fetch("jobs").values.map { |job| job.fetch("name") }
+    listed = checklist.scan(/^ {3}(.+): success$/).flatten
+
+    expect(listed).to eq(jobs.sort)
+    expect(checklist).to include("check-runs?per_page=100")
+  end
 end
