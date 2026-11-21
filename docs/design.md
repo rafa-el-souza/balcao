@@ -679,7 +679,11 @@ referrer counters (FR-23), and a link to the current eval scorecard.
 - Canary turns use the economy model, are excluded from public counters,
   keep only the canary conversation and the aggregate record, and count
   toward spend (about 144 turns a day).
-- As built in M3-2 (2026-11-21; §10's note): the question is "Qual é o
+- As built in M3-2 (2026-11-21; §10's note): the 20 seconds count from the
+  run's time, its job's enqueueing, as a visitor's start when the message
+  arrives, so a queue the visitors' turns hold fails the canary too, and a
+  run that starts more than 20 seconds late fails without asking (#64's
+  H6). The question is "Qual é o
   endereço da farmácia?" and the marker the street of the store's address,
   read from the store sheet, which the system prompt carries, so the model
   needs no tool; the reply is compared without the demo notice, which every

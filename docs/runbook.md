@@ -680,8 +680,11 @@ kamal app logs -d ensaio --roles=job --since 1h | grep -E 'canary:|telegram watc
   whether its limit was reached), `replaced` (FR-20's check replaced the
   reply), `refused`, `deadline`.
   Visitors' turns take the same path, so their replies show it too.
-- **`canary: failed: the reply took … ms, over 20000`**: the model or the
-  database is slow; the visitors' turns are as slow.
+- **`canary: failed: the reply took … ms from the run's time, over
+  20000`** or **`the run started … s after its time`**: the queue, the
+  model or the database is slow; the 20 seconds count from when the run was
+  due, as a visitor's count from the message's arrival, so the visitors'
+  turns wait as long.
 - **`canary: failed: paused, and the reply is not a pause's text`**: the
   budget paused the demo and the reply was something else, a fault of the
   code: read the `budget:` lines.

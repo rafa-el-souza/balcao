@@ -180,7 +180,33 @@ RSpec.describe "FR-17 NFR-04 the canary" do
         original.call(*args, **kwargs)
       end
 
-      expect(run).to have_attributes(passed: false, reason: a_string_matching(/\Athe reply took 2\d{4} ms, over 20000\z/))
+      expect(run).to have_attributes(passed: false, reason: a_string_matching(/\Athe reply took 2\d{4} ms from the run's time, over 20000\z/))
+    end
+
+    # H6 of #64's review: a visitor's 20 seconds start when the message
+    # arrives, before the queue; so do the canary's, when its job was due.
+    it "fails when its own job started more than 20 seconds after its time, a queue the visitors' turns hold" do
+      allow(Canary).to receive(:new).and_wrap_original { |original, **kwargs| original.call(**kwargs, sleeper: waits) }
+      freeze_time
+      CanaryJob.perform_later
+      travel(30.seconds)
+
+      perform_enqueued_jobs(only: CanaryJob)
+
+      expect(counts).to eq("failed" => 1)
+      expect(failure.with(body: "canary: the run started 30 s after its time, over 20 s")).to have_been_requested.once
+      expect(fake.requests).to be_empty
+    end
+
+    it "counts the 20 seconds from its job's time, the queue's wait included" do
+      allow(TurnProcessor).to receive(:new).and_wrap_original do |original, *args, **kwargs|
+        travel(6.seconds)
+        original.call(*args, **kwargs)
+      end
+
+      result = run(due_at: 15.seconds.ago)
+
+      expect(result).to have_attributes(passed: false, reason: a_string_matching(/\Athe reply took 2\d{4} ms from the run's time, over 20000\z/))
     end
 
     it "fails when the turn breaks, as a visitor's turn would after its job's three attempts, and keeps nothing of it" do

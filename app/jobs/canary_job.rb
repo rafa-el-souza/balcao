@@ -5,8 +5,10 @@
 class CanaryJob < ApplicationJob
   queue_as :default
 
+  # Its time is its enqueueing (the scheduler's), so the queue's wait counts
+  # in the canary's 20 seconds (review finding H6 of pull request #64).
   def perform
-    Canary.new.run
+    Canary.new.run(due_at: enqueued_at)
   rescue StandardError => e
     Rails.logger.error("canary: not run, #{e.class}")
     Heartbeat.canary.failure("canary: not run, #{e.class}")

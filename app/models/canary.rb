@@ -8,8 +8,9 @@
 # (the system visitor's conversation has no stream, and its channel no
 # sender). No HTTP: the edge is the external monitor's, on /up (NFR-04).
 #
-# A run passes when the reply is stored within 20 seconds of the question
-# and holds the marker the question elicits, the street of the store's
+# A run passes when the reply is stored within 20 seconds of the run's time,
+# its job's enqueueing, the queue's wait included, and holds the marker the
+# question elicits, the street of the store's
 # address, which the system prompt carries (FR-03); or, when the demo is
 # paused, when the reply is one of the pauses' fixed texts: the canary
 # asserts "pipeline alive", not "model answered". It waits for the reply as
@@ -55,8 +56,13 @@ class Canary
     @sleeper = sleeper
   end
 
-  def run
-    result = Rails.logger.tagged("canary") { probe }
+  # due_at is when the run was due, its job's enqueueing: a visitor's 20
+  # seconds start when the message arrives, before the queue's wait, and so
+  # do the canary's, so a queue the visitors' turns hold fails it too
+  # (review finding H6 of pull request #64).
+  def run(due_at: nil)
+    due_at ||= Time.current
+    result = Rails.logger.tagged("canary") { probe(due_at) }
     count(result)
     tell(result)
     result
@@ -64,15 +70,18 @@ class Canary
 
   private
 
-  def probe
+  def probe(due_at)
+    late = Time.current - due_at
+    return failed("the run started #{late.round} s after its time, over #{WITHIN.to_i} s") if late > WITHIN
+
     conversation = Conversation.current_for!(Visitor.canary!)
     lock = "conversation:#{conversation.id}"
     return failed("an earlier run's turn still holds the canary's conversation") unless AdvisoryLock.free?(lock)
 
     clear(conversation)
     turn = ask(conversation)
-    reply = awaited(turn, Time.current + WITHIN)
-    judged(turn.reload, reply).tap { settled(conversation, lock) }
+    reply = awaited(turn, due_at + WITHIN)
+    judged(turn.reload, reply, due_at).tap { settled(conversation, lock) }
   rescue StandardError => e
     failed("the run broke: #{e.class}")
   end
@@ -110,19 +119,20 @@ class Canary
   # database's cascades, design §6.5).
   def clear(conversation) = Message.where(conversation_id: conversation.id).delete_all
 
-  def judged(turn, reply)
+  def judged(turn, reply, due_at)
     outcome = outcome_of(turn).presence || "not run"
     return failed("no reply within #{WITHIN.to_i} s, the turn is #{turn.state} (#{outcome})", turn) unless reply
 
+    took = ((reply.created_at - due_at) * 1000).round
     text = reply.body_without_notice
     if turn.mode_paused?
       return failed("paused, and the reply is not a pause's text (outcome #{outcome})", turn) unless pause_texts(turn).include?(text)
     else
       return failed("the reply lacks the marker (outcome #{outcome})", turn) unless text.include?(self.class.marker)
     end
-    return failed("the reply took #{turn.latency_ms} ms, over #{WITHIN.in_milliseconds}", turn) if turn.latency_ms.to_i > WITHIN.in_milliseconds
+    return failed("the reply took #{took} ms from the run's time, over #{WITHIN.in_milliseconds}", turn, took) if took > WITHIN.in_milliseconds
 
-    Result.new(passed: true, reason: nil, mode: turn.mode, latency_ms: turn.latency_ms)
+    Result.new(passed: true, reason: nil, mode: turn.mode, latency_ms: took)
   end
 
   # The turn's outcome and the error's class the root span of its last run
@@ -140,7 +150,7 @@ class Canary
     [ FixedReply.paused(language), FixedReply.daily_pause(language), FixedReply.forced_pause(language) ]
   end
 
-  def failed(reason, turn = nil) = Result.new(passed: false, reason:, mode: turn&.mode, latency_ms: turn&.latency_ms)
+  def failed(reason, turn = nil, took = nil) = Result.new(passed: false, reason:, mode: turn&.mode, latency_ms: took)
 
   # The day's count; one that cannot be written is a line, and the monitor
   # is told all the same.
