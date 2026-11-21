@@ -209,7 +209,8 @@ Read, in this order:
 
 Every requirement identifier (FR-07, SR-16, …) is cited by the tests, CI
 steps or runbook checks that cover it (`docs/traceability.md`, generated
-at each milestone close from M2). Pull requests that change code are
+at each milestone close from M2; the ones a step, a CI step or a
+measurement covers say where in [`docs/traceability.yml`](docs/traceability.yml)). Pull requests that change code are
 reviewed before merge by the project's own read-only finder agent, with an
 independent verifier on the risk list; the policy is
 [ADR-0013](docs/adr/0013-review-policy-own-finder-verifier-reach-triage.md)
@@ -317,22 +318,33 @@ cheaper model, and tells an external monitor whether the answer came in
 time, or whether the visitors' own recent turns all failed; beside it, a
 look at the bot's webhook tells the monitor when Telegram fails to
 deliver. The monitor also e-mails when either goes silent.
+Then a turn's hard edge: every model call and tool of a turn fits in its
+sixty seconds, a call the edge cuts is charged as the provider bills it,
+and the app reaches its database as a role that reads and writes rows and
+nothing else. Then CI's furniture: the fast evals replayed from their
+recordings with no key, and a gate of accessibility and size over the four
+public pages. Then the runbook was completed for the move to production:
+the operator's checklist, roll back, the rotations of every secret, the
+rehearsal hosts and the cut itself, with each container limited in memory
+and CPU, the visitor cookie made one that only the demo's own host can
+set, and the fictional pharmacy renamed Farmácia Copaíba, after a check
+found its old name on a real company and on a stranger's Telegram bot.
 
 Next, in two blocks (design §9.2, where a milestone's number is a label for
 its content, not its place in the order;
 [ADR-0022](docs/adr/0022-what-publishing-the-demo-needs-first-the-showcase-after.md)
 says why):
 
-- **First, what publishing the demo needs:** the runbook completed, and
-  production on a host of its own (until then the demo runs on the
-  rehearsal host). The demo is publicised the day it moves there.
+- **First, what publishing the demo needs:** the rehearsal hosts' own
+  mode, and production on a host of its own (until then the demo runs on
+  the rehearsal host). The demo is publicised the day it moves there.
 - **Then the showcase:** voice notes; service bookings and their calendar;
   the operator's console and a conversation handed over to a person; the
   status page; three example traces kept as files, a count of where
   visitors come from, the landing's final copy, a review of the Spanish
   texts and the README's final tour.
 
-Design §9.2 lists the 39 slices of that plan in order, and
+Design §9.2 lists the 40 slices of that plan in order, and
 [ADR-0020](docs/adr/0020-what-v1-leaves-out-the-plan-after-the-mvp.md)
 says what V1 leaves out and why: backups of fictional data, an OpenAPI
 document, a workflow for the full eval run and a push service among them.
