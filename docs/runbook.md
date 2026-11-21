@@ -673,9 +673,12 @@ kamal app logs -d ensaio --roles=job --since 1h | grep -E 'canary:|telegram watc
   (a status or an error's class; never the URL).
 - **`canary: failed: the reply lacks the marker (outcome …)`**: the turn
   ran and its reply did not hold the street of the store's address. The
-  outcome says where: `model_error` (the model API failed three times;
-  the dev/eval key's console says whether its limit was reached),
-  `replaced` (FR-20's check replaced the reply), `refused`, `deadline`.
+  outcome says where, with the error's class when there was one:
+  `model_error, Anthropic::Errors::…` (the model API failed: `NotFoundError`
+  a model gone, `AuthenticationError` a key revoked, `RateLimitError` or
+  `OverloadedError` the provider's limits; the dev/eval key's console says
+  whether its limit was reached), `replaced` (FR-20's check replaced the
+  reply), `refused`, `deadline`.
   Visitors' turns take the same path, so their replies show it too.
 - **`canary: failed: the reply took … ms, over 20000`**: the model or the
   database is slow; the visitors' turns are as slow.

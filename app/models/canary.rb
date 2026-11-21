@@ -76,9 +76,9 @@ class Canary
   def clear(conversation) = Message.where(conversation_id: conversation.id).delete_all
 
   def judged(turn)
-    reply = turn.outbound_message or return failed("no reply, the turn is #{turn.state}", turn)
+    outcome = outcome_of(turn)
+    reply = turn.outbound_message or return failed("no reply, the turn is #{turn.state} (#{outcome})", turn)
     text = reply.body_without_notice
-    outcome = TraceEvent.where(turn_id: turn.id, name: "balcao.turn").order(:started_at).last&.span_attributes&.dig("balcao.turn.outcome")
     if turn.mode_paused?
       return failed("paused, and the reply is not a pause's text (outcome #{outcome})", turn) unless pause_texts(turn).include?(text)
     else
@@ -87,6 +87,14 @@ class Canary
     return failed("the reply took #{turn.latency_ms} ms, over #{WITHIN.in_milliseconds}", turn) if turn.latency_ms.to_i > WITHIN.in_milliseconds
 
     Result.new(passed: true, reason: nil, mode: turn.mode, latency_ms: turn.latency_ms)
+  end
+
+  # The turn's outcome and the error's class its root span names, read
+  # before the run deletes the spans, the only place the class was (review
+  # finding H2 of pull request #64): a class names no visitor (SR-30).
+  def outcome_of(turn)
+    root = TraceEvent.where(turn_id: turn.id, name: "balcao.turn").order(:started_at).last&.span_attributes || {}
+    root.values_at("balcao.turn.outcome", "error.type").compact.join(", ")
   end
 
   def pause_texts(turn)

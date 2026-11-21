@@ -145,11 +145,21 @@ RSpec.describe "FR-17 NFR-04 the canary" do
       expect(Rails.logger).to have_received(:error).with("canary: failed: the reply lacks the marker (outcome replied)")
     end
 
-    it "fails when the model cannot answer, naming the turn's outcome" do
+    it "fails when the model cannot answer, naming the turn's outcome and the error's class" do
       responses.replace(Array.new(3) { { status: 529, body: { type: "error", error: { type: "overloaded_error", message: "Overloaded" } } } })
 
-      expect(run).to have_attributes(passed: false, reason: "the reply lacks the marker (outcome model_error)")
+      expect(run).to have_attributes(passed: false, reason: "the reply lacks the marker (outcome model_error, Anthropic::Errors::OverloadedError)")
       expect(counts).to eq("failed" => 1)
+    end
+
+    # H2 of #64's review: the run deletes its spans, the only place the
+    # error's class was, so the reason carries it (a class, SR-30).
+    it "names the error's class of a model that is gone, which no other line keeps" do
+      responses.replace([ { status: 404, body: { type: "error", error: { type: "not_found_error", message: "model: claude-haiku-5-5" } } } ])
+
+      expect(run).to have_attributes(passed: false, reason: "the reply lacks the marker (outcome model_error, Anthropic::Errors::NotFoundError)")
+      expect(failure.with(body: "canary: the reply lacks the marker (outcome model_error, Anthropic::Errors::NotFoundError)"))
+        .to have_been_requested.once
     end
 
     it "fails when the reply took longer than 20 seconds" do
