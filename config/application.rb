@@ -110,5 +110,11 @@ module Balcao
     # The month's budget cap in US dollars (FR-14): ADR-0003's default here,
     # BUDGET_CAP_USD in each destination (config/environments/production.rb).
     config.x.budget_cap_usd = BigDecimal("100")
+
+    # The external monitor's heartbeat URLs (FR-17, NFR-04): none here, so
+    # the canary and the Telegram watch send nothing; production reads them
+    # from its env file (config/environments/production.rb).
+    config.x.monitor_url = nil
+    config.x.telegram_monitor_url = nil
   end
 end

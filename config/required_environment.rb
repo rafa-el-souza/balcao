@@ -25,6 +25,18 @@ module Balcao
     # token from BotFather and Turnstile's secret from Cloudflare's dashboard
     # (design §8).
     HELD = %w[ANTHROPIC_API_KEY TELEGRAM_BOT_TOKEN TURNSTILE_SECRET_KEY].freeze
+    # The external monitor's heartbeat URLs (FR-17, NFR-04; the owner,
+    # 2026-11-21, "Dois heartbeats"): the canary's and the Telegram delivery
+    # watch's, held by the monitor's console. Each carries the monitor's
+    # token, so each is a secret. Required on the public name, or a failure
+    # would reach no one; blank on a rehearsal host, which has no monitor
+    # (design §8); an https URL wherever one is set.
+    MONITORS = %w[MONITOR_URL TELEGRAM_MONITOR_URL].freeze
+    # Every secret Kamal injects: the two secrets files and env.secret in
+    # config/deploy.yml name these.
+    INJECTED = (SECRETS + MONITORS).freeze
+    # An https URL with a host and a path, and no space.
+    MONITOR_URL = %r{\Ahttps://[^\s/?#]+/\S*\z}
     # Clear values set in config/deploy.yml and config/deploy.ensaio.yml.
     SETTINGS = %w[APP_HOST DB_HOST MODEL_ADAPTER BUDGET_CAP_USD].freeze
     NAMES = (SETTINGS + SECRETS).freeze
@@ -79,10 +91,27 @@ module Balcao
         raise Missing, "Refusing to boot: TURNSTILE_SECRET_KEY is one of Cloudflare's test secrets on the public name " \
                        "(threat model SR-39, ADR-0012)."
       end
-      return if env["TELEGRAM_BOT_TOKEN"].match?(BOT_TOKEN)
+      unless env["TELEGRAM_BOT_TOKEN"].match?(BOT_TOKEN)
+        raise Missing, "Refusing to boot: TELEGRAM_BOT_TOKEN must be BotFather's token, a number, a colon and the key " \
+                       "(FR-19, threat model SR-25)."
+      end
+      verify_monitors!(env)
+    end
 
-      raise Missing, "Refusing to boot: TELEGRAM_BOT_TOKEN must be BotFather's token, a number, a colon and the key " \
-                     "(FR-19, threat model SR-25)."
+    def self.verify_monitors!(env)
+      public_name = env["APP_HOST"].strip.casecmp?(PUBLIC_HOST)
+      MONITORS.each do |name|
+        value = env[name].to_s.strip
+        if value.empty?
+          next unless public_name
+
+          raise Missing, "Refusing to boot: #{name} is blank on the public name, where the canary's and the Telegram watch's " \
+                         "failures go to the external monitor (FR-17, NFR-04, threat model SR-25)."
+        end
+        next if value.match?(MONITOR_URL)
+
+        raise Missing, "Refusing to boot: #{name} must be the monitor's https URL (FR-17, threat model SR-25)."
+      end
     end
   end
 end

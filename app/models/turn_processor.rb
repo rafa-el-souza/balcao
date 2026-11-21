@@ -12,7 +12,9 @@
 #   hand, is answered with that pause's fixed reply, and no model is called
 #   (FR-14, threat model SR-02); the budget's mode is read here, before any
 #   model call, and names the route of the turn's model (ModelPolicy), the
-#   economy model's from 70 % of the cap and from the day's slice on;
+#   economy model's from 70 % of the cap and from the day's slice on, and
+#   always the economy model's for FR-17's canary, whose question a fixed
+#   system visitor asks on a conversation no page follows (canary?);
 # - anything else goes through AgentRunner, whose events become the turn's
 #   spans (FR-12), and its outcome becomes the reply: the model's text, FR-09's
 #   decline for a refusal (SR-19) or the fallback (NFR-03), the last two
@@ -350,11 +352,16 @@ class TurnProcessor
     budget = Budget.status
     return paused(budget) if budget.mode == "paused"
 
-    run_model(budget.mode)
+    run_model(canary? ? "economy" : budget.mode)
   rescue StandardError => e
     broken(e)
     raise
   end
+
+  # FR-17, ADR-0003: the canary's question runs on the economy model in
+  # every mode that calls one, whatever ADR-0003's gate says, since its reply
+  # reaches no visitor; a pause answers it with the pause's text, as any.
+  def canary? = @inbound.source_canary?
 
   # FR-14: the demo is paused, so the reply is the pause's, with no model:
   # the forced pause's own (the owner, 2026-11-15), the day's until midnight
@@ -670,6 +677,8 @@ class TurnProcessor
   # a broadcast that fails is, and never breaks a turn whose reply is stored
   # (review finding C6 and the hunter's H8 of pull request #48).
   def broadcast_reply(message)
+    return unless @conversation.streamed?
+
     codes = Reservation.where(visitor_id: @conversation.visitor_id).pluck(:code)
     broadcast(type: "message", message: message.stream_payload(reservation_codes: codes))
   rescue StandardError => e
@@ -678,8 +687,11 @@ class TurnProcessor
 
   # On the stream of the turn's conversation, the one the visitor's page
   # follows; a reset's reply names the conversation it opened. A broadcast
-  # that fails leaves the reply stored for the page to poll (FR-18).
+  # that fails leaves the reply stored for the page to poll (FR-18). The
+  # system visitor's conversation has no stream (FR-17's null transport).
   def broadcast(payload, stream = "conversation:#{@conversation.id}")
+    return unless @conversation.streamed?
+
     ActionCable.server.broadcast(stream, payload)
   rescue StandardError => e
     Rails.logger.error("turn #{@turn.id}: #{payload[:type]} not broadcast: #{e.class}")

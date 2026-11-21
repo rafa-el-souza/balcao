@@ -84,7 +84,9 @@ ssh:
 # real model in both destinations until M3 brings the fake one for rehearsal
 # hosts. BUDGET_CAP_USD is the month's model spend at which the demo pauses
 # (FR-14, ADR-0003). A blank required name stops the app at boot
-# (config/required_environment.rb, SR-25).
+# (config/required_environment.rb, SR-25); the two monitor URLs, the canary's
+# and the Telegram watch's heartbeats (FR-17), are required on the public
+# name and blank on a rehearsal host (design §8).
 env:
   clear:
     APP_HOST: balcao.rafasouza.dev.br
@@ -102,6 +104,8 @@ env:
     - TELEGRAM_BOT_TOKEN
     - TELEGRAM_WEBHOOK_SECRET
     - TURNSTILE_SECRET_KEY
+    - MONITOR_URL
+    - TELEGRAM_MONITOR_URL
 
 logging:
   options:

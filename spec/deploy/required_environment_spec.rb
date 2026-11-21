@@ -109,6 +109,32 @@ RSpec.describe "SR-25 production refuses to boot when a required variable is bla
       expect { described_class.verify!(complete.merge("BUDGET_CAP_USD" => "10.50")) }.not_to raise_error
     end
 
+    # FR-17, NFR-04 (M3-2; the owner, 2026-11-21, "Dois heartbeats"): the
+    # canary and the Telegram delivery watch each tell a heartbeat of the
+    # external monitor. On the public name both are required, or a failure
+    # would reach no one; a rehearsal host has none (design §8). Each URL
+    # carries the monitor's token, so it is a secret, never named.
+    it "requires the two monitor URLs on the public name, as https URLs, never naming a value" do
+      expect(described_class::MONITORS).to eq(%w[MONITOR_URL TELEGRAM_MONITOR_URL])
+      public_name = complete.merge("APP_HOST" => "balcao.rafasouza.dev.br")
+      described_class::MONITORS.each do |name|
+        [ "", "  ", "http://monitor.example/api/v1/heartbeat/secret-token", "monitor.example/secret-token",
+          "https://monitor.example/api/v1/heartbeat/secret token" ].each do |value|
+          expect { described_class.verify!(public_name.merge(name => value)) }
+            .to raise_error(described_class::Missing, /#{name}.*FR-17/) { |error| expect(error.message).not_to include("secret-token") }
+        end
+      end
+      expect { described_class.verify!(public_name) }.not_to raise_error
+    end
+
+    it "lets a rehearsal host go without monitor URLs, and refuses one that is not https there too" do
+      rehearsal = complete.merge("APP_HOST" => "ensaio.rafasouza.dev.br")
+
+      expect { described_class.verify!(rehearsal.merge("MONITOR_URL" => "", "TELEGRAM_MONITOR_URL" => "")) }.not_to raise_error
+      expect { described_class.verify!(rehearsal.merge("MONITOR_URL" => "http://monitor.example/x")) }
+        .to raise_error(described_class::Missing, /MONITOR_URL.*FR-17/)
+    end
+
     it "accepts an environment where every required variable has a value" do
       expect { described_class.verify!(complete) }.not_to raise_error
     end

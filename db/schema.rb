@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_21_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_21_040000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "fuzzystrmatch"
   enable_extension "pg_catalog.plpgsql"
@@ -40,6 +40,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_21_010000) do
     t.index ["trace_token"], name: "index_conversations_on_trace_token", unique: true
     t.index ["visitor_id"], name: "index_conversations_on_visitor_id"
     t.index ["visitor_id"], name: "index_conversations_one_open_per_visitor", unique: true, where: "(closed_at IS NULL)"
+  end
+
+  create_table "daily_aggregates", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
+    t.date "day", null: false
+    t.string "kind", null: false
+    t.string "key", null: false
+    t.integer "count", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["day", "kind", "key"], name: "index_daily_aggregates_on_day_and_kind_and_key", unique: true
   end
 
   create_table "messages", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|

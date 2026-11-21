@@ -104,7 +104,9 @@ class TraceRecorder
     Rails.logger.error("trace: span #{DELIVERY} not recorded: #{e.class}")
   end
 
-  def self.streams(conversation) = [ "conversation:#{conversation.id}", "trace:#{conversation.trace_token}" ]
+  # None for the system visitor's conversation, which no page follows
+  # (Conversation#streamed?, FR-17).
+  def self.streams(conversation) = conversation.streamed? ? [ "conversation:#{conversation.id}", "trace:#{conversation.trace_token}" ] : []
 
   def self.broadcast(conversation, payload)
     streams(conversation).each { |stream| ActionCable.server.broadcast(stream, payload) }

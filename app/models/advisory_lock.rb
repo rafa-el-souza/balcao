@@ -24,6 +24,8 @@ module AdvisoryLock
   # finder's note on pull request #48).
   TRY = "SELECT CASE WHEN pg_try_advisory_lock(hashtextextended($1, 0)) " \
         "THEN pg_advisory_unlock(hashtextextended($1, 0)) ELSE false END".freeze
+  # Takes the lock if no other session holds it, without waiting.
+  TAKE = "SELECT pg_try_advisory_lock(hashtextextended($1, 0))".freeze
 
   module_function
 
@@ -37,6 +39,22 @@ module AdvisoryLock
   def hold(key)
     ApplicationRecord.connection_pool.with_connection do |connection|
       acquire(connection, key)
+      begin
+        yield
+      ensure
+        release(connection, key)
+      end
+    end
+  end
+
+  # As hold, when no other session holds the lock now: the block runs under
+  # it, and its value is answered. When one does, nothing waits and nothing
+  # runs, and the answer is false, so a caller that must not queue behind a
+  # holder that may be stuck (FR-17's canary) says so at once instead.
+  def try_hold(key)
+    ApplicationRecord.connection_pool.with_connection do |connection|
+      return false unless connection.select_value(TAKE, "AdvisoryLock", [ key ]) == true
+
       begin
         yield
       ensure

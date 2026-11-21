@@ -90,6 +90,11 @@ Rails.application.configure do
   # spaces or line break a paste may leave, as the boot check reads it (the
   # review of pull request #53).
   config.x.turnstile_secret_key = ENV.fetch("TURNSTILE_SECRET_KEY").strip
+  # The external monitor's heartbeats (FR-17, NFR-04): the canary's and the
+  # Telegram delivery watch's, required on the public name by the boot check
+  # and blank on a rehearsal host, which sends none (Heartbeat).
+  config.x.monitor_url = ENV.fetch("MONITOR_URL", "").strip.presence
+  config.x.telegram_monitor_url = ENV.fetch("TELEGRAM_MONITOR_URL", "").strip.presence
 
   # Specify outgoing SMTP server. Remember to add smtp/* credentials via bin/rails credentials:edit.
   # config.action_mailer.smtp_settings = {

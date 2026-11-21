@@ -5,8 +5,16 @@
 # owner's decision of 2026-11-14) and holds the one thing a reply needs that
 # the hash cannot give back, the chat to send to, encrypted (SR-41); it goes
 # with the row (FR-05, FR-15).
+#
+# One row is no person: FR-17's canary asks its question as the system
+# visitor, on the system channel, which no transport sends to and no stream
+# follows (Conversation#streamed?), and which the seven-day purge, the sweep
+# and every public count leave (NightlyResetJob, StrandedSweepJob; #7's RS1).
 class Visitor < ApplicationRecord
-  CHANNELS = { web: "web", telegram: "telegram" }.freeze
+  CHANNELS = { web: "web", telegram: "telegram", system: "system" }.freeze
+  # The system visitor's identity: the SHA-256 of a fixed name, in the shape
+  # every identity has (IDENTITY_HASH), so no person's can be it.
+  CANARY = Digest::SHA256.hexdigest("balcao:canary").freeze
 
   enum :channel, CHANNELS, validate: true
 
@@ -39,6 +47,11 @@ class Visitor < ApplicationRecord
     visitor.update_column(:last_seen_at, Time.current)
     visitor
   end
+
+  # FR-17: the system visitor the canary asks as, created on the canary's
+  # first run and found again on the next; when two first runs race, the
+  # unique index lets one row in and the other gets it (NFR-02).
+  def self.canary! = find_by(channel: "system", identity_hash: CANARY) || create_or_find_by!(channel: "system", identity_hash: CANARY)
 
   # The Telegram visitor its agreement creates (FR-19): the time of the
   # agreement and the chat a reply goes to, which in a private chat is the
