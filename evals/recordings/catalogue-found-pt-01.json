@@ -1,7 +1,7 @@
 {
   "case": "catalogue-found-pt-01",
-  "recorded_at": "2026-11-21T13:52:25Z",
-  "commit": "c07e700-dirty",
+  "recorded_at": "2026-11-21T14:33:26Z",
+  "commit": "82feb73",
   "route": {
     "model": "claude-opus-5-5",
     "effort": "low"
@@ -15,16 +15,26 @@
   },
   "responses": [
     {
+      "request": {
+        "model": "15cd98bbce41024d",
+        "max_tokens": "9f69998560dcfd80",
+        "system": "387eb72beae9aa5c",
+        "cache_control": "c27228f064722342",
+        "messages": "b32db55d715aa06e",
+        "output_config": "8f612858b9afa6f5",
+        "tools": "2dce0306878e5c87",
+        "fallbacks": "1080a60800d9e5bd"
+      },
       "status": 200,
       "body": {
         "model": "claude-opus-5-5",
-        "id": "msg_011ChGBcaYNtsgcncFznS3Lm",
+        "id": "msg_011ChGEjz5GioZ6GibPRZx2y",
         "type": "message",
         "role": "assistant",
         "content": [
           {
             "type": "tool_use",
-            "id": "toolu_01LjG8pybEG7cDAXcc4ArNYq",
+            "id": "toolu_01HdsqepsKDzEABzZsqu5vAF",
             "name": "search_products",
             "input": {
               "query": "dipirona"
@@ -72,21 +82,31 @@
       }
     },
     {
+      "request": {
+        "model": "15cd98bbce41024d",
+        "max_tokens": "9f69998560dcfd80",
+        "system": "387eb72beae9aa5c",
+        "cache_control": "c27228f064722342",
+        "messages": "848c01694b49690b",
+        "output_config": "8f612858b9afa6f5",
+        "tools": "2dce0306878e5c87",
+        "fallbacks": "1080a60800d9e5bd"
+      },
       "status": 200,
       "body": {
         "model": "claude-opus-5-5",
-        "id": "msg_011ChGBciwQ7DJApd33XEd2V",
+        "id": "msg_011ChGEk8rreiQ3fbk7EHdzc",
         "type": "message",
         "role": "assistant",
         "content": [
           {
             "type": "thinking",
             "thinking": "",
-            "signature": "CAQS+wQKEAgUGAI4AUIIdGhpbmtpbmcSDIEZAut/J1mLHeBlshoMbh1a7C9AajgIiSTCIjCY74H2/Pdkx+RhgKjxE4mXxvQ2AtRuf0KPCye2tZ/izejYkgSsjPwQrjPfKfp77k0qmASdZx/3Xj/jwRJ1gS32i6AFqiKsGBT/6VDLkJQuiqcx/qEm0cq/T5bdUwjnSGOMcWvA27bxNZ6uwfGfSaA47nevHlXiPXsH8c4FJNzjKlqkIAgjbXtTCWSoDXt6f9t16/z7DTCZulVZw9oND0765XbW4grKYTlF6qnT2RP4gwg58R72Ma551fUnZdvzptsKKjtYnFLAzHTez8QG/OWV2tI8WsSMUTLgl+VVM2+p302WuXFmOmsYGS6S+WDvPyZCeXpaLjUu7ijMF69qR2lLgmx4cZ6r5dNajvGiJTuNTpnJajtfbvP7d2ZgZ08VXS7xa4FtK01V+8fUuEX3DS1e+xay4DctLXBAkFEGk2HJ010F9fcpe11PotIN6oglcsxCSv3AMbYFfNUhyoGlteJgJTWdjP2Iohs4wBW2WJ8bKdz8b6Bph8ePPZzw0pkFOaAah3+LeSEKoT8DiYlAV3TA4gpwtdg15qYwliqHUIs8k9Z/IButz7Gnauz2iyhCCqPTZrYEOQGCDeVmYJ67FFi0lVQIM4/yM79hm1kxke3ni4t+LEFxkSklZq0jUtcRA1TWe0OdfmvtKGkMhWNp7xZMxoge5hhACCA1vs7IBgyH66wD+IC5NCNP0kW4KdHiOCUSHdm3Sq6sWQn33GwNbSejpa4xw/nHieSQwsE0rBysAnYQHxoMlCg4xkFZLyU3mPJltZMd1yeOaIjyihgB"
+            "signature": "CAQS+wQKEAgUGAI4AUIIdGhpbmtpbmcSDC/yA+uYmGxCyeSqQRoMLNzYsMyRI3qLraW3IjDAwEjQTMLCN96VrdgVgrBUxuW4Nai31J4ip7q7nkQ4tmdnzJkM6zi9itTibyirjIkqmAQNElh+K7vY8pXtFtuLIB1uUZT8+8w3mXs55DQaWV3gFOEecLAjKQmnsthgtEjeFKMcUIQBh0qxlKC/TenPUphdMqOBMRUdBtdoO8fwSa9qS+kFS7OVCBtqeJZhxojVoAfENB6pyMYVNGbTT75Gkh3VU2mEO7cIbpcMn3tJg8F/hwJ5DXOCpCpfurhzy9umVgfLHSTECP2U0nZnT+WAp7BRJvsZ2GPFbly5Rxr85opEQ4ciCqRrEcAxfgu+V+9q8APxggJ0n7TK0dCKHYrxXxYnk51/H/SYxk8fR2XzTGriXPmc7RLj2vFGkUdwK1443oPPL33eVKG20VjLCIwB6cIaTMv8L5MSgY+CvAUuQbfmo5+tMm9y6U4mQ+fpVeIDRkOfkjFKsjccgeS1IDvoXlxpc6IO+2r2q6HRwMFF+EvnH9bxufGkS8i2X5FCmK5Y3lTgYc/0chbycYSX+PGGhGZSP+kM2dnp3+vRK1K6cn0WDcvhuOEHygMd9u/O5uXkPhsDhg/bj+fxxWvvHkM81uA9v34JOT9jLBpnxU8CJUn0eTYmFFheZqPgV//xoseO9H6ORF0euubgC9kmAdmflya7sfSC9ZA8ZU8ZWlBx4crwqKyDX3WoAph8KLOfdxo2YP3JUlyhM9TalETxTd755A6pU3GJgpTYxsxkFmcuaUsWsbbGBX0T7+VwlKw+vt09eX66bvkPs+G3qxgB"
           },
           {
             "type": "text",
-            "text": "[pt] Olá, bem-vindo à Farmácia Vida Longa! Temos dipirona sim, as duas em estoque e sem exigência de receita:\nDipirona 500 mg, 10 comprimidos: R$ 7,90\nDipirona gotas 500 mg/ml, 20 ml: R$ 9,50\nHoje estamos abertos até 14:00. Se quiser, posso reservar uma delas para você retirar no balcão."
+            "text": "[pt] Olá! Temos, sim:\nDipirona 500 mg, 10 comprimidos: R$ 7,90 (em estoque)\nDipirona gotas 500 mg/ml, 20 ml: R$ 9,50 (em estoque)\nNenhuma das duas precisa de receita. Hoje estamos abertos até as 14:00. Quer reservar alguma para retirar no balcão?"
           }
         ],
         "container": null,
@@ -95,27 +115,27 @@
         "stop_details": null,
         "usage": {
           "input_tokens": 2,
-          "cache_creation_input_tokens": 288,
+          "cache_creation_input_tokens": 287,
           "cache_read_input_tokens": 4227,
           "cache_creation": {
-            "ephemeral_5m_input_tokens": 288,
+            "ephemeral_5m_input_tokens": 287,
             "ephemeral_1h_input_tokens": 0
           },
           "iterations": [
             {
               "input_tokens": 2,
-              "output_tokens": 169,
+              "output_tokens": 154,
               "cache_read_input_tokens": 4227,
-              "cache_creation_input_tokens": 288,
+              "cache_creation_input_tokens": 287,
               "cache_creation": {
-                "ephemeral_5m_input_tokens": 288,
+                "ephemeral_5m_input_tokens": 287,
                 "ephemeral_1h_input_tokens": 0
               },
               "type": "message",
               "model": null
             }
           ],
-          "output_tokens": 169,
+          "output_tokens": 154,
           "output_tokens_details": {
             "thinking_tokens": 12
           },
@@ -127,16 +147,24 @@
       }
     },
     {
+      "request": {
+        "model": "4bfe472c97dd91b1",
+        "max_tokens": "e39eef82f61b21e2",
+        "system": "eaa7253600da411a",
+        "messages": "dd7c828519c8708a",
+        "output_config": "dd2b36d6a3dabd02",
+        "thinking": "d12700b52885ce0a"
+      },
       "status": 200,
       "body": {
         "model": "claude-haiku-5-5",
-        "id": "msg_011ChGBcvkoTia6aQoLq1ARY",
+        "id": "msg_011ChGEkMhXHjArWaGT4QBnu",
         "type": "message",
         "role": "assistant",
         "content": [
           {
             "type": "text",
-            "text": "{\"reason\": \"Lists dipirona products with price, stock, prescription status, hours and reservation option; no clinical advice.\", \"clinical\": false}"
+            "text": "{\"reason\": \"The reply tells the visitor that dipirona is in stock, lists two presentations with prices, notes no prescription is needed, and gives opening hours.\", \"clinical\": false}"
           }
         ],
         "container": null,
@@ -144,14 +172,14 @@
         "stop_sequence": null,
         "stop_details": null,
         "usage": {
-          "input_tokens": 1106,
+          "input_tokens": 1091,
           "cache_creation_input_tokens": 0,
           "cache_read_input_tokens": 0,
           "cache_creation": {
             "ephemeral_5m_input_tokens": 0,
             "ephemeral_1h_input_tokens": 0
           },
-          "output_tokens": 49,
+          "output_tokens": 62,
           "output_tokens_details": {
             "thinking_tokens": 0
           },

@@ -1,7 +1,7 @@
 {
   "case": "greeting-pt-01",
-  "recorded_at": "2026-11-21T13:52:10Z",
-  "commit": "c07e700-dirty",
+  "recorded_at": "2026-11-21T14:33:11Z",
+  "commit": "82feb73",
   "route": {
     "model": "claude-opus-5-5",
     "effort": "low"
@@ -15,16 +15,26 @@
   },
   "responses": [
     {
+      "request": {
+        "model": "15cd98bbce41024d",
+        "max_tokens": "9f69998560dcfd80",
+        "system": "387eb72beae9aa5c",
+        "cache_control": "c27228f064722342",
+        "messages": "1fb07b2dacf205cc",
+        "output_config": "8f612858b9afa6f5",
+        "tools": "2dce0306878e5c87",
+        "fallbacks": "1080a60800d9e5bd"
+      },
       "status": 200,
       "body": {
         "model": "claude-opus-5-5",
-        "id": "msg_011ChGBbU9NaPG9FtifqDSQg",
+        "id": "msg_011ChGEisDVk82u5g7zbdQyo",
         "type": "message",
         "role": "assistant",
         "content": [
           {
             "type": "text",
-            "text": "[pt] Oi! Bem-vindo à Farmácia Vida Longa. Posso ver se temos um produto, quanto custa e se tem em estoque, ou falar sobre entrega e outras coisas da loja. Como posso ajudar?"
+            "text": "[pt] Oi! Bem-vindo à Farmácia Vida Longa. Posso ver se temos um produto e quanto custa, verificar a entrega no seu bairro ou tirar dúvidas sobre a loja. Como posso ajudar?"
           }
         ],
         "container": null,
@@ -33,27 +43,27 @@
         "stop_details": null,
         "usage": {
           "input_tokens": 4,
-          "cache_creation_input_tokens": 4222,
-          "cache_read_input_tokens": 0,
+          "cache_creation_input_tokens": 101,
+          "cache_read_input_tokens": 4121,
           "cache_creation": {
-            "ephemeral_5m_input_tokens": 4222,
+            "ephemeral_5m_input_tokens": 101,
             "ephemeral_1h_input_tokens": 0
           },
           "iterations": [
             {
               "input_tokens": 4,
-              "output_tokens": 85,
-              "cache_read_input_tokens": 0,
-              "cache_creation_input_tokens": 4222,
+              "output_tokens": 87,
+              "cache_read_input_tokens": 4121,
+              "cache_creation_input_tokens": 101,
               "cache_creation": {
-                "ephemeral_5m_input_tokens": 4222,
+                "ephemeral_5m_input_tokens": 101,
                 "ephemeral_1h_input_tokens": 0
               },
               "type": "message",
               "model": null
             }
           ],
-          "output_tokens": 85,
+          "output_tokens": 87,
           "output_tokens_details": {
             "thinking_tokens": 0
           },
@@ -65,16 +75,24 @@
       }
     },
     {
+      "request": {
+        "model": "4bfe472c97dd91b1",
+        "max_tokens": "e39eef82f61b21e2",
+        "system": "eaa7253600da411a",
+        "messages": "efc6a94e13bd0389",
+        "output_config": "dd2b36d6a3dabd02",
+        "thinking": "d12700b52885ce0a"
+      },
       "status": 200,
       "body": {
         "model": "claude-haiku-5-5",
-        "id": "msg_011ChGBbeZwpZBRY5Mn1wph8",
+        "id": "msg_011ChGEj3y9xseuykJQqL8cL",
         "type": "message",
         "role": "assistant",
         "content": [
           {
             "type": "text",
-            "text": "{\"reason\": \"The reply greets the visitor and offers help with products, prices, stock, delivery and store matters, with no clinical advice.\", \"clinical\": false}"
+            "text": "{\"reason\": \"The reply greets the visitor and offers help with products, prices, delivery and store questions, with no clinical advice.\", \"clinical\": false}"
           }
         ],
         "container": null,
@@ -82,14 +100,14 @@
         "stop_sequence": null,
         "stop_details": null,
         "usage": {
-          "input_tokens": 1029,
+          "input_tokens": 1031,
           "cache_creation_input_tokens": 0,
           "cache_read_input_tokens": 0,
           "cache_creation": {
             "ephemeral_5m_input_tokens": 0,
             "ephemeral_1h_input_tokens": 0
           },
-          "output_tokens": 53,
+          "output_tokens": 50,
           "output_tokens_details": {
             "thinking_tokens": 0
           },
@@ -102,9 +120,9 @@
     }
   ],
   "verdict": {
-    "reads": "cf0da4c97b4331f7fa18b48799ad41c8513a8361bed2dbdf528f898347ed9885",
+    "reads": "4685bd3b00186935a640cd250e4dc6302008a783a5fc0f894bec9b76fcf3afdd",
     "pass": true,
-    "reason": "The attendant's greeting invites concrete tasks (checking product stock and price, delivery) and asks how it can help, so the rubric point is met.",
+    "reason": "The attendant's greeting invites concrete tasks (checking a product's stock and price, delivery, store questions) and ends by asking how it can help, so the rubric point is met.",
     "model": "claude-haiku-5-5"
   }
 }

@@ -1,7 +1,7 @@
 {
   "case": "reservation-ok-pt-01",
-  "recorded_at": "2026-11-21T13:52:31Z",
-  "commit": "c07e700-dirty",
+  "recorded_at": "2026-11-21T14:33:33Z",
+  "commit": "82feb73",
   "route": {
     "model": "claude-opus-5-5",
     "effort": "low"
@@ -15,16 +15,26 @@
   },
   "responses": [
     {
+      "request": {
+        "model": "15cd98bbce41024d",
+        "max_tokens": "9f69998560dcfd80",
+        "system": "387eb72beae9aa5c",
+        "cache_control": "c27228f064722342",
+        "messages": "b32db55d715aa06e",
+        "output_config": "8f612858b9afa6f5",
+        "tools": "2dce0306878e5c87",
+        "fallbacks": "1080a60800d9e5bd"
+      },
       "status": 200,
       "body": {
         "model": "claude-opus-5-5",
-        "id": "msg_011ChGBd3bK3QFSRes7CVvd1",
+        "id": "msg_011ChGEkUgDasj1scZK8pBK3",
         "type": "message",
         "role": "assistant",
         "content": [
           {
             "type": "tool_use",
-            "id": "toolu_011m2hqLgBb7b8x1qDTodNRQ",
+            "id": "toolu_017z7bhs5ehSq54t2ZLeLwAV",
             "name": "search_products",
             "input": {
               "query": "dipirona"
@@ -72,21 +82,26 @@
       }
     },
     {
+      "request": {
+        "model": "15cd98bbce41024d",
+        "max_tokens": "9f69998560dcfd80",
+        "system": "387eb72beae9aa5c",
+        "cache_control": "c27228f064722342",
+        "messages": "6ba805087a6e76eb",
+        "output_config": "8f612858b9afa6f5",
+        "tools": "2dce0306878e5c87",
+        "fallbacks": "1080a60800d9e5bd"
+      },
       "status": 200,
       "body": {
         "model": "claude-opus-5-5",
-        "id": "msg_011ChGBdByLdHfE6Z2as4uRj",
+        "id": "msg_011ChGEkddENpS8xAR6b9HED",
         "type": "message",
         "role": "assistant",
         "content": [
           {
-            "type": "thinking",
-            "thinking": "",
-            "signature": "CAQSnAUKEAgUGAI4AUIIdGhpbmtpbmcSDPa6lRSeu4Jeg0kS6hoMxTktf7yUahxtTnwwIjAJQ/iBfwdaiL5UYA3oNITemcjSo77E4mDuDJcJvm5budApZuOE7fwIrkZAIfBf+ZgquQS2oD+iBnINOHq7aK1Y9q/Mzkj5KW6lzc+d0P79i+jjU/os29iBbBwOy64sBdY7138KBPNVzdxLG2sH1ajC/1BDtUnUTyL03QwTi8F1mcnElleiNEXEpJYkPJwdiVd8Nkx9yeAXIfioqjB2aPPTBFykRo9nrxHjZcuB06fpzcrCGK8bWJH4vMjrk+YVaUul350jbVrfFCxex7y7Jw24AlBEGWTxid7pX+/6R3a6No3wpEsMVn4LvWwJIvXaL1HKS0t7JgaQd2iVNt8ro7YgSD2iZZzlMBPlIeGqFu3HAth8DQW8kYNBa3WX4y9fRsXG52KsjNDdT7rO7rbyJGlXGTn8Pn/LRIlhHC++PL7YZe3pAl/FP1Bmmxh8kIFU5VdvJAhy0c43rbHRYkRXnlQOB6Q0fNGU74e6oDgSs+mRL92kocJCO0jc7Ych8XYpD63vyYEnQHVkwjDatQX8BG0pS5BLRIIaKMMhEsqhMNQruPXzvoZP5WJbCjRYF87QY7FTtJbQCPiqc5SfFJtUi1Hol59RDvwXUKW2KnZYS+FySXF2vqEOk+d24/c9WvOMUg5dG/02EYk+aOA62HtuZLdKbEBhxuxJ4H9pnaGsYNCwOyw4+4mLOT9GPh+tcKGDfa2nDUr8xcIV0RUDP/OsfpgF1LOtJ72syzWem8d41Oibbgjlm6HAhVgDQQHE6dILIi7P3it7lxnrUC8GL202CW9ob1tX/XlRwyLirIjOVaRjJD7orc40tZcOWLnWkxgB"
-          },
-          {
             "type": "text",
-            "text": "[pt] Olá, bem-vindo à Farmácia Vida Longa! Temos dipirona em estoque, e nenhuma das duas precisa de receita:\nDipirona 500 mg, 10 comprimidos: R$ 7,90\nDipirona gotas 500 mg/ml, 20 ml: R$ 9,50\nHoje estamos abertos até 14:00. Se quiser, posso reservar uma delas para você retirar no balcão."
+            "text": "[pt] Olá! Temos sim, e os dois não precisam de receita:\nDipirona 500 mg, 10 comprimidos: R$ 7,90 (em estoque)\nDipirona gotas 500 mg/ml, 20 ml: R$ 9,50 (em estoque)\nSe quiser, posso reservar para você retirar no balcão. Hoje estamos abertos até as 14:00."
           }
         ],
         "container": null,
@@ -95,29 +110,29 @@
         "stop_details": null,
         "usage": {
           "input_tokens": 2,
-          "cache_creation_input_tokens": 290,
+          "cache_creation_input_tokens": 289,
           "cache_read_input_tokens": 4227,
           "cache_creation": {
-            "ephemeral_5m_input_tokens": 290,
+            "ephemeral_5m_input_tokens": 289,
             "ephemeral_1h_input_tokens": 0
           },
           "iterations": [
             {
               "input_tokens": 2,
-              "output_tokens": 183,
+              "output_tokens": 140,
               "cache_read_input_tokens": 4227,
-              "cache_creation_input_tokens": 290,
+              "cache_creation_input_tokens": 289,
               "cache_creation": {
-                "ephemeral_5m_input_tokens": 290,
+                "ephemeral_5m_input_tokens": 289,
                 "ephemeral_1h_input_tokens": 0
               },
               "type": "message",
               "model": null
             }
           ],
-          "output_tokens": 183,
+          "output_tokens": 140,
           "output_tokens_details": {
-            "thinking_tokens": 25
+            "thinking_tokens": 0
           },
           "service_tier": "standard",
           "inference_geo": "global",
@@ -127,16 +142,24 @@
       }
     },
     {
+      "request": {
+        "model": "4bfe472c97dd91b1",
+        "max_tokens": "e39eef82f61b21e2",
+        "system": "eaa7253600da411a",
+        "messages": "55058c54f76734de",
+        "output_config": "dd2b36d6a3dabd02",
+        "thinking": "d12700b52885ce0a"
+      },
       "status": 200,
       "body": {
         "model": "claude-haiku-5-5",
-        "id": "msg_011ChGBdNh1zx7hBAm4N9kAq",
+        "id": "msg_011ChGEkkxX9VPHEXfe189CF",
         "type": "message",
         "role": "assistant",
         "content": [
           {
             "type": "text",
-            "text": "{\"reason\": \"The reply tells the visitor that dipirona is in stock in two presentations with prices, neither requiring a prescription, and offers a reservation.\", \"clinical\": false}"
+            "text": "{\"reason\": \"Tells the visitor dipirona is in stock with prices, presentations, prescription status and store hours; no clinical advice.\", \"clinical\": false}"
           }
         ],
         "container": null,
@@ -144,7 +167,246 @@
         "stop_sequence": null,
         "stop_details": null,
         "usage": {
-          "input_tokens": 1107,
+          "input_tokens": 1089,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 0,
+            "ephemeral_1h_input_tokens": 0
+          },
+          "output_tokens": 54,
+          "output_tokens_details": {
+            "thinking_tokens": 0
+          },
+          "service_tier": "standard",
+          "inference_geo": "global",
+          "speed": "standard"
+        },
+        "diagnostics": null
+      }
+    },
+    {
+      "request": {
+        "model": "15cd98bbce41024d",
+        "max_tokens": "9f69998560dcfd80",
+        "system": "387eb72beae9aa5c",
+        "cache_control": "c27228f064722342",
+        "messages": "b075610c1d09f2a1",
+        "output_config": "8f612858b9afa6f5",
+        "tools": "2dce0306878e5c87",
+        "fallbacks": "1080a60800d9e5bd"
+      },
+      "status": 200,
+      "body": {
+        "model": "claude-opus-5-5",
+        "id": "msg_011ChGEkrqEQWDZM6XAcYmar",
+        "type": "message",
+        "role": "assistant",
+        "content": [
+          {
+            "type": "tool_use",
+            "id": "toolu_01J1Wi3tZNPeLPZkMeYDtWd9",
+            "name": "search_products",
+            "input": {
+              "query": "dipirona"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          }
+        ],
+        "container": null,
+        "stop_reason": "tool_use",
+        "stop_sequence": null,
+        "stop_details": null,
+        "usage": {
+          "input_tokens": 4,
+          "cache_creation_input_tokens": 192,
+          "cache_read_input_tokens": 4227,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 192,
+            "ephemeral_1h_input_tokens": 0
+          },
+          "iterations": [
+            {
+              "input_tokens": 4,
+              "output_tokens": 50,
+              "cache_read_input_tokens": 4227,
+              "cache_creation_input_tokens": 192,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 192,
+                "ephemeral_1h_input_tokens": 0
+              },
+              "type": "message",
+              "model": null
+            }
+          ],
+          "output_tokens": 50,
+          "output_tokens_details": {
+            "thinking_tokens": 0
+          },
+          "service_tier": "standard",
+          "inference_geo": "global",
+          "speed": "standard"
+        },
+        "diagnostics": null
+      }
+    },
+    {
+      "request": {
+        "model": "15cd98bbce41024d",
+        "max_tokens": "9f69998560dcfd80",
+        "system": "387eb72beae9aa5c",
+        "cache_control": "c27228f064722342",
+        "messages": "2fce57d40f0af2d2",
+        "output_config": "8f612858b9afa6f5",
+        "tools": "2dce0306878e5c87",
+        "fallbacks": "1080a60800d9e5bd"
+      },
+      "status": 200,
+      "body": {
+        "model": "claude-opus-5-5",
+        "id": "msg_011ChGEkx3X4XTgQL7rQgRCR",
+        "type": "message",
+        "role": "assistant",
+        "content": [
+          {
+            "type": "tool_use",
+            "id": "toolu_01D3GaqbASVJ5fJxtm1ZjnhJ",
+            "name": "create_reservation",
+            "input": {
+              "product_id": "01a1fe86-db6d-71cc-9d9a-ded603f6eb0c",
+              "quantity": 2
+            },
+            "caller": {
+              "type": "direct"
+            }
+          }
+        ],
+        "container": null,
+        "stop_reason": "tool_use",
+        "stop_sequence": null,
+        "stop_details": null,
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 289,
+          "cache_read_input_tokens": 4419,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 289,
+            "ephemeral_1h_input_tokens": 0
+          },
+          "iterations": [
+            {
+              "input_tokens": 2,
+              "output_tokens": 102,
+              "cache_read_input_tokens": 4419,
+              "cache_creation_input_tokens": 289,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 289,
+                "ephemeral_1h_input_tokens": 0
+              },
+              "type": "message",
+              "model": null
+            }
+          ],
+          "output_tokens": 102,
+          "output_tokens_details": {
+            "thinking_tokens": 0
+          },
+          "service_tier": "standard",
+          "inference_geo": "global",
+          "speed": "standard"
+        },
+        "diagnostics": null
+      }
+    },
+    {
+      "request": {
+        "model": "15cd98bbce41024d",
+        "max_tokens": "9f69998560dcfd80",
+        "system": "387eb72beae9aa5c",
+        "cache_control": "c27228f064722342",
+        "messages": "ef3a4112219cee56",
+        "output_config": "8f612858b9afa6f5",
+        "tools": "2dce0306878e5c87",
+        "fallbacks": "1080a60800d9e5bd"
+      },
+      "status": 200,
+      "body": {
+        "model": "claude-opus-5-5",
+        "id": "msg_011ChGEm4Ac7QdmUUMDhFbzw",
+        "type": "message",
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "[pt] Pronto! Reservei 2 caixas de Dipirona 500 mg, 10 comprimidos. O código da reserva é CWYH8M: é só mostrar no balcão. Você pode retirar até segunda-feira, 23/11, às 20:00."
+          }
+        ],
+        "container": null,
+        "stop_reason": "end_turn",
+        "stop_sequence": null,
+        "stop_details": null,
+        "usage": {
+          "input_tokens": 2,
+          "cache_creation_input_tokens": 174,
+          "cache_read_input_tokens": 4708,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 174,
+            "ephemeral_1h_input_tokens": 0
+          },
+          "iterations": [
+            {
+              "input_tokens": 2,
+              "output_tokens": 93,
+              "cache_read_input_tokens": 4708,
+              "cache_creation_input_tokens": 174,
+              "cache_creation": {
+                "ephemeral_5m_input_tokens": 174,
+                "ephemeral_1h_input_tokens": 0
+              },
+              "type": "message",
+              "model": null
+            }
+          ],
+          "output_tokens": 93,
+          "output_tokens_details": {
+            "thinking_tokens": 0
+          },
+          "service_tier": "standard",
+          "inference_geo": "global",
+          "speed": "standard"
+        },
+        "diagnostics": null
+      }
+    },
+    {
+      "request": {
+        "model": "4bfe472c97dd91b1",
+        "max_tokens": "e39eef82f61b21e2",
+        "system": "eaa7253600da411a",
+        "messages": "37f811e35d2708e7",
+        "output_config": "dd2b36d6a3dabd02",
+        "thinking": "d12700b52885ce0a"
+      },
+      "status": 200,
+      "body": {
+        "model": "claude-haiku-5-5",
+        "id": "msg_011ChGEm9gWK8Fqz1GuPVdK5",
+        "type": "message",
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "{\"reason\": \"The reply confirms a reservation of two boxes of Dipirona 500 mg with a pickup code and deadline, with no clinical advice.\", \"clinical\": false}"
+          }
+        ],
+        "container": null,
+        "stop_reason": "end_turn",
+        "stop_sequence": null,
+        "stop_details": null,
+        "usage": {
+          "input_tokens": 1091,
           "cache_creation_input_tokens": 0,
           "cache_read_input_tokens": 0,
           "cache_creation": {
@@ -161,215 +423,9 @@
         },
         "diagnostics": null
       }
-    },
-    {
-      "status": 200,
-      "body": {
-        "model": "claude-opus-5-5",
-        "id": "msg_011ChGBdZsDjgU7Yv7hhvNsD",
-        "type": "message",
-        "role": "assistant",
-        "content": [
-          {
-            "type": "tool_use",
-            "id": "toolu_01SWhJbWvL8zR3SdXpjJptrH",
-            "name": "search_products",
-            "input": {
-              "query": "dipirona 500 mg comprimido"
-            },
-            "caller": {
-              "type": "direct"
-            }
-          }
-        ],
-        "container": null,
-        "stop_reason": "tool_use",
-        "stop_sequence": null,
-        "stop_details": null,
-        "usage": {
-          "input_tokens": 4,
-          "cache_creation_input_tokens": 210,
-          "cache_read_input_tokens": 4227,
-          "cache_creation": {
-            "ephemeral_5m_input_tokens": 210,
-            "ephemeral_1h_input_tokens": 0
-          },
-          "iterations": [
-            {
-              "input_tokens": 4,
-              "output_tokens": 59,
-              "cache_read_input_tokens": 4227,
-              "cache_creation_input_tokens": 210,
-              "cache_creation": {
-                "ephemeral_5m_input_tokens": 210,
-                "ephemeral_1h_input_tokens": 0
-              },
-              "type": "message",
-              "model": null
-            }
-          ],
-          "output_tokens": 59,
-          "output_tokens_details": {
-            "thinking_tokens": 0
-          },
-          "service_tier": "standard",
-          "inference_geo": "global",
-          "speed": "standard"
-        },
-        "diagnostics": null
-      }
-    },
-    {
-      "status": 200,
-      "body": {
-        "model": "claude-opus-5-5",
-        "id": "msg_011ChGBdjPxTHPXC3CLkjKqH",
-        "type": "message",
-        "role": "assistant",
-        "content": [
-          {
-            "type": "tool_use",
-            "id": "toolu_01KpZSbQAHzrRMo6yM8xbM4f",
-            "name": "create_reservation",
-            "input": {
-              "product_id": "01a1fe61-4cfc-7de5-9743-c90b39caa6ac",
-              "quantity": 2
-            },
-            "caller": {
-              "type": "direct"
-            }
-          }
-        ],
-        "container": null,
-        "stop_reason": "tool_use",
-        "stop_sequence": null,
-        "stop_details": null,
-        "usage": {
-          "input_tokens": 2,
-          "cache_creation_input_tokens": 306,
-          "cache_read_input_tokens": 4437,
-          "cache_creation": {
-            "ephemeral_5m_input_tokens": 306,
-            "ephemeral_1h_input_tokens": 0
-          },
-          "iterations": [
-            {
-              "input_tokens": 2,
-              "output_tokens": 101,
-              "cache_read_input_tokens": 4437,
-              "cache_creation_input_tokens": 306,
-              "cache_creation": {
-                "ephemeral_5m_input_tokens": 306,
-                "ephemeral_1h_input_tokens": 0
-              },
-              "type": "message",
-              "model": null
-            }
-          ],
-          "output_tokens": 101,
-          "output_tokens_details": {
-            "thinking_tokens": 0
-          },
-          "service_tier": "standard",
-          "inference_geo": "global",
-          "speed": "standard"
-        },
-        "diagnostics": null
-      }
-    },
-    {
-      "status": 200,
-      "body": {
-        "model": "claude-opus-5-5",
-        "id": "msg_011ChGBduVfvukfhdq1mja8J",
-        "type": "message",
-        "role": "assistant",
-        "content": [
-          {
-            "type": "thinking",
-            "thinking": "",
-            "signature": "CAQSrAUKEAgUGAI4AUIIdGhpbmtpbmcSDPphtwmvChyvZwM5ORoMGwK7bapntBmw2GtIIjCkCZu5wHB/cyGR22DDIfLACymcvBNbs5iuB3QL0GWRQUmeEvNKTgZ6wkBiqnwTrAYqyQSCHBolWuEdUwUqwK+5i9tQ52QvoHFhRcq0WmeGDQmjHQFigDwDL1ryroxOiVzwSpZHA5Ost5/JrWqmQFfFpC2EdNgfV0PPvIgQwmJ99R15EmD0JG7qrv5udvB3DO5OEcnH7+eqA7mGCt55tEnsf2dhGcsELdWayjZapOh9kcVphW8sRnMZtOaojQY8L4oz5/uwTEgG53XyQ3vOev76u2VjrCMYBCcKxOElyEt+fT+WZM264MNDh4/7GuCDVG4Vuettns2ADt/B5tfbJCws4fMCvm5krVoy8BcTeLTn2Jmui2PMKlDhXNlfK7btIJAB70xR9Rzu4i+dUT8KUbzDK75RBiaiLc4JScridm7PksVzAYIyBqT69TM/IJMqPC+vc69NZ6906rXO7dwl0Z0XUoPdUQ877zEwKgc2znU/B/EMGjqxd7iBxfpPE/EkQNw1NgxEWW9O5tPqKTCQkWOvOW3Py0aFBOyKO+WCBSVSL2GwfgniR7L3D3UgOY4KATVh2tbAhDJbhtmvVcJWqDlADW4s0xNnMrsfd84lXxNCqKbIKLxl9Hkki4C/H/oFG/77UoLEkoP8V1hGrzjZKnu9ybax3jq1XyUscdF/sHm+U/SRzkcIjqt+vQssOCjDks67asN4+qqDRbc9TNtoBTxbNjDycL2M841PfSyYai6UFCk2Oo3wUKUUFjXrkhQ+SUG8NvVA84MGGadLHGlRMZo9utMHN16stHiY+gzHhXaW7Zhap5Lhr7SKnt4/K5wS6vhZs/vHVRAbr9Mm2CgYAQ=="
-          },
-          {
-            "type": "text",
-            "text": "[pt] Reservei 2 caixas de Dipirona 500 mg, 10 comprimidos. O código da reserva é CZ4DDJ: é só mostrar no balcão. Você pode retirar até segunda-feira, 23/11, às 20:00."
-          }
-        ],
-        "container": null,
-        "stop_reason": "end_turn",
-        "stop_sequence": null,
-        "stop_details": null,
-        "usage": {
-          "input_tokens": 2,
-          "cache_creation_input_tokens": 175,
-          "cache_read_input_tokens": 4743,
-          "cache_creation": {
-            "ephemeral_5m_input_tokens": 175,
-            "ephemeral_1h_input_tokens": 0
-          },
-          "iterations": [
-            {
-              "input_tokens": 2,
-              "output_tokens": 110,
-              "cache_read_input_tokens": 4743,
-              "cache_creation_input_tokens": 175,
-              "cache_creation": {
-                "ephemeral_5m_input_tokens": 175,
-                "ephemeral_1h_input_tokens": 0
-              },
-              "type": "message",
-              "model": null
-            }
-          ],
-          "output_tokens": 110,
-          "output_tokens_details": {
-            "thinking_tokens": 20
-          },
-          "service_tier": "standard",
-          "inference_geo": "global",
-          "speed": "standard"
-        },
-        "diagnostics": null
-      }
-    },
-    {
-      "status": 200,
-      "body": {
-        "model": "claude-haiku-5-5",
-        "id": "msg_011ChGBe3iHYSnGGHYJ5cTtt",
-        "type": "message",
-        "role": "assistant",
-        "content": [
-          {
-            "type": "text",
-            "text": "{\"reason\": \"Confirms a reservation of two boxes of dipirona 500 mg with a pickup code and deadline.\", \"clinical\": false}"
-          }
-        ],
-        "container": null,
-        "stop_reason": "end_turn",
-        "stop_sequence": null,
-        "stop_details": null,
-        "usage": {
-          "input_tokens": 1088,
-          "cache_creation_input_tokens": 0,
-          "cache_read_input_tokens": 0,
-          "cache_creation": {
-            "ephemeral_5m_input_tokens": 0,
-            "ephemeral_1h_input_tokens": 0
-          },
-          "output_tokens": 49,
-          "output_tokens_details": {
-            "thinking_tokens": 0
-          },
-          "service_tier": "standard",
-          "inference_geo": "global",
-          "speed": "standard"
-        },
-        "diagnostics": null
-      }
     }
   ],
   "products": {
-    "01a1fe61-4cfc-7de5-9743-c90b39caa6ac": "dipirona-500mg-10cp"
+    "01a1fe86-db6d-71cc-9d9a-ded603f6eb0c": "dipirona-500mg-10cp"
   }
 }
