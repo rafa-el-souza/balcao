@@ -51,6 +51,40 @@ RSpec.describe "SR-35 FR-14 NFR-02 the operator's alert, sent through the bot" d
     expect(Rails.logger).to have_received(:error).with("operator alert #{row.id} (budget_cap): not sent, no operator chat is linked")
   end
 
+  # Review finding H3 of pull request #63 (dono): the migration leaves no
+  # chat linked, so an alert written before the operator links one failed
+  # for good. Linking sends this month's latest of each kind that failed for
+  # want of a chat; an earlier one of its kind was followed by a later one.
+  it "sends, once a chat is linked, this month's latest alert of each kind that failed for want of one" do
+    last_month = travel_to(Time.zone.local(2026, 10, 31, 23, 0)) { alert(key: "2026-10:10.0").tap(&:deliver) }
+    earlier_day = travel_to(Time.zone.local(2026, 11, 20, 9, 0)) do
+      OperatorAlert.record!(kind: "budget_day", key: "2026-11-20:10.0", text: "Balcão: dia 20.").tap(&:deliver)
+    end
+    travel_to(Time.zone.local(2026, 11, 21, 10, 0)) do
+      cap = alert.tap(&:deliver)
+      day = OperatorAlert.record!(kind: "budget_day", key: "2026-11-21:10.0", text: "Balcão: dia 21.").tap(&:deliver)
+      expect([ last_month, cap, earlier_day, day ].map { |row| row.reload.status }).to all(eq "failed")
+
+      linked!
+      perform_enqueued_jobs(only: OperatorAlertJob)
+
+      expect(sent.map { |message| message["text"] }).to contain_exactly("Balcão: o teto.", "Balcão: dia 21.")
+      expect([ cap, day ].map { |row| row.reload.status }).to all(eq "sent")
+      expect([ last_month, earlier_day ].map { |row| row.reload.status }).to all(eq "failed")
+    end
+  end
+
+  it "links the chat all the same when the alerts cannot be sent again, with a line" do
+    alert.tap(&:deliver)
+    allow(OperatorAlert).to receive(:resend_unlinked!).and_raise(ActiveRecord::StatementInvalid, "gone")
+
+    expect(linked!).to be(true)
+
+    expect(OperatorChat.chat_id).to eq(chat_id)
+    expect(Rails.logger).to have_received(:error)
+      .with("operator chat: linked, but the alerts that failed for want of a chat not sent again, ActiveRecord::StatementInvalid")
+  end
+
   it "fails at once when Telegram refuses it (the operator blocked the bot), with a line of its code alone" do
     linked!
     stub_request(:post, bot_api_url("sendMessage")).to_return(bot_api_error(403, "Forbidden: bot was blocked by the user"))

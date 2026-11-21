@@ -13,7 +13,8 @@
 # of the way there or a 429 is tried again by the job, after 3 s and 18 s or
 # the wait the 429 names, ATTEMPTS in all; Telegram's refusal (the operator
 # blocked the bot, a chat that is gone) and a chat never linked fail it at
-# once. What is no answer of Telegram's (a local bug, a certificate that does
+# once; linking a chat sends this month's latest that failed for want of one
+# (review finding H3 of pull request #63). What is no answer of Telegram's (a local bug, a certificate that does
 # not prove the host) breaks the job and leaves the row claimed: the sweep
 # takes it up once the lease and five minutes have passed, and its attempts
 # count, so one that breaks every time fails at its fourth claim. An alert
@@ -70,6 +71,21 @@ class OperatorAlert < ApplicationRecord
   # the month reaches again is a new alert, or for the day's slice the day
   # and the cap, so each day it pauses is one.
   def self.budget_key(kind, month:, day:, cap:) = "#{kind == "budget_day" ? day.iso8601 : month}:#{cap.to_d.to_s("F")}"
+
+  # Review finding H3 of pull request #63: the alerts that failed for want of
+  # a linked chat, sent again once one is linked (OperatorChat.link!): this
+  # month's latest of each kind, since an earlier one of its kind was
+  # followed by a later one, each set pending as new by a conditional write
+  # and enqueued.
+  def self.resend_unlinked!(at = Time.current)
+    rows = status_failed.where(error: "unlinked").where(created_at: at.in_time_zone.beginning_of_month..)
+                        .order(:created_at).group_by(&:kind).values.map(&:last)
+    rows.each do |row|
+      pending = where(id: row.id, status: "failed")
+                  .update_all(status: "pending", attempts: 0, next_attempt_at: nil, error: nil, updated_at: Time.current)
+      row.deliver_later if pending == 1
+    end
+  end
 
   # The runbook's check of the path, sent at once rather than by the job, so
   # the command shows what became of it.

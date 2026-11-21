@@ -40,7 +40,7 @@ class OperatorChat < ApplicationRecord
   def self.link!(token, chat_id:, language:, at: Time.current)
     return false unless token.is_a?(String) && token.match?(TOKEN)
 
-    transaction do
+    linked = transaction do
       row = lock.find_by(link_digest: digest(token))
       unless row && row.link_expires_at > at
         Rails.logger.info("operator chat: a link refused, #{row ? "expired" : "not the pending one"}")
@@ -51,7 +51,21 @@ class OperatorChat < ApplicationRecord
       Rails.logger.info("operator chat: linked")
       true
     end
+    resend(at) if linked
+    linked
   end
+
+  # Review finding H3 of pull request #63: an alert written before a chat was
+  # linked failed for want of one; once linked, the chat gets this month's
+  # latest of each kind (OperatorAlert.resend_unlinked!). The chat is linked
+  # whatever becomes of them: a failure here is a line, and the bot still
+  # answers the link.
+  def self.resend(at)
+    OperatorAlert.resend_unlinked!(at)
+  rescue StandardError => e
+    Rails.logger.error("operator chat: linked, but the alerts that failed for want of a chat not sent again, #{e.class}")
+  end
+  private_class_method :resend
 
   # The runbook's command that takes the alerts away from the chat.
   def self.unlink! = find_by(role: ROLE)&.update!(chat_id: nil, language: nil, linked_at: nil)
