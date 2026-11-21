@@ -1,4 +1,5 @@
 require "rails_helper"
+require "open3"
 
 # Design §8, ADR-0011 (M3-6b): a rehearsal host runs MODEL_ADAPTER=fake, the
 # recorded model: the API with no key and no network, answering a visitor's
@@ -166,6 +167,24 @@ RSpec.describe "Design §8 ADR-0011 the recorded model of a rehearsal host" do
   ensure
     Rails.configuration.x.fake_model = saved
     AgentRunner.instance_variable_set(:@default_client, nil)
+  end
+
+  # The finder's note 4 on #68: bin/evals runs in the test environment, and
+  # its live runs and its judge ask AgentRunner's default client, so a shell
+  # that exported MODEL_ADAPTER=fake would have them read recordings in the
+  # live model's place. The adapter is a production setting, read there alone.
+  it "reads MODEL_ADAPTER in production alone, never in the environment bin/evals runs in" do
+    read = lambda do |env|
+      out, err, status = Open3.capture3({ "MODEL_ADAPTER" => "fake", "DATABASE_URL" => nil }.merge(env), "bin/rails", "runner",
+                                        "puts \"FAKE \#{Rails.configuration.x.fake_model}\"", chdir: Rails.root.to_s)
+      raise "the runner failed: #{err}" unless status.success?
+
+      out.lines.grep(/\AFAKE /).last.split.last
+    end
+
+    expect(read.({ "RAILS_ENV" => "test" })).to eq "false"
+    expect(read.({ "RAILS_ENV" => "development" })).to eq "false"
+    expect(read.(ProductionEnv.complete.merge("RAILS_ENV" => "production", "MODEL_ADAPTER" => "fake", "ANTHROPIC_API_KEY" => ""))).to eq "true"
   end
 
   it "reads the committed recordings and cases from the paths the image keeps" do

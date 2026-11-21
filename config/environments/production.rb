@@ -31,6 +31,11 @@ Rails.application.configure do
   # on it. The trace page sends its own noindex, nofollow everywhere.
   config.action_dispatch.default_headers["X-Robots-Tag"] = "noindex" if Balcao::RequiredEnvironment.noindex?
 
+  # MODEL_ADAPTER=fake: a rehearsal host's turns ask the recorded model, with
+  # no key (RecordedModel; design §8, ADR-0011), which the boot check takes off
+  # the public name alone. Production reads it, and no other environment.
+  config.x.fake_model = Balcao::RequiredEnvironment.fake_model?
+
   # Enable serving of images, stylesheets, and JavaScripts from an asset server.
   # config.asset_host = "http://assets.example.com"
 
