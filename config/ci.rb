@@ -15,6 +15,7 @@ CI.run do
   step "Types: TypeScript", "npm --prefix web run typecheck"
   step "Tests: Vitest", "npm --prefix web test"
   step "Build: web", "npm --prefix web run build"
+  step "Tests: NFR-10's gate", "npm --prefix web run e2e"
 
   step "Lint: GitHub Actions", "bin/actionlint"
   step "Security: gitleaks", "gitleaks git --redact --no-banner"

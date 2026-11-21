@@ -37,6 +37,21 @@ RSpec.describe "NFR-08 the CI workflow runs M3's furniture in the jobs the branc
     expect(Rails.root.join("config/ci.rb").read).to include('"bin/evals --recorded"')
   end
 
+  # NFR-10: axe-core and the first visit's size over the four public pages
+  # (web/e2e/gate.e2e.ts), on the build the job has just made, in Chromium's
+  # headless shell installed at the locked Playwright's revision.
+  it "runs NFR-10's gate over the build, after it" do
+    build = steps("web").index { |step| step["run"] == "npm run build" }
+    browser = steps("web").index { |step| step["run"] == "npm run e2e:browser" }
+    gate = steps("web").index { |step| step["run"] == "npm run e2e" }
+
+    expect([ build, browser, gate ]).to all(be_an(Integer))
+    expect(build).to be < gate
+    expect(browser).to be < gate
+    expect(steps("web")[gate]["name"]).to include("NFR-10")
+    expect(Rails.root.join("config/ci.rb").read).to include('"npm --prefix web run e2e"')
+  end
+
   describe "SR-25 SR-38 the static secrets check and the hooks check" do
     it "run as their own step before the whole suite" do
       check = step("ruby_test", "-e SR-25")
