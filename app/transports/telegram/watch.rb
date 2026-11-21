@@ -63,7 +63,7 @@ module Telegram
       info = begin
         @client.webhook_info
       rescue Client::Error => e
-        return [ "getWebhookInfo failed: #{e.code || e.failure}" ].tap { |problems| tell(problems) }
+        return [ "getWebhookInfo failed: #{e.code || e.failure || "refused, with no code"}" ].tap { |problems| tell(problems) }
       end
       info = {} unless info.is_a?(Hash)
       error = Integer(info["last_error_date"], exception: false)

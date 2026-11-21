@@ -175,6 +175,14 @@ RSpec.describe "FR-19 FR-17 NFR-04 the Telegram delivery watch" do
     expect(look).to eq([ "a delivery error at 2026-11-21T12:52:00Z: Read timeout expired" ])
   end
 
+  # The fix review's note on #64: Telegram's refusal with no code still
+  # says the call was refused.
+  it "names a refusal that carries no code as a refusal" do
+    stub_request(:post, bot_api_url("getWebhookInfo")).to_return(status: 200, body: { ok: false }.to_json, headers: { "content-type" => "application/json" })
+
+    expect(look).to eq([ "getWebhookInfo failed: refused, with no code" ])
+  end
+
   it "fails the heartbeat when the way to Telegram breaks, naming the failure's class" do
     stub_request(:post, bot_api_url("getWebhookInfo")).to_timeout
 
