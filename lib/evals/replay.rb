@@ -44,7 +44,7 @@ module Evals
 
       started_at = Time.current
       started = AgentRunner::MONOTONIC.call
-      fake = FakeModel.new(recording.responses)
+      fake = Recording::Replayed.new(recording)
       run = travel_to(recording.recorded_at) { AgentRunner.with_client(fake.client) { @pipeline.run(kase) } }
       graded(kase, run, fake, recording, verdicts).then do |status, checks, verdict|
         attempt = Runner::Attempt.new(status:, checks:, verdict:, error: nil, run:, started_at:, seconds: AgentRunner::MONOTONIC.call - started)

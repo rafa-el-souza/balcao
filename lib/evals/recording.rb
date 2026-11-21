@@ -21,6 +21,11 @@ require_relative "judge"
 # expectations are not recorded: the replay grades the recorded replies
 # against the cases as they stand.
 #
+# A tool call names a product by its id, which the catalogue's seed draws
+# anew in each attempt, so a recording keeps every product id its answers
+# name with the product's sku, and the replay serves each answer with the id
+# the same product has in the replay's catalogue (Replayed).
+#
 # The rubric's verdict is recorded too, with a digest of what the judge read
 # (its prompt and route, the rubric, the reply in its authors' parts): the
 # replay calls no judge, and takes the recorded verdict only when the judge
@@ -32,6 +37,7 @@ module Evals
     # RetryAfter), kept so a recorded 429 or 529 is replayed as it came.
     HEADERS = %w[retry-after retry-after-ms x-should-retry].freeze
     DIGESTS = %w[prompt tools history guardrail case].freeze
+    UUID = /\h{8}-\h{4}-\h{4}-\h{4}-\h{12}/
 
     attr_reader :path, :data
 
@@ -63,9 +69,10 @@ module Evals
 
     # Writes the recording of a case's passing attempt through a temporary
     # file renamed, so a run that breaks while writing leaves the old one.
-    def self.write(kase, dir:, responses:, verdict:, parts:, commit:, at:)
+    def self.write(kase, dir:, responses:, verdict:, parts:, commit:, at:, products: {})
       data = { "case" => kase.id, "recorded_at" => at.utc.iso8601, "commit" => commit, "route" => route, "digests" => digests(kase),
                "responses" => responses }
+      data["products"] = products.sort.to_h if products.any?
       if kase.rubric
         data["verdict"] = { "reads" => reads(kase.rubric, parts), "pass" => verdict.pass, "reason" => verdict.reason, "model" => verdict.model }
       end
@@ -90,28 +97,34 @@ module Evals
     def responses = data.fetch("responses")
     def recorded_at = Time.iso8601(data.fetch("recorded_at"))
     def verdict = data["verdict"]
+    def products = data.fetch("products", {})
 
     # The SDK's middleware that keeps each attempt's answer as the API gave
     # it, in the shape FakeModel replays: the status, the body and the
     # headers that steer a retry, or a timeout, true once the request was on
-    # its way and "open" when it never was (ModelAttempts.abandoned?). An
-    # answer it cannot keep (a connection's failure, a body that is not
-    # JSON) marks the attempt unrecordable, and nothing is written for it.
+    # its way and "open" when it never was (ModelAttempts.abandoned?), and
+    # the sku of every product an answer names by its id, read in the
+    # attempt's own catalogue. An answer it cannot keep (a connection's
+    # failure, a body that is not JSON) marks the attempt unrecordable, and
+    # nothing is written for it.
     class Recorder
       include Anthropic::Middleware
 
-      attr_reader :responses, :broken
+      attr_reader :responses, :products, :broken
 
       def initialize
         @responses = []
+        @products = {}
         @broken = nil
       end
 
       def call(request, nxt)
         response = nxt.call(request)
         response.buffer!
+        body = response.body.join
         kept = HEADERS.filter_map { |name| [ name, response.headers[name] ] if response.headers[name] }.to_h
-        @responses << { "status" => response.status, "headers" => kept.presence, "body" => JSON.parse(response.body.join) }.compact
+        @responses << { "status" => response.status, "headers" => kept.presence, "body" => JSON.parse(body) }.compact
+        @products.merge!(Product.where(id: body.scan(UUID).uniq).pluck(:id, :sku).to_h)
         response
       rescue Anthropic::Errors::APITimeoutError => e
         @responses << { "timeout" => e.cause.is_a?(Net::ReadTimeout) ? true : "open" }
@@ -127,7 +140,7 @@ module Evals
     # model call of the attempt, the check's among them. The judge keeps its
     # own client, so its calls are never recorded.
     class Pipeline
-      Kept = Data.define(:responses, :broken)
+      Kept = Data.define(:responses, :products, :broken)
 
       # client: builds an SDK client with the recorder as its middleware.
       def initialize(inner, client:)
@@ -141,7 +154,7 @@ module Evals
       def run(kase)
         recorder = Recorder.new
         run = AgentRunner.with_client(@client.call(recorder)) { @inner.run(kase) }
-        @kept[run] = Kept.new(responses: recorder.responses, broken: recorder.broken)
+        @kept[run] = Kept.new(responses: recorder.responses, products: recorder.products, broken: recorder.broken)
         run
       end
 
@@ -155,8 +168,31 @@ module Evals
         return "not recorded: #{kept.broken}" if kept.broken
 
         Recording.write(result.kase, dir:, responses: kept.responses, verdict: attempt.verdict, parts: attempt.run.observation.parts,
-                                     commit:, at: attempt.started_at)
+                                     commit:, at: attempt.started_at, products: kept.products)
         nil
+      end
+    end
+
+    # The fake model of a replay: each recorded answer, served with every
+    # product id the recording names turned into the id the same product,
+    # by its sku, has in the replay's catalogue, read when its request comes,
+    # after the attempt's seed.
+    class Replayed < FakeModel
+      def initialize(recording)
+        super(recording.responses)
+        @products = recording.products
+      end
+
+      def call(request, nxt)
+        @responses[0] = current(@responses[0]) if @products.any? && @responses.any?
+        super
+      end
+
+      private
+
+      def current(response)
+        now = Product.where(sku: @products.values).pluck(:sku, :id).to_h
+        JSON.parse(JSON.generate(response).gsub(UUID) { |id| (sku = @products[id]) ? now.fetch(sku) : id }, symbolize_names: true)
       end
     end
 

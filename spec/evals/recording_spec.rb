@@ -181,7 +181,7 @@ RSpec.describe "NFR-08 SR-29 the recorded fast subset" do
 
     it "replays at the recording's time" do
       seen = nil
-      allow(FakeModel).to receive(:new).and_wrap_original do |original, *args|
+      allow(Evals::Recording::Replayed).to receive(:new).and_wrap_original do |original, *args|
         seen = Time.current
         original.call(*args)
       end
@@ -192,6 +192,47 @@ RSpec.describe "NFR-08 SR-29 the recorded fast subset" do
       expect(Time.current).not_to eq(recorded_at)
       expect(out.string).to include("1 of 1 recorded case passed")
       expect(seen).to be_within(31.days).of(recorded_at)
+    end
+  end
+
+  # A tool call names a product by its id, which the catalogue's seed draws
+  # anew in every attempt: the recording keeps each id it saw with the
+  # product's sku, and the replay hands the model's call the id the same
+  # product has then.
+  describe "a reservation on the recording's catalogue" do
+    let(:reservation) { Evals::CaseSet.load.find("reservation-ok-pt-01") }
+    # The API as the recording met it: an answer that names a product is
+    # written when its request comes, from the attempt's own catalogue.
+    let(:network) do
+      Class.new(FakeModel) do
+        def initialize(script)
+          super([])
+          @script = script
+        end
+
+        def left = @script.size
+
+        def call(request, nxt)
+          answer = @script.shift
+          @responses = [ (answer.respond_to?(:call) ? answer.call : answer).to_h.deep_symbolize_keys ] if answer
+          super
+        end
+      end.new(api)
+    end
+    let(:dipirona) { -> { Product.find_by!(sku: "dipirona-500mg-10cp").id } }
+    let(:api) do
+      [ tool_turn(tool_use("search_products", { query: "dipirona" })), reply("[pt] Temos Dipirona 500 mg, 10 comprimidos, por R$ 7,90."), check,
+        tool_turn(tool_use("search_products", { query: "dipirona comprimido" })),
+        -> { tool_turn(tool_use("create_reservation", { product_id: dipirona.call, quantity: 2 })) },
+        reply("[pt] Pronto, reservei duas caixas. O código está abaixo."), check ]
+    end
+
+    it "is made again on the product's id of the replay" do
+      expect(evals("--record", "--case", reservation.id)).to eq(0), out.string + err.string
+      expect(recording(reservation)["products"].values).to eq([ "dipirona-500mg-10cp" ])
+
+      expect(replay("--case", reservation.id)).to eq(0), out.string
+      expect(out.string).to include("1 of 1 recorded case passed")
     end
   end
 
