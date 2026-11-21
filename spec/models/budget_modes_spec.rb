@@ -265,6 +265,36 @@ RSpec.describe "FR-14 SR-02 the budget's automatic modes: economy at 70 %, the d
         .to eq(I18n.t("operator.cap.serving", locale: "pt-BR", month: month.month, cap: "10,00", spent: "12,00", mode: "normal"))
     end
 
+    # Review finding C2 = H10 of pull request #63 (dono): the cap's text told
+    # the operator to raise the cap with a deploy when the pause was a mode
+    # the operator forced, which holds whatever the cap is.
+    it "says the forced mode holds the pause when the operator forced it, a pause or an economy the gate keeps closed" do
+      %w[paused economy].each_with_index do |forced, index|
+        BudgetState.delete_all
+        OperatorAlert.delete_all
+        Budget.instance_variable_set(:@alerted, nil)
+        month.update!(spent_usd: BigDecimal("10.#{index}"), forced_mode: forced)
+
+        expect(Budget.mode).to eq("paused")
+
+        expect(OperatorAlert.sole.text)
+          .to eq(I18n.t("operator.cap.forced", locale: "pt-BR", month: month.month, cap: "10,00", spent: "10,#{index}0")), forced
+      end
+    end
+
+    # Review finding V1 of pull request #63 (dono, the verifier's): with the
+    # gate closed, a raised cap may land the month in an economy the gate
+    # pauses, so no text tells the operator that a deploy of a raised cap
+    # resumes the demo; the runbook says what does.
+    it "names no deploy as the way to resume, in the three languages, and points to the runbook" do
+      %w[pt-BR en es].each do |locale|
+        [ I18n.t("operator.cap.paused", locale:), I18n.t("operator.cap.forced", locale:), I18n.t("operator.gate.month", locale:) ].each do |text|
+          expect(text).not_to include("deploy")
+        end
+        expect(I18n.t("operator.cap.paused", locale:)).to include("runbook")
+      end
+    end
+
     it "is written again when the month reaches a cap a deploy raised, once for each cap" do
       month.update!(spent_usd: BigDecimal("10"))
       Budget.mode

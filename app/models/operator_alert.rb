@@ -34,8 +34,8 @@ class OperatorAlert < ApplicationRecord
 
   # FR-14's alerts of the budget (Budget.alert), in the language of the
   # operator's chat: budget_cap, the month reached its cap, its text saying
-  # whether the demo paused or which forced mode serves past the cap, which
-  # the operator chose; budget_month and budget_day, the month's economy and
+  # whether the cap paused the demo, a forced mode keeps it paused, or a
+  # forced mode serves past the cap; budget_month and budget_day, the month's economy and
   # the day's slice that ADR-0003's closed gate turned into pauses, until the
   # month ends and until midnight (review findings C1 = H1 and H4 of pull
   # request #63). None names a visitor or a conversation.
@@ -46,14 +46,21 @@ class OperatorAlert < ApplicationRecord
     text = case kind
     when "budget_month" then I18n.t("operator.gate.month", locale: language, **values)
     when "budget_day" then I18n.t("operator.gate.day", locale: language, **values)
-    when "budget_cap" then cap_text(serving, language, values)
+    when "budget_cap" then cap_text(serving, state.forced_mode, language, values)
     else raise ArgumentError, "#{kind} is no alert of the budget"
     end
     record!(kind:, key:, text:)
   end
 
-  def self.cap_text(serving, language, values)
-    return I18n.t("operator.cap.paused", locale: language, **values) if serving == "paused"
+  # Whether the cap paused the demo, a mode the operator forced keeps it
+  # paused (a pause, or an economy the closed gate pauses), which holds
+  # whatever the cap is (review finding C2 = H10 of pull request #63), or a
+  # forced mode serves past the cap. No text names a deploy as the way to
+  # resume: with the gate closed a raised cap may land the month in an
+  # economy the gate pauses, so the runbook says what resumes it (V1).
+  def self.cap_text(serving, forced, language, values)
+    return I18n.t("operator.cap.paused", locale: language, **values) if serving == "paused" && forced.nil?
+    return I18n.t("operator.cap.forced", locale: language, **values) if serving == "paused"
 
     I18n.t("operator.cap.serving", locale: language, mode: I18n.t("operator.modes.#{serving}", locale: language), **values)
   end

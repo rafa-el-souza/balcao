@@ -84,7 +84,8 @@ pt-BR:
     linked: "Este chat está ligado ao Balcão: os alertas do operador chegam aqui."
     test: "Balcão: teste do alerta do operador. Se esta mensagem chegou, os alertas chegam a este chat."
     cap:
-      paused: "Balcão: o gasto de %{month} chegou ao teto de US$ %{cap} (US$ %{spent} gastos), e a demo está pausada até o próximo mês. Para retomar antes, suba o teto com um deploy (o runbook diz como)."
+      paused: "Balcão: o gasto de %{month} chegou ao teto de US$ %{cap} (US$ %{spent} gastos), e a demo está pausada até o próximo mês. O runbook diz como retomar antes."
+      forced: "Balcão: o gasto de %{month} chegou ao teto de US$ %{cap} (US$ %{spent} gastos), e a demo segue pausada pelo modo que você forçou; liberado o modo, o teto a mantém pausada até o próximo mês. O runbook diz como retomar antes."
       serving: "Balcão: o gasto de %{month} chegou ao teto de US$ %{cap} (US$ %{spent} gastos), mas o modo forçado %{mode} continua servindo, e gastando, até ser liberado."
     gate:
       month: "Balcão: o gasto de %{month} passou de 70 % do teto (US$ %{spent} de US$ %{cap}), e o modelo econômico ainda não pode servir, porque o portão das evals está fechado: a demo está pausada até o próximo mês. O runbook diz como retomar antes."

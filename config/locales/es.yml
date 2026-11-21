@@ -52,7 +52,8 @@ es:
     linked: "Este chat está vinculado a Balcão: las alertas del operador llegarán aquí."
     test: "Balcão: prueba de la alerta del operador. Si este mensaje llegó, las alertas llegan a este chat."
     cap:
-      paused: "Balcão: el gasto de %{month} llegó al tope de US$ %{cap} (US$ %{spent} gastados), y la demo está en pausa hasta el próximo mes. Para reanudarla antes, sube el tope con un deploy (el runbook dice cómo)."
+      paused: "Balcão: el gasto de %{month} llegó al tope de US$ %{cap} (US$ %{spent} gastados), y la demo está en pausa hasta el próximo mes. El runbook dice cómo reanudarla antes."
+      forced: "Balcão: el gasto de %{month} llegó al tope de US$ %{cap} (US$ %{spent} gastados), y la demo sigue en pausa por el modo que forzaste; liberado el modo, el tope la mantiene en pausa hasta el próximo mes. El runbook dice cómo reanudarla antes."
       serving: "Balcão: el gasto de %{month} llegó al tope de US$ %{cap} (US$ %{spent} gastados), pero el modo forzado %{mode} sigue sirviendo, y gastando, hasta que se libere."
     gate:
       month: "Balcão: el gasto de %{month} pasó del 70 % del tope (US$ %{spent} de US$ %{cap}), y el modelo económico aún no puede servir, porque la compuerta de las evals está cerrada: la demo está en pausa hasta el próximo mes. El runbook dice cómo reanudarla antes."

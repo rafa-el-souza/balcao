@@ -308,7 +308,15 @@ the host around the answer.
 - **The cap** is `BUDGET_CAP_USD` in the destination's `env.clear`: 100 in
   `config/deploy.yml` (production), 10 in `config/deploy.ensaio.yml` (the
   MVP host, whose dev/eval key has a console limit of US$ 20). A new value
-  is a deploy, and a raised cap resumes a paused month at once.
+  is a deploy. **Resuming a month the cap paused** (FR-14, from M3-1): a
+  raised cap resumes it at once, in normal below 70 % of the new cap and in
+  economy above it; but while ADR-0003's gate is closed (below) an economy
+  pauses, so the new cap must put the month's spend under 70 % of it (more
+  than the spend ÷ 0.7: US$ 14.29 for a spend of US$ 10) and the day's spend
+  under its slice (the cap ÷ 30 × 1.5). With the gate closed, a full eval run
+  that opens it, committed and deployed, lets the month's economy serve
+  instead. A mode the operator forced holds whatever the cap is, until it is
+  released.
 - **The month's spend and the mode that serves:**
   `kamal app exec -d ensaio --roles=web --reuse "bin/rails runner 'p [Budget.mode, BudgetState.for_month!.slice(:month, :spent_usd, :day, :day_spent_usd, :automatic_mode, :forced_mode)]'"`.
   The first item is the mode a turn reads now (a forced mode wins); the row
