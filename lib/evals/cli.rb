@@ -424,13 +424,13 @@ module Evals
     def commit = git("rev-parse", "--short", "HEAD").to_s.strip.presence || "unknown"
 
     # The tree's changes, as git status lists them, nil when git could not
-    # read the tree. The scorecard and the gate are the run's output, not its
-    # input. A file git does not track yet changes the tree too (a new locale
-    # file or initializer is loaded by the run), as bin/deploy counts it
-    # (review finding V1 of pull request #55).
+    # read the tree. The scorecard, the gate and the recordings are a run's
+    # output, not its input. A file git does not track yet changes the tree
+    # too (a new locale file or initializer is loaded by the run), as
+    # bin/deploy counts it (review finding V1 of pull request #55).
     def changes
       git("status", "--porcelain", "--untracked-files=all")&.lines&.map(&:chomp)
-        &.reject { |line| line.end_with?(" evals/scorecard.md", " evals/economy_allowed.yml") }
+        &.reject { |line| line.end_with?(" evals/scorecard.md", " evals/economy_allowed.yml") || line[3..].to_s.start_with?("evals/recordings/") }
     end
 
     # A tree git could not read counts as changed.

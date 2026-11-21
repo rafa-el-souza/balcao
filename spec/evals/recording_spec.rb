@@ -71,6 +71,16 @@ RSpec.describe "NFR-08 SR-29 the recorded fast subset" do
       expect(network.left).to eq(0)
     end
 
+    # The recordings are the run's output, as the scorecard is a full run's:
+    # a tree whose only changes are recordings is the commit's own.
+    it "names the commit it ran on, clean when only recordings changed and dirty otherwise" do
+      allow(git).to receive(:call).and_wrap_original do |original, *args|
+        args.first == "status" ? " D evals/recordings/greeting-pt-01.json\n?? evals/recordings/new-case.json\n" : original.call(*args)
+      end
+      expect(evals("--record", "--case", greeting.id)).to eq(0), err.string
+      expect(recording(greeting)["commit"]).to eq("5594ff9")
+    end
+
     it "writes nothing for a case whose attempts all failed, and fails the run" do
       api.replace([ reply("[pt] Oi."), check, reply("[pt] Oi."), check, reply("[pt] Oi."), check ])
 
