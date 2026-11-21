@@ -670,11 +670,15 @@ model R7), so every web visitor starts over, and no data is carried. In
 this order; *owner* marks the steps that are the owner's alone.
 
 1. *Owner:* the operator account and production's env file (above), with
-   a production model key whose spend limit sits just below the cap, the
-   two heartbeat URLs (the demo's, which leave the rehearsal env file the
-   same day: the boot refuses either off the public name; the MVP host,
-   booted with them, goes on telling them until step 9
-   both hosts tell them), and two values rotated for production alone,
+   a production model key whose spend limit sits just below the cap; two
+   new heartbeats in the monitor's console, `Balcão produção: canário` and
+   `Balcão produção: webhook do Telegram`, whose URLs go into production's
+   env file alone, so that no two hosts ever tell one heartbeat (one host's
+   passing beats would hide the other's failures, as the boot's refusal off
+   the public name says; #67's review, C4); the MVP host's two heartbeats
+   paused in the console at the same time, since its Telegram watch fails
+   from the token's rotation below, and deleted with the host at step 9;
+   and two values rotated for production alone,
    right before step 4: a new bot token (BotFather's `/token` on the demo's
    bot; the MVP host's token stops at once, so the bot is silent until step
    7) and a new Turnstile secret (the widget's "Rotate secret key"; "the
@@ -712,11 +716,12 @@ this order; *owner* marks the steps that are the owner's alone.
    them (its webhook secret is another), and Telegram keeps them and sends
    them again.
 8. *Owner:* the smoke on production, and within ten minutes the canary's
-   line and the Telegram watch's; in the monitor's console, both
-   heartbeats up, not pending.
+   line and the Telegram watch's; in the monitor's console, production's
+   two heartbeats up, not pending.
 9. The session, after the name's TTL (an hour) has passed: the MVP host
    deleted (`hcloud server delete ensaio`) and the resource check; the
-   pull request of M3-7 points `config/deploy.ensaio.yml` at
+   owner deletes the MVP host's two heartbeats in the monitor's console;
+   the pull request of M3-7 points `config/deploy.ensaio.yml` at
    `ensaio.rafasouza.dev.br`, and the rehearsal env file drops the two
    heartbeat URLs and the demo's bot token for a throwaway one.
 10. The demo is publicised.
@@ -749,8 +754,9 @@ one alerts only after the first deploy that sends to it.
   with the same URL for both; and it refuses either off the public name: a
   rehearsal host leaves them blank, and its canary runs and counts without
   telling anyone, while its Telegram watch looks at nothing (design §8;
-  #64's H4, C3 and H5). Production at M3 holds the demo's two URLs; the
-  rehearsal env file then holds none.
+  #64's H4, C3 and H5). Production gets two heartbeats of its own at the
+  cut, named apart from the MVP host's, which go with that host (The
+  production cut, above); the rehearsal env file then holds none.
 
 ## The budget, the nightly job and the logs (from PR-16)
 

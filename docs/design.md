@@ -2429,9 +2429,12 @@ trigger does the item and removes the line.
 - The slice that brings `MODEL_ADAPTER=fake` to rehearsal hosts, M3-6b
   since 2026-11-21: a recorded reply for FR-17's canary question, or every
   canary run there fails (M3-2).
-- The production cut (M3-7): the two heartbeat URLs move from the
-  rehearsal env file to production's secrets, since the boot refuses either
-  off the public name and requires both on it (M3-2, #64's H5).
+- The production cut (M3-7): production gets two heartbeats of its own,
+  whose URLs go into its secrets alone, and the MVP host's two are paused
+  at the cut's first step and deleted with that host, so no two hosts tell
+  one heartbeat; the rehearsal env file then holds none, since the boot
+  refuses either off the public name and requires both on it (M3-2, #64's
+  H5; #67's review, C4; the runbook's production cut).
 - The first slice that counts messages, conversations or turns for a page
   (FR-13's status page and strip, M3-3; FR-23's referrers) or lists
   conversations (FR-16's console, M2-7): the `system` channel's visitor and
