@@ -329,6 +329,19 @@ RSpec.describe "FR-20 SR-18 the guardrail check" do
       end
     end
 
+    # Review finding F6 of pull request #65: the SDK reads a body after the
+    # middleware returns, so an answer whose headers came and whose body then
+    # timed out was billed and never charged.
+    it "keeps an attempt whose answer's body timed out as a usage at its input and its output cap" do
+      fake = FakeModel.new([ { timeout: "body" }, verdict(false, "ok") ])
+      result = Guardrail.new(client: fake.client).check(message: question, reply: answer)
+
+      abandoned, answered = result.usage
+      expect(abandoned).to have_attributes(output_tokens: Guardrail::MAX_TOKENS)
+      expect(answered).to have_attributes(input_tokens: 640, output_tokens: 38)
+      expect(result).to have_attributes(clinical: false, error: nil)
+    end
+
     it "keeps both attempts that timed out, for a check with no verdict" do
       result = Guardrail.new(client: FakeModel.new([ error(:timeout), error(:timeout) ]).client).check(message: question, reply: answer)
 

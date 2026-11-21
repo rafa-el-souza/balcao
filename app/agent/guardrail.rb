@@ -171,10 +171,14 @@ class Guardrail
 
   # Around every attempt of the check: it counts the attempts that timed out
   # once they were sent, which the provider bills though no answer came
-  # (review finding V3 of pull request #54; ModelAttempts.abandoned?).
+  # (review finding V3 of pull request #54; ModelAttempts.abandoned?). An
+  # answer's body is read here, where its time out is counted, since the SDK
+  # reads it only after the middleware returns (review finding F6 of pull
+  # request #65).
   Watch = Struct.new(:timed_out) do
     def call(request, nxt)
-      nxt.call(request)
+      response = nxt.call(request)
+      response.status < 300 ? response.buffer! : response
     rescue Anthropic::Errors::APITimeoutError => e
       self.timed_out += 1 if ModelAttempts.abandoned?(e)
       raise

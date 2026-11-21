@@ -13,12 +13,15 @@
 #   { "responses": [ { "status": 200, "body": { ...a Messages API response... } },
 #                    { "status": 529, "body": { "type": "error", ... } },
 #                    { "timeout": true },
-#                    { "timeout": "open" } ] }
+#                    { "timeout": "open" },
+#                    { "timeout": "body" } ] }
 #
 # A timeout is raised as the SDK's requester raises one, its cause the
 # library's own: Net::ReadTimeout once the request was on its way (true),
 # Net::OpenTimeout when the connection never opened ("open"), which tells an
-# attempt the provider bills from one it never saw (ModelAttempts.abandoned?).
+# attempt the provider bills from one it never saw (ModelAttempts.abandoned?);
+# "body" answers 200 and times out reading the body, which the SDK reads
+# after the middleware has returned.
 # A request beyond the list raises Unscripted, so an unexpected model call
 # fails loudly instead of answering something nobody recorded.
 class FakeModel
@@ -45,6 +48,8 @@ class FakeModel
   def call(request, _next)
     @requests << request
     response = @responses.shift or raise Unscripted, "the fake model has no response left for request #{@requests.size}"
+    return body_timing_out(request) if response[:timeout] == "body"
+
     time_out(request, response[:timeout]) if response[:timeout]
 
     Anthropic::APIResponse.new(
@@ -56,6 +61,11 @@ class FakeModel
   end
 
   private
+
+  def body_timing_out(request)
+    body = Enumerator.new { |_| time_out(request, true) }
+    Anthropic::APIResponse.new(status: 200, headers: { "content-type" => "application/json" }, body:, request:)
+  end
 
   def time_out(request, kind)
     raise kind == "open" ? Net::OpenTimeout : Net::ReadTimeout
