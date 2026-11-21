@@ -33,7 +33,8 @@ RSpec.describe "SR-25 secrets are references in the repository and values in the
   end
 
   it "injects exactly the secrets the app reads into the app and the database password into the accessory" do
-    expect(Balcao::RequiredEnvironment::INJECTED).to eq(Balcao::RequiredEnvironment::SECRETS + Balcao::RequiredEnvironment::MONITORS)
+    expect(Balcao::RequiredEnvironment::INJECTED).to eq(Balcao::RequiredEnvironment::SECRETS + Balcao::RequiredEnvironment::OWNER +
+                                                         Balcao::RequiredEnvironment::MONITORS)
     expect(deploy_config.dig("env", "secret")).to match_array(Balcao::RequiredEnvironment::INJECTED)
     expect(deploy_config.dig("accessories", "db", "env", "secret")).to eq [ "POSTGRES_PASSWORD" ]
   end
@@ -54,7 +55,7 @@ RSpec.describe "SR-25 secrets are references in the repository and values in the
     end
 
     let(:generated_names) do
-      %w[SECRET_KEY_BASE POSTGRES_PASSWORD
+      %w[SECRET_KEY_BASE POSTGRES_PASSWORD APP_DATABASE_PASSWORD
          ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY
          ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT IDENTITY_PEPPER TELEGRAM_WEBHOOK_SECRET]
     end

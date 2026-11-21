@@ -102,15 +102,25 @@ test:
 # for a full overview on how database connection configuration can be specified.
 #
 # Production reaches the Postgres accessory on the Kamal network (DB_HOST,
-# config/deploy.yml) with the password the accessory was booted with; both read
-# POSTGRES_PASSWORD, which the boot check requires (threat model SR-25).
+# config/deploy.yml) as the app's own role, which reads and writes its tables'
+# rows and nothing else (DatabaseRole, M3-4; #4's review), with
+# APP_DATABASE_PASSWORD, which the boot check requires (threat model SR-25).
+# The database's owner, the superuser the Postgres image makes from
+# POSTGRES_USER with POSTGRES_PASSWORD, is the web container's entrypoint's
+# alone: it runs the migrations and the role's grants as the owner
+# (DATABASE_OWNER=1, bin/docker-entrypoint) before the server starts.
 production:
   primary: &primary_production
     <<: *default
     host: <%= ENV["DB_HOST"] %>
     database: balcao_production
+    <% if ENV["DATABASE_OWNER"] == "1" %>
     username: balcao
     password: <%= ENV["POSTGRES_PASSWORD"] %>
+    <% else %>
+    username: balcao_app
+    password: <%= ENV["APP_DATABASE_PASSWORD"] %>
+    <% end %>
   cache:
     <<: *primary_production
     database: balcao_production_cache

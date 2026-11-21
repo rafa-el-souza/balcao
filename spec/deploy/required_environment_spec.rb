@@ -11,8 +11,19 @@ RSpec.describe "SR-25 production refuses to boot when a required variable is bla
 
   describe Balcao::RequiredEnvironment do
     it "requires the generated secrets the app reads and the settings production cannot guess" do
-      expect(described_class::SECRETS).to include("SECRET_KEY_BASE", "POSTGRES_PASSWORD")
+      expect(described_class::SECRETS).to include("SECRET_KEY_BASE", "APP_DATABASE_PASSWORD")
       expect(described_class::SETTINGS).to include("APP_HOST", "DB_HOST")
+    end
+
+    # The app connects as its own role, with its rows' privileges alone; the
+    # database owner's password is the entrypoint's, for the migrations and
+    # the role's grants before the server starts (M3-4; #4's review).
+    it "requires the database owner's password only of the entrypoint's step that runs as the owner" do
+      expect(described_class::SECRETS).not_to include("POSTGRES_PASSWORD")
+      expect { described_class.verify!(complete.except("POSTGRES_PASSWORD")) }.not_to raise_error
+      expect { described_class.verify!(complete.except("POSTGRES_PASSWORD").merge("DATABASE_OWNER" => "1")) }
+        .to raise_error(described_class::Missing, /POSTGRES_PASSWORD/)
+      expect { described_class.verify!(complete.merge("POSTGRES_PASSWORD" => "value", "DATABASE_OWNER" => "1")) }.not_to raise_error
     end
 
     # The first deploy that runs turns (design §6.4, §8): the MVP host calls
@@ -156,10 +167,10 @@ RSpec.describe "SR-25 production refuses to boot when a required variable is bla
     end
 
     it "names every unset, empty or whitespace-only variable, never a value" do
-      env = complete.merge("SECRET_KEY_BASE" => "", "POSTGRES_PASSWORD" => "  \n").except("APP_HOST")
+      env = complete.merge("SECRET_KEY_BASE" => "", "APP_DATABASE_PASSWORD" => "  \n").except("APP_HOST")
 
       expect { described_class.verify!(env) }.to raise_error(described_class::Missing) { |error|
-        expect(error.message).to include("SECRET_KEY_BASE", "POSTGRES_PASSWORD", "APP_HOST", "SR-25")
+        expect(error.message).to include("SECRET_KEY_BASE", "APP_DATABASE_PASSWORD", "APP_HOST", "SR-25")
         expect(error.message).not_to include("DB_HOST", "value-of")
       }
     end
