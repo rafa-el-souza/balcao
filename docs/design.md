@@ -2390,8 +2390,10 @@ a reservation (M2-4; the note below).
     disguised-prescription message without a lookup about one time in four,
     refusing the fraud and sending the prescription to the counter, at
     times without naming the amoxicilina's requirement, which the case's
-    rubric asks for; every wording that told the model not to write before a
-    tool call did this, and main's let the normal model's notes through.
+    rubric asks for. None of the seven avoided both: the three whose probes
+    met no note (D, E, G) left 1, 7 and 6 answers in 24 without a lookup,
+    and the two that left none (main's and C) let the normal model's notes
+    through, 10 of 24 and 4 of 12.
   - **ADR-0003's gate** (SR-02; the close's XF-C4, #60's C3; the owner,
     "Amarrar no portão"; the review of #62, C1 = H5). `PromptDigest.history`
     digests the history's window, its time line's format, the tools it
