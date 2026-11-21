@@ -2513,10 +2513,16 @@ a reservation (M2-4; the note below).
     locked Playwright's revision; the calendar and the status page join at
     M5 (M5-5).
   - **The coverage threshold** (NFR-08). simplecov 1.3 in the test group;
-    `.simplecov` holds the line threshold, 94.86 %, the whole suite's
-    97.86 % minus three points (4,119 of 4,209 lines, measured on
-    2026-11-21). CI's RSpec step sets `COVERAGE=1`; a run by hand without
-    it measures nothing, so one spec file is never held to it. CI's log
+    `.simplecov` holds the line threshold, 95.5 %, CI's whole run's
+    98.50 % minus three points (4,146 of 4,209 lines, measured on
+    2026-11-21; 97.86 % in the development account, where the database
+    role's specs cannot run). CI's RSpec step sets `COVERAGE=1`, and
+    `spec/spec_helper.rb` starts SimpleCov only then; a run by hand without
+    it measures nothing, so one spec file is never held to it, and the one
+    spec that runs a child suite clears it there. CI's first run with
+    coverage also met a spec of NFR-01's latency on the real clock, which
+    the slower run pushed past its second of slack; it sets the clock now,
+    as NFR-02 asks. CI's log
     prints each run's figure, and the pull request whose run measures four
     points or more above the threshold raises it to that figure minus
     three; no check reads the threshold's history, which only the review
