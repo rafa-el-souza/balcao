@@ -678,8 +678,20 @@ kamal app logs -d ensaio --roles=job --since 1h | grep -E 'canary:|telegram watc
   a model gone, `AuthenticationError` a key revoked, `RateLimitError` or
   `OverloadedError` the provider's limits; the dev/eval key's console says
   whether its limit was reached), `replaced` (FR-20's check replaced the
-  reply), `refused`, `deadline`.
-  Visitors' turns take the same path, so their replies show it too.
+  reply), `refused`, `deadline`. The canary asks on the economy model, so a
+  fault of that model alone fails it while visitors in normal mode, on the
+  other route, are still answered (#64's V3).
+- **`canary: failed: visitors' turns: N of N in the last 30 minutes
+  answered with the fallback (outcome …)`**: the canary's own question was
+  answered, but every visitor turn that called the model in the last half
+  hour got the fallback: the visitors' route failed (normal mode runs
+  another model, with the API's refusal fallback). The outcome names the
+  latest turn's error by its class: `BadRequestError` a model id or a beta
+  header the API no longer takes, `NotFoundError` a model gone,
+  `RateLimitError` that model's limits spent. The provider's status page
+  and the dev/eval key's console say which; a forced economy
+  (`Budget.force!("economy")`, The budget, above) serves visitors on the
+  canary's route meanwhile, when ADR-0003's gate allows it (#64's H1).
 - **`canary: failed: the reply took … ms from the run's time, over
   20000`** or **`the run started … s after its time`**: the queue, the
   model or the database is slow; the 20 seconds count from when the run was

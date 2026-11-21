@@ -46,6 +46,20 @@ class Canary
   # the lock and lets go of it right after.
   SETTLE = 5.seconds
 
+  # The visitors' own turns the run reads (review finding H1 of pull request
+  # #64): the canary asks on the economy model, the visitors' normal mode
+  # runs on another route, with its own model and fallback, so a fault of
+  # that route alone shows only in their turns. Those that called the model
+  # and ended in the last half hour, a few periods of the canary, since the
+  # demo's visitors are few; at least two of them, every one answered with
+  # the fallback, fail the run. Their outcomes alone: no word of theirs.
+  VISITORS = 30.minutes
+  VISITORS_AT_LEAST = 2
+  # What the history calls a turn whose reply the model's call made or the
+  # system wrote in its place after one (Turn::REPLY_KINDS): a pause, a
+  # command and a turn's stored reservations called none.
+  MODEL_KINDS = %w[model decline call_now refusal fallback].freeze
+
   Result = Data.define(:passed, :reason, :mode, :latency_ms)
 
   # The street of the store's address, as the store sheet writes it (FR-26).
@@ -63,6 +77,7 @@ class Canary
   def run(due_at: nil)
     due_at ||= Time.current
     result = Rails.logger.tagged("canary") { probe(due_at) }
+    result = with_visitors(result)
     count(result)
     tell(result)
     result
@@ -143,6 +158,24 @@ class Canary
   def outcome_of(turn)
     root = TraceEvent.where(turn_id: turn.id, name: "balcao.turn").order(:created_at, :id).last&.span_attributes || {}
     root.values_at("balcao.turn.outcome", "error.type").compact.join(", ")
+  end
+
+  # A run that passed fails when the visitors' turns of the last half hour
+  # that called the model all ended in the fallback, naming how the latest
+  # ended; a read that breaks is the run's failure.
+  def with_visitors(result)
+    return result unless result.passed
+
+    turns = Turn.joins(conversation: :visitor).where.not(visitors: { channel: "system" })
+                .where(reply_kind: MODEL_KINDS, updated_at: VISITORS.ago..)
+    kinds = turns.pluck(:reply_kind)
+    return result if kinds.size < VISITORS_AT_LEAST || kinds.any? { |kind| kind != "fallback" }
+
+    latest = outcome_of(turns.order(:updated_at, :id).last)
+    failed("visitors' turns: #{kinds.size} of #{kinds.size} in the last #{VISITORS.in_minutes.to_i} minutes answered with the fallback " \
+           "(outcome #{latest})")
+  rescue StandardError => e
+    failed("the visitors' turns not read: #{e.class}")
   end
 
   def pause_texts(turn)

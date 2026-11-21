@@ -278,6 +278,57 @@ RSpec.describe "FR-17 NFR-04 the canary" do
     end
   end
 
+  # H1 of #64's review: the canary asks on the economy model, and the
+  # visitors' normal mode runs on another route (its model, its fallback
+  # beta), so a fault of that route alone shows only in the visitors' own
+  # turns: their outcomes, never their words, fail the run.
+  describe "the visitors' own turns" do
+    let(:refused) { { status: 400, body: { type: "error", error: { type: "invalid_request_error", message: "words of no one" } } } }
+    let(:person) { create(:conversation) }
+
+    def visitor_turn(at: Time.current)
+      turn = travel_to(at) { Turn.for_inbound!(Message.record_inbound!(conversation: person, external_id: SecureRandom.uuid, body: "tem dipirona?")) }
+      ProcessTurnJob.perform_now(turn.id)
+      turn.reload
+    end
+
+    it "fail the run when the last half hour's turns that called the model all ended in the fallback" do
+      responses.replace([ refused, refused, reply(answer, model: "claude-haiku-5-5") ])
+      2.times { visitor_turn }
+
+      result = run
+
+      expect(result).to have_attributes(passed: false, reason: "visitors' turns: 2 of 2 in the last 30 minutes answered with the fallback " \
+                                                               "(outcome model_error, Anthropic::Errors::BadRequestError)")
+      expect(counts).to eq("failed" => 1)
+      expect(failure.with(body: "canary: #{result.reason}")).to have_been_requested.once
+    end
+
+    it "let the run pass when one of them was answered, or when only one called the model" do
+      responses.replace([ refused, reply("[pt] Temos sim.", model: "claude-opus-5-5"), reply(answer, model: "claude-haiku-5-5"),
+                          refused, reply(answer, model: "claude-haiku-5-5") ])
+      2.times { visitor_turn }
+
+      expect(run).to have_attributes(passed: true)
+
+      Turn.where(conversation: person).delete_all
+      visitor_turn
+
+      expect(run).to have_attributes(passed: true)
+    end
+
+    it "leave out a turn older than half an hour and one that called no model" do
+      responses.replace([ refused, refused, reply(answer, model: "claude-haiku-5-5") ])
+      visitor_turn(at: 40.minutes.ago).update_columns(updated_at: 40.minutes.ago)
+      visitor_turn
+      Budget.force!("paused")
+      visitor_turn
+      Budget.force!(nil)
+
+      expect(run).to have_attributes(passed: true)
+    end
+  end
+
   it "asks through a visitor's turn job, ProcessTurnJob, never the turn's processor alone" do
     allow(ProcessTurnJob).to receive(:perform_later).and_call_original
 
