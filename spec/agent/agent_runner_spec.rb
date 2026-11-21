@@ -904,6 +904,35 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
         end
       end
 
+      # Review finding F2 of pull request #65: an attempt was made with any
+      # time left, however little, and one that could never answer was
+      # still billed. A model call starts only with MIN_ATTEMPT left, and a
+      # retry only when its wait leaves that much.
+      context "when less is left of the edge than an attempt needs" do
+        let(:responses) { [ reply("[pt] tarde") ] }
+
+        it "makes no attempt, and the turn ends at its deadline" do
+          clock.advance(60 - 0.7)
+          result = AgentRunner.new(client: fake.client, tools: [ SpecTools::Echo ], clock:, sleeper:)
+                              .run(turn, edge: TurnEdge.new(deadline: 60, clock:))
+
+          expect(result).to have_attributes(outcome: :deadline, text: nil)
+          expect(fake.requests).to be_empty
+        end
+      end
+
+      context "when a retry's wait would leave less than an attempt needs" do
+        let(:responses) { [ slow_turn, error(:rate_limit).merge(headers: { "retry-after" => "33" }), reply("[pt] tarde") ] }
+
+        it "is not waited for, and the turn ends with the API's error" do
+          result = AgentRunner.new(client: fake.client, tools: [ slow_echo(25) ], clock:, sleeper:).run(turn)
+
+          expect(result).to have_attributes(outcome: :model_error, text: nil, error: an_instance_of(Anthropic::Errors::RateLimitError))
+          expect(delays).to be_empty
+          expect(fake.requests.size).to eq(2)
+        end
+      end
+
       # The caller's edge, FR-17's canary's twenty seconds among them
       # (TurnProcessor), bounds the model's steps as the sixty seconds do.
       context "when the caller gives the turn an edge of its own" do

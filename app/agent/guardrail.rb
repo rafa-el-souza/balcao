@@ -42,6 +42,11 @@ class Guardrail
   # for longer is no verdict at once (ModelAttempts; review finding C1 of
   # pull request #54). The SDK's own backoff for one retry is under a second.
   MAX_WAIT = 1.0
+  # The least time an attempt of the check needs: its p95 was 2.11 s with
+  # earlier messages (design §10, M2-2's note), so an attempt with less left
+  # would mostly be cut after it was billed (review finding F2 of pull
+  # request #65).
+  MIN_ATTEMPT = 2.0
   # Thinking costs the check its latency (FR-20: at most 1.5 s more at p95);
   # the reason before the verdict is its reasoning.
   THINKING = { type: :disabled }.freeze
@@ -142,7 +147,9 @@ class Guardrail
   # conversation's lock and the typing status (review finding C1 of pull
   # request #54).
   def request(content, watch, edge)
-    ModelAttempts.new(client: @client, edge:, retries: MAX_RETRIES, timeout: TIMEOUT, max_wait: MAX_WAIT, sleeper: @sleeper).call do |options|
+    attempts = ModelAttempts.new(client: @client, edge:, retries: MAX_RETRIES, timeout: TIMEOUT, max_wait: MAX_WAIT, floor: MIN_ATTEMPT,
+                                 edge_refusal: true, sleeper: @sleeper)
+    attempts.call do |options|
       @client.messages.create(
         model: @route.model, max_tokens: MAX_TOKENS, system_: SYSTEM, messages: [ { role: "user", content: } ],
         output_config: { effort: @route.effort, format: Output }, **thinking,

@@ -274,6 +274,30 @@ RSpec.describe "FR-20 SR-18 the guardrail check" do
         expect(result.usage.sole).to have_attributes(output_tokens: Guardrail::MAX_TOKENS)
       end
 
+      # Review finding F4 of pull request #65: the edge, not the check's
+      # policy, refused the retry, so the attempt's own error came back and
+      # the reply went unchecked, while a retry the edge cut a moment later
+      # gave the fallback. The SDK's own backoff (0.375 to 0.5 s) here.
+      it "gives no verdict for the edge's reason when the edge leaves no time for the retry" do
+        fake = FakeModel.new([ { timeout: true }, verdict(false, "ok") ])
+        client = FakeModel::Client.new(fake, api_key: "fake-model", max_retries: 0, initial_retry_delay: 0.5,
+                                             middleware: [ ->(request, nxt) { clock.advance(request.timeout) && nxt.call(request) } ])
+        result = Guardrail.new(client:, clock:, sleeper: ->(seconds) { clock.advance(seconds) })
+                          .check(message: question, reply: answer, edge: TurnEdge.new(deadline: 5.3, clock:))
+
+        expect(result).to have_attributes(clinical: nil, error: Guardrail::DEADLINE)
+        expect(fake.requests.size).to eq(1)
+      end
+
+      it "asks nothing when less is left of the edge than an attempt needs" do
+        fake = FakeModel.new([ verdict(false, "ok") ])
+        clock.advance(60 - 1.5)
+        result = Guardrail.new(client: fake.client, clock:).check(message: question, reply: answer, edge: TurnEdge.new(deadline: 60, clock:))
+
+        expect(result).to have_attributes(clinical: nil, error: Guardrail::DEADLINE, usage: [])
+        expect(fake.requests).to be_empty
+      end
+
       it "asks nothing once the edge has passed, and gives no verdict for the edge's reason" do
         fake = FakeModel.new([ verdict(false, "ok") ])
         clock.advance(61)

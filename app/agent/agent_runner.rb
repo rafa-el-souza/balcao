@@ -38,6 +38,11 @@ class AgentRunner
   # about a fifth more tokens than it sent, which also covers the 1.25 price
   # of a cache write.
   CHARACTERS_PER_TOKEN = 2.5
+  # The least time a model call's attempt needs: a first token comes about a
+  # second after the request (design §10, M4-2), and a step's answer some
+  # seconds after; an attempt with less left was billed and could not answer
+  # (review finding F2 of pull request #65).
+  MIN_ATTEMPT = 3.0
   MONOTONIC = -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) }
   # What the model reads of a call past the turn's limits (SR-20).
   TOOL_LIMIT = "the turn's limit of #{MAX_TOOL_CALLS} tool calls is reached".freeze
@@ -126,7 +131,7 @@ class AgentRunner
       @prompt = prompt
       @on_event = on_event
       @edge = edge
-      @attempts = ModelAttempts.new(client:, edge:, retries: MAX_RETRIES, sleeper:)
+      @attempts = ModelAttempts.new(client:, edge:, retries: MAX_RETRIES, floor: MIN_ATTEMPT, sleeper:)
       @abandoned = []
       @model_calls = []
       @tool_calls = []
