@@ -151,6 +151,20 @@ RSpec.describe "SR-35 FR-14 NFR-02 the operator's alert, sent through the bot" d
       .with("operator alert #{row.id} (budget_cap): not sent, the way there failed at each of its 3 attempts (Net::OpenTimeout)")
   end
 
+  # Review finding H8 of pull request #63 (teorico; fixed, since the alert is
+  # this pull request's own): the row was written before the line, so a write
+  # that broke lost the reason; the line comes first, as TelegramUpdateJob's.
+  it "writes its give-up's line before its row, so a write that breaks keeps the reason" do
+    linked!
+    stub_request(:post, bot_api_url("sendMessage")).to_return(bot_api_error(403, "Forbidden: bot was blocked by the user"))
+    row = alert
+    allow(row).to receive(:update!).and_raise(ActiveRecord::ConnectionFailed, "gone")
+
+    expect { row.deliver }.to raise_error(ActiveRecord::ConnectionFailed)
+
+    expect(Rails.logger).to have_received(:error).with("operator alert #{row.id} (budget_cap): not sent, Telegram refused it (403)")
+  end
+
   it "waits the time a 429 names" do
     linked!
     stub_request(:post, bot_api_url("sendMessage")).to_return(bot_api_error(429, "Too Many Requests: retry after 30", retry_after: 30))

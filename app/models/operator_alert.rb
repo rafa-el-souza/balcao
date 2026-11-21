@@ -162,8 +162,10 @@ class OperatorAlert < ApplicationRecord
     give_up("no operator chat is linked", error: "unlinked")
   end
 
+  # The line first, so a write that breaks keeps the reason (review finding
+  # H8 of pull request #63; TelegramUpdateJob#give_up's rule).
   def give_up(why, error: why)
-    update!(status: "failed", next_attempt_at: nil, error:)
     Rails.logger.error("operator alert #{id} (#{kind}): not sent, #{why}")
+    update!(status: "failed", next_attempt_at: nil, error:)
   end
 end
