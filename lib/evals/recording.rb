@@ -178,7 +178,10 @@ module Evals
         # of #66, C4 and V3).
         unless parsed
           kept["content-type"] = response.headers["content-type"] if response.headers["content-type"]
-          @responses << { "request" => sent, "status" => response.status, "headers" => kept.presence, "body_text" => body }.compact
+          # The SDK hands a body over in bytes; one past ASCII is kept as
+          # UTF-8, its invalid bytes replaced (the fix review of #66, R1).
+          text = body.dup.force_encoding(Encoding::UTF_8).scrub
+          @responses << { "request" => sent, "status" => response.status, "headers" => kept.presence, "body_text" => text }.compact
           return response
         end
 

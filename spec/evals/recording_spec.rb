@@ -384,6 +384,29 @@ RSpec.describe "NFR-08 SR-29 the recorded fast subset" do
       expect(replayed.left).to eq(0)
     end
 
+    # The fix review of #66, R1: the SDK hands a body over as bytes, and a
+    # page with a byte past ASCII must still be written.
+    it "writes a recording whose edge page is not ASCII, as the SDK hands it over in bytes" do
+      kase = Evals::CaseSet.load.find("reservation-ok-pt-01")
+      answers = [ "<html><body>That’s an error.</body></html>".b, reply("[pt] Oi.") ]
+      network = lambda do |request, _nxt|
+        answer = answers.shift
+        if answer.is_a?(String)
+          Anthropic::APIResponse.new(status: 503, headers: { "content-type" => "text/html" }, body: [ answer ], request:)
+        else
+          Anthropic::APIResponse.new(status: 200, headers: { "content-type" => "application/json" }, body: [ JSON.generate(answer[:body]).b ], request:)
+        end
+      end
+      recorder = described_class.new
+      Anthropic::Client.new(api_key: "fake-model", max_retries: 1, initial_retry_delay: 0, middleware: [ recorder, network ])
+                       .messages.create(model: "claude-opus-5-5", max_tokens: 10, messages: [ { role: "user", content: "oi" } ])
+
+      expect do
+        Evals::Recording.write(kase, dir: dir.join("recordings"), responses: recorder.responses, verdict: nil, parts: [], commit: "5594ff9", at: Time.current)
+      end.not_to raise_error
+      expect(recording(kase)["responses"].first["body_text"]).to eq("<html><body>That’s an error.</body></html>")
+    end
+
     it "keeps a 529's status, body and retry headers, and a timeout as the fake replays it" do
       overloaded = error(:overloaded).merge(headers: { "retry-after" => "1" })
       network = FakeModel.new([ overloaded, { timeout: true }, { timeout: "open" }, reply("[pt] Oi.") ])
