@@ -282,7 +282,10 @@ Only a green `main` is deployed to the MVP host.
      repeated for up to a minute (the reply took five to ten seconds on
      2026-11-15), shows the reply to "tem dipirona?" and `"pending":false`.
      Each such turn spends about two cents of the dev/eval key (US$ 0.019
-     that day). Since PR-16 the same answer also carries `"mode":"normal"`
+     that day); on a rehearsal host's fake model it spends nothing, and the
+     reply is the recorded one, though the spans and the budget's ledger
+     still price the recorded calls as the demo would. Since PR-16 the same
+     answer also carries `"mode":"normal"`
      and the rate of the real (`"brl"`), and the reply's spans carry each
      model call's cost (`balcao.cost.usd`).
    - the app's database role (since M3-4): the web and job containers
@@ -641,8 +644,26 @@ rehearsal host runs the rehearsal's own secret set: Cloudflare's published
 Turnstile test secret, which the boot refuses on the public name; no
 heartbeat URLs, which the boot refuses off it; a bot token and a webhook
 secret of its own and no webhook registered, since a bot has one webhook
-and the demo's stays with the demo. Until M3-6b brings the fake model and
-`noindex` to rehearsal hosts (design §9.2), it runs on the dev/eval key.
+and the demo's stays with the demo. It runs in the rehearsal's own mode
+(design §8, M3-6b), which the boot holds to the name:
+
+- **The fake model by default** (`MODEL_ADAPTER=fake`): the replies the evals
+  recorded (`evals/recordings/`), so the host holds no model key and spends
+  nothing. A visitor's message that is the message of a recorded
+  one-message case gets that case's recorded answers, its tool calls run
+  against the host's own catalogue and FR-20's check included: the
+  landing's three chips ("tem dipirona?" among them) and the canary's
+  question, so the canary passes there. Any other message gets the fixed
+  apology, as a model error, and two such turns alone in half an hour fail
+  the canary's look at the visitors' turns, as a dead model would. The
+  boot refuses the fake model on the public name and a model key beside it.
+- **A real-model rehearsal** sets `ENSAIO_MODEL_ADAPTER=real` in the
+  deploying shell for that deploy alone: the destination then runs the real
+  model and injects the dev/eval key, never the production one.
+- **noindex on every answer** (`NOINDEX=true`, `X-Robots-Tag: noindex`): its
+  name is in the certificate logs within minutes. `robots.txt` lets every
+  page be crawled, as on the demo, since a crawler reads noindex only on a
+  page it may fetch.
 
 1. **Count the week's certificates** on Certificate Transparency, the
    public logs every certificate is written to. Let's Encrypt issues at
@@ -674,7 +695,9 @@ and the demo's stays with the demo. Until M3-6b brings the fake model and
 4. **Deploy:** `bin/deploy -d ensaio` from a clean checkout of the slice's
    commit.
 5. **Smoke:** the deploy flow's step 4 on `https://ensaio.rafasouza.dev.br`
-   (a conversation runs over the API there, with the test keys), and
+   (a conversation runs over the API there, with the test keys: on the fake
+   model the reply to "tem dipirona?" is the recorded one, with a price, in
+   a second or two, and costs nothing; the canary's line reads `passed`), and
    SR-03 seen from outside, before a production deploy of that commit:
    `bin/edge-check https://ensaio.rafasouza.dev.br`. It asks the host,
    through its proxy and Thruster, for a page of each kind and every answer
@@ -685,6 +708,8 @@ and the demo's stays with the demo. Until M3-6b brings the fake model and
    the headers the edge adds, and exits 1 on any miss. It spends about
    seventy requests of your address on the API, whose limit then refuses
    it for up to a minute. On 2026-11-21 it passed against the MVP host.
+   Since M3-6b it reads noindex too: on every answer of a rehearsal host,
+   on none of the public name's but the trace page's own.
 6. **Delete it** at the session's end: `kamal registry remove -d ensaio`
    if `bin/deploy` could not, then `hcloud server delete ensaio`, then the
    resource check of "End of a deploy session" with the server list empty:
@@ -764,8 +789,15 @@ this order; *owner* marks the steps that are the owner's alone.
    deleted (`hcloud server delete ensaio`) and the resource check; the
    owner deletes the MVP host's two heartbeats in the monitor's console;
    the pull request of M3-7 points `config/deploy.ensaio.yml` at
-   `ensaio.rafasouza.dev.br`, and the rehearsal env file drops the two
-   heartbeat URLs and the demo's bot token for a throwaway one.
+   `ensaio.rafasouza.dev.br`, the proxy's host and `APP_HOST`, with the
+   rehearsal's mode (M3-6b): `MODEL_ADAPTER` read with ERB as
+   `ENV.fetch("ENSAIO_MODEL_ADAPTER", "fake")`, the destination's own
+   `env.secret` list naming `ANTHROPIC_API_KEY` only when that reads `real`
+   (a Kamal destination's list replaces the base's), and `NOINDEX: "true"`;
+   `spec/deploy/kamal_config_spec.rb` holds the destination to the boot's
+   rule. The rehearsal env file drops the two heartbeat URLs and the demo's
+   bot token for a throwaway one, and its `TURNSTILE_SECRET_KEY` becomes
+   Cloudflare's published test secret.
 10. The demo is publicised.
 
 ## Monitoring

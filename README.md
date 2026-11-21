@@ -161,8 +161,9 @@ little about this one; `app/agent/`, `app/transports/`, `evals/`, `ops/`,
   a reply leaves for the chat, and the task that sets the bot's webhook,
   command menu and profile.
 - [`app/agent/`](app/agent) — everything that talks to the model: the runner,
-  the system prompt, the model policy, the tools, and the fake model the
-  tests run on.
+  the system prompt, the model policy, the tools, the fake model the tests
+  run on, and the recorded model a rehearsal host runs on, which answers
+  from the evals' recordings with no key.
 - [`app/models/`](app/models) — the database's tables as classes
   (conversation, message, turn, product, reservation) and, beside them, plain
   Ruby classes with no table behind them, which hold the app's rules, such
@@ -187,7 +188,8 @@ little about this one; `app/agent/`, `app/transports/`, `evals/`, `ops/`,
   a whole, and `e2e/` the accessibility and size gate over the built pages.
 - [`evals/`](evals) and [`lib/evals/`](lib/evals) — the conversation's cases,
   and the runner that plays them against the real model; CI replays a
-  fast subset from its recordings, with no key.
+  fast subset from its recordings, with no key, and a rehearsal host
+  answers from the same recordings.
 - [`docs/`](docs) — the design, the decision records (ADRs), the threat model
   and the runbook; `prototype/` holds the screens as static HTML, which the
   React follows.
