@@ -34,6 +34,17 @@ RSpec.describe "FR-17 NFR-04 SR-30 the monitor's heartbeats" do
     expect(sent).to have_been_requested.once
   end
 
+  # H4 = C3s of #64's review: /fail joins the URL's path, so a query or a
+  # fragment can never carry it to the success endpoint.
+  it "joins /fail to the URL's path, never to its query, so a failure never reaches the success endpoint" do
+    ok = stub_request(:post, "https://monitor.example/hb/token").with(query: hash_including({})).to_return(status: 200)
+    sent = stub_request(:post, "https://monitor.example/hb/token/fail?src=x").to_return(status: 200)
+
+    expect(Heartbeat.new("https://monitor.example/hb/token?src=x", name: "canary").failure("r")).to be(true)
+    expect(sent).to have_been_requested.once
+    expect(ok).not_to have_been_requested
+  end
+
   it "cuts a long reason to what a monitor shows" do
     sent = stub_request(:post, "#{url}/fail").with { |request| request.body.length == Heartbeat::MAX_REASON }.to_return(status: 200)
 

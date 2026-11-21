@@ -35,21 +35,23 @@ class Heartbeat
   def configured? = !@url.nil?
 
   # All is well: true when the monitor took it.
-  def beat = ping(@url, "")
+  def beat = ping("")
 
   # A failure, with its reason as text: true when the monitor took it.
-  def failure(reason) = ping(failure_url, reason.to_s.first(MAX_REASON))
+  def failure(reason) = ping(reason.to_s.first(MAX_REASON), failing: true)
 
   private
 
-  def failure_url = @url && "#{@url.chomp("/")}/fail"
-
-  def ping(url, body)
+  # A failure goes to the URL's path with /fail joined to it, never to its
+  # text, which a query or a fragment would turn into the success endpoint
+  # (review finding H4 = C3s of pull request #64).
+  def ping(body, failing: false)
     return false unless configured?
 
-    uri = URI.parse(url)
+    uri = URI.parse(@url)
     return refused("the monitor's URL is not https, not sent") unless uri.is_a?(URI::HTTPS) && uri.host.present?
 
+    uri.path = "#{uri.path.chomp("/")}/fail" if failing
     response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, open_timeout: OPEN_TIMEOUT, read_timeout: READ_TIMEOUT,
                                                    write_timeout: READ_TIMEOUT) do |http|
       http.post(uri.request_uri, body, "content-type" => "text/plain; charset=utf-8")
