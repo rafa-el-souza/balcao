@@ -86,6 +86,9 @@ jobs:
       - name: Locale key parity, server (design NFR-09)
         run: bundle exec rspec spec/i18n
 
+      - name: Static secrets check and no Kamal hooks (threat model SR-25, SR-38)
+        run: bundle exec rspec spec/deploy -e SR-25 -e "runs no repository hook"
+
       - name: RSpec
         run: bundle exec rspec
 
