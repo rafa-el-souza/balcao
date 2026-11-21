@@ -64,11 +64,29 @@ RSpec.describe "SR-38 the rehearsal destination inherits nothing production-spec
     expect(rehearsal_file.dig("env", "clear", "APP_HOST")).to be_present
   end
 
-  # Design §8: until M3 the rehearsal destination is the MVP host, which runs
-  # the real model with the dev/eval key; the fake adapter of rehearsal hosts
-  # arrives at M3.
-  it "runs the real model adapter in both destinations, set in the base configuration" do
-    [ base, rehearsal ].each { |config| expect(config.dig("env", "clear", "MODEL_ADAPTER")).to eq "real" }
+  # Design §8, ADR-0011 (M3-6b): the boot holds the model adapter, the model
+  # key and NOINDEX to the name (config/required_environment.rb), and each
+  # destination's settings pass it: the public name runs the real model with
+  # its key and no NOINDEX; another name, a rehearsal host's, the fake model
+  # by default, no key and NOINDEX=true. So the cut (M3-7), which moves the
+  # rehearsal destination off the public name, brings the rehearsal's mode
+  # with it or fails here. Until then the rehearsal destination is the MVP
+  # host, on the public name with the dev/eval key.
+  it "sets each destination's model adapter, model key and NOINDEX as the boot takes them on its name" do
+    refused = [ base, rehearsal ].filter_map do |config|
+      clear = config.dig("env", "clear").transform_values(&:to_s)
+      named = clear.fetch("APP_HOST") == Balcao::RequiredEnvironment::PUBLIC_HOST ? ProductionEnv.public_name : ProductionEnv.complete
+      env = named.except("MODEL_ADAPTER", "NOINDEX", "ANTHROPIC_API_KEY").merge(clear)
+      env["ANTHROPIC_API_KEY"] = "a-key-of-the-console" if config.dig("env", "secret").include?("ANTHROPIC_API_KEY")
+      Balcao::RequiredEnvironment.verify!(env)
+      nil
+    rescue Balcao::RequiredEnvironment::Missing => e
+      "#{clear.fetch("APP_HOST")}: #{e.message}"
+    end
+
+    expect(refused).to eq []
+    expect(base.dig("env", "clear")).to include("MODEL_ADAPTER" => "real")
+    expect(base.dig("env", "clear")).not_to have_key("NOINDEX")
   end
 
   # FR-14, ADR-0003: production keeps the design's US$ 100. The MVP host runs

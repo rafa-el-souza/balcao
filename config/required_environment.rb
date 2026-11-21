@@ -52,9 +52,20 @@ module Balcao
     # Clear values set in config/deploy.yml and config/deploy.ensaio.yml.
     SETTINGS = %w[APP_HOST DB_HOST MODEL_ADAPTER BUDGET_CAP_USD].freeze
     NAMES = (SETTINGS + SECRETS).freeze
-    # The model adapters production can run. The fake one, for rehearsal hosts
-    # with recorded replies, arrives at M3 (design §8, §10).
-    MODEL_ADAPTERS = %w[real].freeze
+    # The model adapters production can run (design §8, ADR-0011): the real
+    # model, with its key, and the fake one of a rehearsal host, the replies
+    # the evals recorded (RecordedModel, M3-6b), which reads no key, so the
+    # host holds none, and which the public name never serves: its visitors
+    # would read recorded replies, and FR-17's canary would pass on one while
+    # the real model's route was dead.
+    MODEL_ADAPTERS = %w[real fake].freeze
+    # What the fake model leaves out of the required names.
+    MODEL_KEY = "ANTHROPIC_API_KEY".freeze
+    # Off the public name every answer says noindex (design §8, M3-6b): a
+    # rehearsal host's name is in the certificate logs within minutes. The
+    # destination states it, and the boot holds it to the name: true off the
+    # public name, blank on it, whose pages search engines may index.
+    NOINDEX = "NOINDEX".freeze
     # The month's budget cap in US dollars (FR-14): a positive decimal.
     CAP = /\A\d+(?:\.\d+)?\z/
     # What setWebhook takes as a secret token: 1 to 256 of A-Z, a-z, 0-9, _
@@ -87,8 +98,17 @@ module Balcao
 
     def self.missing(env)
       names = env["DATABASE_OWNER"] == "1" ? NAMES + OWNER : NAMES
+      names -= [ MODEL_KEY ] if fake_model?(env)
       names.select { |name| env[name].to_s.strip.empty? }
     end
+
+    # Whether the app runs the fake model (AgentRunner.default_client).
+    def self.fake_model?(env = ENV) = env["MODEL_ADAPTER"].to_s.strip == "fake"
+
+    def self.public_name?(env) = env["APP_HOST"].to_s.strip.casecmp?(PUBLIC_HOST)
+
+    # Whether every answer says noindex (config/environments/production.rb).
+    def self.noindex?(env = ENV) = env[NOINDEX].to_s.strip == "true"
 
     def self.verify!(env)
       names = missing(env)
@@ -96,10 +116,7 @@ module Balcao
         raise Missing, "Refusing to boot: #{names.join(", ")} #{names.one? ? "is" : "are"} blank. " \
                        "Set #{names.one? ? "it" : "them"} in the destination's env file (threat model SR-25)."
       end
-      unless MODEL_ADAPTERS.include?(env["MODEL_ADAPTER"])
-        raise Missing, "Refusing to boot: MODEL_ADAPTER must be #{MODEL_ADAPTERS.join(" or ")} " \
-                       "(design §8, threat model SR-25)."
-      end
+      verify_model!(env)
       unless env["BUDGET_CAP_USD"].match?(CAP) && BigDecimal(env["BUDGET_CAP_USD"]).positive?
         raise Missing, "Refusing to boot: BUDGET_CAP_USD must be a positive number of US dollars " \
                        "(FR-14, threat model SR-25)."
@@ -108,7 +125,7 @@ module Balcao
         raise Missing, "Refusing to boot: TELEGRAM_WEBHOOK_SECRET must be 1 to 256 of A-Z, a-z, 0-9, _ and - " \
                        "(FR-19, threat model SR-06)."
       end
-      if env["APP_HOST"].strip.casecmp?(PUBLIC_HOST) && env["TURNSTILE_SECRET_KEY"].strip.match?(TURNSTILE_TEST_SECRET)
+      if public_name?(env) && env["TURNSTILE_SECRET_KEY"].strip.match?(TURNSTILE_TEST_SECRET)
         raise Missing, "Refusing to boot: TURNSTILE_SECRET_KEY is one of Cloudflare's test secrets on the public name " \
                        "(threat model SR-39, ADR-0012)."
       end
@@ -117,10 +134,40 @@ module Balcao
                        "(FR-19, threat model SR-25)."
       end
       verify_monitors!(env)
+      verify_noindex!(env)
+    end
+
+    def self.verify_model!(env)
+      unless MODEL_ADAPTERS.include?(env["MODEL_ADAPTER"].strip)
+        raise Missing, "Refusing to boot: MODEL_ADAPTER must be #{MODEL_ADAPTERS.join(" or ")} " \
+                       "(design §8, threat model SR-25)."
+      end
+      return unless fake_model?(env)
+
+      if public_name?(env)
+        raise Missing, "Refusing to boot: MODEL_ADAPTER is fake on the public name, where visitors would read recorded " \
+                       "replies (design §8, ADR-0011)."
+      end
+      return if env[MODEL_KEY].to_s.strip.empty?
+
+      raise Missing, "Refusing to boot: #{MODEL_KEY} is set beside the fake model, which reads no key; a rehearsal host on " \
+                     "the fake model holds none (design §8, threat model SR-25)."
+    end
+
+    def self.verify_noindex!(env)
+      if public_name?(env)
+        return if env[NOINDEX].to_s.strip.empty?
+
+        raise Missing, "Refusing to boot: NOINDEX is set on the public name, whose pages search engines may index (design §8)."
+      end
+      return if noindex?(env)
+
+      raise Missing, "Refusing to boot: NOINDEX must be true off the public name, where a rehearsal host's pages would be " \
+                     "indexed (design §8)."
     end
 
     def self.verify_monitors!(env)
-      public_name = env["APP_HOST"].strip.casecmp?(PUBLIC_HOST)
+      public_name = public_name?(env)
       values = MONITORS.to_h { |name| [ name, env[name].to_s.strip ] }
       values.each do |name, value|
         if !public_name
