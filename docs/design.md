@@ -596,13 +596,17 @@ levels (ADR-0003), with a daily slice and per-source limits (ADR-0012).
   get a fixed "demo pausada até o próximo mês" reply without a model call,
   and the operator is notified once, by the bot's alert (FR-10). (As built
   in M3-1: once a month and cap, so a cap a deploy raised and the month
-  reaches again alerts again; the read that finds the month paused writes
-  the alert in the same transaction as the month's mode, and a job sends
-  it to the chat the operator linked (threat model SR-35), three attempts
-  in all, NFR-03's sweep taking up one left pending. Its text names the
-  month, the cap and the spend, never a visitor's words, and says which
-  forced mode serves when one wins over the pause. No chat linked is an
-  error line, never silence.)
+  reaches again alerts again; any read while the cap holds writes the alert
+  if it is missing, and a job sends it to the chat the operator linked
+  (threat model SR-35), three attempts in all, NFR-03's sweep taking up one
+  left pending. Its text names the month, the cap and the spend, never a
+  visitor's words, and says whether a forced mode keeps the demo paused or
+  serves past the cap. No chat linked is an error line, never silence, and
+  linking a chat later sends the month's alert again. With `economy_allowed`
+  false the month's economy and the day's slice, which pause the demo, are
+  alerted too, once a month and cap and once a day and cap: visitors cannot
+  tell them from the cap's pause, and no further spend reaches the cap;
+  review findings C1 and H4 of pull request #63.)
 - Given a new calendar month, Then the automatic mode starts over in
   normal; a forced mode holds until released.
 - The operator can force any mode from the console (kill switch), and the
@@ -2376,21 +2380,34 @@ a reservation (M2-4; the note below).
     beside the month's and, for an economy the gate keeps closed, that the
     demo pauses and until when, once a process and month, or day (#55's L4,
     the standing line of M2's first close).
-  - **The alert at the cap** is a row (`operator_alerts`) written by the
-    read that finds the month paused, in the same transaction as the
-    month's mode, keyed by the month and the cap (NFR-02): once a month and
-    cap, so a cap a deploy raised and reached again alerts again, and a
-    write that breaks leaves neither, for the next read. `OperatorAlertJob`
-    sends it through the Bot API client to the operator's chat as plain
-    text: an attempt claims the row for a minute, so the job and NFR-03's
-    sweep, which takes up an alert left pending past five minutes, never
-    send it twice at once; a failure of the way there or a 429 is tried
-    again after 3 s and 18 s or the wait it names, three attempts in all;
-    Telegram's refusal and a chat never linked fail it at once, with an
-    error line that names why and never the text or the chat (SR-30). The
-    text names the month, the cap and the spend, and which forced mode
-    serves past the cap when one does; no alert for the month's economy,
-    the day's slice or a forced pause, which FR-14 does not ask for.
+  - **The alerts** are rows (`operator_alerts`) keyed by what they report
+    (NFR-02): the month at its cap (`budget_cap`), once a month and cap, so
+    a cap a deploy raised and reached again alerts again; and, from the
+    review of pull request #63 (its C1 and H4, `dono`), the pauses
+    ADR-0003's closed gate makes, which visitors cannot tell from the cap's
+    and which no further spend turns into the cap's alert: the month's
+    economy until the month ends (`budget_month`, once a month and cap) and
+    the day's slice until midnight (`budget_day`, once a day and cap). Any
+    read while such a pause holds writes its alert if it is missing, not
+    only the read that moved the month's mode, so a month paused before
+    this code or by a container without it gets one too (#63's C3); its
+    write never breaks the read, said once a process (C7). None for a
+    pause the operator forced or while the economy model serves.
+    `OperatorAlertJob` sends each through the Bot API client to the
+    operator's chat as plain text: an attempt claims the row for a minute,
+    so the job and NFR-03's sweep, which takes up an alert left pending
+    past five minutes, never send it twice at once; a failure of the way
+    there or a 429 is tried again after 3 s and 18 s or the wait it names,
+    three attempts in all; Telegram's refusal and a chat never linked or
+    that cannot be read fail it at once, with an error line that names why
+    and never the text or the chat (SR-30); linking a chat sends this
+    month's latest alert of each kind that failed for want of one (#63's
+    H3). The texts name the month or the day, the limit and the spend, say
+    whether a forced mode keeps the demo paused (#63's C2), and name no
+    deploy as the way to resume, since with the gate closed a raised cap
+    may land the month in an economy the gate pauses: the runbook says what
+    resumes it (#63's V1). A send whose answer is lost may arrive twice, as
+    a visitor's reply may: `sendMessage` takes no key.
   - **The operator's chat** is linked by Telegram's own way to tie a chat
     to an account elsewhere, the Bot API's deep link: the runbook's
     command (`OperatorChat.link_url!`, which M2-9's console button will
