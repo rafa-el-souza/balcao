@@ -14,11 +14,29 @@ RSpec.describe "SR-03 the response headers", :spa_shells, type: :request do
   end
 
   it "sends a static file with nosniff, beside its cache-control" do
-    get "/robots.txt"
+    get "/favicon.ico"
 
     expect(response).to have_http_status(:ok)
     expect(response.headers["X-Content-Type-Options"]).to eq "nosniff"
     expect(response.headers["Cache-Control"]).to start_with "public, max-age="
+  end
+
+  # #22's sister of C1 and #40's thirteenth line, settled in M3-6b: a crawler
+  # keeps robots.txt for up to 24 hours (RFC 9309, 2.4), and Google may keep
+  # it longer on a longer max-age, so the file is a route's answer with a
+  # day's cache, never public/'s year. It allows every page: a rehearsal host
+  # says noindex on every answer instead, which a crawler reads only on a page
+  # it may fetch (design §8).
+  it "sends robots.txt from its route, every page allowed, with a day's cache" do
+    get "/robots.txt"
+
+    expect(response).to have_http_status(:ok)
+    expect(response.media_type).to eq "text/plain"
+    expect(response.headers["Cache-Control"]).to eq "max-age=86400, public"
+    expect(response.headers["X-Content-Type-Options"]).to eq "nosniff"
+    rules = response.body.lines.map(&:strip).reject { |line| line.empty? || line.start_with?("#") }
+    expect(rules).to eq [ "User-agent: *", "Allow: /" ]
+    expect(Rails.public_path.join("robots.txt")).not_to exist
   end
 
   it "denies the pages every browser feature it names, the powerful ones among them" do
@@ -36,7 +54,7 @@ RSpec.describe "SR-03 the response headers", :spa_shells, type: :request do
   end
 
   it "says nowhere how long the server took" do
-    [ "/", "/up", "/api/conversations/current", "/robots.txt", "/no-such-page" ].each do |path|
+    [ "/", "/up", "/api/conversations/current", "/robots.txt", "/favicon.ico", "/no-such-page" ].each do |path|
       get path
 
       expect(response.headers).not_to have_key("X-Runtime"), path
@@ -64,9 +82,10 @@ RSpec.describe "SR-03 the response headers", :spa_shells, type: :request do
     Rails.configuration.x.spa_shells = Pathname(ENV.fetch("SPA_SHELLS_DIR"))
     Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new
     answers = {}
+    host = ENV.fetch("APP_HOST")
     call = lambda do |label, method, path, env = {}|
-      request = Rack::MockRequest.env_for("https://demo.example#{path}",
-                                          { method:, "HTTP_HOST" => "demo.example", "REMOTE_ADDR" => "203.0.113.#{answers.size + 1}" }.merge(env))
+      request = Rack::MockRequest.env_for("https://#{host}#{path}",
+                                          { method:, "HTTP_HOST" => host, "REMOTE_ADDR" => "203.0.113.#{answers.size + 1}" }.merge(env))
       status, headers, body = Rails.application.call(request)
       body.close if body.respond_to?(:close)
       answers[label] = { "status" => status, "headers" => headers.to_h.transform_keys(&:downcase) }
@@ -92,7 +111,7 @@ RSpec.describe "SR-03 the response headers", :spa_shells, type: :request do
     call.("an unknown path", "GET", "/no-such-page")
     call.("a route's constraint not met", "GET", "/trace/abc")
     call.("another host", "GET", "/", "HTTP_HOST" => "elsewhere.example")
-    call.("a static file", "GET", "/robots.txt")
+    call.("a static file", "GET", "/favicon.ico")
     call.("a body over 16 KB", "POST", "/api/messages", "CONTENT_TYPE" => "application/json", input: "x" * 20_000)
     Rack::Attack.cache.store.write("limits:ip/anonymous:198.51.100.7", 60, expires_in: 60)
     call.("a request past the edge's limit", "GET", "/api/conversations/current", "REMOTE_ADDR" => "198.51.100.7")
@@ -106,15 +125,26 @@ RSpec.describe "SR-03 the response headers", :spa_shells, type: :request do
     puts "ANSWERS #{JSON.generate(policy: answers.fetch("GET /up")["headers"]["content-security-policy"], answers:)}"
   RUBY
 
+  # One walk per environment, each a production process of its own.
+  WALKS = {}
+
+  def walk(env)
+    WALKS[env] ||= begin
+      env = env.merge("RAILS_ENV" => "production", "DATABASE_URL" => nil, "RAILS_LOG_LEVEL" => "fatal",
+                      "DB_HOST" => "/nonexistent/balcao-spec", "SPA_SHELLS_DIR" => Rails.configuration.x.spa_shells.to_s)
+      out, err, status = Open3.capture3(env, "bin/rails", "runner", PROBE, chdir: Rails.root.to_s)
+      raise "the walk failed: #{err}" unless status.success?
+
+      JSON.parse(out.lines.grep(/\AANSWERS /).last.delete_prefix("ANSWERS "))
+    end
+  end
+
+  # A rehearsal host's environment (ProductionEnv.complete: NOINDEX=true), on
+  # a name of its own.
+  def rehearsal_walk = walk(ProductionEnv.complete.merge("APP_HOST" => "demo.example"))
+
   it "sends SR-03's set on every answer, every route's and the catalogue's, from the production configuration", :aggregate_failures do
-    env = ProductionEnv.complete.merge("APP_HOST" => "demo.example", "RAILS_ENV" => "production", "DATABASE_URL" => nil,
-                                       "RAILS_LOG_LEVEL" => "fatal", "DB_HOST" => "/nonexistent/balcao-spec",
-                                       "SPA_SHELLS_DIR" => Rails.configuration.x.spa_shells.to_s)
-
-    out, err, status = Open3.capture3(env, "bin/rails", "runner", PROBE, chdir: Rails.root.to_s)
-
-    expect(status).to be_success, err
-    probe = JSON.parse(out.lines.grep(/\AANSWERS /).last.delete_prefix("ANSWERS "))
+    probe = rehearsal_walk
     answers = probe.fetch("answers")
     routes = Rails.application.routes.routes.map { |route| route.verb.empty? ? "GET" : route.verb }
     expect(answers.size).to eq(routes.size + CATALOGUE.size)
@@ -132,5 +162,23 @@ RSpec.describe "SR-03 the response headers", :spa_shells, type: :request do
       expect(headers).not_to have_key("x-runtime"), label
     end
     expect(answers.fetch("a static file")["headers"]["cache-control"]).to eq "public, max-age=#{1.year.to_i}"
+    expect(answers.fetch("GET /robots.txt")["headers"]["cache-control"]).to eq "max-age=86400, public"
+  end
+
+  # Design §8 (M3-6b): a rehearsal host's name is in the certificate logs
+  # within minutes, so every answer it writes says noindex, the static
+  # files', the refusals' and the error pages' among them; the trace page's
+  # own noindex, nofollow stays (SR-11). The demo's name says it only there.
+  it "says noindex on every answer of a rehearsal host, and nowhere but the trace page on the public name", :aggregate_failures do
+    rehearsal = rehearsal_walk.fetch("answers")
+    public_name = walk(ProductionEnv.public_name).fetch("answers")
+
+    expect(public_name.keys).to match_array(rehearsal.keys)
+    rehearsal.each do |label, answer|
+      expect(answer["headers"]["x-robots-tag"]).to eq(label == "GET /trace" ? "noindex, nofollow" : "noindex"), label
+    end
+    public_name.each do |label, answer|
+      expect(answer["headers"]["x-robots-tag"]).to eq(label == "GET /trace" ? "noindex, nofollow" : nil), label
+    end
   end
 end

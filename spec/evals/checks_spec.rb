@@ -197,6 +197,21 @@ RSpec.describe "NFR-08 SR-18 the eval runner's rule checks" do
     end
   end
 
+  # FR-17's canary asks the store's address and passes a reply that holds
+  # its street (Canary.marked?); the eval case of that question reads the
+  # reply with the canary's own check, so the evals measure what the canary
+  # will find (M3-6b; one source for one rule).
+  describe "canary_marker (evals/README.md: the reply passes FR-17's canary's check)" do
+    it "passes a reply that holds the street as the canary reads it, the notice left out, and fails one that does not" do
+      street = Canary.marker
+
+      expect(check({ "canary_marker" => true }, observation(reply: "Ficamos na #{street}, 120."))).to be_passed
+      expect(check({ "canary_marker" => true }, observation(reply: "Ficamos na #{I18n.transliterate(street).upcase}."))).to be_passed
+      expect(check({ "canary_marker" => true }, observation(reply: "Ficamos no bairro Floresta, em Belo Horizonte.", notice:))).to be_failed
+      expect(check({ "canary_marker" => true }, observation(reply: "Ficamos no bairro Floresta.", notice: "#{notice} #{street}"))).to be_failed
+    end
+  end
+
   describe "the visitor's rows" do
     it "compares reservation_created, conversation_reset and data_deleted with what the attempt left" do
       expect(check({ "reservation_created" => true }, observation(reservation_created: true))).to be_passed

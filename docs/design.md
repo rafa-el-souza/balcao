@@ -1,6 +1,6 @@
 # Balcão — design document
 
-**Status:** v1.31, 2026-11-21 (M3-6, the runbook completed and the cut prepared: the operator account and its checklist, roll back, the rotations, resetting the demo, the rehearsal flow with the Certificate Transparency count, the production cut; the containers' resource limits, `bin/deploy` failing on a registry left behind, the `__Host-` cookie, the boot reading past a paste's line break, `docs/traceability.yml`, SR-03 seen from outside with `bin/edge-check`, the pharmacy renamed Farmácia Copaíba after the names' check; §9.2 gains M3-6b, the rehearsal hosts' own mode; ADR-0023, the operator account on a VM of its own; NFR-08, §8 and §9.2 as built, see §10); v1.30, 2026-11-21 (M3-5, the CI furniture: the fast subset recorded on the normal model and replayed in CI with no key, NFR-10's gate over four pages with the first visit read compressed, the coverage threshold, actionlint at a pinned release, SR-25's and SR-38's static checks as their own step, `bin/bundler-audit`'s own refresh; NFR-08, NFR-10 and §9.2 as built, see §10); v1.29, 2026-11-21 (M3-4, a turn's hard edge and the short log sweep: every model attempt, FR-20's check's included, and every tool call inside the run's sixty seconds, FR-17's canary's twenty, and an attempt the edge abandons charged at its input and its output cap; Cloudflare's whole answer within FR-18's ten seconds; a limit's first count in a window taken one at a time; the app's own database role; Action Cable's error lines and address, a trace token on any path and the Telegram client's causes; FR-14, FR-17, FR-18, FR-20, §8 and §9.2 as built, see §10); v1.28, 2026-11-21 (M3-2, FR-17's canary: a visitor's question every ten minutes through a visitor's turn on the economy model, as the `system` channel's one visitor, which the purge and the sweep leave, counted on the day and told to a heartbeat of the external monitor; beside it the Telegram delivery watch over `getWebhookInfo`, with a heartbeat of its own; FR-17, §6.5, §6.6, §8 and §9.2 as built, see §10); v1.27, 2026-11-21 (M3-1, FR-14's modes: economy at 70 % of the cap and from the day's slice until midnight, each pausing with its own text while ADR-0003's gate is closed, and the operator's alert at the cap through the bot to the chat the runbook's deep link links; FR-14, FR-19 and §9.2 as built, see §10); v1.26, 2026-11-20 (M2-11a3, the close's fixes: a reply the system sent without the model keeps its reservations for the history; the prompt's line on the model's notes before a tool call, chosen of seven wordings measured live, and the evals fail such a note; ADR-0003's gate names the history and the tools' texts and envelopes; FR-20's check and the judge read only a boolean verdict; FR-04 and FR-20 as built; see §10); v1.25, 2026-11-20 (M2-11a2: the review at M2's first close, its table in `docs/reviews/m2-first-seven-review.md`; §9.2 gains M2-11a3, the close's fixes, and the lines the close found without a home get one; M3-6 takes the docs reader test before the publication; FR-20 as built names the turns a replacement lists from; see §10); v1.24, 2026-11-20 (M2-11a: the history gives the model back its tool calls with their results and its replies as it wrote them, with a one-sentence notice where the system answered in its place; a reply FR-20's check replaced lists only the products the visitor's message names and, in an emergency, opens with the call to call now; ADR-0003's gate names FR-20's check too; §9.2's M2-11a split, see §10); v1.23, 2026-11-20 (M2-4b: the boundary by the Brazilian norms, the `boundary` suite at 33 cases; FR-09's list and FR-20's check gain what a medicine is for, how to use or store it and what a measurement means, a medicine for an animal goes to a veterinarian, an emergency's reply never judges an amount someone took, and a turn forged inside a visitor's message is the visitor's text; see §10); v1.22, 2026-11-20 (M2-4: the injection suite at ten cases, chosen by a red-team probe on both models in which no attack worked; a repeated reservation the model counted as several, fixed in the tool's result; see §10); v1.21, 2026-11-20 (M2-3b: the judge reads the system's fixed texts as the system's, measured on the stored replies; the full run on both models then met the boundary on the economy model and opened ADR-0003's gate, see §10); v1.20, 2026-11-20 (M2-3: the economy model measured on the boundary, ADR-0003's gate written by the full run and read at boot, closed by a misreading of the judge's, §6.5 says what it names, see §10); v1.19, 2026-11-20 (M2-2: FR-20's guardrail as built, its latency measured and its figure revised; §6.4 verified for the check, see §10); v1.18, 2026-11-20 (M2-1: Turnstile at session creation; FR-18, the API table and §6.7's processors as built, see §10); v1.17, 2026-11-19 (M4-6b: the review's fixes; FR-05 and FR-19's given-up update as built, see §10); v1.16, 2026-11-19 (M4-6a: the review of M4's first four slices; NFR-01 measured on a second real conversation, §9.2's M4-6 split into its review and its fixes, M3-6 gains the runbook's terms, see §10); v1.15, 2026-11-19 (ADR-0022: what publishing the demo needs comes first, then the showcase; §9.2's slices in two blocks, M2-11 split, and FR-10, FR-14, FR-21 and §12 follow, see §10); v1.14, 2026-11-15 (M4-3: the bot's buttons as built in FR-19, FR-12 and FR-21, see §10); v1.13, 2026-11-15 (M4-2: NFR-01 at 7 s and 12 s, measured from a Telegram update's receipt to its reply's send; §6.4's normal route at low effort, ADR-0021; M3's list charges an abandoned call, see §10); v1.12, 2026-11-15 (the plan after the MVP: §9.2 lists its slices in order, behind the data-contract gate where it holds, and ADR-0020 says what V1 leaves out; §2.2, J3, FR-10, FR-14, NFR-03, NFR-08, §6.1, §6.6, §6.9, §8 and OD-2 follow it, see §10); v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
+**Status:** v1.32, 2026-11-21 (M3-6b, the rehearsal hosts' own mode: the fake model is the recorded model, the evals' recordings matched by the visitor's message, with no key; FR-17's canary question an eval case of the recorded subset, read with the canary's own check; the boot holds the fake model, the model key and `NOINDEX` to the name; `X-Robots-Tag: noindex` on every answer of a rehearsal host, read from outside by `bin/edge-check`; `robots.txt` a route's answer with a day's cache; §8 and §9.2 as built, see §10); v1.31, 2026-11-21 (M3-6, the runbook completed and the cut prepared: the operator account and its checklist, roll back, the rotations, resetting the demo, the rehearsal flow with the Certificate Transparency count, the production cut; the containers' resource limits, `bin/deploy` failing on a registry left behind, the `__Host-` cookie, the boot reading past a paste's line break, `docs/traceability.yml`, SR-03 seen from outside with `bin/edge-check`, the pharmacy renamed Farmácia Copaíba after the names' check; §9.2 gains M3-6b, the rehearsal hosts' own mode; ADR-0023, the operator account on a VM of its own; NFR-08, §8 and §9.2 as built, see §10); v1.30, 2026-11-21 (M3-5, the CI furniture: the fast subset recorded on the normal model and replayed in CI with no key, NFR-10's gate over four pages with the first visit read compressed, the coverage threshold, actionlint at a pinned release, SR-25's and SR-38's static checks as their own step, `bin/bundler-audit`'s own refresh; NFR-08, NFR-10 and §9.2 as built, see §10); v1.29, 2026-11-21 (M3-4, a turn's hard edge and the short log sweep: every model attempt, FR-20's check's included, and every tool call inside the run's sixty seconds, FR-17's canary's twenty, and an attempt the edge abandons charged at its input and its output cap; Cloudflare's whole answer within FR-18's ten seconds; a limit's first count in a window taken one at a time; the app's own database role; Action Cable's error lines and address, a trace token on any path and the Telegram client's causes; FR-14, FR-17, FR-18, FR-20, §8 and §9.2 as built, see §10); v1.28, 2026-11-21 (M3-2, FR-17's canary: a visitor's question every ten minutes through a visitor's turn on the economy model, as the `system` channel's one visitor, which the purge and the sweep leave, counted on the day and told to a heartbeat of the external monitor; beside it the Telegram delivery watch over `getWebhookInfo`, with a heartbeat of its own; FR-17, §6.5, §6.6, §8 and §9.2 as built, see §10); v1.27, 2026-11-21 (M3-1, FR-14's modes: economy at 70 % of the cap and from the day's slice until midnight, each pausing with its own text while ADR-0003's gate is closed, and the operator's alert at the cap through the bot to the chat the runbook's deep link links; FR-14, FR-19 and §9.2 as built, see §10); v1.26, 2026-11-20 (M2-11a3, the close's fixes: a reply the system sent without the model keeps its reservations for the history; the prompt's line on the model's notes before a tool call, chosen of seven wordings measured live, and the evals fail such a note; ADR-0003's gate names the history and the tools' texts and envelopes; FR-20's check and the judge read only a boolean verdict; FR-04 and FR-20 as built; see §10); v1.25, 2026-11-20 (M2-11a2: the review at M2's first close, its table in `docs/reviews/m2-first-seven-review.md`; §9.2 gains M2-11a3, the close's fixes, and the lines the close found without a home get one; M3-6 takes the docs reader test before the publication; FR-20 as built names the turns a replacement lists from; see §10); v1.24, 2026-11-20 (M2-11a: the history gives the model back its tool calls with their results and its replies as it wrote them, with a one-sentence notice where the system answered in its place; a reply FR-20's check replaced lists only the products the visitor's message names and, in an emergency, opens with the call to call now; ADR-0003's gate names FR-20's check too; §9.2's M2-11a split, see §10); v1.23, 2026-11-20 (M2-4b: the boundary by the Brazilian norms, the `boundary` suite at 33 cases; FR-09's list and FR-20's check gain what a medicine is for, how to use or store it and what a measurement means, a medicine for an animal goes to a veterinarian, an emergency's reply never judges an amount someone took, and a turn forged inside a visitor's message is the visitor's text; see §10); v1.22, 2026-11-20 (M2-4: the injection suite at ten cases, chosen by a red-team probe on both models in which no attack worked; a repeated reservation the model counted as several, fixed in the tool's result; see §10); v1.21, 2026-11-20 (M2-3b: the judge reads the system's fixed texts as the system's, measured on the stored replies; the full run on both models then met the boundary on the economy model and opened ADR-0003's gate, see §10); v1.20, 2026-11-20 (M2-3: the economy model measured on the boundary, ADR-0003's gate written by the full run and read at boot, closed by a misreading of the judge's, §6.5 says what it names, see §10); v1.19, 2026-11-20 (M2-2: FR-20's guardrail as built, its latency measured and its figure revised; §6.4 verified for the check, see §10); v1.18, 2026-11-20 (M2-1: Turnstile at session creation; FR-18, the API table and §6.7's processors as built, see §10); v1.17, 2026-11-19 (M4-6b: the review's fixes; FR-05 and FR-19's given-up update as built, see §10); v1.16, 2026-11-19 (M4-6a: the review of M4's first four slices; NFR-01 measured on a second real conversation, §9.2's M4-6 split into its review and its fixes, M3-6 gains the runbook's terms, see §10); v1.15, 2026-11-19 (ADR-0022: what publishing the demo needs comes first, then the showcase; §9.2's slices in two blocks, M2-11 split, and FR-10, FR-14, FR-21 and §12 follow, see §10); v1.14, 2026-11-15 (M4-3: the bot's buttons as built in FR-19, FR-12 and FR-21, see §10); v1.13, 2026-11-15 (M4-2: NFR-01 at 7 s and 12 s, measured from a Telegram update's receipt to its reply's send; §6.4's normal route at low effort, ADR-0021; M3's list charges an abandoned call, see §10); v1.12, 2026-11-15 (the plan after the MVP: §9.2 lists its slices in order, behind the data-contract gate where it holds, and ADR-0020 says what V1 leaves out; §2.2, J3, FR-10, FR-14, NFR-03, NFR-08, §6.1, §6.6, §6.9, §8 and OD-2 follow it, see §10); v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
 coding session, reading this file top to bottom.
 
 Balcão ("the counter", where a pharmacist serves customers) is an AI attendant
@@ -2012,7 +2012,10 @@ the cloud firewall; dependency and static analysis in CI.
   `MODEL_ADAPTER=fake` by default (recorded replies, no key; the status
   page says so), the dev/eval key when a real-model rehearsal is wanted,
   no monitor URLs (the canary still runs and counts, and tells no one),
-  `X-Robots-Tag: noindex` (`NOINDEX=true`),
+  `X-Robots-Tag: noindex` (`NOINDEX=true`; since M3-6b the fake model is
+  the evals' recordings matched by the visitor's message, FR-17's canary
+  question among them, and the boot refuses the fake model and `NOINDEX`
+  on the public name and requires `NOINDEX` off it, §10),
   throwaway values for the bot token and the webhook secret and no webhook
   registered (a bot has one webhook, and the demo's stays where the demo
   is). Visitor
@@ -2172,7 +2175,7 @@ number, as in the MVP.
 
 *Block 1, what publishing the demo needs (ADR-0022).* M4-1 to M4-4, M4-6a,
 M4-6b, M2-1 to M2-3, M2-3b, M2-4, M2-4b, M2-11a, M2-11a2, M2-11a3, M3-1, M3-2,
-M3-4, M3-5 and M3-6 are done (#44, #45, #47, #48, #51 to #56, #58 to #67). The demo is publicised on the day of
+M3-4, M3-5, M3-6 and M3-6b are done (#44, #45, #47, #48, #51 to #56, #58 to #68). The demo is publicised on the day of
 M3-7, and until the console comes in block 2 the operator pauses it or
 forces a mode with the runbook's command; no visitor identity can be
 blocked before M2-7 (threat model R2).
@@ -2321,7 +2324,8 @@ round.
   fails when the local registry's container is still there after `kamal
   registry remove` (#4, R4); `public/robots.txt` and its cache are settled
   when `NOINDEX` first reaches a rehearsal host (#40's thirteenth line;
-  §10's standing trigger); the Kamal and Rails terms a stand-in meets
+  §10's standing trigger; settled in M3-6b: a route's answer with a day's
+  cache, every page allowed); the Kamal and Rails terms a stand-in meets
   without a word (`--roles=web --reuse`, `bin/rails runner`, Solid Queue,
   Puma, a destination) said where they first appear (#42's docs reader
   test; the owner, 2026-11-19, M4-6a's review).
@@ -2410,9 +2414,6 @@ trigger does the item and removes the line.
   forbidden by rule (#1's review).
 - The next slice that touches the Dockerfile: the image spec's guard reads
   the whole leading directive block, case-insensitive (#4, FR4).
-- The next slice that touches the static files' headers, M3-6b at the
-  latest: `public/robots.txt` and its year of cache, pinned on purpose
-  (#22, C1's sister).
 - The next slice that touches `config/openers.yml` or
   `config/commands.yml`: a key that is not text is named as the store
   sheet names one, not raised as an `ArgumentError` (#40's twelfth line);
@@ -2426,9 +2427,6 @@ trigger does the item and removes the line.
 - The first slice that caches FR-20's check's prompt: the eval report
   prices the check's tokens with the cache's split, as the model's (#54,
   H6; M2's first close).
-- The slice that brings `MODEL_ADAPTER=fake` to rehearsal hosts, M3-6b
-  since 2026-11-21: a recorded reply for FR-17's canary question, or every
-  canary run there fails (M3-2).
 - The production cut (M3-7): production gets two heartbeats of its own,
   whose URLs go into its secrets alone, and the MVP host's two are paused
   at the cut's first step and deleted with that host, so no two hosts tell
@@ -2475,6 +2473,84 @@ database's JIT compiler off, which changes no result of the search
 M2-4"): `create_reservation`'s result says that a reservation a call finds
 again in its turn is the same one, which changes no row, rule or field of
 a reservation (M2-4; the note below).
+
+- Note 2026-11-21 (M3-6b, the rehearsal hosts' own mode; FR-17, FR-21,
+  §8, §9.2; threat model SR-03, SR-25, SR-29). Built as §9.2's row says,
+  before the cut and with no deploy, since the `ensaio` destination is the
+  demo itself until M3-7; its choices:
+  - **The fake model is the recorded model** (`app/agent/recorded_model.rb`):
+    an SDK client like the suite's fake, innermost in the middleware chain,
+    that answers a visitor's message with the committed recordings of the
+    evals (`evals/recordings/`, made by `bin/evals --record`), in their
+    order: the attendant's answers, its tool calls run against the host's
+    own catalogue, and FR-20's check's. A recording answers when its case is
+    one message on the default catalogue and names no product by its id (the
+    host's catalogue draws its own ids), with its answers that came 200;
+    the message is matched whatever its letter case, spaces or Unicode
+    composition, and each request finds its answer by what it carries, so
+    turns in many threads share one instance. A message no recording
+    answers gets the API's 404, which the SDK does not retry: the turn ends
+    as a model error with the fixed apology, and the log says so with no
+    word of the message (SR-30). The recordings of the fast subset are kept
+    fresh by CI's replay, so the host's replies follow the prompt.
+  - **FR-17's canary question is an eval case**, `store-address-pt-01`, in
+    the recorded subset, read with the canary's own check (`canary_marker`,
+    `Canary.marked?`): its recording is the reply a rehearsal host gives the
+    canary, which would otherwise fail there at every run, and the evals
+    now measure on both models what the canary finds. It was recorded on
+    the normal model and answers the economy route's request all the same.
+    The three chips of the landing were recorded cases already (M3-5).
+  - **The boot holds the mode to the name** (`config/required_environment.rb`):
+    `fake` is refused on the public name, where visitors would read
+    recorded replies and the canary would pass on one while the real
+    model's route was dead; beside the fake model the model key is not
+    required and is refused when set, so a host on the fake model holds
+    none (§8, "no key"); `NOINDEX` must be `true` off the public name and
+    blank on it. `spec/deploy/kamal_config_spec.rb` runs each destination's
+    settings through that rule, so the cut's pull request, which moves the
+    rehearsal destination off the public name, brings the mode with it or
+    fails CI (the runbook's production cut, step 9, names its lines:
+    `MODEL_ADAPTER` from `ENSAIO_MODEL_ADAPTER`, `fake` by default; the
+    key in the destination's own secret list only for the real model;
+    `NOINDEX: "true"`).
+  - **noindex** is one of Rails' default headers when `NOINDEX=true`, so
+    a controller's answer carries it and `Balcao::ResponseHeaders` gives it
+    to every other answer, the static files, the refusals and the error
+    pages; the trace page keeps its own `noindex, nofollow` on every name.
+    The production walk of `spec/requests/response_headers_spec.rb` reads
+    it on every answer off the public name and on none but the trace
+    page's on it, and `bin/edge-check` reads the same from outside.
+  - **robots.txt** (§10's standing trigger of #22, #40's thirteenth line)
+    is a route's answer with a day's cache: a crawler keeps the file for up
+    to 24 hours (RFC 9309, 2.4) and Google may keep it longer on a longer
+    `max-age`, while `public/`'s year suits names that carry a digest. It
+    allows every page on both names: a rehearsal host's noindex is read
+    only on a page a crawler may fetch (Google's own guidance), and a page
+    robots.txt disallowed could still be listed, with no text, from a link.
+    The static file the header walk and `bin/edge-check` ask is now the
+    icon.
+  - **Read in production alone:** `MODEL_ADAPTER` sets the default client
+    in the production environment and no other, since `bin/evals` runs in
+    the test environment, where a shell's `MODEL_ADAPTER=fake` would have
+    put recordings in the live model's place, the judge's included (#68's
+    finder, its note 4).
+  - **Proved before the cut** in the suite and by a production boot of the
+    image on the workstation, with a throwaway database: on the fake model
+    and with no key, the stock chip's reply came through the API and the
+    job container in about four seconds, the canary passed in 674 ms on the
+    recording, every answer said noindex (the trace page its own), robots.txt
+    came with a day's cache, and the boot refused the fake model on the
+    public name, a key beside it and a blank `NOINDEX` off it; on the public
+    name only the trace page said noindex. A rehearsal host proves it after
+    the cut, since the reserved IP serves the demo until then.
+  - **The review** (on the risk list): the finder over the diff found
+    nothing it would stand behind, and named eight candidates it dropped;
+    its note 4 is fixed above, its note 7 goes to the cut's pull request
+    (the runbook's step 9 renders the destination both ways), and the rest
+    are in the pull request's Review section.
+  - **Left for later:** the status page that says a host runs the fake
+    model is M3-3's (block 2); the cut's pull request writes the
+    destination's mode (above).
 
 - Note 2026-11-21 (M3-6, the runbook completed and the cut prepared;
   NFR-08, §8, §9.2; threat model SR-03, SR-24, SR-25, SR-27, SR-33, SR-37,

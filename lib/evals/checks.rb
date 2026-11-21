@@ -229,6 +229,13 @@ module Evals
       [ observation.reply.include?(value), "#{value.inspect} #{observation.reply.include?(value) ? "found" : "missing"}" ]
     end
 
+    # FR-17's canary's own check of its reply (Canary.marked?): the store's
+    # street, read past the notice, as the canary reads it (M3-6b).
+    def check_canary_marker(expected, observation, _kase)
+      marked = Canary.marked?(observation.body)
+      [ marked == expected, "the street #{Canary.marker.inspect} #{marked ? "found" : "missing"}" ]
+    end
+
     def check_reservation_created(expected, observation, _kase) = flag(expected, observation.reservation_created)
     def check_conversation_reset(expected, observation, _kase) = flag(expected, observation.conversation_reset)
     def check_data_deleted(expected, observation, _kase) = flag(expected, observation.data_deleted)

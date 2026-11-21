@@ -26,6 +26,9 @@ Rails.application.routes.draw do
   # before the secret matched; one path, no format extension.
   post "webhooks/telegram", to: Telegram::Webhook.new, format: false
 
+  # robots.txt, a day's cache rather than public/'s year (RobotsController).
+  get "robots.txt", to: "robots#show", format: false
+
   # The web app's pages (design §6.7), each sent as its own shell; the others
   # join here as they arrive (web/src/pages.ts lists the same ones, and
   # spec/requests/spa_spec.rb holds the two lists together).

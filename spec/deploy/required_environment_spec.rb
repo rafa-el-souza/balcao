@@ -27,7 +27,8 @@ RSpec.describe "SR-25 production refuses to boot when a required variable is bla
     end
 
     # The first deploy that runs turns (design §6.4, §8): the MVP host calls
-    # the real model with the spend-limited dev/eval key.
+    # the real model with the spend-limited dev/eval key; a rehearsal host on
+    # the fake model holds none (below).
     it "requires the model key, held by the model provider's console, and the model adapter" do
       expect(described_class::SECRETS).to include("ANTHROPIC_API_KEY")
       expect(described_class::HELD).to include("ANTHROPIC_API_KEY")
@@ -100,12 +101,68 @@ RSpec.describe "SR-25 production refuses to boot when a required variable is bla
       expect("bot#{shortest}/sendMessage".gsub(Balcao::JsonLogFormatter::BOT_TOKEN, "[FILTERED]")).to eq("bot[FILTERED]/sendMessage")
     end
 
-    it "refuses a model adapter other than the real one, naming the variable and never its value" do
-      expect { described_class.verify!(complete.merge("MODEL_ADAPTER" => "fake")) }
-        .to raise_error(described_class::Missing) { |error|
-          expect(error.message).to include("MODEL_ADAPTER", "real", "SR-25")
-          expect(error.message).not_to include("value-of")
+    it "refuses a model adapter other than the real one and the fake one, naming the variable and never its value" do
+      [ "stub", "Fake", "real-model" ].each do |value|
+        expect { described_class.verify!(complete.merge("MODEL_ADAPTER" => value)) }
+          .to raise_error(described_class::Missing) { |error|
+            expect(error.message).to include("MODEL_ADAPTER", "real or fake", "SR-25")
+            expect(error.message).not_to include(value, "value-of")
+          }
+      end
+    end
+
+    # Design §8, ADR-0011 (M3-6b): a rehearsal host serves the fake model by
+    # default, the replies the evals recorded, with no key; the dev/eval key
+    # only when a real-model rehearsal is wanted. The demo's visitors never
+    # read a recorded reply, and the canary there would pass on one while the
+    # real model's route was dead.
+    it "takes the fake model adapter off the public name, where no model key is required" do
+      expect { described_class.verify!(complete.merge("MODEL_ADAPTER" => "fake", "ANTHROPIC_API_KEY" => "")) }.not_to raise_error
+      expect { described_class.verify!(complete.merge("MODEL_ADAPTER" => " fake\n").except("ANTHROPIC_API_KEY")) }.not_to raise_error
+    end
+
+    it "refuses the fake model adapter on the public name" do
+      expect { described_class.verify!(ProductionEnv.public_name.merge("MODEL_ADAPTER" => "fake", "ANTHROPIC_API_KEY" => "")) }
+        .to raise_error(described_class::Missing, /MODEL_ADAPTER is fake on the public name.*ADR-0011/)
+    end
+
+    # A host on the fake model holds no key it never reads (design §8: "no
+    # key"), so the rehearsal's deploy leaves the dev/eval key out unless the
+    # real model is wanted.
+    it "refuses a model key beside the fake model adapter, never naming the key" do
+      expect { described_class.verify!(complete.merge("MODEL_ADAPTER" => "fake", "ANTHROPIC_API_KEY" => "sk-ant-secret-key")) }
+        .to raise_error(described_class::Missing, /ANTHROPIC_API_KEY is set beside the fake model.*SR-25/) { |error|
+          expect(error.message).not_to include("sk-ant-secret-key")
         }
+    end
+
+    it "requires the model key with the real model adapter" do
+      expect { described_class.verify!(complete.merge("ANTHROPIC_API_KEY" => " ")) }
+        .to raise_error(described_class::Missing, /ANTHROPIC_API_KEY is blank.*SR-25/)
+    end
+
+    # Design §8 (M3-6b): a rehearsal host's name is public, in the certificate
+    # logs within minutes, so every answer it sends says noindex; the demo's
+    # name never does. NOINDEX states it in the destination's configuration
+    # and the boot holds it to the name, so neither can be forgotten.
+    it "requires NOINDEX=true off the public name, never naming another value" do
+      expect { described_class.verify!(complete.merge("NOINDEX" => " true\n")) }.not_to raise_error
+      [ "", "false", "1", "yes", "TRUE" ].each do |value|
+        expect { described_class.verify!(complete.merge("NOINDEX" => value)) }
+          .to raise_error(described_class::Missing, /NOINDEX must be true off the public name.*design §8/) { |error|
+            expect(error.message).not_to include("\"#{value}\"") unless value.empty?
+          }
+      end
+      expect { described_class.verify!(complete.except("NOINDEX")) }.to raise_error(described_class::Missing, /NOINDEX/)
+    end
+
+    it "refuses NOINDEX on the public name, whose pages search engines may index" do
+      expect { described_class.verify!(ProductionEnv.public_name.except("NOINDEX")) }.not_to raise_error
+      expect { described_class.verify!(ProductionEnv.public_name.merge("NOINDEX" => " ")) }.not_to raise_error
+      [ "true", "false" ].each do |value|
+        expect { described_class.verify!(ProductionEnv.public_name.merge("NOINDEX" => value)) }
+          .to raise_error(described_class::Missing, /NOINDEX is set on the public name.*design §8/)
+      end
     end
 
     # FR-14, ADR-0003: each destination states its month's cap, which a typo

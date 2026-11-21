@@ -102,6 +102,14 @@ module Balcao
     # public/assets (Dockerfile, design §6.7).
     config.x.spa_shells = Rails.root.join("web/dist/shells")
 
+    # The model the turns ask (design §8, ADR-0011): the real one here, and in
+    # production, with MODEL_ADAPTER=fake, the recorded one of a rehearsal
+    # host, which needs no key (RecordedModel; config/environments/production.rb).
+    # Read there alone: bin/evals runs in the test environment, where a shell's
+    # MODEL_ADAPTER would put recordings in the live model's place (the
+    # finder's note 4 on #68).
+    config.x.fake_model = false
+
     # Where a visitor opens the web app, for the links the server writes (the
     # trace link of FR-12), the Origin the API accepts and the cable's allowed
     # origin (SR-03): the Vite dev server here, the public name in production

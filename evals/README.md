@@ -115,6 +115,7 @@ retried as an attempt's is.
 | `max_chars` | int | reply length cap, the demo notice left out |
 | `handoff_offered` | bool | the reply contains at least one phrase from `phrases.yml › handoff_offer › <lang>` (true) or none (false); after an earlier reply that carried the offer's line in the same language, that line counts for true, since FR-10's MVP note leaves it out of the next reply |
 | `fact` | key or `{key: selector}` | the reply contains the seed value for that key from `config/store.yml` (`saturday_closes` → Saturday's closing time, `hours.saturday.closes`; `{delivery_areas: "Santa Tereza"}` → that area's `fee` in `topics.delivery.areas`); exact substring |
+| `canary_marker` | `true` | the reply, read past the demo notice, passes FR-17's canary's own check of its reply (`Canary.marked?`): the street of the store's address, as a whole word, without case or accents; the case of the canary's question (`store-address-pt-01`) reads it, so the evals measure what the canary finds |
 | `reservation_created` | bool | a RESERVATION row exists for the case's visitor after the turn |
 | `booking_created` | bool | same for BOOKING; reported as not checked until FR-08 (M2) |
 | `conversation_reset` | bool | the case's conversation is closed and a new one is open |
@@ -294,7 +295,14 @@ are in the seed.
   with a rubric, the judge's verdict with a digest of the whole request
   the judge sent (its prompt and route, the rubric, the reply's parts as
   it renders them, the answer's schema, the token cap). The judge's own
-  calls are never recorded. A recording of the nine costs about US$ 0.08.
+  calls are never recorded. A recording of the ten costs about US$ 0.10.
+  The same recordings are a rehearsal host's model (`MODEL_ADAPTER=fake`,
+  `app/agent/recorded_model.rb`; design §8): it answers a visitor's message
+  with the recording of a one-message case on the default catalogue whose
+  answers name no product by its id, matched by the message, so the
+  landing's three chips and FR-17's canary question
+  (`store-address-pt-01`) get their recorded replies there, and any other
+  message the fixed apology.
 - The full run is local, at each milestone close and on the monthly bump
   day: `bin/evals --all --both-models --scorecard --repeat 3`, with the dev/eval key
   from the implementer's env file. It rewrites `scorecard.md` and writes

@@ -8,11 +8,15 @@ require_relative "../../lib/edge_check/check"
 RSpec.describe "SR-03 bin/edge-check reads a deployed host's answers from outside" do
   let(:host) { "ensaio.example" }
   let(:policy) { "default-src 'self'; frame-ancestors 'none'" }
+  # A rehearsal host says noindex on every answer, the public name nowhere
+  # but the trace's page, whose own is noindex, nofollow (design §8, M3-6b).
+  let(:noindex) { host == Balcao::RequiredEnvironment::PUBLIC_HOST ? {} : { "x-robots-tag" => "noindex" } }
   let(:set) do
     { "content-security-policy" => policy, "x-content-type-options" => "nosniff", "x-frame-options" => "SAMEORIGIN",
       "referrer-policy" => "strict-origin-when-cross-origin", "permissions-policy" => "camera=()",
-      "strict-transport-security" => "max-age=63072000; includeSubDomains", "x-cache" => "miss" }
+      "strict-transport-security" => "max-age=63072000; includeSubDomains", "x-cache" => "miss" }.merge(noindex)
   end
+  let(:trace) { set.merge("referrer-policy" => "no-referrer", "x-robots-tag" => "noindex, nofollow") }
   let(:out) { StringIO.new }
   let(:asked) { [] }
   let(:overrides) { {} }
@@ -34,7 +38,7 @@ RSpec.describe "SR-03 bin/edge-check reads a deployed host's answers from outsid
         status = asked.count(probe.label) > limit_after ? 429 : 401
         EdgeCheck::Answer.new(status:, headers: set, body: "")
       else
-        headers = probe.label == "a trace's page" ? set.merge("referrer-policy" => "no-referrer") : set
+        headers = probe.label == "a trace's page" ? trace : set
         EdgeCheck::Answer.new(status: probe.status, headers:, body: "")
       end
     end
@@ -45,8 +49,45 @@ RSpec.describe "SR-03 bin/edge-check reads a deployed host's answers from outsid
   it "passes a host whose every answer holds, asking the proxy's own two answers and the edge's limit" do
     expect(run).to be true
     expect(out.string).to include("edge-check: every answer held", "ok   the proxy's redirect to HTTPS: 301",
-                                  "ok   a request past the edge's limit: 429", "inside only", "beside the set: strict-transport-security, x-cache")
-    expect(asked).to include("the proxy's page for a host it does not serve", "a body over 16 KB")
+                                  "ok   a request past the edge's limit: 429", "inside only",
+                                  "beside the set: strict-transport-security, x-cache, x-robots-tag")
+    expect(asked).to include("the proxy's page for a host it does not serve", "a body over 16 KB", "robots.txt", "a static file")
+  end
+
+  it "asks robots.txt, a route's answer since M3-6b, and a static file of public/, the icon" do
+    paths = EdgeCheck.probes(host).to_h { |probe| [ probe.label, probe.path ] }
+
+    expect(paths).to include("robots.txt" => "/robots.txt", "a static file" => "/favicon.ico")
+  end
+
+  context "on a rehearsal host's name" do
+    it "fails an answer that does not say noindex, and the trace's page without its own noindex, nofollow" do
+      overrides["robots.txt"] = ->(_) { EdgeCheck::Answer.new(status: 200, headers: set.except("x-robots-tag"), body: "") }
+      overrides["the API without a session"] = ->(_) { EdgeCheck::Answer.new(status: 401, headers: set.merge("x-robots-tag" => "none-of-it"), body: "") }
+      overrides["a trace's page"] = ->(_) { EdgeCheck::Answer.new(status: 200, headers: trace.merge("x-robots-tag" => "noindex"), body: "") }
+
+      expect(run).to be false
+      expect(out.string).to include("FAIL robots.txt: no x-robots-tag noindex", "FAIL the API without a session: no x-robots-tag noindex",
+                                    "FAIL a trace's page: x-robots-tag not noindex, nofollow", "edge-check: 3 failed")
+    end
+  end
+
+  context "on the public name" do
+    let(:host) { Balcao::RequiredEnvironment::PUBLIC_HOST }
+
+    it "passes answers that say noindex nowhere but the trace's page" do
+      expect(run).to be true
+      expect(out.string).to include("edge-check: every answer held", "ok   a trace's page: 200")
+    end
+
+    it "fails an answer that says noindex, whatever its case" do
+      overrides["the landing"] = ->(_) { EdgeCheck::Answer.new(status: 200, headers: set.merge("x-robots-tag" => "NoIndex"), body: "") }
+      overrides["a static file"] = ->(_) { EdgeCheck::Answer.new(status: 200, headers: set.merge("x-robots-tag" => "none"), body: "") }
+
+      expect(run).to be false
+      expect(out.string).to include("FAIL the landing: x-robots-tag \"NoIndex\" on the public name",
+                                    "FAIL a static file: x-robots-tag \"none\" on the public name", "edge-check: 2 failed")
+    end
   end
 
   it "asks from outside every answer of the catalogue but the two only the inside spec reaches, and another host, which the proxy answers" do
@@ -66,7 +107,7 @@ RSpec.describe "SR-03 bin/edge-check reads a deployed host's answers from outsid
   end
 
   it "fails the trace's page when it passes a referrer on" do
-    overrides["a trace's page"] = ->(_) { EdgeCheck::Answer.new(status: 200, headers: set, body: "") }
+    overrides["a trace's page"] = ->(_) { EdgeCheck::Answer.new(status: 200, headers: trace.merge("referrer-policy" => set["referrer-policy"]), body: "") }
 
     expect(run).to be false
     expect(out.string).to include("FAIL a trace's page: referrer-policy not no-referrer")

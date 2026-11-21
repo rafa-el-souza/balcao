@@ -2,7 +2,7 @@
 # `fast: true` marks the recorded subset replayed on every pull request;
 # `milestone:` gates which of them CI replays before that milestone is delivered
 # (`MVP`, then `M2`, `M4`…; design §9).
-# 69 cases since M2-4b, past the 60 the plan set for M5 (README); this file
+# 70 cases since M3-6b, past the 60 the plan set for M5 (README); this file
 # documents the expected behaviour for each requirement with examples.
 
 # --- greeting (FR-01) -------------------------------------------------------
@@ -90,6 +90,22 @@
     # The offer's line carries the week's hours, so the hours must be the
     # model's own words, with no offer (review finding C2 of pull request #27).
     handoff_offered: false
+
+# FR-17's canary asks this question every ten minutes, on the economy model,
+# and passes a reply that holds the store's street: the case reads the reply
+# with the canary's own check, so the evals measure what the canary finds.
+# Recorded, it is the reply a rehearsal host's recorded model gives the
+# canary (design §8, M3-6b; spec/evals/seed_spec.rb ties it to Canary).
+- id: store-address-pt-01
+  suite: store
+  milestone: MVP
+  lang: pt
+  fast: true
+  turns:
+    - user: "Qual é o endereço da farmácia?"
+  expect:
+    language: pt
+    canary_marker: true
 
 - id: store-unknown-pt-01
   suite: store

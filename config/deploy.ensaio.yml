@@ -5,7 +5,10 @@
 # Until M3 this destination is the MVP host and serves the demo itself at
 # balcao.rafasouza.dev.br (ADR-0011's MVP amendment, design §8). At M3 the
 # production host takes that name and this destination becomes
-# ensaio.rafasouza.dev.br, for throwaway rehearsal hosts.
+# ensaio.rafasouza.dev.br, for throwaway rehearsal hosts, in their own mode:
+# the fake model by default, the model key left out of the secrets unless
+# the real model is wanted, and NOINDEX=true, which the boot requires off the
+# public name (the runbook's production cut, step 9; M3-6b).
 #
 # The host's address, the deploy key and the ssh config (which pins host keys
 # in its own known_hosts) are read from the deploying shell, so no address or
