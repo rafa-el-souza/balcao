@@ -111,6 +111,19 @@ RSpec.describe "SR-35 FR-14 NFR-02 the operator's alert, sent through the bot" d
     expect(sent).to be_empty
   end
 
+  # The fix review's R3 on pull request #63 (my H3 and H5 fixes): an alert
+  # whose chat was read a moment before a link committed failed as
+  # unreadable, and the link's resend did not see it, still claimed.
+  it "sends an alert whose chat was read a moment before the link committed" do
+    row = alert
+    allow(OperatorChat).to receive(:chat_id).and_wrap_original { |original| original.call.tap { linked! unless OperatorChat.linked? } }
+
+    row.deliver
+    perform_enqueued_jobs(only: OperatorAlertJob)
+
+    expect(row.reload.status).to eq("sent")
+  end
+
   it "links the chat all the same when the alerts cannot be sent again, with a line" do
     alert.tap(&:deliver)
     allow(OperatorAlert).to receive(:resend_unlinked!).and_raise(ActiveRecord::StatementInvalid, "gone")

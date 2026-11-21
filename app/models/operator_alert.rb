@@ -113,7 +113,8 @@ class OperatorAlert < ApplicationRecord
     return unless claim
     return give_up([ "its attempts are spent", ("(last: #{error})" if error) ].compact.join(" ")) if attempts > ATTEMPTS
 
-    chat = OperatorChat.chat_id or return unsendable
+    linked = OperatorChat.linked?
+    chat = OperatorChat.chat_id || reread(linked) or return unsendable
     client.send_message(chat_id: chat, text:)
     update!(status: "sent", sent_at: Time.current, next_attempt_at: nil, error: nil)
     Rails.logger.info("operator alert #{id} (#{kind}): sent")
@@ -157,6 +158,13 @@ class OperatorAlert < ApplicationRecord
   rescue StandardError => e
     Rails.logger.error("operator alert #{id} (#{kind}): what broke the attempt, #{error.class}, not kept, #{e.class}")
   end
+
+  # A link that committed after the chat's first read (the fix review's R3
+  # on pull request #63): when no chat was linked before that read and one
+  # is now, the chat is read once more, rather than failing as unreadable a
+  # chat that reads; a chat linked before it that did not read is not read
+  # twice, nor its line written twice.
+  def reread(linked) = (OperatorChat.chat_id if !linked && OperatorChat.linked?)
 
   # No chat to send to: none linked, or a linked one that cannot be read, which
   # linking again mends (review finding H5 of pull request #63).
