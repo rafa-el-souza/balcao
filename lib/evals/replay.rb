@@ -57,6 +57,10 @@ module Evals
     def graded(kase, run, fake, recording, verdicts)
       replayed = []
       replayed << check("#{fake.left} of the recording's #{recording.responses.size} answers were never asked for") if fake.left.positive?
+      if fake.differed
+        replayed << check("the app sent another #{fake.differed} than the recording's: something the model reads changed; " \
+                          "record it again with bin/evals --record --fast")
+      end
       broken = broken(run)
       replayed << check(broken) if broken
       checks = broken ? [] : @checks.run(kase, run.observation)

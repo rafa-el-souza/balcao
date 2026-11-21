@@ -27,6 +27,14 @@ require_relative "judge"
 # name with the product's sku, and the replay serves each answer with the id
 # the same product has in the replay's catalogue (Replayed).
 #
+# Beside each answer the recording keeps a digest of the request the app sent
+# for it (Recording.request), and the replay compares each request it answers
+# with it: what the model reads beyond the five digests (a store sheet's
+# topic, which get_store_info carries; the tools' own logic; the request's
+# parameters) reaches the model in those requests, and a change fails the
+# case, naming the request (the review of #66, C1). What differs from run to
+# run by design is set aside first (VOLATILE).
+#
 # The rubric's verdict is recorded too, with a digest of what the judge read
 # (its prompt and route, the rubric, the reply in its authors' parts): the
 # replay calls no judge, and takes the recorded verdict only when the judge
@@ -39,6 +47,19 @@ module Evals
     HEADERS = %w[retry-after retry-after-ms x-should-retry].freeze
     DIGESTS = %w[prompt tools history guardrail case].freeze
     UUID = /\h{8}-\h{4}-\h{4}-\h{4}-\h{12}/
+    # What differs from run to run by design in a request the app sends, set
+    # aside before its digest: a product's id (drawn anew by every attempt's
+    # seed), the time line the history writes for each visitor message
+    # (AgentRunner::History::SENT), a timestamp (a reservation's
+    # pickup_until), and a reservation's code in a tool's result, drawn at
+    # random. Inside a tool's result, which is JSON in a string, the quotes
+    # come escaped.
+    VOLATILE = [
+      [ UUID, "<uuid>" ],
+      [ /\b(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday), \d{4}-\d{2}-\d{2} \d{2}:\d{2}\b/, "<sent>" ],
+      [ /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})/, "<time>" ],
+      [ /(\\*"code\\*":\s*\\*")[^"\\]+/, "\\1<code>" ]
+    ].freeze
 
     attr_reader :path, :data
 
@@ -55,6 +76,13 @@ module Evals
 
     def self.catalogue(seed)
       CatalogueSeed.entries(overlay: (CaseSet::SEEDS.join("#{seed}.yml") unless seed == "default"))
+    end
+
+    # A request the app sent, by digest, with VOLATILE set aside.
+    def self.request(body)
+      text = JSON.generate(body)
+      VOLATILE.each { |pattern, mark| text = text.gsub(pattern, mark) }
+      Digest::SHA256.hexdigest(text)[0, 16]
     end
 
     def self.route
@@ -110,7 +138,8 @@ module Evals
     # The SDK's middleware that keeps each attempt's answer as the API gave
     # it, in the shape FakeModel replays: the status, the body and the
     # headers that steer a retry, or a timeout, true once the request was on
-    # its way and "open" when it never was (ModelAttempts.abandoned?), and
+    # its way and "open" when it never was (ModelAttempts.abandoned?), with
+    # the digest of the request the answer was for (Recording.request), and
     # the sku of every product an answer names by its id, read in the
     # attempt's own catalogue. An answer it cannot keep (a connection's
     # failure, a body that is not JSON) marks the attempt unrecordable, and
@@ -127,15 +156,16 @@ module Evals
       end
 
       def call(request, nxt)
+        sent = Recording.request(request.body)
         response = nxt.call(request)
         response.buffer!
         body = response.body.join
         kept = HEADERS.filter_map { |name| [ name, response.headers[name] ] if response.headers[name] }.to_h
-        @responses << { "status" => response.status, "headers" => kept.presence, "body" => JSON.parse(body) }.compact
+        @responses << { "request" => sent, "status" => response.status, "headers" => kept.presence, "body" => JSON.parse(body) }.compact
         @products.merge!(Product.where(id: body.scan(UUID).uniq).pluck(:id, :sku).to_h)
         response
       rescue Anthropic::Errors::APITimeoutError => e
-        @responses << { "timeout" => e.cause.is_a?(Net::ReadTimeout) ? true : "open" }
+        @responses << { "request" => sent, "timeout" => e.cause.is_a?(Net::ReadTimeout) ? true : "open" }
         raise
       rescue StandardError => e
         @broken ||= "#{e.class}: #{e.message}"
@@ -184,15 +214,26 @@ module Evals
     # The fake model of a replay: each recorded answer, served with every
     # product id the recording names turned into the id the same product,
     # by its sku, has in the replay's catalogue, read when its request comes,
-    # after the attempt's seed.
+    # after the attempt's seed. It notes the first request that differs from
+    # the one the answer was recorded for (Recording.request), by its
+    # position, and serves the answer all the same, so the run ends and the
+    # replay names it.
     class Replayed < FakeModel
+      # The first request that differed, as "request N", or nil.
+      attr_reader :differed
+
       def initialize(recording)
         super(recording.responses)
         @products = recording.products
+        @differed = nil
       end
 
       def call(request, nxt)
-        @responses[0] = current(@responses[0]) if @products.any? && @responses.any?
+        if @responses.any?
+          recorded = @responses[0][:request]
+          @differed ||= "request #{@requests.size + 1}" if recorded && recorded != Recording.request(request.body)
+          @responses[0] = current(@responses[0]) if @products.any?
+        end
         super
       end
 

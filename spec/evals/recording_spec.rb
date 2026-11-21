@@ -59,7 +59,8 @@ RSpec.describe "NFR-08 SR-29 the recorded fast subset" do
       expect(evals("--record", "--case", greeting.id)).to eq(0), err.string
 
       kept = recording(greeting)
-      expect(kept["responses"]).to eq(JSON.parse(JSON.generate(api)))
+      expect(kept["responses"].map { |response| response.except("request") }).to eq(JSON.parse(JSON.generate(api)))
+      expect(kept["responses"].map { |response| response["request"] }).to all(match(/\A\h{16}\z/))
       expect(kept["digests"]).to eq(Evals::Recording.digests(greeting))
       expect(kept["route"]).to eq("model" => "claude-opus-5-5", "effort" => "low")
       expect(kept["commit"]).to eq("5594ff9")
@@ -250,6 +251,43 @@ RSpec.describe "NFR-08 SR-29 the recorded fast subset" do
     end
   end
 
+  # What the model reads beyond the five digests (a store sheet's topic, the
+  # tools' logic, the request's parameters) reaches it in the requests the
+  # app sends, which the recording keeps by digest and the replay compares,
+  # what differs from run to run by design set aside (the review of #66,
+  # C1).
+  describe "a request the app sends otherwise than at the recording" do
+    let(:delivery) { Evals::CaseSet.load.find("store-delivery-es-01") }
+    let(:api) do
+      [ tool_turn(tool_use("get_store_info", { topic: "delivery" })),
+        reply("[es] Sí, entregamos en Santa Tereza: la tasa es de R$ 7,00 y llega en hasta 50 minutos."), check ]
+    end
+
+    before do
+      expect(evals("--record", "--case", delivery.id)).to eq(0), out.string + err.string
+      out.truncate(0)
+      out.rewind
+    end
+
+    it "fails the case when a store sheet's topic the model read changed" do
+      allow_any_instance_of(StoreSheet).to receive(:topic).and_wrap_original do |original, name|
+        facts = original.call(name)
+        next facts unless name == "delivery"
+
+        facts.merge("areas" => facts.fetch("areas").map { |area| area["name"] == "Santa Tereza" ? area.merge("time" => "até 1 hora") : area })
+      end
+
+      expect(replay("--case", delivery.id)).to eq(1)
+      expect(out.string).to include("the app sent another request 2 than the recording's")
+    end
+
+    it "passes when only what differs by design differs: the clock, the ids, a reservation's code" do
+      travel_to(Time.iso8601(recording(delivery).fetch("recorded_at")) + 3.days) do
+        expect(replay("--case", delivery.id)).to eq(0), out.string
+      end
+    end
+  end
+
   describe Evals::Recording::Recorder do
     it "keeps a 529's status, body and retry headers, and a timeout as the fake replays it" do
       overloaded = error(:overloaded).merge(headers: { "retry-after" => "1" })
@@ -263,9 +301,12 @@ RSpec.describe "NFR-08 SR-29 the recorded fast subset" do
       expect { call.() }.to raise_error(Anthropic::Errors::APITimeoutError)
       expect(call.().content.last.text).to eq("[pt] Oi.")
 
-      expect(recorder.responses.map { |response| response.except("body") }).to eq(
+      expect(recorder.responses.map { |response| response.except("body", "request") }).to eq(
         [ { "status" => 529, "headers" => { "retry-after" => "1" } }, { "timeout" => true }, { "timeout" => "open" }, { "status" => 200 } ]
       )
+      expect(recorder.responses.map { |response| response["request"] }.uniq).to eq([ Evals::Recording.request(
+        { model: "claude-opus-5-5", max_tokens: 10, messages: [ { role: "user", content: "oi" } ] }
+      ) ])
       expect(recorder.responses.first["body"]).to eq(JSON.parse(JSON.generate(overloaded[:body])))
       expect(FakeModel.new(recorder.responses).left).to eq(4)
       expect(recorder.broken).to be_nil
