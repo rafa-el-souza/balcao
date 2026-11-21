@@ -123,8 +123,9 @@ RSpec.describe "SR-27 the edge proxy is pinned at a release past its published a
     expect(rehearsal.dig("proxy", "run", "version")).to eq "v0.10.2"
   end
 
-  it "pins only the version, a plain release tag of kamal-proxy's own image: ports, publishing and logging stay Kamal's defaults" do
-    expect(base.dig("proxy", "run").keys).to eq [ "version" ]
+  it "pins only the version, a plain release tag of kamal-proxy's own image, and its resource limits: ports, publishing and logging stay Kamal's defaults" do
+    expect(base.dig("proxy", "run").keys).to eq %w[version options]
+    expect(base.dig("proxy", "run", "options").keys).to eq %w[memory cpus]
     expect(base.dig("proxy", "run", "version")).to match(/\Av\d+\.\d+\.\d+\z/)
   end
 
@@ -187,6 +188,20 @@ RSpec.describe "SR-24 the containers Kamal runs" do
 
       expect(rails_tmp).to match(/\A\/rails\/tmp:(?=.*\buid=1000\b)(?=.*\bgid=1000\b)/)
     end
+  end
+
+  # Design §9.2's M3 list, built in M3-6: a container that runs away (a leak,
+  # a loop) meets its own limit, and Docker restarts it, leaving the host's
+  # memory and its other CPU to the rest; the host has no swap. Measured on
+  # the MVP host on 2026-11-21, each container's peak since its start: job
+  # 443 MiB, web 179, Postgres 114 over six days, kamal-proxy 13 over eight.
+  # The limits give each two to nineteen times that, and the four together,
+  # 3.25 GiB, fit the 3.73 GiB the host has; each CPU limit leaves the others
+  # at least half of the two CPUs.
+  it "limits each container's memory and CPU, the four together within the host's memory" do
+    roles(rehearsal).each_value { |role| expect(role.fetch("options")).to include("memory" => "1g", "cpus" => 1.5) }
+    expect(base.dig("accessories", "db", "options")).to eq("memory" => "1g", "cpus" => 1.5)
+    expect(rehearsal.dig("proxy", "run", "options")).to eq("memory" => "256m", "cpus" => 1)
   end
 
   it "keeps the database on the Docker network, publishing no port" do
