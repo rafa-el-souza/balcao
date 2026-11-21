@@ -47,6 +47,18 @@ RSpec.describe "NFR-08 the container entrypoint, in Ruby" do
     expect(calls).to eq [ "jobs (without)" ]
   end
 
+  # Review finding F5 of pull request #65: the migrations and the role's
+  # grants run only for a command that ends with the server, so the image's
+  # command and the web role's are held to it, or a fresh host would boot a
+  # server with no role to connect as.
+  it "is given the server's command by the image, and by no role of the Kamal configuration" do
+    cmd = Rails.root.join("Dockerfile").read[/^CMD (\[.*\])$/, 1]
+    deploy = YAML.safe_load(Rails.root.join("config/deploy.yml").read, aliases: true)
+
+    expect(JSON.parse(cmd).last(2)).to eq([ "./bin/rails", "server" ])
+    expect(deploy.dig("servers", "web")).not_to have_key("cmd")
+  end
+
   it "does not start the server when the databases or the role cannot be prepared" do
     status, calls = entrypoint("./bin/rails", "server", env: { "FAIL_ON" => "db:prepare" })
 
