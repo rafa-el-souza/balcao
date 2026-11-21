@@ -64,6 +64,18 @@ module Balcao
     LINE = 2048
     FRAME = /\A\S+:\d+:in / # Ruby's "path:line:in 'method'"
     CONTROL = /[\x00-\x08\x0A-\x1F\x7F]/
+    # Action Cable's own error lines write the error's message: a worker's
+    # "There was an exception - Class(message)" and a command's "Could not
+    # execute command from (...) [Class - message]: frames". A message may
+    # quote a row the database refused, so only the class stays, as in Rails'
+    # own error lines (threat model SR-30; review finding X1 of pull request
+    # #42, M3's sweep). A client writes the command, so the mask starts at the
+    # first place in it that looks like the error's part, keeping more of the
+    # line out rather than less; the frames after the last "]: " stay.
+    WORKER_ERROR = /\A(There was an exception - \S+?)\(.*\)\z/m
+    COMMAND_ERROR = /\A(Could not execute command from \(.*?\) \[[^\s\[\]]+) - .*(\]: (?:(?!\]: ).)*)\z/m
+
+    def self.masked(text) = text.sub(WORKER_ERROR, '\1([FILTERED])').sub(COMMAND_ERROR, '\1 - [FILTERED]\2')
 
     def self.cut(text)
       unless text.match?(FRAME)
@@ -76,7 +88,7 @@ module Balcao
     %i[debug info warn error fatal unknown].each do |level|
       define_method(level) do |message = nil, &block|
         message = block.call if message.nil? && block
-        message = CableLogger.cut(TraceTokenFilter.line(message)) if message.is_a?(String)
+        message = CableLogger.cut(TraceTokenFilter.line(CableLogger.masked(message))) if message.is_a?(String)
         __getobj__.public_send(level, message)
       end
     end

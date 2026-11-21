@@ -6,6 +6,9 @@ module ApplicationCable
   class Connection < ActionCable::Connection::Base
     # SR-40, ADR-0015: a page sends one or two commands on its socket.
     COMMANDS_PER_MINUTE = 20
+    # The client's address in Action Cable's lines of a socket's start and
+    # end ('Started GET "/cable" [WebSocket] for <address> at <time>').
+    ADDRESS = / for \S+ at (?=[^"]*\z)/
 
     identified_by :identity_hash, :source
 
@@ -51,6 +54,14 @@ module ApplicationCable
       super
       server.remove_connection(self) unless websocket.alive?
     end
+
+    # Action Cable's lines of a socket's start and end, without the client's
+    # address (threat model SR-30; the round's triage at the MVP close): the
+    # request's own line, which Rails writes for /cable as for every request,
+    # keeps it once, as the privacy page says the logs do.
+    def started_request_message = super.sub(ADDRESS, " at ")
+
+    def finished_request_message = super.sub(ADDRESS, " at ")
 
     # The opening also subscribes the connection's internal channel, whose
     # only use is to disconnect it from another process, which this app never
