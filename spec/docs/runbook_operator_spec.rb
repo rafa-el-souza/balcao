@@ -83,4 +83,11 @@ RSpec.describe "SR-37 SR-38 the operator's account and checklist in the runbook"
 
     expect(step).to include("only after a deploy that passed")
   end
+
+  # The fix review's R2: production's own heartbeats were named only in the
+  # cut, so its env file and its smoke still led to the MVP host's.
+  it "names production's own heartbeats where its env file and its smoke read them" do
+    expect(account.squish).to include("Balcão produção: canário", "Balcão produção: webhook do Telegram")
+    expect(checklist.squish).to include("Balcão produção: canário", "Balcão produção: webhook do Telegram")
+  end
 end

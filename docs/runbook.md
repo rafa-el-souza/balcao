@@ -401,8 +401,10 @@ development account, which has no sudo:
    the production workspace of the model's console, whose spend limit sits
    just below the cap (design §8); `TELEGRAM_BOT_TOKEN` from BotFather;
    `TURNSTILE_SECRET_KEY` from the widget's page in Cloudflare's
-   dashboard; `MONITOR_URL` and `TELEGRAM_MONITOR_URL` from the monitor's
-   console (Monitoring, below). Paste a value without spaces or a line
+   dashboard; `MONITOR_URL` and `TELEGRAM_MONITOR_URL`, the URLs of
+   production's own two heartbeats, `Balcão produção: canário` and
+   `Balcão produção: webhook do Telegram`, from the monitor's console
+   (Monitoring, below), never the MVP host's. Paste a value without spaces or a line
    break around it: the boot check reads past them, and so does the app
    for the host, the keys, the pepper and the secret key base (SR-25), but
    a value Telegram or Cloudflare compares is compared as pasted.
@@ -500,7 +502,9 @@ never from a shell start-up file.
    alone, and this account keeps no other). Production never uses `-P`
    (`--skip-push`, which deploys an image already there instead of building
    this checkout).
-8. The smoke of the MVP deploy flow, step 4, on production's commands.
+8. The smoke of the MVP deploy flow, step 4, on production's commands; in
+   the monitor's console, production's heartbeats, `Balcão produção:
+   canário` and `Balcão produção: webhook do Telegram`, are the ones up.
 9. `git rev-parse HEAD > .last-deployed-sha` (the file is gitignored);
    `kamal audit` on the host keeps the same record.
 
@@ -760,8 +764,10 @@ incident; a worker that stopped requests nothing, and the monitor alerts on
 the silence. A heartbeat stays pending until its first request, so a new
 one alerts only after the first deploy that sends to it.
 
-- **Creating them** (in the monitor's console, once per account): two
-  heartbeats, `Balcão: canário` and `Balcão: webhook do Telegram`, each
+- **Creating them** (in the monitor's console, once for each host that
+  serves the demo's name): the MVP host's two, `Balcão: canário` and
+  `Balcão: webhook do Telegram`, and from the cut production's, `Balcão
+  produção: canário` and `Balcão produção: webhook do Telegram`, each
   expecting a heartbeat every 10 minutes with a 5-minute grace period and
   e-mail on. Each heartbeat's page shows its secret URL.
 - **Their URLs** go into the destination's env file, never into a tracked
