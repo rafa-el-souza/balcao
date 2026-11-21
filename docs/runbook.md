@@ -176,7 +176,9 @@ Inside the host, as `deploy`, through
 | containers' limits | `docker ps -q \| xargs docker inspect --format '{{.Name}} memory={{.HostConfig.Memory}} cpus={{.HostConfig.NanoCpus}}'` | `web`, `job` and `balcao-db`: `memory=1073741824 cpus=1500000000`; `kamal-proxy`: `memory=268435456 cpus=1000000000` (the database's and the proxy's once rebooted after the deploy that changed them; the host contract) |
 
 From outside: the cloud firewall shows exactly TCP 22, 80, 443 and ICMP
-inbound, applied to this server (`hcloud firewall describe <firewall>`).
+inbound, applied to this server (`hcloud firewall describe <firewall>`); a
+production host being cut shows TCP 22 and ICMP alone until the cut's step
+5 opens 80 and 443 (The production cut, below).
 At M3 an external port scan is recorded as well.
 
 ## MVP deploy flow (until M3)

@@ -110,4 +110,14 @@ RSpec.describe "SR-37 SR-38 the operator's account and checklist in the runbook"
     expect(step1).not_to include("paused in the console at the same time")
     expect(step1).to include("Telegram heartbeat paused in the console right before the token's rotation")
   end
+
+  # The fix review's R5: the cut's step 2 runs the host checklist on a
+  # firewall that admits 22 alone until step 5, and the checklist asked for
+  # 80 and 443 too, which only opening them early, C6's failure, would pass.
+  it "runs at the cut's step 2 a host checklist its closed firewall can pass" do
+    host = section("Host checklist (SR-24)")
+    outside = host[host.index("From outside:")..].squish
+
+    expect(outside).to include("TCP 22 and ICMP alone until the cut's step 5")
+  end
 end
