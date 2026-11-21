@@ -126,6 +126,20 @@ RSpec.describe "NFR-08 SR-29 the recorded fast subset" do
       expect(out.string).to include("stale: case changed")
     end
 
+    # The tools' results carry the catalogue's names, prices and stock,
+    # which the model read when it answered.
+    it "fails a recording made for another catalogue" do
+      entries = CatalogueSeed.entries
+      changed = entries.map { |entry| entry[:sku] == "dipirona-500mg-10cp" ? entry.merge(price: BigDecimal("8.90")) : entry }
+      expect(changed).not_to eq(entries)
+      allow(CatalogueSeed).to receive(:entries).and_call_original
+      allow(CatalogueSeed).to receive(:entries).with(no_args).and_return(changed)
+      allow(CatalogueSeed).to receive(:entries).with(overlay: nil).and_return(changed)
+
+      expect(replay("--case", greeting.id)).to eq(1)
+      expect(out.string).to include("stale: case changed")
+    end
+
     it "fails when the run asks for fewer answers than the recording holds" do
       path = dir.join("recordings/#{greeting.id}.json")
       data = JSON.parse(path.read)

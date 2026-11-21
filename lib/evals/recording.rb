@@ -14,8 +14,9 @@ require_relative "judge"
 #
 # A recording speaks for what the model read: the system prompt, the tools,
 # the history and FR-20's check (PromptDigest, as ADR-0003's gate names
-# them), the normal route's model and effort, and the case's seed and
-# messages, an opener's text among them (config/openers.yml). A change to
+# them), the normal route's model and effort, the case's messages, an
+# opener's text among them (config/openers.yml), and its seed's catalogue,
+# which the tools' results carry. A change to
 # any of them makes it stale, and the replay fails the case, naming what
 # changed, until the slice that made the change records it again. The
 # expectations are not recorded: the replay grades the recorded replies
@@ -43,10 +44,17 @@ module Evals
 
     def self.path(kase, dir = DIR) = Pathname(dir).join("#{kase.id}.json")
 
-    # What a recording made now would speak for.
+    # What a recording made now would speak for. The case's own part is its
+    # messages and its seed's catalogue, whose names, prices and stock the
+    # tools' results carry to the model (evals/seeds overlays the default
+    # one, as the pipeline seeds it).
     def self.digests(kase)
       { "prompt" => PromptDigest.prompt, "tools" => PromptDigest.tools, "history" => PromptDigest.history,
-        "guardrail" => PromptDigest.guardrail, "case" => PromptDigest.digest([ kase.seed, kase.messages ]) }
+        "guardrail" => PromptDigest.guardrail, "case" => PromptDigest.digest([ kase.seed, catalogue(kase.seed), kase.messages ]) }
+    end
+
+    def self.catalogue(seed)
+      CatalogueSeed.entries(overlay: (CaseSet::SEEDS.join("#{seed}.yml") unless seed == "default"))
     end
 
     def self.route
