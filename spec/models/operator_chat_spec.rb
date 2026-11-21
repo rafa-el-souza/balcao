@@ -64,6 +64,18 @@ RSpec.describe "SR-35 the operator's chat, linked once by the runbook's command"
     expect(link(first)).to be(false)
   end
 
+  # Review finding C5 of pull request #63 (teorico; fixed, since the command
+  # is this pull request's own): a link minted before the unlink still
+  # linked a chat for the rest of its fifteen minutes.
+  it "revokes a link still pending when it unlinks" do
+    token = token_of(OperatorChat.link_url!)
+
+    OperatorChat.unlink!
+
+    expect(link(token)).to be(false)
+    expect(OperatorChat.sole).to have_attributes(link_digest: nil, link_expires_at: nil)
+  end
+
   it "unlinks, after which the alerts have nowhere to go" do
     link(token_of(OperatorChat.link_url!))
 

@@ -67,8 +67,10 @@ class OperatorChat < ApplicationRecord
   end
   private_class_method :resend
 
-  # The runbook's command that takes the alerts away from the chat.
-  def self.unlink! = find_by(role: ROLE)&.update!(chat_id: nil, language: nil, linked_at: nil)
+  # The runbook's command that takes the alerts away from the chat, and
+  # revokes a link still pending, which would link a chat again (review
+  # finding C5 of pull request #63).
+  def self.unlink! = find_by(role: ROLE)&.update!(chat_id: nil, language: nil, linked_at: nil, link_digest: nil, link_expires_at: nil)
 
   # The chat the alerts go to, nil until one is linked. A chat that does not
   # decrypt (encryption keys other than the row's) is nil too, with a line, as
