@@ -203,6 +203,19 @@ module Budget
   # findings C1 = H1 and H4 of pull request #63).
   ALERTS = { "cap" => "budget_cap", "month" => "budget_month", "day" => "budget_day" }.freeze
 
+  # The operator's alert the budget's state calls for now, as its kind and
+  # key, or nil: the one OperatorChat.link! sends again when it failed for
+  # want of a chat, never an earlier one or one whose pause is over (the fix
+  # review's R1 and R2 on pull request #63).
+  def due_alert(at = Time.current)
+    state = month(at)
+    automatic = automatic(state, at)
+    return unless alerting?(state, automatic, serving(state.forced_mode, automatic.mode))
+
+    kind = ALERTS.fetch(automatic.cause)
+    [ kind, OperatorAlert.budget_key(kind, month: state.month, day: at.in_time_zone.to_date, cap:) ]
+  end
+
   def alerting?(state, automatic, mode)
     automatic.cause == "cap" || (state.forced_mode.nil? && mode == "paused" && ALERTS.key?(automatic.cause))
   end

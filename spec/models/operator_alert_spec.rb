@@ -53,25 +53,62 @@ RSpec.describe "SR-35 FR-14 NFR-02 the operator's alert, sent through the bot" d
 
   # Review finding H3 of pull request #63 (dono): the migration leaves no
   # chat linked, so an alert written before the operator links one failed
-  # for good. Linking sends this month's latest of each kind that failed for
-  # want of a chat; an earlier one of its kind was followed by a later one.
-  it "sends, once a chat is linked, this month's latest alert of each kind that failed for want of one" do
-    last_month = travel_to(Time.zone.local(2026, 10, 31, 23, 0)) { alert(key: "2026-10:10.0").tap(&:deliver) }
-    earlier_day = travel_to(Time.zone.local(2026, 11, 20, 9, 0)) do
-      OperatorAlert.record!(kind: "budget_day", key: "2026-11-20:10.0", text: "Balcão: dia 20.").tap(&:deliver)
-    end
+  # for good. Linking sends the one the budget's state calls for now, if it
+  # failed for want of a chat; since the fix review's R1 and R2, never an
+  # earlier one or one whose pause is over.
+  def cap_key = OperatorAlert.budget_key("budget_cap", month: "2026-11", day: Date.new(2026, 11, 21), cap: Budget.cap)
+
+  def day_key(day) = OperatorAlert.budget_key("budget_day", month: "2026-11", day:, cap: Budget.cap)
+
+  it "sends, once a chat is linked, the alert the budget calls for now that failed for want of one" do
     travel_to(Time.zone.local(2026, 11, 21, 10, 0)) do
-      cap = alert.tap(&:deliver)
-      day = OperatorAlert.record!(kind: "budget_day", key: "2026-11-21:10.0", text: "Balcão: dia 21.").tap(&:deliver)
-      expect([ last_month, cap, earlier_day, day ].map { |row| row.reload.status }).to all(eq "failed")
+      BudgetState.for_month!.update!(spent_usd: Budget.cap)
+      cap = alert(key: cap_key).tap(&:deliver)
+      expect(cap.reload).to have_attributes(status: "failed", error: "unlinked")
 
       linked!
       perform_enqueued_jobs(only: OperatorAlertJob)
 
-      expect(sent.map { |message| message["text"] }).to contain_exactly("Balcão: o teto.", "Balcão: dia 21.")
-      expect([ cap, day ].map { |row| row.reload.status }).to all(eq "sent")
-      expect([ last_month, earlier_day ].map { |row| row.reload.status }).to all(eq "failed")
+      expect(sent.map { |message| message["text"] }).to eq([ "Balcão: o teto." ])
+      expect(cap.reload.status).to eq("sent")
     end
+  end
+
+  # The fix review's R1 on pull request #63 (my H3 fix): a second link sent
+  # an earlier alert of a kind whose later one the first link had sent.
+  it "sends no earlier alert of a kind whose later one was sent, when the chat is linked again" do
+    travel_to(Time.zone.local(2026, 11, 20, 9, 0)) do
+      OperatorAlert.record!(kind: "budget_day", key: day_key(Date.new(2026, 11, 20)), text: "Balcão: dia 20.").tap(&:deliver)
+    end
+    travel_to(Time.zone.local(2026, 11, 21, 9, 0)) do
+      OperatorAlert.record!(kind: "budget_day", key: day_key(Date.new(2026, 11, 21)), text: "Balcão: dia 21.").tap(&:deliver)
+    end
+    travel_to(Time.zone.local(2026, 11, 21, 10, 0)) do
+      BudgetState.for_month!.update!(day: Date.new(2026, 11, 21), day_spent_usd: Budget.slice, spent_usd: Budget.slice * 2)
+      2.times do
+        linked!
+        perform_enqueued_jobs(only: OperatorAlertJob)
+      end
+    end
+
+    expect(sent.map { |message| message["text"] }).to eq([ "Balcão: dia 21." ])
+  end
+
+  # The fix review's R2 on pull request #63 (my H3 fix): a link sent an
+  # alert whose pause had ended, a past day's or one at a cap since changed.
+  it "sends on a link no alert whose pause is over: a past day's, or one at a cap since changed" do
+    travel_to(Time.zone.local(2026, 11, 3, 10, 0)) do
+      OperatorAlert.record!(kind: "budget_day", key: day_key(Date.new(2026, 11, 3)), text: "Balcão: dia 3.").tap(&:deliver)
+      OperatorAlert.record!(kind: "budget_cap", key: "2026-11:5.0", text: "Balcão: teto de 5.").tap(&:deliver)
+    end
+
+    travel_to(Time.zone.local(2026, 11, 21, 10, 0)) do
+      BudgetState.for_month!.update!(spent_usd: Budget.cap)
+      linked!
+      perform_enqueued_jobs(only: OperatorAlertJob)
+    end
+
+    expect(sent).to be_empty
   end
 
   it "links the chat all the same when the alerts cannot be sent again, with a line" do
@@ -91,20 +128,23 @@ RSpec.describe "SR-35 FR-14 NFR-02 the operator's alert, sent through the bot" d
   # told as no chat linked, and a value that is no integer raised with the
   # value in its message.
   it "fails as unreadable, not unlinked, when the linked chat does not decrypt, and linking again sends it" do
-    linked!
-    OperatorChat.connection.execute("UPDATE operator_chats SET chat_id = 'not a ciphertext'")
-    row = alert
+    travel_to(Time.zone.local(2026, 11, 21, 10, 0)) do
+      BudgetState.for_month!.update!(spent_usd: Budget.cap)
+      linked!
+      OperatorChat.connection.execute("UPDATE operator_chats SET chat_id = 'not a ciphertext'")
+      row = alert(key: cap_key)
 
-    row.deliver
+      row.deliver
 
-    expect(row.reload).to have_attributes(status: "failed", error: "unreadable")
-    expect(Rails.logger).to have_received(:error)
-      .with("operator alert #{row.id} (budget_cap): not sent, the linked chat cannot be read; link it again")
+      expect(row.reload).to have_attributes(status: "failed", error: "unreadable")
+      expect(Rails.logger).to have_received(:error)
+        .with("operator alert #{row.id} (budget_cap): not sent, the linked chat cannot be read; link it again")
 
-    linked!
-    perform_enqueued_jobs(only: OperatorAlertJob)
+      linked!
+      perform_enqueued_jobs(only: OperatorAlertJob)
 
-    expect(row.reload.status).to eq("sent")
+      expect(row.reload.status).to eq("sent")
+    end
   end
 
   it "fails as unreadable a stored chat that is no chat id, and names the value nowhere" do

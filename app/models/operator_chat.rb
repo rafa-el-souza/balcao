@@ -59,9 +59,9 @@ class OperatorChat < ApplicationRecord
   end
 
   # Review finding H3 of pull request #63: an alert written before a chat was
-  # linked failed for want of one; once linked, the chat gets this month's
-  # latest of each kind (OperatorAlert.resend_unlinked!). The chat is linked
-  # whatever becomes of them: a failure here is a line, and the bot still
+  # linked failed for want of one; once linked, the chat gets the one the
+  # budget calls for now (OperatorAlert.resend_unlinked!). The chat is linked
+  # whatever becomes of it: a failure here is a line, and the bot still
   # answers the link.
   def self.resend(at)
     OperatorAlert.resend_unlinked!(at)
