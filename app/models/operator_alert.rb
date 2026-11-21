@@ -139,7 +139,9 @@ class OperatorAlert < ApplicationRecord
     cause = error.failure || error.code.to_s
     return give_up("the way there failed at each of its #{ATTEMPTS} attempts (#{cause})", error: cause) if attempts >= ATTEMPTS
 
-    wait = error.retry_after || ((attempts**4) + 2)
+    # A 429's wait only as a positive number of seconds, as Telegram::Outbound
+    # takes it (review finding H9 of pull request #63); the backoff otherwise.
+    wait = error.rate_limited? && error.retry_after.to_i.positive? ? error.retry_after.to_i : (attempts**4) + 2
     update!(next_attempt_at: Time.current + wait, error: cause)
     OperatorAlertJob.set(wait_until: next_attempt_at).perform_later(id)
   end

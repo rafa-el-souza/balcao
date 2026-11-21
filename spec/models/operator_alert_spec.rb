@@ -165,6 +165,19 @@ RSpec.describe "SR-35 FR-14 NFR-02 the operator's alert, sent through the bot" d
     expect(Rails.logger).to have_received(:error).with("operator alert #{row.id} (budget_cap): not sent, Telegram refused it (403)")
   end
 
+  # Review finding H9 of pull request #63 (teorico; fixed likewise): the wait
+  # a 429 names is taken only as a positive number of seconds, as
+  # Telegram::Outbound takes it; anything else waits the backoff.
+  it "takes only a positive wait from a 429, and the backoff otherwise" do
+    linked!
+    stub_request(:post, bot_api_url("sendMessage")).to_return(bot_api_error(429, "Too Many Requests", retry_after: 0))
+    row = alert
+
+    travel_to(Time.zone.local(2026, 11, 21, 10, 0)) { row.deliver }
+
+    expect(row.reload.next_attempt_at).to eq(Time.zone.local(2026, 11, 21, 10, 0, 3))
+  end
+
   it "waits the time a 429 names" do
     linked!
     stub_request(:post, bot_api_url("sendMessage")).to_return(bot_api_error(429, "Too Many Requests: retry after 30", retry_after: 30))
