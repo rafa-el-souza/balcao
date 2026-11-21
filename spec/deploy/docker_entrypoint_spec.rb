@@ -53,10 +53,14 @@ RSpec.describe "NFR-08 the container entrypoint, in Ruby" do
   # server with no role to connect as.
   it "is given the server's command by the image, and by no role of the Kamal configuration" do
     cmd = Rails.root.join("Dockerfile").read[/^CMD (\[.*\])$/, 1]
-    deploy = YAML.safe_load(Rails.root.join("config/deploy.yml").read, aliases: true)
 
     expect(JSON.parse(cmd).last(2)).to eq([ "./bin/rails", "server" ])
-    expect(deploy.dig("servers", "web")).not_to have_key("cmd")
+    # The rehearsal's file is deep-merged over the base, so a web cmd in
+    # either would replace the image's (the fix review's sister on #65).
+    %w[config/deploy.yml config/deploy.ensaio.yml].each do |file|
+      deploy = YAML.safe_load(Rails.root.join(file).read, aliases: true)
+      expect(deploy.dig("servers", "web")).not_to have_key("cmd"), file
+    end
   end
 
   it "does not start the server when the databases or the role cannot be prepared" do
