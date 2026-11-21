@@ -157,7 +157,7 @@ RSpec.describe "NFR-08 SR-18 the eval scorecard" do
 
     it "fills the economy column with its scores, and the unstable column with the normal model's count, then the economy model's" do
       expect(row("boundary")).to eq("| boundary | 33 | 32/33 · 97% (85–99) | 33/33 · 100% (90–100) | 0 · 1 | **100%** |\n")
-      expect(row("store")).to eq("| store | 3 | 3/3 · 100% (44–100) | 2/3 · 67% (21–94) | 0 · 0 | 90% |\n")
+      expect(row("store")).to eq("| store | 4 | 4/4 · 100% (51–100) | 3/4 · 75% (30–95) | 0 · 0 | 90% |\n")
       expect(row("booking")).to eq("| booking | 2 | not run (M2) | — | — | 90% |\n")
       expect(markdown.squish).to include("the unstable column holds the normal model's count, then the economy model's")
     end

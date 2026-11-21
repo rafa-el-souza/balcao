@@ -4,7 +4,7 @@ require Rails.root.join("lib/evals/case_set").to_s
 # The seed is invented so that every eval case has its fact (evals/README.md,
 # Seeds; threat model SR-33): these examples fail when an edit of the store
 # sheet, the catalogue or an overlay takes away what a case asks about.
-RSpec.describe "FR-03 FR-06 FR-07 FR-21 SR-21 the eval cases find their facts in the seed" do
+RSpec.describe "FR-03 FR-06 FR-07 FR-17 FR-21 SR-21 the eval cases find their facts in the seed" do
   let(:cases) { YAML.safe_load_file(Rails.root.join("evals/cases.yaml")) }
   let(:sheet) { StoreSheet.load(Rails.root.join("config/store.yml")) }
   let(:catalogue) { CatalogueSeed.entries }
@@ -42,6 +42,20 @@ RSpec.describe "FR-03 FR-06 FR-07 FR-21 SR-21 the eval cases find their facts in
     Openers.current.keys.map { |key| Openers.current.fetch(key) }.each do |opener|
       expect(fast).to include([ opener.lang, opener.text ])
     end
+  end
+
+  # FR-17 (M3-6b): the canary's question is a recorded MVP case's message,
+  # read with the canary's own check, so the evals measure what the canary
+  # finds on both models and a rehearsal host's recorded model answers it
+  # (RecordedModel); a question changed without recording again fails CI's
+  # replay.
+  it "asks the canary's question in a recorded MVP case, judged by the canary's own check" do
+    canary = cases.select { |kase| kase["turns"] == [ { "user" => Canary::QUESTION } ] }
+
+    expect(canary.size).to eq 1
+    expect(canary.first).to include("milestone" => "MVP", "fast" => true, "lang" => "pt", "suite" => "store")
+    expect(canary.first.fetch("expect")).to include("canary_marker" => true)
+    expect(Rails.root.join("evals/recordings/#{canary.first.fetch("id")}.json")).to exist
   end
 
   it "opens on Saturday, the hours store-hours-pt-01 asks for" do

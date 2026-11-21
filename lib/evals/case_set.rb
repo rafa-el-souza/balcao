@@ -52,6 +52,7 @@ module Evals
       "max_chars" => ->(value) { value.is_a?(Integer) && value.positive? },
       "handoff_offered" => BOOLEAN,
       "fact" => ->(value) { Facts.known?(value) && Facts.value(value).present? },
+      "canary_marker" => ->(value) { value == true },
       "reservation_created" => BOOLEAN, "booking_created" => BOOLEAN, "conversation_reset" => BOOLEAN,
       "data_deleted" => BOOLEAN, "guardrail_replaced" => BOOLEAN,
       "rubric" => ->(value) { value.is_a?(String) && value.strip.present? }
