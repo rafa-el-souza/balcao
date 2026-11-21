@@ -27,7 +27,11 @@ Rails.application.config.filter_parameters += [
 # conversation, which only its visitor's cookie opens, and stay as they are.
 module Balcao
   module TraceTokenFilter
-    PATH = %r{\A(/+(?:api/+traces|trace)/+)[^/?]+}
+    # A trace segment anywhere in the path, any case, then the token: the
+    # trace API's own path is /api/trace, with the token in a header, and a
+    # token typed after it or after any prefix stayed whole (review findings
+    # X2 and V1 of pull request #42, M3's sweep).
+    PATH = %r{(/traces?/+)[^/?]+}i
     STREAM = /\b(trace:)[^\s"\\)]+/
     # Escaped once in an identifier, twice when Action Cable inspects a whole
     # message it dropped (review finding C4 of pull request #23).
@@ -35,7 +39,7 @@ module Balcao
 
     module_function
 
-    def path(path) = path.sub(PATH, '\1[FILTERED]')
+    def path(path) = path.gsub(PATH, '\1[FILTERED]')
 
     def line(text) = text.gsub(STREAM, '\1[FILTERED]').gsub(PARAM, '\1[FILTERED]')
   end

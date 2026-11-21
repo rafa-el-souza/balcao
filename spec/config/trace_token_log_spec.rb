@@ -50,6 +50,19 @@ RSpec.describe "SR-30 SR-11 the cable's log never names a trace's token" do
     expect(io.string).to include("conversation:01a1d1c7-7431-7f7b-86aa-3063482f4934")
   end
 
+  # Review findings X2 and V1 of pull request #42 (M3's sweep): the request's
+  # line masked a token only after /trace/ or /api/traces/ at the path's
+  # start, so one typed into /api/trace/<token>, the trace API's own path
+  # (the token travels in a header), or after any prefix stayed whole.
+  it "masks a token after any trace segment of a request's path, wherever the segment is" do
+    [ "/api/trace/#{token}", "/api//trace/#{token}", "/trace/#{token}", "/api/traces/#{token}", "/es/trace/#{token}",
+      "/chat/../trace/#{token}", "//trace//#{token}?x=1", "/TRACE/#{token}" ].each do |path|
+      expect(Balcao::TraceTokenFilter.path(path)).not_to include(token[0, 8]), path
+    end
+    expect(Balcao::TraceTokenFilter.path("/api/trace")).to eq("/api/trace")
+    expect(Balcao::TraceTokenFilter.path("/api/messages")).to eq("/api/messages")
+  end
+
   it "is the logger of the app's cable" do
     expect(ActionCable.server.config.logger).to be_a(Balcao::CableLogger)
   end
