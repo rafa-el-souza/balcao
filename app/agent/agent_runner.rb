@@ -5,12 +5,15 @@
 # answers. AgentRunner adds what the turn needs around that loop:
 #
 # - the limits of threat model SR-20: at most six tool calls, 1,500 output
-#   tokens per call and sixty seconds of wall clock, past which the turn ends
-#   without text and the caller sends the fallback (NFR-03);
+#   tokens per call and sixty seconds of wall clock, the turn's edge
+#   (TurnEdge), which every attempt of a model call, a retry included, and
+#   every tool call ends by; past it the turn ends without text and the
+#   caller sends the fallback (NFR-03);
 # - an outcome for every way a call can end, so a refusal never reaches the
 #   visitor as text (SR-19) and a model error is a result, not an exception;
 # - the usage of every model call, from usage.iterations when a fallback model
-#   served it, for the budget (FR-14);
+#   served it, and of every attempt the edge abandoned once it was sent, at
+#   its input and its output cap, for the budget (FR-14);
 # - the reply's language, read from the tag the prompt asks for (FR-02), and
 #   the fixed lines its closing tags ask for: the offer of the pharmacist
 #   (FR-10's MVP note) and the emergency line (FR-09);
@@ -25,12 +28,25 @@ class AgentRunner
   MAX_TOOL_CALLS = 6
   MAX_TOKENS = 1_500
   WALL_CLOCK = 60
-  # The SDK's own retries of a 408, 409, 429, 5xx or timeout: three attempts
-  # per model call, the three of NFR-03's scenario.
+  # The retries of a 408, 409, 429, 5xx or timeout, made as the SDK makes them
+  # (ModelAttempts): three attempts per model call, the three of NFR-03's
+  # scenario.
   MAX_RETRIES = 2
+  # A request's characters per token, counted high for an attempt the edge
+  # abandoned, whose usage never came (FR-14): a turn's first request read
+  # 2.96 and the check's 3.02 by count_tokens on 2026-11-21, so 2.5 counts
+  # about a fifth more tokens than it sent, which also covers the 1.25 price
+  # of a cache write.
+  CHARACTERS_PER_TOKEN = 2.5
+  # The least time a model call's attempt needs: a first token comes about a
+  # second after the request (design §10, M4-2), and a step's answer some
+  # seconds after; an attempt with less left was billed and could not answer
+  # (review finding F2 of pull request #65).
+  MIN_ATTEMPT = 3.0
   MONOTONIC = -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) }
-  # What the model reads of a call past the turn's limit (SR-20).
+  # What the model reads of a call past the turn's limits (SR-20).
   TOOL_LIMIT = "the turn's limit of #{MAX_TOOL_CALLS} tool calls is reached".freeze
+  EDGE_LINE = "the turn's #{WALL_CLOCK} seconds are spent".freeze
 
   # The reply's language at the start of a block, in any letter case and
   # with a region or a script after it ("[PT]", "[pt-BR]", "[es-419]").
@@ -83,33 +99,40 @@ class AgentRunner
     end
   end
 
-  def initialize(client: nil, tools: Tools::ALL, clock: MONOTONIC, prompt: SystemPrompt.current)
+  # sleeper waits before a retry (Kernel#sleep; a fake clock's in the suite).
+  def initialize(client: nil, tools: Tools::ALL, clock: MONOTONIC, prompt: SystemPrompt.current, sleeper: nil)
     @client = client || self.class.default_client
     @tools = tools
     @clock = clock
     @prompt = prompt
+    @sleeper = sleeper
   end
 
   # Runs the turn in the budget mode's route and yields each event to the
-  # block, if one is given. Raises ArgumentError for a mode that calls no model.
-  def run(turn, mode: "normal", &on_event)
+  # block, if one is given; edge is the turn's (TurnProcessor sets it), or
+  # sixty seconds from now. Raises ArgumentError for a mode that calls no
+  # model.
+  def run(turn, mode: "normal", edge: nil, &on_event)
     Run.new(client: @client, turn:, route: ModelPolicy.route(mode), tools: @tools, clock: @clock, prompt: @prompt,
-            on_event:).call
+            on_event:, edge: edge || TurnEdge.after(WALL_CLOCK, clock: @clock), sleeper: @sleeper).call
   end
 
-  # One turn's state. Through Watch it sees each attempt of each model call:
-  # it records the call when the answer arrives, before the SDK's runner runs
-  # the tools it asks for, and a retry the SDK makes after the wall clock is
-  # gone never starts.
+  # One turn's state. Each step's model call makes its attempts through
+  # ModelAttempts, each taking only what is left of the edge; through Watch it
+  # sees each attempt: it records the call when the answer arrives, before the
+  # SDK's runner runs the tools it asks for, and notes an attempt the edge
+  # abandoned once it was sent.
   class Run
-    def initialize(client:, turn:, route:, tools:, clock:, prompt:, on_event:)
+    def initialize(client:, turn:, route:, tools:, clock:, prompt:, on_event:, edge:, sleeper:)
       @client = client
       @turn = turn
       @route = route
       @clock = clock
       @prompt = prompt
       @on_event = on_event
-      @deadline = clock.call + WALL_CLOCK
+      @edge = edge
+      @attempts = ModelAttempts.new(client:, edge:, retries: MAX_RETRIES, floor: MIN_ATTEMPT, sleeper:)
+      @abandoned = []
       @model_calls = []
       @tool_calls = []
       @tool_uses = 0
@@ -119,8 +142,10 @@ class AgentRunner
     end
 
     # One step of the SDK's runner is one model call and the tool calls it
-    # asks for; each step's request may take only what is left of the turn's
-    # wall clock, measured after the previous step's tools have run.
+    # asks for. A failed attempt leaves the runner as it was, so the next
+    # attempt sends the same step again; each takes only what is left of the
+    # edge, measured as it starts. An attempt the edge cut ends the turn at
+    # its deadline, and any other error as a model error.
     def call
       history = History.messages(@turn)
       @sent = history.size
@@ -128,9 +153,11 @@ class AgentRunner
       last = nil
       until runner.finished? || @tool_uses > MAX_TOOL_CALLS
         check_deadline
-        runner.params.update(request_options:)
         start_model_call
-        message = runner.next_message or break
+        message = @attempts.call do |options|
+          runner.params.update(request_options: request_options(options))
+          runner.next_message
+        end or break
         last = message
         @messages << message
         @tool_uses += message.content.count { |block| block.type == :tool_use }
@@ -140,29 +167,43 @@ class AgentRunner
       model_failed(e) if @started_at
       result(:deadline)
     rescue Anthropic::Errors::APIError => e
+      cut = cut?(e)
       model_failed(e)
-      result(:model_error, error: e)
+      cut ? result(:deadline) : result(:model_error, error: e)
     end
+
+    # An attempt the edge ended: its time out, or its connection lost, once
+    # the edge had passed, read before the call's charge and trace widen the
+    # window. The error decides, not the clock alone: an API's answer, a
+    # refusal or an overload, landing at the edge is a model error, which
+    # FR-17's canary counts as the route's fault (review findings C5 and F7 of
+    # pull request #65).
+    def cut?(error) = error.is_a?(Anthropic::Errors::APIConnectionError) && @edge.passed?
 
     def check_deadline
-      raise DeadlineExceeded, "the turn's #{WALL_CLOCK} s are spent" if remaining <= 0
+      raise DeadlineExceeded, "the turn's edge is reached" if @edge.passed?
     end
 
-    # The SDK waits as long as a failed attempt's retry-after asks before it
-    # retries, however long; a wait that outlasts what is left of the turn
-    # is not made, and the SDK raises the attempt's error at once (review
-    # finding C2 of pull request #9, SR-20; RetryAfter).
-    def bound_retry(response)
-      wait = RetryAfter.seconds(response.headers)
-      return response unless wait && wait >= remaining
-
-      RetryAfter.refused(response)
-    end
-
-    # The model's answer, as it arrives and before the SDK runs its tools.
+    # The model's answer, as it arrives and before the SDK runs its tools,
+    # with the attempts the edge abandoned before it.
     def model_answered(message)
       record(ModelCall.new(model: message.model.to_s, effort: @route.effort, stop_reason: message.stop_reason.to_s,
-                           usage: usage_of(message), latency_ms:, error: nil))
+                           usage: usage_of(message) + abandoned_usage, latency_ms:, error: nil))
+    end
+
+    # An attempt the edge abandoned once its request was on its way, charged
+    # as the provider bills it (design §10, question 20; the owner,
+    # 2026-11-15): at its input, counted high from the request's characters,
+    # and at its output cap, on the route's model.
+    def abandoned(request)
+      characters = begin
+        JSON.generate(request.body).length
+      rescue StandardError => e
+        Rails.logger.warn("agent: an abandoned attempt's request counted from its text, its JSON failed: #{e.class}")
+        request.body.to_s.length
+      end
+      @abandoned << Usage.new(model: @route.model, input_tokens: (characters / CHARACTERS_PER_TOKEN).ceil, output_tokens: MAX_TOKENS,
+                              cache_creation_tokens: 0, cached_tokens: 0)
     end
 
     private
@@ -181,7 +222,7 @@ class AgentRunner
         # few requests go as plain Messages API calls, with no message thread.
         thread: false,
         max_iterations: MAX_TOOL_CALLS + 1,
-        request_options:
+        request_options: request_options(timeout: @edge.remaining, max_retries: 0)
       }.merge(tools_param, fallbacks_param)
     end
 
@@ -193,23 +234,25 @@ class AgentRunner
       { fallbacks: @route.fallbacks, betas: [ ModelPolicy::FALLBACK_BETA ] }
     end
 
-    def request_options = { middleware: [ Watch.new(self) ], timeout: remaining }
+    def request_options(options) = options.merge(middleware: [ Watch.new(self) ])
 
     def start_model_call
       @started_at = @clock.call
+      @abandoned = []
       emit(ModelStarted.new(model: @route.model, effort: @route.effort))
     end
 
     # The SDK's runner calls a tool only through this gate, so a seventh call
-    # never runs, even inside a batch of parallel calls (SR-20).
+    # never runs, even inside a batch of parallel calls, and none starts past
+    # the turn's edge (SR-20).
     def permit_tool_call
+      raise AgentTool::Error.new(EDGE_LINE, reason: "deadline") if @edge.passed?
+
       @tool_runs += 1
       return if @tool_runs <= MAX_TOOL_CALLS
 
       raise AgentTool::Error.new(TOOL_LIMIT, reason: "tool_limit")
     end
-
-    def remaining = @deadline - @clock.call
 
     def result_of(message)
       case message&.stop_reason
@@ -301,9 +344,11 @@ class AgentRunner
     end
 
     def model_failed(error)
-      record(ModelCall.new(model: @route.model, effort: @route.effort, stop_reason: nil, usage: [], latency_ms:,
+      record(ModelCall.new(model: @route.model, effort: @route.effort, stop_reason: nil, usage: abandoned_usage, latency_ms:,
                            error: error.class.name))
     end
+
+    def abandoned_usage = @abandoned.tap { @abandoned = [] }
 
     def record(call)
       @started_at = nil
@@ -338,18 +383,18 @@ class AgentRunner
     def emit(event) = @on_event&.call(event)
   end
 
-  # The request middleware around every attempt of a model call, the SDK's
-  # retries included: the wall clock is checked before it, an answer is
-  # recorded as it arrives, and a failed one's retry is bounded by the clock
-  # (the SDK raises its error later).
+  # The request middleware around every attempt of a model call: an answer
+  # is recorded as it arrives, and an attempt the edge abandoned once it was
+  # sent is noted for the charge (the SDK raises its error, and ModelAttempts
+  # decides the retry).
   Watch = Struct.new(:run) do
     def call(request, nxt)
-      run.check_deadline
       response = nxt.call(request)
-      return run.bound_retry(response) if response.status >= 300
-
-      run.model_answered(response.parse)
+      run.model_answered(response.parse) if response.status < 300
       response
+    rescue Anthropic::Errors::APITimeoutError => e
+      run.abandoned(request) if ModelAttempts.abandoned?(e)
+      raise
     end
   end
 end

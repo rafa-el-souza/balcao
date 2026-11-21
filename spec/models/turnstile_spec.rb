@@ -169,6 +169,70 @@ RSpec.describe "SR-39 FR-18 Turnstile's check of a token" do
       .to eq([ true, Turnstile::OPEN_TIMEOUT, Turnstile::WRITE_TIMEOUT, Turnstile::READ_TIMEOUT, 0 ])
   end
 
+  # Review findings C3 and C4 of pull request #53 (M2's first close; M3-4):
+  # Net::HTTP bounds each phase and each read, not the answer, so a
+  # siteverify that answered slowly, each read inside its four seconds, held
+  # one of the web's threads past FR-18's ten. A real server on the loopback
+  # drips Cloudflare's yes in five pieces, each well inside a read's timeout.
+  describe "an answer that comes slowly" do
+    def dripping_server(body, pieces:, every:)
+      server = TCPServer.new("127.0.0.1", 0)
+      thread = Thread.new do
+        client = server.accept
+        length = nil
+        while (line = client.gets) && line != "\r\n"
+          length = line.split(":", 2).last.to_i if line.downcase.start_with?("content-length:")
+        end
+        client.read(length.to_i)
+        client.write("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: #{body.bytesize}\r\n\r\n")
+        body.scan(/.{1,#{(body.bytesize / pieces.to_f).ceil}}/m).each do |piece|
+          sleep(every)
+          client.write(piece)
+        end
+        client.close
+      rescue IOError, SystemCallError
+        nil
+      end
+      [ server, thread ]
+    end
+
+    around do |example|
+      WebMock.disable_net_connect!(allow_localhost: true)
+      example.run
+    ensure
+      WebMock.disable_net_connect!
+    end
+
+    it "gives up once FR-18's time for the whole answer is spent, each read inside its own timeout" do
+      stub_const("Turnstile::ANSWER_TIMEOUT", 0.5)
+      server, thread = dripping_server(passed.to_json, pieces: 5, every: 0.3)
+      url = URI("http://127.0.0.1:#{server.addr[1]}/turnstile/v0/siteverify")
+      lines = []
+      allow(Rails.logger).to receive(:warn) { |line| lines << line }
+
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      result = Turnstile.new(secret: real_secret, host:, url:).passed?("0.token")
+      took = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+
+      expect(result).to be false
+      expect(took).to be < 1.0
+      expect(lines).to eq([ "turnstile: siteverify failed: Turnstile::AnswerTimeout" ])
+    ensure
+      thread&.kill
+      server&.close
+    end
+
+    it "takes an answer that comes inside it" do
+      server, thread = dripping_server(passed.to_json, pieces: 2, every: 0.05)
+      url = URI("http://127.0.0.1:#{server.addr[1]}/turnstile/v0/siteverify")
+
+      expect(Turnstile.new(secret: real_secret, host:, url:).passed?("0.token")).to be true
+    ensure
+      thread&.kill
+      server&.close
+    end
+  end
+
   # Threat model SR-30: the token and the secret never reach a line; a
   # refusal names Cloudflare's codes, a failure of the way there its class.
   describe "the log" do

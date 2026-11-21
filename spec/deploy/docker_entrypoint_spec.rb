@@ -4,7 +4,9 @@ require "tmpdir"
 
 # The container entrypoint is the generator's shell script rewritten in Ruby,
 # because no shell script lives in the repository (design NFR-08, §6.9). It
-# prepares the databases before the web server starts, and only then.
+# prepares the databases and the app's role before the web server starts,
+# and only then, as the database's owner; every command it starts connects as
+# the app's role, without the owner's password (M3-4; #4's review).
 RSpec.describe "NFR-08 the container entrypoint, in Ruby" do
   let(:app) { Dir.mktmpdir("entrypoint") }
   let(:log) { File.join(app, "calls.log") }
@@ -15,7 +17,8 @@ RSpec.describe "NFR-08 the container entrypoint, in Ruby" do
       path = File.join(app, "bin", name)
       File.write(path, <<~RUBY)
         #!/usr/bin/env ruby
-        File.open(#{log.inspect}, "a") { |file| file.puts(["#{name}", *ARGV].join(" ")) }
+        owner = [ ENV["DATABASE_OWNER"], ENV.key?("POSTGRES_PASSWORD") ? "with" : "without" ].compact.join(" ")
+        File.open(#{log.inspect}, "a") { |file| file.puts(["#{name}", *ARGV, "(\#{owner})"].join(" ")) }
         exit(ENV.key?("FAIL_ON") && ENV["FAIL_ON"] == ARGV.first ? 1 : 0)
       RUBY
       File.chmod(0o755, path)
@@ -25,28 +28,45 @@ RSpec.describe "NFR-08 the container entrypoint, in Ruby" do
   after { FileUtils.remove_entry(app) }
 
   def entrypoint(*command, env: {})
+    env = { "POSTGRES_PASSWORD" => "the-owner's", "DATABASE_OWNER" => nil }.merge(env)
     _out, _err, status = Open3.capture3(env, Rails.root.join("bin/docker-entrypoint").to_s, *command, chdir: app)
     [ status, File.exist?(log) ? File.readlines(log, chomp: true) : [] ]
   end
 
-  it "prepares the databases, then starts the web server behind Thruster" do
+  it "prepares the databases and the app's role as the owner, then starts the web server behind Thruster without the owner's password" do
     status, calls = entrypoint("./bin/thrust", "./bin/rails", "server")
 
     expect(status).to be_success
-    expect(calls).to eq [ "rails db:prepare", "thrust ./bin/rails server" ]
+    expect(calls).to eq [ "rails db:prepare db:app_role (1 with)", "thrust ./bin/rails server (without)" ]
   end
 
-  it "runs any other command as given, without touching the databases" do
-    status, calls = entrypoint("./bin/jobs")
+  it "runs any other command as given, without touching the databases or keeping the owner's password" do
+    status, calls = entrypoint("./bin/jobs", env: { "DATABASE_OWNER" => "1" })
 
     expect(status).to be_success
-    expect(calls).to eq [ "jobs" ]
+    expect(calls).to eq [ "jobs (without)" ]
   end
 
-  it "does not start the server when the databases cannot be prepared" do
+  # Review finding F5 of pull request #65: the migrations and the role's
+  # grants run only for a command that ends with the server, so the image's
+  # command and the web role's are held to it, or a fresh host would boot a
+  # server with no role to connect as.
+  it "is given the server's command by the image, and by no role of the Kamal configuration" do
+    cmd = Rails.root.join("Dockerfile").read[/^CMD (\[.*\])$/, 1]
+
+    expect(JSON.parse(cmd).last(2)).to eq([ "./bin/rails", "server" ])
+    # The rehearsal's file is deep-merged over the base, so a web cmd in
+    # either would replace the image's (the fix review's sister on #65).
+    %w[config/deploy.yml config/deploy.ensaio.yml].each do |file|
+      deploy = YAML.safe_load(Rails.root.join(file).read, aliases: true)
+      expect(deploy.dig("servers", "web")).not_to have_key("cmd"), file
+    end
+  end
+
+  it "does not start the server when the databases or the role cannot be prepared" do
     status, calls = entrypoint("./bin/rails", "server", env: { "FAIL_ON" => "db:prepare" })
 
     expect(status).not_to be_success
-    expect(calls).to eq [ "rails db:prepare" ]
+    expect(calls).to eq [ "rails db:prepare db:app_role (1 with)" ]
   end
 end

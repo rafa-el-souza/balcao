@@ -12,7 +12,9 @@ module Telegram
   # no error of its own names a URL or quotes what a library said: an error is
   # the method, Telegram's code and description, or the failure's class
   # (SR-30), and it keeps no cause, which Rake and anything that prints an
-  # error whole would print too (review finding L1 of pull request #32). What
+  # error whole would print too (review finding L1 of pull request #32), not
+  # even one a caller was handling when it called (review finding H5 of pull
+  # request #41: Ruby gives an error raised meanwhile that one). What
   # it raises as itself (below) is the library's own error, whose message
   # names no URL either: a refused certificate names Telegram's address and
   # OpenSSL's reason (review finding C4 of pull request #47).
@@ -125,7 +127,7 @@ module Telegram
 
       code = body["error_code"]
       raise Error.new("#{method}: #{code} #{body["description"]}".strip, method_name: method, code:,
-                                                                         retry_after: body.dig("parameters", "retry_after"))
+                                                                         retry_after: body.dig("parameters", "retry_after")), cause: nil
     end
 
     def post(method, params)
@@ -156,12 +158,12 @@ module Telegram
     # way there, tried again like a timeout (FR-19; review finding H3 of pull
     # request #33: a 5xx in Telegram's JSON was a refusal, failed at once).
     def answer(method, response)
-      raise Error.new("#{method}: HTTP #{response.code}", method_name: method, failure: "HTTP #{response.code}") if response.code.to_i >= 500
+      raise Error.new("#{method}: HTTP #{response.code}", method_name: method, failure: "HTTP #{response.code}"), cause: nil if response.code.to_i >= 500
 
       body = JSON.parse(response.body.to_s)
       return body if body.is_a?(Hash) && body.key?("ok")
 
-      raise Error.new("#{method}: HTTP #{response.code}", method_name: method, failure: "HTTP #{response.code}")
+      raise Error.new("#{method}: HTTP #{response.code}", method_name: method, failure: "HTTP #{response.code}"), cause: nil
     rescue JSON::ParserError
       raise Error.new("#{method}: HTTP #{response.code}, not JSON", method_name: method, failure: "HTTP #{response.code}"), cause: nil
     end

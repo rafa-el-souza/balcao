@@ -810,6 +810,177 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
         expect(fake.requests.map { |sent| sent.options[:timeout] }).to eq([ 60, 35 ])
       end
     end
+
+    # SR-20's exception closed (M3-4; review finding C2's sister of pull
+    # request #9): the SDK gave a retry the timeout its call began with, so a
+    # retry that started before the sixty seconds could run near sixty more.
+    describe "the turn's hard edge" do
+      let(:delays) { [] }
+      let(:sleeper) { ->(seconds) { delays << seconds && clock.advance(seconds) } }
+
+      context "when a step's call is retried after a wait" do
+        let(:responses) { [ slow_turn, error(:overloaded).merge(headers: { "retry-after" => "2" }), reply("[pt] pronto") ] }
+
+        it "gives the retry only what is left once the wait is over" do
+          result = AgentRunner.new(client: fake.client, tools: [ slow_echo(25) ], clock:, sleeper:).run(turn)
+
+          expect(result).to have_attributes(outcome: :replied, text: "pronto")
+          expect(fake.requests.map { |sent| sent.options[:timeout] }).to eq([ 60, 35, 33 ])
+          expect(delays).to eq([ 2.0 ])
+        end
+      end
+
+      # A client middleware above the fake moves the clock by the attempt's
+      # whole timeout, as an attempt that waits until the edge does.
+      def waiting_client(fake)
+        FakeModel::Client.new(fake, api_key: "fake-model", max_retries: AgentRunner::MAX_RETRIES, initial_retry_delay: 0,
+                                    middleware: [ ->(request, nxt) { clock.advance(request.timeout) && nxt.call(request) } ])
+      end
+
+      context "when an attempt waits until the edge" do
+        let(:responses) { [ { timeout: true }, reply("[pt] tarde demais") ] }
+
+        it "is not tried again, and the turn ends at its deadline" do
+          result = AgentRunner.new(client: waiting_client(fake), tools: [ SpecTools::Echo ], clock:, sleeper:).run(turn)
+
+          expect(result).to have_attributes(outcome: :deadline, text: nil)
+          expect(fake.requests.size).to eq(1)
+        end
+
+        # The provider runs an abandoned call to its end and bills it whole
+        # (design §10, question 20; the owner, 2026-11-15): its input counted
+        # high from the request's characters, and its output cap.
+        it "charges the abandoned attempt at its input and its output cap (FR-14)" do
+          events = []
+          result = AgentRunner.new(client: waiting_client(fake), tools: [ SpecTools::Echo ], clock:, sleeper:)
+                              .run(turn) { |event| events << event }
+
+          input = (JSON.generate(fake.requests.first.body).length / AgentRunner::CHARACTERS_PER_TOKEN).ceil
+          charged = AgentRunner::Usage.new(model: "claude-opus-5-5", input_tokens: input, output_tokens: 1500,
+                                           cache_creation_tokens: 0, cached_tokens: 0)
+          expect(result.model_calls).to contain_exactly(have_attributes(error: "Anthropic::Errors::APITimeoutError", usage: [ charged ]))
+          expect(events.grep(AgentRunner::ModelCall).flat_map(&:usage)).to eq([ charged ])
+        end
+      end
+
+      # Review finding F8 of pull request #65: a request whose JSON could not
+      # be written was counted from its text with no line saying so.
+      it "says so in a line, by the error's class, when it counts an abandoned request from its text" do
+        allow(JSON).to receive(:generate).and_wrap_original do |original, object, *rest|
+          raise JSON::GeneratorError, "#{object}" if object.is_a?(Hash) && object.key?(:max_tokens)
+
+          original.call(object, *rest)
+        end
+        allow(Rails.logger).to receive(:warn).and_call_original
+        fake = FakeModel.new([ { timeout: true } ])
+
+        result = AgentRunner.new(client: waiting_client(fake), tools: [ SpecTools::Echo ], clock:, sleeper:).run(turn)
+
+        expect(result.model_calls.sole.usage.sole.output_tokens).to eq(1500)
+        expect(Rails.logger).to have_received(:warn).with("agent: an abandoned attempt's request counted from its text, its JSON failed: JSON::GeneratorError")
+      end
+
+      # A connection that never opened sent nothing, so nothing is billed: a
+      # network down for the host would otherwise charge a whole call for
+      # every turn it met.
+      context "when the attempt's connection never opened" do
+        let(:responses) { [ { timeout: "open" } ] }
+
+        it "charges nothing for it" do
+          result = AgentRunner.new(client: waiting_client(fake), tools: [ SpecTools::Echo ], clock:, sleeper:).run(turn)
+
+          expect(result).to have_attributes(outcome: :deadline)
+          expect(result.model_calls).to contain_exactly(have_attributes(usage: []))
+        end
+      end
+
+      context "when an attempt timed out before a retry that answered" do
+        let(:responses) { [ { timeout: true }, reply("[pt] pronto", usage: usage(input: 900, output: 60, cache_read: 0)) ] }
+
+        it "charges the abandoned attempt beside the answer's usage" do
+          client = FakeModel::Client.new(fake, api_key: "fake-model", max_retries: AgentRunner::MAX_RETRIES, initial_retry_delay: 0,
+                                               middleware: [ ->(request, nxt) { clock.advance(5) && nxt.call(request) } ])
+          result = AgentRunner.new(client:, tools: [ SpecTools::Echo ], clock:, sleeper:).run(turn)
+
+          expect(result).to have_attributes(outcome: :replied, text: "pronto")
+          expect(result.model_calls.sole.usage.map { |usage| [ usage.input_tokens.positive?, usage.output_tokens ] })
+            .to eq([ [ true, 60 ], [ true, 1500 ] ])
+          expect(fake.requests.map { |sent| sent.options[:timeout] }).to eq([ 60, 55 ])
+        end
+      end
+
+      context "when a tool call would start after the edge" do
+        let(:responses) { [ tool_turn(tool_use("slow_echo", { "text" => "x" }), tool_use("echo", { "text" => "y" })), reply("[pt] tarde") ] }
+
+        it "is refused, and the turn ends at its deadline" do
+          result = AgentRunner.new(client: fake.client, tools: [ slow_echo(61), SpecTools::Echo ], clock:, sleeper:).run(turn)
+
+          expect(result).to have_attributes(outcome: :deadline, text: nil)
+          expect(result.tool_calls.map(&:name)).to eq([ "slow_echo" ])
+          expect(fake.requests.size).to eq(1)
+        end
+      end
+
+      # Review finding F2 of pull request #65: an attempt was made with any
+      # time left, however little, and one that could never answer was
+      # still billed. A model call starts only with MIN_ATTEMPT left, and a
+      # retry only when its wait leaves that much.
+      context "when less is left of the edge than an attempt needs" do
+        let(:responses) { [ reply("[pt] tarde") ] }
+
+        it "makes no attempt, and the turn ends at its deadline" do
+          clock.advance(60 - 0.7)
+          result = AgentRunner.new(client: fake.client, tools: [ SpecTools::Echo ], clock:, sleeper:)
+                              .run(turn, edge: TurnEdge.new(deadline: 60, clock:))
+
+          expect(result).to have_attributes(outcome: :deadline, text: nil)
+          expect(fake.requests).to be_empty
+        end
+      end
+
+      context "when a retry's wait would leave less than an attempt needs" do
+        let(:responses) { [ slow_turn, error(:rate_limit).merge(headers: { "retry-after" => "33" }), reply("[pt] tarde") ] }
+
+        it "is not waited for, and the turn ends with the API's error" do
+          result = AgentRunner.new(client: fake.client, tools: [ slow_echo(25) ], clock:, sleeper:).run(turn)
+
+          expect(result).to have_attributes(outcome: :model_error, text: nil, error: an_instance_of(Anthropic::Errors::RateLimitError))
+          expect(delays).to be_empty
+          expect(fake.requests.size).to eq(2)
+        end
+      end
+
+      # Review findings C5 and F7 of pull request #65: an error was read as
+      # the edge's once the clock had passed it, so a refused key or request
+      # landing at the edge read as the turn's time spent, which FR-17's
+      # canary never counts as the route's fault. The error decides, not the
+      # clock: the API's refusal is a model error wherever it lands.
+      context "when the API refuses the request as the edge passes" do
+        let(:responses) { [ { status: 401, body: { type: "error", error: { type: "authentication_error", message: "invalid x-api-key" } } } ] }
+
+        it "ends the turn as a model error, with the API's error" do
+          client = FakeModel::Client.new(fake, api_key: "fake-model", max_retries: 0, initial_retry_delay: 0,
+                                               middleware: [ ->(request, nxt) { clock.advance(request.timeout) && nxt.call(request) } ])
+          result = AgentRunner.new(client:, tools: [ SpecTools::Echo ], clock:, sleeper:).run(turn)
+
+          expect(result).to have_attributes(outcome: :model_error, error: an_instance_of(Anthropic::Errors::AuthenticationError))
+        end
+      end
+
+      # The caller's edge, FR-17's canary's twenty seconds among them
+      # (TurnProcessor), bounds the model's steps as the sixty seconds do.
+      context "when the caller gives the turn an edge of its own" do
+        let(:responses) { [ reply("[pt] pronto") ] }
+
+        it "gives the request only what is left of that edge" do
+          clock.advance(3)
+          AgentRunner.new(client: fake.client, tools: [ SpecTools::Echo ], clock:, sleeper:)
+                     .run(turn, edge: TurnEdge.new(deadline: 20, clock:))
+
+          expect(fake.requests.sole.options[:timeout]).to eq(17)
+        end
+      end
+    end
   end
 
   describe "model errors (NFR-03, SR-19)" do
@@ -836,12 +1007,8 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
     # response's retry-after asks, so the wait must fit the turn (SR-20).
     describe "a retry the API asks to wait for" do
       let(:delays) { [] }
-      let(:client) do
-        fake.client.tap do |client|
-          allow(client).to receive(:sleep) { |seconds| delays << seconds && clock.advance(seconds) }
-        end
-      end
-      let(:runner) { AgentRunner.new(client:, tools: [ SpecTools::Echo ], clock:) }
+      let(:sleeper) { ->(seconds) { delays << seconds && clock.advance(seconds) } }
+      let(:runner) { AgentRunner.new(client: fake.client, tools: [ SpecTools::Echo ], clock:, sleeper:) }
 
       context "when the wait outlasts what is left of the turn" do
         let(:responses) { [ error(:rate_limit).merge(headers: { "retry-after" => "120" }), reply("[pt] tarde") ] }

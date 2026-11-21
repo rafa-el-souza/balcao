@@ -177,6 +177,28 @@ RSpec.describe "SR-22 FR-19 the Telegram Bot API client" do
       }
     end
 
+    # Review finding H5 of pull request #41 (M3's sweep): Ruby gives an error
+    # raised while another is being handled that one as its cause, so a
+    # caller that called inside its own rescue chained whatever it was
+    # handling to the client's refusal, a 5xx or an answer that is not
+    # Telegram's; no error of this class keeps a cause, as its header says.
+    it "keeps no cause when called while the caller handles an error of its own" do
+      answers = [ { status: 403, body: { ok: false, error_code: 403, description: "Forbidden" }.to_json },
+                  { status: 502, body: "<html>bad gateway</html>" },
+                  { status: 200, body: { result: true }.to_json } ]
+      answers.each do |answered|
+        stub_request(:post, "#{base}/sendMessage").to_return(answered)
+
+        begin
+          raise ArgumentError, "the caller's own error, quoting #{token}"
+        rescue ArgumentError
+          expect { client.send_message(chat_id: 1, text: "Oi") }.to raise_error(Telegram::Client::Error) { |error|
+            expect(error.cause).to be_nil, answered[:status].to_s
+          }
+        end
+      end
+    end
+
     # Review finding H7 of pull request #33: every error was a failure of the
     # way there, tried again as the network, a local bug and a certificate
     # that does not prove the host among them.

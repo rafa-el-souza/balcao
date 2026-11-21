@@ -136,7 +136,21 @@ Only a green `main` is deployed to the MVP host.
    name. Since M3-2 the two heartbeat URLs of the external monitor,
    `MONITOR_URL` and `TELEGRAM_MONITOR_URL`, are held by the monitor's
    console too (Monitoring, below): the boot refuses the public name
-   without them, and a rehearsal host leaves both blank.
+   without them, and a rehearsal host leaves both blank. Since M3-4 the app
+   connects to its databases as its own role, `balcao_app`, with
+   `APP_DATABASE_PASSWORD`, which `bin/secrets-example` generates beside
+   `POSTGRES_PASSWORD`, the owner's (SR-24): the web container's entrypoint
+   makes the role, or sets its password again, at every boot. A rotation
+   is a new line in the env file and a deploy, watched to its end: from the
+   web container's role step, the containers still running hold the old
+   password and cannot open a new connection, so if the deploy fails after
+   that step, roll back or deploy again at once; either makes the
+   containers and the role agree on the env file's password. The owner's
+   password stays in each app container's configuration, which an exec
+   with `--reuse` (a `docker exec` into the running container) hands whole
+   to its command; every app command below runs in a new container
+   instead, through the entrypoint, which takes it out first
+   (`spec/deploy/runbook_exec_spec.rb` holds the runbook to it).
 3. `bin/deploy -d ensaio`. It refuses a dirty working tree, prints
    `kamal version`, puts the pinned kamal-proxy's image on the host by the
    digest written beside its tag, under that tag (SR-27; Docker runs a tag
@@ -202,6 +216,18 @@ Only a green `main` is deployed to the MVP host.
      that day). Since PR-16 the same answer also carries `"mode":"normal"`
      and the rate of the real (`"brl"`), and the reply's spans carry each
      model call's cost (`balcao.cost.usd`).
+   - the app's database role (since M3-4): the web and job containers
+     connect as `balcao_app`, never as the owner, and the web container's
+     log names the role's grants:
+
+     ```
+     kamal accessory exec db -d ensaio --reuse "psql -U balcao -d balcao_production -Atc \"select usename, count(*) from pg_stat_activity where backend_type = 'client backend' group by 1\""
+     kamal app logs -d ensaio --roles=web --since 15m | grep 'db:app_role'
+     ```
+
+     The first lists `balcao_app` with the app's connections, and `balcao`
+     only for the line's own `psql`; the second, `db:app_role: balcao_app
+     granted on 4 databases`.
    - the canary (since M3-2): within ten minutes of the deploy the job's
      log has a line `canary: passed in … ms (mode economy)`, or
      `(mode paused)` while the demo is paused, and five minutes later the
@@ -221,7 +247,7 @@ Only a green `main` is deployed to the MVP host.
 
 5. The catalogue: after the first deploy that runs turns (PR-09) and after
    any change to `db/seeds/catalogue.yml`,
-   `kamal app exec -d ensaio --roles=web --reuse 'bin/rails db:seed'`. It
+   `kamal app exec -d ensaio --roles=web 'bin/rails db:seed'`. It
    is safe to run again on the live database (`db/seeds.rb`).
 6. If it fails: `kamal app logs -d ensaio`, `kamal proxy logs -d ensaio`,
    `kamal accessory logs db -d ensaio`. The registry was removed anyway; a
@@ -362,7 +388,7 @@ the host around the answer.
   instead. A mode the operator forced holds whatever the cap is, until it is
   released.
 - **The month's spend and the mode that serves:**
-  `kamal app exec -d ensaio --roles=web --reuse "bin/rails runner 'p [Budget.mode, BudgetState.for_month!.slice(:month, :spent_usd, :day, :day_spent_usd, :automatic_mode, :forced_mode)]'"`.
+  `kamal app exec -d ensaio --roles=web "bin/rails runner 'p [Budget.mode, BudgetState.for_month!.slice(:month, :spent_usd, :day, :day_spent_usd, :automatic_mode, :forced_mode)]'"`.
   The first item is the mode a turn reads now (a forced mode wins); the row
   keeps the automatic one as last read, and the log has one `budget:` line
   each time it changes, with the month's spend against the cap and the
@@ -380,7 +406,7 @@ the host around the answer.
   pauses until midnight` (or `until the month ends`).
 - **Pausing by hand** (FR-14's kill switch, until the console has it in
   M2-10, after the publication; ADR-0022):
-  `kamal app exec -d ensaio --roles=web --reuse "bin/rails runner 'p Budget.force!(:paused)'"`;
+  `kamal app exec -d ensaio --roles=web "bin/rails runner 'p Budget.force!(:paused)'"`;
   releasing: the same with `Budget.force!(nil)`. The command prints the
   month's `budget:` line and what serves now (`mode`, `forced`). A forced
   mode holds into the next month until released.
@@ -394,9 +420,9 @@ the host around the answer.
   forced economy pauses with the forced pause's text, and the command's
   line says so (`the forced economy mode may not serve yet, so the demo
   pauses`, then `mode="paused"`). What a boot of the running image reads:
-  `kamal app exec -d ensaio --roles=web --reuse "bin/rails runner 'p Budget.economy_allowed?'"`;
+  `kamal app exec -d ensaio --roles=web "bin/rails runner 'p Budget.economy_allowed?'"`;
   and the file itself, to tell a gate that says no from one the boot set
-  aside: `kamal app exec -d ensaio --roles=web --reuse "cat evals/economy_allowed.yml"`.
+  aside: `kamal app exec -d ensaio --roles=web "cat evals/economy_allowed.yml"`.
   A file missing, unreadable or written for another route, prompt, tool
   set, history or check leaves one `budget: <path> ...; the economy model may not serve`
   warning in each container's log, at boot, which says which; a gate that
@@ -406,7 +432,7 @@ the host around the answer.
 - **The operator's chat** (threat model SR-35, from M3-1): the bot sends
   the operator's alerts (the budget's at the cap) to one chat, linked once
   per host, since a fresh database has none. On the workstation:
-  `kamal app exec -d ensaio --roles=web --reuse "bin/rails runner 'puts OperatorChat.link_url!'"`
+  `kamal app exec -d ensaio --roles=web "bin/rails runner 'puts OperatorChat.link_url!'"`
   prints `https://t.me/BalcaoDemoBot?start=...`; open it on the phone where
   the operator's Telegram is, within fifteen minutes, and tap Start (or
   Restart). The bot answers in that chat: `Este chat está ligado ao Balcão:
@@ -447,7 +473,7 @@ the host around the answer.
 - **The nightly job** runs at 03:00 São Paulo in the `job` container and
   writes one line, `nightly reset: expired N reservations, reset N
   products; deleted ...`. To run it by hand (it is safe to run again):
-  `kamal app exec -d ensaio --roles=job --reuse "bin/rails runner 'NightlyResetJob.perform_now'"`.
+  `kamal app exec -d ensaio --roles=job "bin/rails runner 'NightlyResetJob.perform_now'"`.
   A step that fails stops none of the others: it writes an error line,
   `nightly reset: <step> failed: <class>` with its backtrace, the summary
   goes at warn and names it in place of its count (`messages failed:
@@ -504,7 +530,7 @@ the env file loaded in the same call.
 - **The webhook's secret** is generated: `bin/secrets-example` prints a
   `TELEGRAM_WEBHOOK_SECRET` line when the env file has none.
 - **The task:**
-  `kamal app exec -d ensaio --roles=web --reuse "bin/rails telegram:setup"`.
+  `kamal app exec -d ensaio --roles=web "bin/rails telegram:setup"`.
   Run it after the first deploy, after a deploy that changes the bot's texts
   (`telegram.menu` and `telegram.profile` in `config/locales/`, the commands'
   phrases in `config/commands.yml`) and after each rotation below. It sets
@@ -531,7 +557,7 @@ the env file loaded in the same call.
   them: Telegram never shows it back, so the smoke below reads the
   delivery errors.
 - **The smoke** reads `getWebhookInfo`, at the end of the task or alone:
-  `kamal app exec -d ensaio --roles=web --reuse "bin/rails runner 'puts JSON.pretty_generate(Telegram::Client.new.webhook_info)'"`.
+  `kamal app exec -d ensaio --roles=web "bin/rails runner 'puts JSON.pretty_generate(Telegram::Client.new.webhook_info)'"`.
   The task has compared `url`, `max_connections`, `allowed_updates` and
   `has_custom_certificate`; read the rest yourself: a
   `pending_update_count` near 0, and no `last_error_date` after the deploy:
@@ -614,7 +640,7 @@ the env file loaded in the same call.
 - **Replies left pending** (after a stop, an outage) leave before the
   person's next reply, or with the sweep below within about six minutes of
   their time, or at once with:
-  `kamal app exec -d ensaio --roles=job --reuse "bin/rails runner 'Visitor.where(channel: :telegram.to_s).find_each { |visitor| TelegramReplyJob.perform_later(visitor.id) }'"`.
+  `kamal app exec -d ensaio --roles=job "bin/rails runner 'Visitor.where(channel: :telegram.to_s).find_each { |visitor| TelegramReplyJob.perform_later(visitor.id) }'"`.
   A reply marked `failed` is never sent again.
 - **The sweep** (NFR-03, M4-4) runs every minute in the `job` container and
   takes up again what was left stopped for more than five minutes with no

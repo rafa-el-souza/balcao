@@ -191,10 +191,9 @@ RSpec.describe "FR-20 SR-18 the guardrail check" do
 
       def check_after(response)
         fake = FakeModel.new([ response, verdict(false, "ok") ])
-        client = fake.client
         slept = []
-        allow(client).to receive(:sleep) { |seconds| slept << seconds }
-        [ Guardrail.new(client:).check(message: question, reply: answer), fake.requests.size, slept ]
+        [ Guardrail.new(client: fake.client, sleeper: ->(seconds) { slept << seconds }).check(message: question, reply: answer),
+          fake.requests.size, slept ]
       end
 
       it "is not made past its bound, in seconds, milliseconds or a date, and the check gives no verdict at once" do
@@ -215,10 +214,12 @@ RSpec.describe "FR-20 SR-18 the guardrail check" do
       end
     end
 
-    it "asks with its own timeout and retries, whatever the client's" do
+    # The check makes its own retry (ModelAttempts), so each attempt is
+    # bounded by the turn's edge as well as by its own timeout (SR-20).
+    it "asks with its own timeout and makes its retry itself, whatever the client's" do
       guardrail.check(message: question, reply: answer)
 
-      expect(fake.requests.last.options).to include(timeout: Guardrail::TIMEOUT, max_retries: Guardrail::MAX_RETRIES)
+      expect(fake.requests.last.options).to include(timeout: Guardrail::TIMEOUT, max_retries: 0)
     end
 
     it "is nil for a timeout" do
@@ -237,8 +238,106 @@ RSpec.describe "FR-20 SR-18 the guardrail check" do
 
       abandoned, answered = result.usage
       characters = fake.requests.first.body.then { |body| Array(body[:system]).sum { |block| block.is_a?(Hash) ? block[:text].length : block.length } + body.dig(:messages, 0, :content).length }
-      expect(abandoned).to have_attributes(model: "claude-haiku-5-5", output_tokens: Guardrail::MAX_TOKENS, input_tokens: (characters / 3.0).ceil,
+      expect(abandoned).to have_attributes(model: "claude-haiku-5-5", output_tokens: Guardrail::MAX_TOKENS, input_tokens: (characters / AgentRunner::CHARACTERS_PER_TOKEN).ceil,
                                            cache_creation_tokens: 0, cached_tokens: 0)
+      expect(answered).to have_attributes(input_tokens: 640, output_tokens: 38)
+      expect(result).to have_attributes(clinical: false, error: nil)
+    end
+
+    # SR-20's hard edge (M3-4): the check runs inside the turn's edge, after
+    # the model's steps, and each of its attempts takes at most what is left
+    # of it. A check the edge cut gives no verdict for the edge's own reason,
+    # which the turn answers with its fallback, not R4's fail-open
+    # (TurnProcessor).
+    describe "the turn's edge" do
+      let(:clock) { FakeClock.new }
+
+      # Each attempt waits its whole timeout, as one that times out does.
+      def waiting(fake)
+        FakeModel::Client.new(fake, api_key: "fake-model", max_retries: 0, initial_retry_delay: 0,
+                                    middleware: [ ->(request, nxt) { clock.advance(request.timeout) && nxt.call(request) } ])
+      end
+
+      it "gives an attempt only what is left of the edge when that is less than its own timeout" do
+        fake = FakeModel.new([ verdict(false, "ok") ])
+        Guardrail.new(client: fake.client, clock:).check(message: question, reply: answer, edge: TurnEdge.new(deadline: 3, clock:))
+
+        expect(fake.requests.sole.options[:timeout]).to eq(3)
+      end
+
+      it "makes no retry the edge leaves no time for, and gives no verdict for the edge's reason" do
+        fake = FakeModel.new([ { timeout: true }, verdict(false, "ok") ])
+        result = Guardrail.new(client: waiting(fake), clock:).check(message: question, reply: answer, edge: TurnEdge.new(deadline: 4, clock:))
+
+        expect(result).to have_attributes(clinical: nil, error: Guardrail::DEADLINE)
+        expect(fake.requests.size).to eq(1)
+        expect(result.usage.sole).to have_attributes(output_tokens: Guardrail::MAX_TOKENS)
+      end
+
+      # Review finding F4 of pull request #65: the edge, not the check's
+      # policy, refused the retry, so the attempt's own error came back and
+      # the reply went unchecked, while a retry the edge cut a moment later
+      # gave the fallback. The SDK's own backoff (0.375 to 0.5 s) here.
+      it "gives no verdict for the edge's reason when the edge leaves no time for the retry" do
+        fake = FakeModel.new([ { timeout: true }, verdict(false, "ok") ])
+        client = FakeModel::Client.new(fake, api_key: "fake-model", max_retries: 0, initial_retry_delay: 0.5,
+                                             middleware: [ ->(request, nxt) { clock.advance(request.timeout) && nxt.call(request) } ])
+        result = Guardrail.new(client:, clock:, sleeper: ->(seconds) { clock.advance(seconds) })
+                          .check(message: question, reply: answer, edge: TurnEdge.new(deadline: 5.3, clock:))
+
+        expect(result).to have_attributes(clinical: nil, error: Guardrail::DEADLINE)
+        expect(fake.requests.size).to eq(1)
+      end
+
+      it "asks nothing when less is left of the edge than an attempt needs" do
+        fake = FakeModel.new([ verdict(false, "ok") ])
+        clock.advance(60 - 1.5)
+        result = Guardrail.new(client: fake.client, clock:).check(message: question, reply: answer, edge: TurnEdge.new(deadline: 60, clock:))
+
+        expect(result).to have_attributes(clinical: nil, error: Guardrail::DEADLINE, usage: [])
+        expect(fake.requests).to be_empty
+      end
+
+      it "asks nothing once the edge has passed, and gives no verdict for the edge's reason" do
+        fake = FakeModel.new([ verdict(false, "ok") ])
+        clock.advance(61)
+        result = Guardrail.new(client: fake.client, clock:).check(message: question, reply: answer, edge: TurnEdge.new(deadline: 60, clock:))
+
+        expect(result).to have_attributes(clinical: nil, error: Guardrail::DEADLINE, usage: [])
+        expect(fake.requests).to be_empty
+      end
+
+      # Review finding F7 of pull request #65: any failure once the edge had
+      # passed read as the edge's cut, a refused key or a bug of the check
+      # among them, so its class reached neither the log nor the trace; the
+      # error decides, and those stay R4's fail-open with their class.
+      it "keeps a failure of its own as its class when it lands as the edge passes" do
+        fake = FakeModel.new([ { status: 401, body: { type: "error", error: { type: "authentication_error", message: "invalid x-api-key" } } } ])
+        client = FakeModel::Client.new(fake, api_key: "fake-model", max_retries: 0, initial_retry_delay: 0,
+                                             middleware: [ ->(request, nxt) { clock.advance(request.timeout) && nxt.call(request) } ])
+        result = Guardrail.new(client:, clock:).check(message: question, reply: answer, edge: TurnEdge.new(deadline: 3, clock:))
+
+        expect(result).to have_attributes(clinical: nil, error: "Anthropic::Errors::AuthenticationError")
+      end
+
+      it "keeps R4's fail-open for its own failures while the edge leaves time" do
+        fake = FakeModel.new([ error(:overloaded), error(:overloaded) ])
+        result = Guardrail.new(client: fake.client, clock:).check(message: question, reply: answer, edge: TurnEdge.new(deadline: 60, clock:))
+
+        expect(result).to have_attributes(clinical: nil, error: "Anthropic::Errors::OverloadedError")
+        expect(fake.requests.size).to eq(2)
+      end
+    end
+
+    # Review finding F6 of pull request #65: the SDK reads a body after the
+    # middleware returns, so an answer whose headers came and whose body then
+    # timed out was billed and never charged.
+    it "keeps an attempt whose answer's body timed out as a usage at its input and its output cap" do
+      fake = FakeModel.new([ { timeout: "body" }, verdict(false, "ok") ])
+      result = Guardrail.new(client: fake.client).check(message: question, reply: answer)
+
+      abandoned, answered = result.usage
+      expect(abandoned).to have_attributes(output_tokens: Guardrail::MAX_TOKENS)
       expect(answered).to have_attributes(input_tokens: 640, output_tokens: 38)
       expect(result).to have_attributes(clinical: false, error: nil)
     end

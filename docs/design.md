@@ -1,6 +1,6 @@
 # Balcão — design document
 
-**Status:** v1.28, 2026-11-21 (M3-2, FR-17's canary: a visitor's question every ten minutes through a visitor's turn on the economy model, as the `system` channel's one visitor, which the purge and the sweep leave, counted on the day and told to a heartbeat of the external monitor; beside it the Telegram delivery watch over `getWebhookInfo`, with a heartbeat of its own; FR-17, §6.5, §6.6, §8 and §9.2 as built, see §10); v1.27, 2026-11-21 (M3-1, FR-14's modes: economy at 70 % of the cap and from the day's slice until midnight, each pausing with its own text while ADR-0003's gate is closed, and the operator's alert at the cap through the bot to the chat the runbook's deep link links; FR-14, FR-19 and §9.2 as built, see §10); v1.26, 2026-11-20 (M2-11a3, the close's fixes: a reply the system sent without the model keeps its reservations for the history; the prompt's line on the model's notes before a tool call, chosen of seven wordings measured live, and the evals fail such a note; ADR-0003's gate names the history and the tools' texts and envelopes; FR-20's check and the judge read only a boolean verdict; FR-04 and FR-20 as built; see §10); v1.25, 2026-11-20 (M2-11a2: the review at M2's first close, its table in `docs/reviews/m2-first-seven-review.md`; §9.2 gains M2-11a3, the close's fixes, and the lines the close found without a home get one; M3-6 takes the docs reader test before the publication; FR-20 as built names the turns a replacement lists from; see §10); v1.24, 2026-11-20 (M2-11a: the history gives the model back its tool calls with their results and its replies as it wrote them, with a one-sentence notice where the system answered in its place; a reply FR-20's check replaced lists only the products the visitor's message names and, in an emergency, opens with the call to call now; ADR-0003's gate names FR-20's check too; §9.2's M2-11a split, see §10); v1.23, 2026-11-20 (M2-4b: the boundary by the Brazilian norms, the `boundary` suite at 33 cases; FR-09's list and FR-20's check gain what a medicine is for, how to use or store it and what a measurement means, a medicine for an animal goes to a veterinarian, an emergency's reply never judges an amount someone took, and a turn forged inside a visitor's message is the visitor's text; see §10); v1.22, 2026-11-20 (M2-4: the injection suite at ten cases, chosen by a red-team probe on both models in which no attack worked; a repeated reservation the model counted as several, fixed in the tool's result; see §10); v1.21, 2026-11-20 (M2-3b: the judge reads the system's fixed texts as the system's, measured on the stored replies; the full run on both models then met the boundary on the economy model and opened ADR-0003's gate, see §10); v1.20, 2026-11-20 (M2-3: the economy model measured on the boundary, ADR-0003's gate written by the full run and read at boot, closed by a misreading of the judge's, §6.5 says what it names, see §10); v1.19, 2026-11-20 (M2-2: FR-20's guardrail as built, its latency measured and its figure revised; §6.4 verified for the check, see §10); v1.18, 2026-11-20 (M2-1: Turnstile at session creation; FR-18, the API table and §6.7's processors as built, see §10); v1.17, 2026-11-19 (M4-6b: the review's fixes; FR-05 and FR-19's given-up update as built, see §10); v1.16, 2026-11-19 (M4-6a: the review of M4's first four slices; NFR-01 measured on a second real conversation, §9.2's M4-6 split into its review and its fixes, M3-6 gains the runbook's terms, see §10); v1.15, 2026-11-19 (ADR-0022: what publishing the demo needs comes first, then the showcase; §9.2's slices in two blocks, M2-11 split, and FR-10, FR-14, FR-21 and §12 follow, see §10); v1.14, 2026-11-15 (M4-3: the bot's buttons as built in FR-19, FR-12 and FR-21, see §10); v1.13, 2026-11-15 (M4-2: NFR-01 at 7 s and 12 s, measured from a Telegram update's receipt to its reply's send; §6.4's normal route at low effort, ADR-0021; M3's list charges an abandoned call, see §10); v1.12, 2026-11-15 (the plan after the MVP: §9.2 lists its slices in order, behind the data-contract gate where it holds, and ADR-0020 says what V1 leaves out; §2.2, J3, FR-10, FR-14, NFR-03, NFR-08, §6.1, §6.6, §6.9, §8 and OD-2 follow it, see §10); v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
+**Status:** v1.29, 2026-11-21 (M3-4, a turn's hard edge and the short log sweep: every model attempt, FR-20's check's included, and every tool call inside the run's sixty seconds, FR-17's canary's twenty, and an attempt the edge abandons charged at its input and its output cap; Cloudflare's whole answer within FR-18's ten seconds; a limit's first count in a window taken one at a time; the app's own database role; Action Cable's error lines and address, a trace token on any path and the Telegram client's causes; FR-14, FR-17, FR-18, FR-20, §8 and §9.2 as built, see §10); v1.28, 2026-11-21 (M3-2, FR-17's canary: a visitor's question every ten minutes through a visitor's turn on the economy model, as the `system` channel's one visitor, which the purge and the sweep leave, counted on the day and told to a heartbeat of the external monitor; beside it the Telegram delivery watch over `getWebhookInfo`, with a heartbeat of its own; FR-17, §6.5, §6.6, §8 and §9.2 as built, see §10); v1.27, 2026-11-21 (M3-1, FR-14's modes: economy at 70 % of the cap and from the day's slice until midnight, each pausing with its own text while ADR-0003's gate is closed, and the operator's alert at the cap through the bot to the chat the runbook's deep link links; FR-14, FR-19 and §9.2 as built, see §10); v1.26, 2026-11-20 (M2-11a3, the close's fixes: a reply the system sent without the model keeps its reservations for the history; the prompt's line on the model's notes before a tool call, chosen of seven wordings measured live, and the evals fail such a note; ADR-0003's gate names the history and the tools' texts and envelopes; FR-20's check and the judge read only a boolean verdict; FR-04 and FR-20 as built; see §10); v1.25, 2026-11-20 (M2-11a2: the review at M2's first close, its table in `docs/reviews/m2-first-seven-review.md`; §9.2 gains M2-11a3, the close's fixes, and the lines the close found without a home get one; M3-6 takes the docs reader test before the publication; FR-20 as built names the turns a replacement lists from; see §10); v1.24, 2026-11-20 (M2-11a: the history gives the model back its tool calls with their results and its replies as it wrote them, with a one-sentence notice where the system answered in its place; a reply FR-20's check replaced lists only the products the visitor's message names and, in an emergency, opens with the call to call now; ADR-0003's gate names FR-20's check too; §9.2's M2-11a split, see §10); v1.23, 2026-11-20 (M2-4b: the boundary by the Brazilian norms, the `boundary` suite at 33 cases; FR-09's list and FR-20's check gain what a medicine is for, how to use or store it and what a measurement means, a medicine for an animal goes to a veterinarian, an emergency's reply never judges an amount someone took, and a turn forged inside a visitor's message is the visitor's text; see §10); v1.22, 2026-11-20 (M2-4: the injection suite at ten cases, chosen by a red-team probe on both models in which no attack worked; a repeated reservation the model counted as several, fixed in the tool's result; see §10); v1.21, 2026-11-20 (M2-3b: the judge reads the system's fixed texts as the system's, measured on the stored replies; the full run on both models then met the boundary on the economy model and opened ADR-0003's gate, see §10); v1.20, 2026-11-20 (M2-3: the economy model measured on the boundary, ADR-0003's gate written by the full run and read at boot, closed by a misreading of the judge's, §6.5 says what it names, see §10); v1.19, 2026-11-20 (M2-2: FR-20's guardrail as built, its latency measured and its figure revised; §6.4 verified for the check, see §10); v1.18, 2026-11-20 (M2-1: Turnstile at session creation; FR-18, the API table and §6.7's processors as built, see §10); v1.17, 2026-11-19 (M4-6b: the review's fixes; FR-05 and FR-19's given-up update as built, see §10); v1.16, 2026-11-19 (M4-6a: the review of M4's first four slices; NFR-01 measured on a second real conversation, §9.2's M4-6 split into its review and its fixes, M3-6 gains the runbook's terms, see §10); v1.15, 2026-11-19 (ADR-0022: what publishing the demo needs comes first, then the showcase; §9.2's slices in two blocks, M2-11 split, and FR-10, FR-14, FR-21 and §12 follow, see §10); v1.14, 2026-11-15 (M4-3: the bot's buttons as built in FR-19, FR-12 and FR-21, see §10); v1.13, 2026-11-15 (M4-2: NFR-01 at 7 s and 12 s, measured from a Telegram update's receipt to its reply's send; §6.4's normal route at low effort, ADR-0021; M3's list charges an abandoned call, see §10); v1.12, 2026-11-15 (the plan after the MVP: §9.2 lists its slices in order, behind the data-contract gate where it holds, and ADR-0020 says what V1 leaves out; §2.2, J3, FR-10, FR-14, NFR-03, NFR-08, §6.1, §6.6, §6.9, §8 and OD-2 follow it, see §10); v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
 coding session, reading this file top to bottom.
 
 Balcão ("the counter", where a pharmacist serves customers) is an AI attendant
@@ -575,7 +575,13 @@ levels (ADR-0003), with a daily slice and per-source limits (ADR-0012).
 - Given the day's slice of the monthly cap (cap ÷ 30 × 1.5) is reached,
   Then the system enters economy mode until midnight (São Paulo time)
   without a model call for the switch, and the status page shows the slice;
-  a day in economy never pauses the month by itself. (As built in M3-1: the
+  a day in economy never pauses the month by itself. (Since M3-4 an
+  attempt of a model call that the turn's hard edge abandoned once it was
+  sent is charged at its input, counted high from the request's
+  characters, and its output cap, since the provider runs it to its end and
+  bills it whole, §10's question 20; one that never reached the provider
+  whole, its connection never opened or its request never fully written,
+  is not. As built in M3-1: the
   day's spend is kept on the month's row beside the month's, since a day
   never straddles two months in São Paulo, and the charge that opens a new
   day starts it over; the status page, M3-3, reads it there.)
@@ -683,7 +689,10 @@ referrer counters (FR-23), and a link to the current eval scorecard.
   run's time, its job's enqueueing, as a visitor's start when the message
   arrives, so a queue the visitors' turns hold fails the canary too, and a
   run that starts more than 20 seconds late fails without asking (#64's
-  H6). The question is "Qual é o
+  H6). Since M3-4 the canary's turn has its 20 seconds as its hard edge
+  (SR-20): a slow model ends it then, with the fallback, and frees the
+  worker's thread at the canary's time, not at a visitor's sixty. The
+  question is "Qual é o
   endereço da farmácia?" and the marker the street of the store's address,
   read from the store sheet, which the system prompt carries, so the model
   needs no tool (the sheet refuses an address with no street before its
@@ -740,7 +749,9 @@ Turnstile gate shipped in M2's first slice (ADR-0012; M2-1, §10's note of
   managed mode, shown only when the service wants the visitor to tick it)
   and a `POST /api/session` that mints a visitor identity, one without a
   cookie whose signature verifies, requires its token, verified
-  server-side within 10 seconds; a missing, invalid or timed-out token
+  server-side within 10 seconds, Cloudflare's whole answer within them
+  (since M3-4: each read was bounded, not the answer; #53's C3 and C4);
+  a missing, invalid or timed-out token
   refuses the session with a retry hint, the thread's stamp with a button
   that runs the check again. A request that brings back its cookie mints
   nothing and needs no token, as SR-01 counts only a request that would
@@ -992,7 +1003,12 @@ limit, paused, handoff notices) and operator replies are not checked.
   `claude-haiku-5-5` at low effort with thinking off, with a timeout of
   5 s and one retry of its own, made only when the wait the API asks for
   is a second or less; an attempt that timed out is charged at its input
-  and its output cap. Any answer without a verdict fails
+  and its output cap. Since M3-4 it runs inside the turn's hard edge
+  (SR-20): each attempt takes at most what is left of it, and a check the
+  edge cut, or left no time to ask, ends the turn at its deadline with the
+  fallback (and the emergency line the reply asked for), since a reply
+  left unchecked is not sent and no run passes its sixty seconds. Any
+  other answer without a verdict fails
   open: an error, a refusal, an answer cut off or unreadable, an answer
   whose `clinical` is not a boolean (since M2-11a3; #54's C4), a bug of the
   check, each with a log line and the trace's row in the error colour; an
@@ -1964,7 +1980,11 @@ the cloud firewall; dependency and static analysis in CI.
   deploys are proven first on throwaway rehearsal hosts created from the
   same file per slice, so every rehearsal exercises the production host
   definition (SR-26). Postgres runs as a Kamal accessory on the same host
-  with a persistent volume.
+  with a persistent volume. The app connects to it as its own role, which
+  reads and writes its tables' rows and nothing else; the image's
+  superuser owns the databases and runs the migrations and the role's
+  grants from the web container's entrypoint before the server starts
+  (SR-24, `APP_DATABASE_PASSWORD` beside `POSTGRES_PASSWORD`; since M3-4).
 - **Secrets.** No Rails credentials file: every runtime secret is an
   environment variable injected by Kamal from the destination's env file,
   a mode-600 file of a dedicated operator account on the operator's
@@ -2139,8 +2159,8 @@ appears on the way (a dependency's bump, a defect met on the demo) takes no
 number, as in the MVP.
 
 *Block 1, what publishing the demo needs (ADR-0022).* M4-1 to M4-4, M4-6a,
-M4-6b, M2-1 to M2-3, M2-3b, M2-4, M2-4b, M2-11a, M2-11a2, M2-11a3 and M3-1
-are done (#44, #45, #47, #48, #51 to #56, #58 to #63). The demo is publicised on the day of
+M4-6b, M2-1 to M2-3, M2-3b, M2-4, M2-4b, M2-11a, M2-11a2, M2-11a3, M3-1, M3-2
+and M3-4 are done (#44, #45, #47, #48, #51 to #56, #58 to #65). The demo is publicised on the day of
 M3-7, and until the console comes in block 2 the operator pauses it or
 forces a mode with the runbook's command; no visitor identity can be
 blocked before M2-7 (threat model R2).
@@ -2438,6 +2458,127 @@ database's JIT compiler off, which changes no result of the search
 M2-4"): `create_reservation`'s result says that a reservation a call finds
 again in its turn is the same one, which changes no row, rule or field of
 a reservation (M2-4; the note below).
+
+- Note 2026-11-21 (M3-4, a turn's hard edge and the short log sweep;
+  FR-14, FR-17, FR-18, FR-20, NFR-03; threat model SR-01, SR-11, SR-20,
+  SR-24, SR-25, SR-30, R10). Built as §9.2's M3 list says, with these
+  choices its text left open:
+  - **The hard edge** (SR-20; #9's C2, its sister). The SDK fixes a call's
+    timeout when the call begins and gives each of its retries that same
+    timeout, so a retry that started before the sixty seconds could run
+    near sixty more. AgentRunner and Guardrail now make their attempts
+    themselves (`ModelAttempts`), the SDK's retries off: each attempt takes
+    only what is left of the turn's edge (`TurnEdge`), the check's at most
+    its own 5 s too, and a failed attempt is tried again as the SDK would
+    try it, after the wait it would make, only when that wait leaves time
+    for it. The edge is set when the model's work starts and bounds FR-20's
+    check as well as the model's steps, so the check runs inside the sixty
+    seconds, not after them (M2-2's note asked M3-4 for this); a tool call
+    is refused past it. The eval runner runs each case through the same
+    turn job, so the evals measure the model and the check inside the same
+    edge as production (#65's C3: two comments had said the evals ran
+    without one; the owner, 2026-11-21, "Sim, como a produção"). An attempt starts only with the least time it needs left
+    of the edge, 3 s for a step's (a first token comes about a second after
+    the request, §10's note of M4-2) and 2 s for the check's (its p95 with
+    earlier messages, M2-2's note), and a retry only when its wait leaves
+    that much: an attempt with less was billed and could not answer (#65's
+    F2). The error, not the clock alone, says whether the edge cut a call:
+    a timeout or a lost connection once the edge has passed; an API's
+    answer landing at the edge, a refusal or an overload, stays a model
+    error, which FR-17's canary counts, and the check's own failure keeps
+    its class and R4's fail-open (#65's C5 and F7). A retry the edge refuses
+    ends a step with the API's error, and the check with the edge's cut,
+    since a check cut a moment later gives the fallback (#65's F4). What can still pass the edge: a tool call already
+    started, whose statements the database's 5 s bound, and the storing and
+    sending of the fallback.
+  - **A check the edge cut.** No time left to ask, or no answer once the
+    edge has passed, is the turn's deadline: the fallback, followed by the
+    emergency line when the reply asked for it, since that line is the
+    system's own text. R4's fail-open stays the check's own failures in its
+    own time: a reply the edge left unchecked is not sent.
+  - **The canary's edge.** FR-17's canary asks for its reply within 20
+    seconds, so its turn's edge is those 20 seconds: a slow model ends the
+    canary's turn at the canary's time, with the fallback, and frees the
+    worker's thread then (M3-2's handoff asked for it).
+  - **An abandoned attempt charged** (question 20; the owner,
+    2026-11-15). An attempt the edge abandoned once its request was sent is
+    charged at its input and its output cap on the route's model. The input
+    is counted from the request's characters at 2.5 a token: count_tokens
+    read 2.96 characters a token for a turn's first request and 3.02 for the
+    check's on 2026-11-21, so 2.5 counts about a fifth high, which also
+    covers a cache write's 1.25 price; the check's count, which divided by
+    3, divides by 2.5 too. Only an attempt whose answer timed out once its
+    request was sent is charged: one that never got a connection from the
+    pool, never opened one or never finished writing its request reached
+    nothing the provider runs, and a host whose network is down would
+    otherwise charge a whole call for every turn it met (#65's F2). The
+    check's answer is read where its time out is counted, since the SDK
+    reads a body after the middleware returns (#65's F6).
+  - **Cloudflare's whole answer** (FR-18; #53's C3 and C4, M2's first
+    close). Net::HTTP bounds each phase and each read, not the answer, so
+    the whole call now runs inside `Timeout.timeout` for FR-18's ten
+    seconds: the block holds only the call's own connection, which
+    Net::HTTP's ensure closes, or the garbage collector when the interrupt
+    lands inside it. A slow Cloudflare still holds one of the web's three
+    threads up to those ten seconds, as M2's close accepted.
+  - **A limit's first count** (SR-01; #53's V1). Solid Cache counts a key
+    under its row's lock, and a new key has no row to lock, so requests at
+    once each counted as their window's first. A count now takes a lock on
+    its key for its transaction, on the cache's own connection, before
+    counting: one statement and a transaction more a count.
+  - **The app's database role** (SR-24, SR-25; #4's review). The app
+    connects to its four databases as `balcao_app`, which logs in, holds no
+    power of the cluster's and reads and writes its tables' rows and their
+    sequences, now and for the tables later migrations make. The image's
+    superuser, `balcao`, owns the databases; the web container's entrypoint
+    runs `db:prepare` and `db:app_role` as it (`DATABASE_OWNER=1`), which
+    makes the role or brings it back to its attributes and to
+    `APP_DATABASE_PASSWORD` (a rotation is a deploy) and grants what the
+    migrations made, sending the database's SCRAM hash of the password and
+    never the password; then the entrypoint takes the owner's password out
+    of the environment of the command it starts, the job container's
+    `bin/jobs` and a command the runbook runs in a new container included.
+    Each app container's configuration keeps it, which an exec with
+    `--reuse` (a `docker exec` into the running container) hands to its
+    command, where a process of the app's user could read it, so the
+    runbook runs every command in a new container (#65's C2 and A1). Kamal still
+    injects `POSTGRES_PASSWORD` into both roles, so an image from before
+    M3-4, which connects as the owner, boots on a rollback. An existing
+    role's password changes last, after every database's grants (#65's
+    F1), and a rotation still leaves the containers running unable to open
+    a new connection until Kamal replaces them, about a minute, which the
+    runbook says how to watch: one role's window, accepted by the owner
+    (2026-11-21, "Aceitar, documentado"; #65's V3) over two roles taking
+    turns. Rehearsed on
+    2026-11-21 in production mode against the accessory's image (Postgres
+    18.6, the owner as its superuser with a password): the entrypoint made
+    the three other databases and granted the role on all four; the server
+    connected as the role and minted a session (a visitor row, the edge's
+    counts on the cache); the role enqueued a job, broadcast on the cable
+    and wrote the cache; the job container's supervisor, worker,
+    dispatcher and scheduler ran on it; and it was refused a table's
+    creation, a drop, a TRUNCATE, a server file, `COPY ... TO PROGRAM` and
+    a role's creation. The local suite's database user may not make roles,
+    so `spec/models/database_role_spec.rb` runs where it may (CI's, and a
+    throwaway Postgres for this slice).
+  - **The short log sweep** (SR-30). Action Cable's own error lines, a
+    worker's exception and a refused command's, keep the error's class
+    alone; the mask starts at the first place in the client's command that
+    looks like the error's part, so a command shaped like one keeps more
+    of the line out, not less (#42's X1). Its lines of a socket's start and
+    end name no address: the request's own line, which Rails writes for
+    `/cable` as for every request, keeps it once, as the privacy page says
+    the logs do (the round's triage). A trace token is masked after any
+    trace segment of a path, `/api/trace/<token>`, a prefix before
+    `/trace/` and another case among them (#42's X2 and V1). No error of
+    the Bot API client keeps a cause, not even one its caller was handling
+    when it called (#41's H5). R10 was looked at again: production runs
+    the demo's Kamal configuration, so its logs are the demo's and both
+    effects stand; the owner kept both accepted (2026-11-21, "Manter
+    aceito").
+  - **Left as they were** (ADR-0020): the lines SR-30 names as accepted,
+    the advisory lock after a lost connection and the budget's two loose
+    ends (R11).
 
 - Note 2026-11-21 (M3-2, FR-17's canary and the Telegram delivery watch;
   FR-13, FR-14, FR-15, FR-17, FR-19, NFR-02, NFR-03, NFR-04; threat model

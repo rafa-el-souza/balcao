@@ -10,16 +10,25 @@
 module Balcao
   module RequiredEnvironment
     # Generated per destination by bin/secrets-example, or held by an outside
-    # console. The encryption keys guard what visitors send (threat model
-    # SR-41) and the pepper hashes a Telegram user id (SR-10); the bot's token
-    # and the webhook's secret are the Telegram channel's (FR-19, SR-06); the
-    # Turnstile widget's secret checks a new web visitor's token (SR-39).
+    # console. The app's database role connects with its own password (M3-4;
+    # config/database.yml); the encryption keys guard what visitors send
+    # (threat model SR-41) and the pepper hashes a Telegram user id (SR-10);
+    # the bot's token and the webhook's secret are the Telegram channel's
+    # (FR-19, SR-06); the Turnstile widget's secret checks a new web visitor's
+    # token (SR-39).
     SECRETS = %w[
-      SECRET_KEY_BASE POSTGRES_PASSWORD ANTHROPIC_API_KEY
+      SECRET_KEY_BASE APP_DATABASE_PASSWORD ANTHROPIC_API_KEY
       ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY
       ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT IDENTITY_PEPPER TELEGRAM_BOT_TOKEN TELEGRAM_WEBHOOK_SECRET
       TURNSTILE_SECRET_KEY
     ].freeze
+    # The database owner's password, the superuser the Postgres image makes
+    # from POSTGRES_USER: the accessory boots with it, and the web container's
+    # entrypoint runs the migrations and the app role's grants with it before
+    # the server starts (DATABASE_OWNER=1, bin/docker-entrypoint), then takes
+    # it out of the environment of every command it starts. Required of that
+    # step alone (M3-4; #4's review).
+    OWNER = %w[POSTGRES_PASSWORD].freeze
     # The secrets an outside console holds, which bin/secrets-example never
     # generates: the model key comes from the provider's console, the bot's
     # token from BotFather and Turnstile's secret from Cloudflare's dashboard
@@ -37,7 +46,7 @@ module Balcao
     MONITORS = %w[MONITOR_URL TELEGRAM_MONITOR_URL].freeze
     # Every secret Kamal injects: the two secrets files and env.secret in
     # config/deploy.yml name these.
-    INJECTED = (SECRETS + MONITORS).freeze
+    INJECTED = (SECRETS + OWNER + MONITORS).freeze
     # An https URL with a host and a path, and no space, query or fragment.
     MONITOR_URL = %r{\Ahttps://[^\s/?#]+/[^\s?#]+\z}
     # Clear values set in config/deploy.yml and config/deploy.ensaio.yml.
@@ -69,7 +78,8 @@ module Balcao
     class Missing < StandardError; end
 
     def self.missing(env)
-      NAMES.select { |name| env[name].to_s.strip.empty? }
+      names = env["DATABASE_OWNER"] == "1" ? NAMES + OWNER : NAMES
+      names.select { |name| env[name].to_s.strip.empty? }
     end
 
     def self.verify!(env)
