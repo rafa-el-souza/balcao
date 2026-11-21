@@ -677,6 +677,21 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       expect(turn.outbound_message.body).to eq(FixedReply.with_notice(expected, "pt-BR"))
     end
 
+    # Review finding C3 of pull request #65: the eval runner runs each case
+    # through this job (lib/evals/pipeline.rb), so its check runs inside the
+    # turn's edge, as production's does, which two comments denied.
+    it "runs FR-20's check inside the turn's own edge, the eval runner's turns included" do
+      edges = []
+      allow_any_instance_of(Guardrail).to receive(:check).and_wrap_original do |original, **keywords, &block|
+        edges << keywords[:edge]
+        original.call(**keywords, &block)
+      end
+
+      perform(inbound("oi"))
+
+      expect(edges).to contain_exactly(an_instance_of(TurnEdge).and(have_attributes(remaining: be_within(1).of(AgentRunner::WALL_CLOCK))))
+    end
+
     it "gives a visitor's turn its sixty seconds" do
       perform(inbound("oi"))
 

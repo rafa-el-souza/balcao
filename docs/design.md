@@ -2473,7 +2473,10 @@ a reservation (M2-4; the note below).
     for it. The edge is set when the model's work starts and bounds FR-20's
     check as well as the model's steps, so the check runs inside the sixty
     seconds, not after them (M2-2's note asked M3-4 for this); a tool call
-    is refused past it. What can still pass the edge: a tool call already
+    is refused past it. The eval runner runs each case through the same
+    turn job, so the evals measure the model and the check inside the same
+    edge as production (#65's C3: two comments had said the evals ran
+    without one). What can still pass the edge: a tool call already
     started, whose statements the database's 5 s bound, and the storing and
     sending of the fallback.
   - **A check the edge cut.** No time left to ask, or no answer once the

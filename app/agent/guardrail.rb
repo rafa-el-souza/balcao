@@ -121,7 +121,10 @@ class Guardrail
   # earlier are the visitor's messages before this one, oldest first, which
   # may hold the question a short reply answers (review finding C2 of pull
   # request #54); edge is the turn's (TurnEdge), or nil for a check with
-  # none, the eval runner's.
+  # none. Every turn passes its own, the eval runner's included, which runs
+  # each case through the visitors' turn job, so the evals measure the check
+  # inside the edge, as production runs it (review finding C3 of pull
+  # request #65).
   def check(message:, reply:, earlier: [], edge: nil)
     yield Started.new(model: @route.model, effort: @route.effort) if block_given?
     started = @clock.call
