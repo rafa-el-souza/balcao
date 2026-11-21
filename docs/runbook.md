@@ -651,7 +651,8 @@ and the demo's stays with the demo. It runs in the rehearsal's own mode
   recorded (`evals/recordings/`), so the host holds no model key and spends
   nothing. A visitor's message that is the message of a recorded
   one-message case gets that case's recorded answers, its tool calls run
-  against the host's own catalogue and FR-20's check included: the
+  against the host's own catalogue and FR-20's check included, though the
+  reply is the recording's whatever that catalogue holds: the
   landing's three chips ("tem dipirona?" among them) and the canary's
   question, so the canary passes there. Any other message gets the fixed
   apology, as a model error, and two such turns alone in half an hour fail
@@ -795,7 +796,10 @@ this order; *owner* marks the steps that are the owner's alone.
    `env.secret` list naming `ANTHROPIC_API_KEY` only when that reads `real`
    (a Kamal destination's list replaces the base's), and `NOINDEX: "true"`;
    `spec/deploy/kamal_config_spec.rb` holds the destination to the boot's
-   rule. The rehearsal env file drops the two heartbeat URLs and the demo's
+   rule, and the cut's pull request has it render the destination both
+   ways, with `ENSAIO_MODEL_ADAPTER` unset and set to `real`, so the
+   real-model rehearsal's lines are read too (#68's finder, its note 7).
+   The rehearsal env file drops the two heartbeat URLs and the demo's
    bot token for a throwaway one, and its `TURNSTILE_SECRET_KEY` becomes
    Cloudflare's published test secret.
 10. The demo is publicised.

@@ -2529,11 +2529,28 @@ a reservation (M2-4; the note below).
     robots.txt disallowed could still be listed, with no text, from a link.
     The static file the header walk and `bin/edge-check` ask is now the
     icon.
+  - **Read in production alone:** `MODEL_ADAPTER` sets the default client
+    in the production environment and no other, since `bin/evals` runs in
+    the test environment, where a shell's `MODEL_ADAPTER=fake` would have
+    put recordings in the live model's place, the judge's included (#68's
+    finder, its note 4).
+  - **Proved before the cut** in the suite and by a production boot of the
+    image on the workstation, with a throwaway database: on the fake model
+    and with no key, the stock chip's reply came through the API and the
+    job container in about four seconds, the canary passed in 674 ms on the
+    recording, every answer said noindex (the trace page its own), robots.txt
+    came with a day's cache, and the boot refused the fake model on the
+    public name, a key beside it and a blank `NOINDEX` off it; on the public
+    name only the trace page said noindex. A rehearsal host proves it after
+    the cut, since the reserved IP serves the demo until then.
+  - **The review** (on the risk list): the finder over the diff found
+    nothing it would stand behind, and named eight candidates it dropped;
+    its note 4 is fixed above, its note 7 goes to the cut's pull request
+    (the runbook's step 9 renders the destination both ways), and the rest
+    are in the pull request's Review section.
   - **Left for later:** the status page that says a host runs the fake
     model is M3-3's (block 2); the cut's pull request writes the
-    destination's mode (above). A rehearsal host is proved on one only
-    after the cut, since the reserved IP serves the demo until then: here,
-    in the suite and by a production boot of the image on the workstation.
+    destination's mode (above).
 
 - Note 2026-11-21 (M3-6, the runbook completed and the cut prepared;
   NFR-08, §8, §9.2; threat model SR-03, SR-24, SR-25, SR-27, SR-33, SR-37,
