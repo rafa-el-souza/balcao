@@ -31,4 +31,17 @@ RSpec.describe "SR-20 FR-14 a model call's attempts" do
       end
     end
   end
+
+  # The finder's note on pull request #65: the SDK reads x-should-retry
+  # without its case (Util.coerce_boolean).
+  it "reads the API's x-should-retry in any case, as the SDK does" do
+    clock = FakeClock.new
+    fake = FakeModel.new([ ModelResponses.error(:overloaded).merge(headers: { "x-should-retry" => "False" }), ModelResponses.reply("[pt] oi") ])
+    client = fake.client
+    attempts = ModelAttempts.new(client:, edge: TurnEdge.new(deadline: 60, clock:), retries: 2, sleeper: ->(_) {})
+
+    expect { attempts.call { |options| client.messages.create(model: "m", max_tokens: 1, messages: [ { role: "user", content: "x" } ], request_options: options) } }
+      .to raise_error(Anthropic::Errors::OverloadedError)
+    expect(fake.requests.size).to eq(1)
+  end
 end

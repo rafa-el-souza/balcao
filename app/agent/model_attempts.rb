@@ -99,7 +99,9 @@ class ModelAttempts
     return true if error.is_a?(Anthropic::Errors::APIConnectionError)
     return false unless error.is_a?(Anthropic::Errors::APIStatusError)
 
-    should = error.headers&.[]("x-should-retry")
+    # The SDK reads it without its case (Util.coerce_boolean; the finder's
+    # note on pull request #65, V5).
+    should = error.headers&.[]("x-should-retry")&.downcase
     return should == "true" if %w[true false].include?(should)
 
     RETRY_STATUSES.include?(error.status) || error.status.to_i >= 500
