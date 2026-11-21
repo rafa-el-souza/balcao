@@ -3,9 +3,9 @@ require "open3"
 
 # The budget's ledger and its gate (FR-14, threat model SR-02, ADR-0003):
 # every model call is charged to the calendar month in São Paulo at the price
-# table's prices, and the month's mode is read before any model call. In the
-# MVP the automatic mode is normal or, at the cap, paused; economy, the daily
-# slice and the operator's notification arrive at M3 (design §9.1).
+# table's prices, and the month's mode is read before any model call. The
+# modes M3-1 added, economy at 70 % of the cap and the daily slice, and the
+# operator's alert at the cap, have their own spec (budget_modes_spec.rb).
 RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthly cap's pause" do
   around do |example|
     @default_cap = Rails.configuration.x.budget_cap_usd
@@ -106,7 +106,8 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
 
       expect(month.automatic_mode).to eq("paused")
       expect(Rails.logger).to have_received(:warn)
-        .with("budget: #{month.month}'s automatic mode is paused at US$ 10.00 of its cap of US$ 10.00").once
+        .with("budget: #{month.month}'s automatic mode is paused at US$ 10.00 of its cap of US$ 10.00 " \
+              "and US$ 0.01 of the day's slice of US$ 0.50").once
     end
 
     it "says which forced mode serves past the cap, never that the demo paused" do
@@ -115,7 +116,7 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
       expect(Budget.mode).to eq("normal")
 
       expect(Rails.logger).to have_received(:warn)
-        .with(/automatic mode is paused at US\$ 12\.00 of its cap of US\$ 10\.00; the forced normal mode serves\z/)
+        .with(/automatic mode is paused at US\$ 12\.00 of its cap of US\$ 10\.00 and US\$ 0\.00 of the day's slice of US\$ 0\.50; the forced normal mode serves\z/)
     end
 
     # Review finding R1 of pull request #29: a forced economy pauses until
@@ -127,7 +128,7 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
 
       expect(Rails.logger).not_to have_received(:warn).with(/the forced economy mode serves/)
       expect(Rails.logger).to have_received(:warn)
-        .with(/automatic mode is paused at US\$ 12\.00 of its cap of US\$ 10\.00; the forced economy mode may not serve yet, so the demo pauses\z/)
+        .with(/automatic mode is paused at US\$ 12\.00 of its cap of US\$ 10\.00 and US\$ 0\.00 of the day's slice of US\$ 0\.50; the forced economy mode may not serve yet, so the demo pauses\z/)
     end
 
     # Review finding R2 of pull request #29: a new month is a change too.
@@ -139,7 +140,7 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
       travel_to(Time.zone.local(2026, 12, 1, 0, 1)) { 2.times { expect(Budget.mode).to eq("normal") } }
 
       expect(Rails.logger).to have_received(:warn)
-        .with("budget: 2026-12's automatic mode is normal at US$ 0.00 of its cap of US$ 10.00").once
+        .with("budget: 2026-12's automatic mode is normal at US$ 0.00 of its cap of US$ 10.00 and US$ 0.00 of the day's slice of US$ 0.50").once
     end
 
     it "writes the opening line when a charge opens the month, as at the turn of the month" do
@@ -159,7 +160,7 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
 
       expect(Budget.mode).to eq("normal")
       expect(month.automatic_mode).to eq("normal")
-      expect(Rails.logger).to have_received(:warn).with(/automatic mode is normal at US\$ 5\.00 of its cap of US\$ 15\.00\z/)
+      expect(Rails.logger).to have_received(:warn).with(/automatic mode is normal at US\$ 5\.00 of its cap of US\$ 15\.00 and US\$ 0\.00 of the day's slice of US\$ 0\.75\z/)
     end
   end
 
@@ -168,8 +169,8 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
       expect(Budget.mode).to eq("normal")
     end
 
-    it "is normal below the cap" do
-      BudgetState.for_month!.update!(spent_usd: BigDecimal("9.99"))
+    it "is normal below 70 % of the cap, where the month's economy starts (budget_modes_spec.rb)" do
+      BudgetState.for_month!.update!(spent_usd: BigDecimal("6.99"))
 
       expect(Budget.mode).to eq("normal")
     end
@@ -213,8 +214,8 @@ RSpec.describe "FR-14 SR-02 the budget: the ledger of model calls and the monthl
 
         expect(Budget.force!(:economy)).to eq(Budget::Status.new(mode: "paused", forced: true))
         expect(Rails.logger).to have_received(:warn)
-          .with("budget: 2026-11's automatic mode is normal at US$ 0.00 of its cap of US$ 10.00; " \
-                "the forced economy mode may not serve yet, so the demo pauses")
+          .with("budget: 2026-11's automatic mode is normal at US$ 0.00 of its cap of US$ 10.00 and US$ 0.00 of the day's slice " \
+                "of US$ 0.50; the forced economy mode may not serve yet, so the demo pauses")
         expect(BudgetState.for_month!.forced_mode).to eq("economy")
 
         Rails.configuration.x.economy_allowed = true

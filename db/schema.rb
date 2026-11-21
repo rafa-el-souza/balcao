@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_20_180000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_21_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "fuzzystrmatch"
   enable_extension "pg_catalog.plpgsql"
@@ -24,6 +24,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_180000) do
     t.string "forced_mode"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.date "day"
+    t.decimal "day_spent_usd", precision: 16, scale: 8, default: "0.0", null: false
     t.index ["month"], name: "index_budget_states_on_month", unique: true
   end
 
@@ -62,6 +64,34 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_20_180000) do
     t.index ["webhook_event_id"], name: "index_messages_on_webhook_event_id"
     t.check_constraint "direction::text = 'outbound'::text OR external_id IS NOT NULL", name: "messages_inbound_has_id"
     t.check_constraint "direction::text = 'outbound'::text OR turn_id IS NULL", name: "messages_turn_only_on_outbound"
+  end
+
+  create_table "operator_alerts", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
+    t.string "kind", null: false
+    t.string "key", null: false
+    t.text "text", null: false
+    t.string "status", default: "pending", null: false
+    t.integer "attempts", default: 0, null: false
+    t.datetime "next_attempt_at"
+    t.datetime "sent_at"
+    t.string "error"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["kind", "key"], name: "index_operator_alerts_on_kind_and_key", unique: true
+    t.index ["status"], name: "index_operator_alerts_on_status"
+  end
+
+  create_table "operator_chats", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|
+    t.string "role", default: "operator", null: false
+    t.text "chat_id"
+    t.string "language"
+    t.datetime "linked_at"
+    t.string "link_digest"
+    t.datetime "link_expires_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["link_digest"], name: "index_operator_chats_on_link_digest", unique: true
+    t.index ["role"], name: "index_operator_chats_on_role", unique: true
   end
 
   create_table "products", id: :uuid, default: -> { "uuidv7()" }, force: :cascade do |t|

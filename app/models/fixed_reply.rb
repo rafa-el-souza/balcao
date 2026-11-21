@@ -4,7 +4,8 @@
 # (NFR-03), FR-09's decline, the reply to a refusal (SR-19), the call to call
 # now that opens a replaced emergency reply (FR-20), the offer of the
 # pharmacist (FR-10's MVP note), the emergency line (FR-09), the replies of a
-# month paused at its budget cap and of a pause the operator forced (FR-14),
+# month paused at its budget cap, of a day paused at its slice and of a pause
+# the operator forced (FR-14), the link's line to the operator (SR-35),
 # the fixed line of each reservation a turn stored (NFR-02) and of each
 # product a replaced reply's turn found (FR-20). They live in config/locales,
 # in the conversation's language. None of them passes the guardrail's check
@@ -26,6 +27,15 @@ module FixedReply
   # names no limit and no date, since the month's cap is not what paused it
   # (the owner, 2026-11-15).
   def forced_pause(locale) = I18n.t("budget.forced", locale:)
+
+  # FR-14: a day that reached its slice of the cap while ADR-0003's gate keeps
+  # the economy model from serving pauses until midnight in São Paulo, with
+  # this, and no model is called (SR-02); the month goes on.
+  def daily_pause(locale) = I18n.t("budget.daily", locale:)
+
+  # Threat model SR-35: the bot's answer to the operator's link, in the chat
+  # it linked, so the operator sees the alerts will arrive there.
+  def operator_linked(locale) = I18n.t("operator.linked", locale:)
 
   # FR-09's decline, one or two sentences naming the store's pharmacist: the
   # reply to a refusal (SR-19) and, from M2, to a reply the guardrail replaces
@@ -96,7 +106,7 @@ module FixedReply
         return text.include?(emergency(locale)) ? "refusal" : "decline"
       end
       return "fallback" if text.start_with?(fallback(locale))
-      return "pause" if text.start_with?(paused(locale), forced_pause(locale))
+      return "pause" if text.start_with?(paused(locale), forced_pause(locale), daily_pause(locale))
       return "command" if text.start_with?(greeting(locale), help(locale))
     end
     nil

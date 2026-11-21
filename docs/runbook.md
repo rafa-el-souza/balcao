@@ -308,20 +308,39 @@ the host around the answer.
 - **The cap** is `BUDGET_CAP_USD` in the destination's `env.clear`: 100 in
   `config/deploy.yml` (production), 10 in `config/deploy.ensaio.yml` (the
   MVP host, whose dev/eval key has a console limit of US$ 20). A new value
-  is a deploy, and a raised cap resumes a paused month at once.
+  is a deploy. **Resuming a month the cap paused** (FR-14, from M3-1): a
+  raised cap resumes it at once, in normal below 70 % of the new cap and in
+  economy above it; but while ADR-0003's gate is closed (below) an economy
+  pauses, so the new cap must put the month's spend under 70 % of it (more
+  than the spend ÷ 0.7: US$ 14.29 for a spend of US$ 10) and the day's spend
+  under its slice (the cap ÷ 30 × 1.5). With the gate closed, a full eval run
+  that opens it, committed and deployed, lets the month's economy serve
+  instead. A mode the operator forced holds whatever the cap is, until it is
+  released.
 - **The month's spend and the mode that serves:**
-  `kamal app exec -d ensaio --roles=web --reuse "bin/rails runner 'p [Budget.mode, BudgetState.for_month!.slice(:month, :spent_usd, :automatic_mode, :forced_mode)]'"`.
+  `kamal app exec -d ensaio --roles=web --reuse "bin/rails runner 'p [Budget.mode, BudgetState.for_month!.slice(:month, :spent_usd, :day, :day_spent_usd, :automatic_mode, :forced_mode)]'"`.
   The first item is the mode a turn reads now (a forced mode wins); the row
   keeps the automatic one as last read, and the log has one `budget:` line
-  each time it changes. The ledger began on the day PR-16 shipped; the model
-  console's usage page has the whole month.
+  each time it changes, with the month's spend against the cap and the
+  day's against its slice. `day` is the last day a charge opened; a day no
+  charge has opened yet counts as zero. The ledger began on the day PR-16
+  shipped; the model console's usage page has the whole month.
+- **The automatic modes** (FR-14, from M3-1): economy from 70 % of the cap
+  on, for the rest of the month; economy from the day's slice (the cap ÷ 30
+  × 1.5: US$ 0.50 under a cap of 10, US$ 5 under 100) until midnight in São
+  Paulo; paused from the cap on, until the next month or a raised cap. No
+  model call makes the switch, and none needs a command. While ADR-0003's
+  gate is closed (below), an economy pauses instead: the month's with the
+  cap's text, the day's until midnight with a text of its own, and the
+  `budget:` line ends `the economy model may not serve yet, so the demo
+  pauses until midnight` (or `until the month ends`).
 - **Pausing by hand** (FR-14's kill switch, until the console has it in
   M2-10, after the publication; ADR-0022):
   `kamal app exec -d ensaio --roles=web --reuse "bin/rails runner 'p Budget.force!(:paused)'"`;
   releasing: the same with `Budget.force!(nil)`. The command prints the
   month's `budget:` line and what serves now (`mode`, `forced`). A forced
   mode holds into the next month until released.
-- **Economy by hand** (from M2-3; automatic at 70 % of the cap from M3-1):
+- **Economy by hand** (from M2-3; the automatic modes above from M3-1):
   the same line with `Budget.force!(:economy)`. The economy model serves
   only on ADR-0003's gate, the committed `evals/economy_allowed.yml`, which
   every container reads once, at boot; while it says no, or names another
@@ -340,6 +359,47 @@ the host around the answer.
   says no (its boundary did not pass at 100 %) leaves none. A bug in the
   code that reads the route or the digests is no warning: the boot raises,
   which CI's boot specs see before any deploy.
+- **The operator's chat** (threat model SR-35, from M3-1): the bot sends
+  the operator's alerts (the budget's at the cap) to one chat, linked once
+  per host, since a fresh database has none. On the workstation:
+  `kamal app exec -d ensaio --roles=web --reuse "bin/rails runner 'puts OperatorChat.link_url!'"`
+  prints `https://t.me/BalcaoDemoBot?start=...`; open it on the phone where
+  the operator's Telegram is, within fifteen minutes, and tap Start (or
+  Restart). The bot answers in that chat: `Este chat está ligado ao Balcão:
+  os alertas do operador chegam aqui.` Any other answer, or none, is read
+  with the "what is linked" line below, never by the answer alone:
+  - `linked_at` set a moment ago: the chat is linked, and the answer was
+    lost or came twice (a link read again after it was made answers with
+    the agreement's ask or the greeting, since its token is spent);
+  - no `linked_at`, or an old one: the link was spent by someone else or
+    expired; run the command again, which also replaces any link still
+    pending;
+  - the limit's line (`limite da demo por agora` or `por hoje`), or nothing:
+    the operator's own Telegram account is over FR-14's per-visitor limits
+    (10 messages a minute, 40 a day), which the link counts in; wait a
+    minute, or the next day, and run the command again.
+  The link is a secret for its fifteen minutes; paste it nowhere else.
+  What is linked: the same line with
+  `'p OperatorChat.current.slice(:linked_at, :language, :link_expires_at)'`.
+  Linking sends again the alert the budget calls for now (the month at its
+  cap, or a pause of the closed gate's still on), if it failed because no
+  chat was linked or the linked one could not be read. A test of the whole path, which sends a fixed
+  line to the chat and prints what became of it: `'p OperatorAlert.test!.slice(:status, :error, :next_attempt_at)'`;
+  `sent` arrived, `failed` names why in `error`, and `pending` with an
+  `error` and a `next_attempt_at` failed on the way and is tried again by
+  then. Unlinking, which also revokes a link still pending:
+  `'p OperatorChat.unlink!'`.
+- **The budget's alerts** (FR-14, from M3-1): when the month reaches its cap
+  the bot sends the linked chat one line naming the month, the cap and the
+  spend, once a month and cap (a cap raised and reached again sends
+  another); while ADR-0003's gate is closed it also sends one when the
+  month's economy pauses the demo until the month ends (once a month and
+  cap) and when the day's slice pauses it until midnight (once a day). No
+  alert names a visitor or a conversation. Each is tried three times; one
+  that cannot leave writes an error line, `operator alert <id> (<kind>): not
+  sent, <why>`, where why is `no operator chat is linked`, `Telegram refused
+  it (403)` (the bot was blocked in that chat) or the way there failing at
+  each attempt. The alerts: `'p OperatorAlert.order(:created_at).last(5).map { |a| a.slice(:kind, :key, :status, :error, :sent_at) }'`.
 - **The nightly job** runs at 03:00 São Paulo in the `job` container and
   writes one line, `nightly reset: expired N reservations, reset N
   products; deleted ...`. To run it by hand (it is safe to run again):

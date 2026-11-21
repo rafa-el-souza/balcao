@@ -15,7 +15,12 @@ module Telegram
   #    identity sha256(pepper || user id) (SR-10), whatever its kind and before
   #    the agreement too; past a limit nothing is read or stored, and the
   #    limit's own line goes at most once a minute.
-  # 4. Agreement first (the owner, 2026-11-14): a person the bot holds no row
+  # 4. The operator's link (threat model SR-35, ADR-0022): "/start <token>"
+  #    from the deep link the runbook's command minted links the chat that
+  #    sends it as the operator's (OperatorChat), answered with the link's
+  #    fixed line; nothing of the person is stored as a visitor. Any other
+  #    token is a /start like any other, read below.
+  # 5. Agreement first (the owner, 2026-11-14): a person the bot holds no row
   #    of gets the ask, whatever they sent, /start first of all; nothing of
   #    them is stored and no model is called. /help and the delete command
   #    answer as always. One of the agreement's phrases, typed or sent by the
@@ -23,15 +28,15 @@ module Telegram
   #    chat id a reply needs, encrypted (SR-41), and its first conversation in
   #    the language of the person's app; the greeting answers it, stored as
   #    the conversation's first reply, the notice having come with the ask.
-  # 5. A visitor's text is a turn like the web chat's (Intake, ProcessTurnJob),
+  # 6. A visitor's text is a turn like the web chat's (Intake, ProcessTurnJob),
   #    keyed by the visitor and Telegram's message id (NFR-02, SR-07); a text
   #    over 1,000 characters and anything that is not text get a fixed line,
   #    and no file is fetched and no caption read.
   #
   # The outcome names the reply that is not stored, which TelegramUpdateJob
   # sends to the chat of the update it reads (Telegram::Outbound): the ask,
-  # /help and the deletion before the agreement, the limit's line and the
-  # fixed lines. A stored reply, the agreement's greeting, is sent by its
+  # /help and the deletion before the agreement, the limit's line, the link's
+  # line and the fixed lines. A stored reply, the agreement's greeting, is sent by its
   # status, whatever read it (review finding T5 of pull request #32).
   class Inbound
     Outcome = Data.define(:name, :status, :reply, :language) do
@@ -63,6 +68,10 @@ module Telegram
     ].freeze
     MAX_TEXT = 1_000
     LIMITS = %w[visitor/minute visitor/day].freeze
+    # What the operator's deep link sends: /start, with the bot's username or
+    # without, and a token of OperatorChat's alphabet and length, read as
+    # written (OperatorChat::TOKEN).
+    LINK = %r{\A/start(?:@#{Telegram::Bot::USERNAME})? ([A-Za-z0-9_-]{43})\z}i
 
     def self.identity_of(user_id) = Digest::SHA256.hexdigest("#{Rails.configuration.x.identity_pepper}#{user_id}")
 
@@ -94,6 +103,9 @@ module Telegram
 
       limited = limit
       return limited if limited
+
+      linked = link
+      return linked if linked
 
       visitor = Visitor.find_by(channel: "telegram", identity_hash: identity)
       visitor && seen(visitor) ? known(visitor, event) : unknown(event)
@@ -139,6 +151,15 @@ module Telegram
     def known_language
       visitor = Visitor.find_by(channel: "telegram", identity_hash: identity) or return nil
       visitor.conversations.current.pick(:language)
+    end
+
+    # --- SR-35 ----------------------------------------------------------------
+
+    def link
+      token = text&.match(LINK)&.captures&.first or return nil
+      return nil unless OperatorChat.link!(token, chat_id: sender_id, language: app_language)
+
+      reply(:linked, FixedReply.operator_linked(app_language), app_language)
     end
 
     # --- Before the agreement -------------------------------------------------

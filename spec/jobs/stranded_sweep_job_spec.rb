@@ -39,7 +39,7 @@ RSpec.describe "NFR-03 StrandedSweepJob, nothing left without an answer" do
       sweep
 
       expect(enqueued(ProcessTurnJob)).to eq([ [ stale.id ] ])
-      expect(lines).to eq([ "sweep: taken up again 0 updates, 1 conversations, 0 visitors' replies" ])
+      expect(lines).to eq([ "sweep: taken up again 0 updates, 1 conversations, 0 visitors' replies, 0 operator alerts" ])
     end
 
     it "is taken up by one job a conversation, its latest turn's, which answers the earlier ones first (design §6.3)" do
@@ -104,7 +104,7 @@ RSpec.describe "NFR-03 StrandedSweepJob, nothing left without an answer" do
       sweep
 
       expect(enqueued(TelegramUpdateJob)).to eq([ [ latest.id ] ])
-      expect(lines).to eq([ "sweep: taken up again 1 updates, 0 conversations, 0 visitors' replies" ])
+      expect(lines).to eq([ "sweep: taken up again 1 updates, 0 conversations, 0 visitors' replies, 0 operator alerts" ])
     end
 
     it "is read again by a job of its own when it names no person (an update the bot drops)" do
@@ -190,7 +190,40 @@ RSpec.describe "NFR-03 StrandedSweepJob, nothing left without an answer" do
     end
   end
 
-  it "goes on to the rest when one of its three looks breaks, with a line naming it by the error's class" do
+  # FR-14's alert at the cap and the runbook's test alert (threat model
+  # SR-35): an alert left pending past its time (a job whose enqueue failed,
+  # a worker that died while it sent) is sent again by its job, whose claim
+  # and three attempts decide (OperatorAlert).
+  describe "an operator alert left pending" do
+    def alert(key, at:, **attributes)
+      travel_to(at) { OperatorAlert.record!(kind: "budget_cap", key:, text: "Balcão: o teto.").tap { |row| row.update!(attributes) if attributes.any? } }
+    end
+
+    it "is sent again once stopped for more than five minutes and due, and not before" do
+      stale = alert("2026-11:10.0", at: 6.minutes.ago)
+      alert("2026-11:20.0", at: 4.minutes.ago)
+      alert("2026-11:30.0", at: 6.minutes.ago, next_attempt_at: 1.minute.from_now)
+      alert("2026-11:40.0", at: 6.minutes.ago, status: "sent")
+
+      sweep
+
+      expect(enqueued(OperatorAlertJob)).to eq([ [ stale.id ] ])
+      expect(lines).to eq([ "sweep: taken up again 0 updates, 0 conversations, 0 visitors' replies, 1 operator alerts" ])
+    end
+
+    it "leaves for the chat when the job the sweep took it up with runs" do
+      OperatorChat.link!(OperatorChat.link_url![/\?start=(.+)\z/, 1], chat_id: 734_120_042, language: "pt-BR")
+      stale = alert("2026-11:10.0", at: 6.minutes.ago)
+
+      sweep
+      perform_enqueued_jobs(only: OperatorAlertJob)
+
+      expect(stale.reload.status).to eq("sent")
+      expect(sent.sole["chat_id"]).to eq(734_120_042)
+    end
+  end
+
+  it "goes on to the rest when one of its four looks breaks, with a line naming it by the error's class" do
     errors = []
     allow(Rails.logger).to receive(:error) { |line| errors << line }
     allow(WebhookEvent).to receive(:received).and_raise(ActiveRecord::StatementInvalid, "relation does not exist")

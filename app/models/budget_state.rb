@@ -1,4 +1,5 @@
-# The month's spend and mode (FR-14, ADR-0003). Modes beyond the pause arrive at M3.
+# The month's spend and mode, and the day's spend beside them (FR-14, ADR-0003,
+# ADR-0012; Budget).
 class BudgetState < ApplicationRecord
   MODES = { normal: "normal", economy: "economy", paused: "paused" }.freeze
 
