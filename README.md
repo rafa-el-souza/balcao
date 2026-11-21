@@ -85,8 +85,8 @@ whose opening comment says what it does and why.
    [`config/prices.yml`](config/prices.yml), moves new turns to the cheaper
    model once the month passes 70 % of its cap or the day its slice, and
    pauses the demo with a fixed reply once the month's spend reaches its
-   cap, before any further model call, telling the operator through the
-   bot; the glass box shows each call's cost in dollars and reais.
+   cap, before any further model call, telling the operator (the person
+   who runs the demo) through the bot; the glass box shows each call's cost in dollars and reais.
 8. **It runs on one small VM.** [`config/deploy.yml`](config/deploy.yml) says
    what runs there, the [`Dockerfile`](Dockerfile) builds it and
    [`ops/cloud-init.yml`](ops/cloud-init.yml) sets up the host.
@@ -206,6 +206,8 @@ Read, in this order:
    public endpoint and what stops it.
 4. [`evals/`](evals/README.md) — the executable specification of the
    conversation, and the [scorecard](evals/scorecard.md).
+5. [`docs/runbook.md`](docs/runbook.md) — how the hosts are made, deployed
+   and run, the operator's checklists among them.
 
 Every requirement identifier (FR-07, SR-16, …) is cited by the tests, CI
 steps or runbook checks that cover it (`docs/traceability.md`, generated
@@ -318,14 +320,15 @@ cheaper model, and tells an external monitor whether the answer came in
 time, or whether the visitors' own recent turns all failed; beside it, a
 look at the bot's webhook tells the monitor when Telegram fails to
 deliver. The monitor also e-mails when either goes silent.
-Then a turn's hard edge: every model call and tool of a turn fits in its
-sixty seconds, a call the edge cuts is charged as the provider bills it,
+Then a hard deadline for each turn: every model call and tool of a turn
+fits in its sixty seconds, a call the edge cuts is charged as the provider bills it,
 and the app reaches its database as a role that reads and writes rows and
-nothing else. Then CI's furniture: the fast evals replayed from their
-recordings with no key, and a gate of accessibility and size over the four
+nothing else. Then the last pieces of CI: the fast evals replayed from
+their recordings with no key, and a gate of accessibility and size over the four
 public pages. Then the runbook was completed for the move to production:
 the operator's checklist, roll back, the rotations of every secret, the
-rehearsal hosts and the cut itself, with each container limited in memory
+throwaway hosts a deploy is rehearsed on, and the move to production
+itself, with each container limited in memory
 and CPU, the visitor cookie made one that only the demo's own host can
 set, and the fictional pharmacy renamed Farmácia Copaíba, after a check
 found its old name on a real company and on a stranger's Telegram bot.
@@ -335,9 +338,10 @@ its content, not its place in the order;
 [ADR-0022](docs/adr/0022-what-publishing-the-demo-needs-first-the-showcase-after.md)
 says why):
 
-- **First, what publishing the demo needs:** the rehearsal hosts' own
-  mode, and production on a host of its own (until then the demo runs on
-  the rehearsal host). The demo is publicised the day it moves there.
+- **First, what publishing the demo needs:** a mode of their own for the
+  throwaway hosts a deploy is rehearsed on, and production on a host of
+  its own (until then the demo runs on its first host, deployed from the
+  development account). The demo is publicised the day it moves there.
 - **Then the showcase:** voice notes; service bookings and their calendar;
   the operator's console and a conversation handed over to a person; the
   status page; three example traces kept as files, a count of where

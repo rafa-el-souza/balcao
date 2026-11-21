@@ -31,6 +31,31 @@ from M3, deploys production and holds its secrets, and the development
 account can neither read nor enter it (SR-37). "Both accounts" means these
 two.
 
+**Reading this file.** Labels such as M3-6, PR-16 or M2-10 name the slice,
+one pull request, of design §9's plan that brought a piece or will bring
+it; `#64` is a pull request, and a letter and a number after it (H1, R4)
+one finding of its review. SR-, FR- and NFR- identifiers are requirements
+(the threat model, design §4), and R and T ones the threat model's
+accepted risks and threats. The **operator** is whoever runs the demo: the
+owner, or someone covering for him. The **MVP host** is the MVP's one
+host, the `ensaio` destination at the demo's name until the cut; **the
+session** is the coding session in the development account.
+
+**What the commands need.** They run from a checkout of this repository in
+the deploying account, with that account's env file for the destination
+(its place is the account's own, never written in the repository), its SSH
+key and ssh config, the provider's CLI logged in to the account's cloud
+project, and `gh` logged in to GitHub. The outside consoles (the model's,
+the monitor's, the cloud provider's, Cloudflare's, and the Telegram account
+that owns the bot) are the owner's, and the monitor's e-mails reach him;
+without them, someone covering can still pause the demo (The budget, below)
+and call him.
+
+**Has the cut happened?** It has when `dig +short balcao.rafasouza.dev.br`
+answers another address than the reserved IP's (`hcloud primary-ip list`
+in the rehearsal project) and `dig +short ensaio.rafasouza.dev.br` answers
+the reserved IP's.
+
 **Production's commands.** The Kamal commands below are written for the MVP
 host, with `-d ensaio`. From the cut, production's are the same commands
 without `-d ensaio`, run by the operator from the operator account's
@@ -84,7 +109,10 @@ from M3.
   Thruster, a small HTTP proxy in the same container that compresses
   answers and caches static files) and the `job` container (Solid Queue,
   the job queue kept in the database, which runs the turns, the canary and
-  the nightly job), both as uid 1000 on a read-only root filesystem with
+  the nightly job: a turn is a visitor's message and the reply it gets, a
+  visitor a person the demo talks to, known by a cookie on the web or by a
+  Telegram account, and the canary a visitor's question the app asks itself
+  every ten minutes, Monitoring below), both as uid 1000 on a read-only root filesystem with
   `tmp/` and `/tmp` in memory; Postgres as the accessory `balcao-db` on the
   Kamal network with no published port, its data in `~/balcao-db/data` on
   the host. Each container has a memory and a CPU limit (`config/deploy.yml`,
@@ -120,8 +148,8 @@ from M3.
    `errors: []`, with only deprecation notices under `recoverable_errors`.
 5. Run the host checklist.
 6. Deploy (next section). `bin/deploy` puts the pinned kamal-proxy on the
-   host by its digest before the first `kamal setup` boots it, so the
-   registry is never asked what the tag means.
+   host by its digest before the first `kamal setup` boots it, so Docker
+   Hub is never asked what the tag means.
 
 ## Host checklist (SR-24)
 
@@ -288,7 +316,7 @@ Only a green `main` is deployed to the MVP host.
 
 ## The operator account (from M3, once; SR-37)
 
-Production is deployed only by a person, from a separate operating-system
+Production is deployed only by the owner, from a separate operating-system
 account on the owner's workstation, the **operator account**, which holds
 production's secrets. The development account, where the code is written
 and where the coding agent runs (threat model T8), can neither read nor
@@ -383,7 +411,11 @@ start-up file.
    ```
 
    The second lists `.kamal/secrets` and `.kamal/secrets.ensaio` and
-   nothing else. Anything unexpected in either stops the deploy. The first
+   nothing else. Anything unexpected in either stops the deploy: in
+   `.kamal/secrets` a line other than `NAME=$NAME` (a `$(...)` there would
+   run a command), in `config/deploy.yml` a new host, template tag or
+   secret, in the `Dockerfile` a new `RUN`, `ARG` or base image, in the
+   lockfile a package no pull request named. The first
    deploy has no `.last-deployed-sha`: read those files whole at
    `origin/main` instead.
 3. `git merge --ff-only origin/main`; `git status --porcelain` then prints
@@ -408,7 +440,9 @@ start-up file.
    fresh host `kamal setup`, which boots the database accessory first.
 6. `kamal registry remove`, whether the deploy passed or not, and then
    `docker ps -a --filter name=kamal-docker-registry` lists nothing (End
-   of a deploy session, below). Production never uses `-P`.
+   of a deploy session, below). Production never uses `-P` (`--skip-push`,
+   which deploys an image already there instead of building this
+   checkout).
 7. The smoke of the MVP deploy flow, step 4, on production's commands.
 8. `git rev-parse HEAD > .last-deployed-sha` (the file is gitignored);
    `kamal audit` on the host keeps the same record.
@@ -422,7 +456,9 @@ env file loaded now and stops the one running: no build, no registry,
 the version being the commit's SHA. In production the operator runs it
 without `-d ensaio` and writes that SHA into `.last-deployed-sha`.
 
-- Read first which migrations came after that version:
+- Read first which migrations came after that version (a migration, a
+  file in `db/migrate`, changes the database's tables; the web container
+  runs the new ones at its boot):
   `git log --oneline <version>..HEAD -- db/migrate`. A rollback runs the
   old code on the new schema and never runs a migration back. A table or a
   column added is read by no old code and is safe; a changed format is not
@@ -446,8 +482,8 @@ proxy. On the MVP host:
    first `Digest:`); once it is merged, the MVP deploy flow above deploys
    that `main`, and `bin/deploy` puts the new release's image on the host
    by that digest, under its tag, before `kamal setup`.
-2. Measure before, from the workstation, what the swap is for (the checks
-   of step 4), so the difference is seen.
+2. Measure before, from the workstation, what the swap is for (this
+   section's step 4), so the difference is seen.
 3. `kamal proxy reboot -d ensaio`, with the destination's env file loaded
    as for a deploy. It asks for confirmation, then stops and removes the
    proxy container and runs the pinned tag, which the host already holds:
@@ -589,7 +625,8 @@ this order; *owner* marks the steps that are the owner's alone.
 1. *Owner:* the operator account and production's env file (above), with
    a production model key whose spend limit sits just below the cap, the
    two heartbeat URLs (the demo's, which leave the rehearsal env file the
-   same day: the boot refuses either off the public name; until step 9
+   same day: the boot refuses either off the public name; the MVP host,
+   booted with them, goes on telling them until step 9
    both hosts tell them), and two values rotated for production alone,
    right before step 4: a new bot token (BotFather's `/token` on the demo's
    bot; the MVP host's token stops at once, so the bot is silent until step
@@ -883,7 +920,9 @@ the env file loaded in the same call.
   set): BotFather's `/token` makes a new one and the old one stops working;
   paste it into the env file, `bin/deploy -d ensaio`, then the task, which
   registers the webhook again with the secret (SR-06). Until the deploy, the
-  bot sends nothing.
+  bot sends nothing: Telegram refuses each reply tried with the old token,
+  which is marked `failed` and never sent again, so a person who wrote
+  meanwhile gets no answer to it.
 - **A reply that did not leave** is marked `failed` on its message, and the
   log has one `telegram reply <id>: failed after N attempts` line naming the
   error by its class and Telegram's code (a 403 is a visitor who blocked the
@@ -1019,15 +1058,20 @@ gives; this section only puts them in the order of a bad day.
    containers are there, with `kamal app details -d ensaio` and
    `kamal proxy details -d ensaio` (the destination's env file loaded, as
    for a deploy). When SSH does not answer either, the host itself is down,
-   and the cloud provider's console says whether the server runs.
+   and the cloud provider's console says whether the server runs: a server
+   stopped is started there; one that is gone or broken is made again from
+   `ops/cloud-init.yml` (Creating the MVP host; from the cut, production as
+   the cut's step 2 made it) and deployed whole, with a fresh database
+   (SR-26: no backup).
 3. An answer that is an error (the proxy is up and the app behind it is
    not): read `kamal app logs -d ensaio`,
    `kamal proxy logs -d ensaio` and `kamal accessory logs db -d ensaio`
    (deploy flow, step 6). An error is logged by its class, never its message
    (SR-30).
 4. The way forward is a new deploy of a green `main` (the deploy flow from
-   its first step), fixed first when the logs name a fault of the code;
-   then the smoke, whole.
+   its first step), fixed first when the logs name a fault of the code; or,
+   when the trouble began with the last deploy, a roll back to the version
+   before it (Rolling back, above), then the fix. Then the smoke, whole.
 5. The proxy is swapped only when its release is the cause ("Swapping the
    proxy's release", above).
 
@@ -1076,7 +1120,7 @@ kamal app logs -d ensaio --roles=job --since 1h | grep -E 'canary:|telegram watc
   header the API no longer takes, `NotFoundError` a model gone,
   `RateLimitError` that model's limits spent. The provider's status page
   and the dev/eval key's console say which; a forced economy
-  (`Budget.force!("economy")`, The budget, above) serves visitors on the
+  (`Budget.force!(:economy)`, The budget, above) serves visitors on the
   canary's route meanwhile, when ADR-0003's gate allows it (#64's H1).
 - **`canary: failed: the reply took … ms from the run's time, over
   20000`** or **`the run started … s after its time`**: the queue, the
