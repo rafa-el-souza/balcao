@@ -2518,7 +2518,11 @@ a reservation (M2-4; the note below).
     migrations made, sending the database's SCRAM hash of the password and
     never the password; then the entrypoint takes the owner's password out
     of the environment of the command it starts, the job container's
-    `bin/jobs` and a runbook's `kamal app exec` included. Kamal still
+    `bin/jobs` and a command the runbook runs in a new container included.
+    Each app container's configuration keeps it, which an exec with
+    `--reuse` (a `docker exec` into the running container) hands to its
+    command, where a process of the app's user could read it, so the
+    runbook runs every command in a new container (#65's C2 and A1). Kamal still
     injects `POSTGRES_PASSWORD` into both roles, so an image from before
     M3-4, which connects as the owner, boots on a rollback. Rehearsed on
     2026-11-21 in production mode against the accessory's image (Postgres
