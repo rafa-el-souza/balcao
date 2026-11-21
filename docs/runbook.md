@@ -335,6 +335,10 @@ never from the development account, which has no sudo:
    the two accounts never share a port).
 3. Ruby at the version `.tool-versions` names and the pinned Kamal:
    `gem install kamal -v 2.12.0`, then `kamal version` prints `2.12.0`.
+   No file of the clone may choose or configure them: if mise manages
+   Ruby, the clone is never trusted in it (`mise trust` is never run there,
+   and when mise asks to trust a configuration of the clone the answer is
+   no and the deploy stops).
    Never `bundle install` in the checkout, and never `bin/setup` there:
    `bin/setup` turns on the repository's hooks, which would then run
    repository code in this account at every commit (#1's review, SR-38).
@@ -406,10 +410,13 @@ start-up file.
 2. The deploy-path review: the diff, between what runs and what will run,
    of the files whose content Kamal and the image build read in this
    account. Kamal evaluates `config/deploy.yml` as a template and reads
-   `.kamal/secrets`, which can run commands; the build reads the rest.
+   `.kamal/secrets`, which can run commands; the build reads the rest; and
+   mise, the tool that picks Ruby's version, reads `.tool-versions` and its
+   own configuration files (the `mise` patterns), which can run commands
+   too.
 
    ```
-   git diff "$(cat .last-deployed-sha)" origin/main -- config/deploy.yml .kamal/ Dockerfile .dockerignore web/package.json web/package-lock.json .tool-versions
+   git diff "$(cat .last-deployed-sha)" origin/main -- config/deploy.yml .kamal/ Dockerfile .dockerignore web/package.json web/package-lock.json .tool-versions ':(glob)**/mise.*' ':(glob)**/.mise.*' ':(glob)**/mise/**' ':(glob)**/.mise/**' ':(glob)**/.config/mise*' ':(glob)**/.config/mise/**'
    git ls-tree --name-only origin/main .kamal/
    ```
 

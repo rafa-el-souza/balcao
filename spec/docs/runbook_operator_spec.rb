@@ -36,4 +36,17 @@ RSpec.describe "SR-37 SR-38 the operator's account and checklist in the runbook"
     expect(prune).not_to be_nil
     expect(prune).to be > removal
   end
+
+  # Review finding C2: the review's diff named `.tool-versions` but none of
+  # mise's configuration files, which SR-38 names and which can run code in
+  # the operator account when mise reads the clone.
+  it "reviews every file of the deploy path SR-38 names, mise's configuration files among them" do
+    diff = checklist[/^ *git diff "\$\(cat \.last-deployed-sha\)" origin\/main -- (.+)$/, 1]
+
+    expect(diff).not_to be_nil
+    expect(diff.split).to include("config/deploy.yml", ".kamal/", "Dockerfile", ".dockerignore", "web/package.json",
+                                  "web/package-lock.json", ".tool-versions", "':(glob)**/mise.*'", "':(glob)**/.mise.*'",
+                                  "':(glob)**/mise/**'", "':(glob)**/.mise/**'", "':(glob)**/.config/mise*'",
+                                  "':(glob)**/.config/mise/**'")
+  end
 end
