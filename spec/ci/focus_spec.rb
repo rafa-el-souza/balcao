@@ -11,7 +11,9 @@ RSpec.describe "NFR-08 a committed focus cannot shrink the suite in CI" do
         end
       RUBY
 
-      output, status = Open3.capture2e({ "CI" => "true" }, "bundle", "exec", "rspec", dir, chdir: Rails.root.to_s)
+      # The probe's run measures no coverage: CI's whole run does (.simplecov),
+      # and a run of two examples would fall below its threshold.
+      output, status = Open3.capture2e({ "CI" => "true", "COVERAGE" => nil }, "bundle", "exec", "rspec", dir, chdir: Rails.root.to_s)
 
       expect(status).to be_success, output
       expect(output).to include("2 examples, 0 failures")
