@@ -5,13 +5,19 @@ require_relative "runner"
 # bin/evals --recorded (evals/README.md, Running): each selected case once,
 # through the app's own pipeline (Evals::Pipeline) on the normal route, with
 # its recording in the model's place (Evals::Recording): no key, no network,
-# no judge. The run happens at the recording's time, so what the system adds
-# by the clock reads as it read then. A case fails when its recording is
-# missing or stale, when the run asks the model for more or fewer answers
-# than the recording holds, when the API or the harness broke the run as a
-# live run would count it (Runner#broken), when a rule check fails, and when
-# its rubric's verdict was recorded for another reply or fails. Every case
-# runs once: a replay is the same each time, so a retry would say nothing.
+# no judge. The run happens at one instant, the recorded attempt's start, so
+# its date is the recording's; every turn of the case runs at that instant,
+# while the recording's turns ran seconds apart, so what the app computes from
+# the clock (a time line, a reservation's deadline) can differ from the
+# recording's across a boundary: the requests' digests set those values aside
+# (Recording::VOLATILE), and no check reads them (the review of #66, C5 and
+# V2). A case fails when its recording is missing or stale, when the app sends
+# another request than the recording's, when the run asks the model for more
+# or fewer answers than the recording holds, when the API or the harness
+# broke the run as a live run would count it (Runner#broken), when a rule
+# check fails, and when its rubric's verdict was recorded for another reply
+# or fails. Every case runs once: a replay is the same each time, so a retry
+# would say nothing.
 module Evals
   class Replay
     include ActiveSupport::Testing::TimeHelpers
