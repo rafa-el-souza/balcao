@@ -248,37 +248,49 @@ are in the seed.
   (`--fast` implied), which replays the recordings under
   `evals/recordings/` for the cases marked `fast: true` of a delivered
   milestone or suite, with no key and no judge (threat model SR-29). Each
-  case runs once through the app's own pipeline on the normal route, at
-  the recording's time, the fake model (`app/agent/fake_model.rb`)
+  case runs once through the app's own pipeline on the normal route, every
+  turn at the attempt's start, the fake model (`app/agent/fake_model.rb`)
   answering each model call, FR-20's check's among them, with the
   recorded answer in order. A case fails when its recording is missing or
   stale, naming what changed (the system prompt, the tools, the history,
   FR-20's check, the normal route's model or effort, or the case's
-  messages, which an opener's text is, and its seed's catalogue, whose
-  names, prices and stock the tools' results carry), when the run asks for more or
-  fewer answers than the recording holds, when the API or the harness
-  broke it as a live run counts it, when a rule check fails, or when its
-  rubric's verdict was recorded for another reply or failed; a recording
-  of no fast case fails the run too. The expectations are graded as they
-  stand: a case's keys change with no new recording, its messages do not.
-  `--recorded --case ID` replays one.
+  messages, which an opener's text is, and its seed's catalogue); when the
+  app sends another request than the one an answer was recorded for,
+  naming the request and the field (so a store sheet's topic that
+  `get_store_info` carries, a tool's own logic or a request's parameter
+  changed also fails it); when the run asks for more or fewer answers
+  than the recording holds; when the API or the harness broke it as a
+  live run counts it; when a rule check fails; or when its rubric's
+  verdict was recorded for another request of the judge's, or failed. A
+  recording of no fast case fails the run too. The expectations are
+  graded as they stand: a case's keys change with no new recording, its
+  messages do not. `--recorded --case ID` replays one.
 - Re-recording is local work: the slice that changes a prompt, a tool
-  definition or its texts, the history, FR-20's check, the normal route or
-  an opener runs `bin/evals --record --fast` (or `--record --case ID` for
-  one) with the dev/eval key from the implementer's env file and commits
-  the recordings in the same pull request. It runs each case live on the
-  normal model under the usual policy and writes its first passing
-  attempt; a case none of whose attempts passed is not recorded, and the
-  run fails. A recording is `evals/recordings/<case id>.json`: the API's
-  answers to the case's model calls in order (`{"status": 200, "headers":
-  {...}, "body": {...}}`, a timeout as `{"timeout": true}` or `"open"`),
-  the digests and route it speaks for, the commit and time it was made at,
-  the sku of each product an answer names by its id (the catalogue's ids
-  are drawn anew in each attempt, so the replay hands the model's call the
-  id the same product has then), and, for a case with a rubric, the
-  judge's verdict with a digest of what the judge read (its prompt and
-  route, the rubric and the reply in its authors' parts). The judge's own
-  calls are never recorded. The nine of 2026-11-21 cost US$ 0.10.
+  definition, its texts or its logic, the history, FR-20's check, the
+  normal route, the store sheet's topics or the catalogue a fast case
+  reads, or an opener runs `bin/evals --record --fast` (or `--record
+  --case ID` for one) with the dev/eval key from the implementer's env
+  file and commits the recordings in the same pull request; CI's replay
+  says which. It runs each case live on the normal model under the usual
+  policy and writes its first passing attempt; a case none of whose
+  attempts passed, or whose passing attempt met an error the fake cannot
+  replay (a broken connection), is not recorded, and the run fails. A
+  recording is `evals/recordings/<case id>.json`: the API's answers to the
+  case's model calls in order (`{"status": 200, "headers": {...}, "body":
+  {...}}`, a body that is not JSON as `"body_text"` with its type, a
+  timeout as `{"timeout": true}` or `"open"`), each with a digest of each
+  field of the request it answered (`"request"`), with what differs from
+  run to run by design set aside before it: a product's id, the history's
+  time lines and a reservation's code, never its deadline; the digests and
+  route it speaks for; the commit it was made at (the recordings, the
+  scorecard and the gate are a run's output and do not make the tree
+  dirty) and its time; the sku of each product an answer names by its id
+  (the catalogue's ids are drawn anew in each attempt, so the replay hands
+  the model's call the id the same product has then); and, for a case
+  with a rubric, the judge's verdict with a digest of the whole request
+  the judge sent (its prompt and route, the rubric, the reply's parts as
+  it renders them, the answer's schema, the token cap). The judge's own
+  calls are never recorded. A recording of the nine costs about US$ 0.08.
 - The full run is local, at each milestone close and on the monthly bump
   day: `bin/evals --all --both-models --scorecard --repeat 3`, with the dev/eval key
   from the implementer's env file. It rewrites `scorecard.md` and writes

@@ -2480,23 +2480,34 @@ a reservation (M2-4; the note below).
     client (#54's notes); the digests ADR-0003's gate reads
     (`PromptDigest`: the prompt, the tools, the history, the check), the
     normal route, a digest of the case's messages and its seed's
-    catalogue, whose names, prices and stock the tools' results carry to
-    the model (the store's sheet is the prompt's); the rubric's
-    verdict with a digest of what the judge read; and the sku of each
-    product an answer names by its id, since the catalogue's seed draws
-    the ids anew in each attempt (the first replay of
-    `reservation-ok-pt-01` failed on it). `bin/evals --recorded` replays
-    each case once, with no key and no judge, at the recording's time, and
-    fails a case whose recording is missing or stale (it names what
-    changed), that asks for more or fewer answers than the recording
-    holds, that the API or the harness broke as a live run counts it,
-    whose rule check fails, or whose verdict was recorded for another
-    reply or failed; a recording of no fast case fails the run. The
-    expectations are graded as they stand, so a case's keys change with no
-    new recording. `store-delivery-es-01` joins the fast subset, so the
-    case of each of the three openers is recorded, as the openers' file
-    said, and a spec holds it (FR-21). The nine were recorded on
-    2026-11-21 for US$ 0.10 and replay in about a second in CI.
+    catalogue; beside each answer, a digest of each field of the request
+    the app sent for it (the system prompt, the tools, the messages, each
+    parameter), with what differs from run to run by design set aside (a
+    product's id, the history's time lines, a reservation's code; its
+    deadline is kept); the rubric's verdict with a digest of the whole
+    request the judge sent; and the sku of each product an answer names by
+    its id, since the catalogue's seed draws the ids anew in each attempt
+    (the first replay of `reservation-ok-pt-01` failed on it). An answer
+    whose body is not JSON (an edge's HTML 503) is kept as text and served
+    as it came, so the replay retries it as production does.
+    `bin/evals --recorded` replays each case once, with no key and no
+    judge, every turn at the attempt's start, and fails a case whose
+    recording is missing or stale (it names what changed), whose app sends
+    another request than the recording's (it names the request and the
+    field), that asks for more or fewer answers than the recording holds,
+    that the API or the harness broke as a live run counts it, whose rule
+    check fails, or whose verdict was recorded for another request of the
+    judge's or failed; a recording of no fast case fails the run. So what
+    the model reads beyond the digests, a store sheet's topic that
+    `get_store_info` carries (the prompt holds only the identity and the
+    hours), a tool's own logic, a request's parameter, also makes a
+    recording stale (#66's review, C1 and C2). The expectations are graded
+    as they stand, so a case's keys change with no new recording.
+    `store-delivery-es-01` joins the fast subset, so the case of each of
+    the three openers is recorded, as the openers' file said, and a spec
+    holds it (FR-21). The nine were recorded on 2026-11-21 for about
+    US$ 0.08 each time (five times in this slice, as the review changed
+    what a recording holds), and replay in about a second in CI.
   - **NFR-10's gate** (`web/e2e/gate.e2e.ts`). Playwright runs axe-core
     (4.14, now a direct dev dependency) over the build served as
     `SpaController` serves it: the four pages in the three languages, at
@@ -2511,9 +2522,14 @@ a reservation (M2-4; the note below).
     the gate would fail every page today. Measured on 2026-11-21: each
     page's first visit is 163 to 166 kB compressed and 464 to 471 kB as
     built. The API's answers and Cloudflare's script are not the build's
-    and are not counted. CI installs Chromium's headless shell at the
-    locked Playwright's revision; the calendar and the status page join at
-    M5 (M5-5).
+    and are not counted, and a file of the first visit the server did not
+    serve, or a page that throws, fails the gate. The pages are drawn with
+    reduced motion, so axe never measures a row fading in. CI installs
+    Chromium's headless shell at the locked Playwright's revision; the
+    calendar and the status page join at M5 (M5-5). Not measured: the text
+    axe cannot decide, which it lists apart from the violations, 14 nodes
+    of the landing and 53 of the trace page, each over a pseudo-element
+    (#66's W1, for the owner's round).
   - **The coverage threshold** (NFR-08). simplecov 1.3 in the test group;
     `.simplecov` holds the line threshold, 95.5 %, CI's whole run's
     98.50 % minus three points (4,146 of 4,209 lines, measured on
@@ -2541,10 +2557,12 @@ a reservation (M2-4; the note below).
     been specs in the suite since day 1 (`spec/deploy/image_spec.rb`,
     `secrets_spec.rb`, `required_environment_spec.rb`, and the hooks
     example of `kamal_config_spec.rb`); they now also run as a CI step of
-    their own before the suite, named by their identifiers.
-    `spec/ci/workflow_spec.rb` holds each step of the furniture and the
-    four jobs' names, which the branch protection requires: every step
-    went into a job that existed, none renamed.
+    their own before the suite, named by their identifiers. A run whose
+    filters select nothing fails (`fail_if_no_examples`), and a dry run of
+    the step's own command must select each secrets file and the hooks
+    example (#66's C3). `spec/ci/workflow_spec.rb` holds each step of the
+    furniture and the four jobs' names, which the branch protection
+    requires: every step went into a job that existed, none renamed.
 
 - Note 2026-11-21 (M3-4, a turn's hard edge and the short log sweep;
   FR-14, FR-17, FR-18, FR-20, NFR-03; threat model SR-01, SR-11, SR-20,
