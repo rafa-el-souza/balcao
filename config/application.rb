@@ -14,6 +14,7 @@ require "action_view/railtie"
 require "action_cable/engine"
 require_relative "../lib/middleware/api_body_limit"
 require_relative "../lib/middleware/response_headers"
+require_relative "required_environment"
 # require "rails/test_unit/railtie"
 
 # Require the gems listed in Gemfile, including any gems
@@ -101,6 +102,12 @@ module Balcao
     # image keeps them at the same path and their hashed assets under
     # public/assets (Dockerfile, design §6.7).
     config.x.spa_shells = Rails.root.join("web/dist/shells")
+
+    # The model the turns ask (design §8, ADR-0011): the real one, or with
+    # MODEL_ADAPTER=fake the recorded one of a rehearsal host, which needs no
+    # key (RecordedModel). Production's boot check takes fake only off the
+    # public name (config/required_environment.rb); development may run it too.
+    config.x.fake_model = Balcao::RequiredEnvironment.fake_model?
 
     # Where a visitor opens the web app, for the links the server writes (the
     # trace link of FR-12), the Origin the API accepts and the cable's allowed

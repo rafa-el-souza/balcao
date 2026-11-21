@@ -92,12 +92,18 @@ class AgentRunner
 
   class DeadlineExceeded < StandardError; end
 
+  # The process's client: the real model's, with its key, or on a rehearsal
+  # host (MODEL_ADAPTER=fake) the recorded model's, with none (RecordedModel;
+  # design §8, ADR-0011).
   def self.default_client
-    @default_client ||= begin
-      api_key = ENV["ANTHROPIC_API_KEY"].presence or raise KeyError, "ANTHROPIC_API_KEY is blank; the real model needs its key (design §8)"
-      Anthropic::Client.new(api_key:, max_retries: MAX_RETRIES)
-    end
+    @default_client ||= Rails.configuration.x.fake_model ? RecordedModel.load.client : real_client
   end
+
+  def self.real_client
+    api_key = ENV["ANTHROPIC_API_KEY"].presence or raise KeyError, "ANTHROPIC_API_KEY is blank; the real model needs its key (design §8)"
+    Anthropic::Client.new(api_key:, max_retries: MAX_RETRIES)
+  end
+  private_class_method :real_client
 
   # The turns that name no client use this one for the block, then the one
   # before it: bin/evals records a case's model calls through it and replays
