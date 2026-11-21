@@ -136,7 +136,12 @@ Only a green `main` is deployed to the MVP host.
    name. Since M3-2 the two heartbeat URLs of the external monitor,
    `MONITOR_URL` and `TELEGRAM_MONITOR_URL`, are held by the monitor's
    console too (Monitoring, below): the boot refuses the public name
-   without them, and a rehearsal host leaves both blank.
+   without them, and a rehearsal host leaves both blank. Since M3-4 the app
+   connects to its databases as its own role, `balcao_app`, with
+   `APP_DATABASE_PASSWORD`, which `bin/secrets-example` generates beside
+   `POSTGRES_PASSWORD`, the owner's (SR-24): the web container's entrypoint
+   makes the role, or sets its password again, at every boot, so a
+   rotation is a new line in the env file and a deploy.
 3. `bin/deploy -d ensaio`. It refuses a dirty working tree, prints
    `kamal version`, puts the pinned kamal-proxy's image on the host by the
    digest written beside its tag, under that tag (SR-27; Docker runs a tag
@@ -202,6 +207,18 @@ Only a green `main` is deployed to the MVP host.
      that day). Since PR-16 the same answer also carries `"mode":"normal"`
      and the rate of the real (`"brl"`), and the reply's spans carry each
      model call's cost (`balcao.cost.usd`).
+   - the app's database role (since M3-4): the web and job containers
+     connect as `balcao_app`, never as the owner, and the web container's
+     log names the role's grants:
+
+     ```
+     kamal accessory exec db -d ensaio --reuse "psql -U balcao -d balcao_production -Atc \"select usename, count(*) from pg_stat_activity where backend_type = 'client backend' group by 1\""
+     kamal app logs -d ensaio --roles=web --since 15m | grep 'db:app_role'
+     ```
+
+     The first lists `balcao_app` with the app's connections, and `balcao`
+     only for the line's own `psql`; the second, `db:app_role: balcao_app
+     granted on 4 databases`.
    - the canary (since M3-2): within ten minutes of the deploy the job's
      log has a line `canary: passed in … ms (mode economy)`, or
      `(mode paused)` while the demo is paused, and five minutes later the
