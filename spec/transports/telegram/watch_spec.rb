@@ -110,6 +110,19 @@ RSpec.describe "FR-19 FR-17 NFR-04 the Telegram delivery watch" do
     end
   end
 
+  # R2 of #64's fix review: with no drain kept (a first run, a cache entry
+  # expired or lost), the updates waiting after an error it told keep the
+  # heartbeat failing, as they do when a drain is kept.
+  it "keeps failing while updates wait after an error it told, with no drain ever kept" do
+    info.merge!("last_error_date" => 9.minutes.ago.to_i, "last_error_message" => "Wrong response from the webhook: 502 Bad Gateway",
+                "pending_update_count" => 2)
+
+    look
+    travel(10.minutes)
+
+    expect(look).to include(a_string_matching(/\A2 updates waiting since a delivery error/))
+  end
+
   it "with nothing told yet, leaves an error older than the watch's interval to the earlier looks" do
     info.merge!("last_error_date" => 20.minutes.ago.to_i, "last_error_message" => "Connection timed out")
 

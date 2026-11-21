@@ -84,7 +84,7 @@ module Telegram
       if error
         words = "a delivery error at #{Time.zone.at(error).utc.iso8601}: #{info["last_error_message"].to_s.first(MAX_WORDS)}"
         if newer?(error, TOLD) then problems << words
-        elsif waiting.positive? && newer?(error, DRAINED) then return problems << "#{waiting} updates waiting since #{words}"
+        elsif waiting.positive? && undrained?(error) then return problems << "#{waiting} updates waiting since #{words}"
         end
       end
       problems << "#{waiting} updates waiting" if waiting >= BACKLOG
@@ -95,6 +95,15 @@ module Telegram
     def newer?(error, key)
       kept = read(key)
       kept.nil? ? error > (Time.current - INTERVAL).to_i : error > kept
+    end
+
+    # Whether the updates have not drained since the error: with no drain
+    # kept (a first run, a cache entry expired or lost), they have not, so
+    # updates waiting after an error the watch told keep it failing (the
+    # fix review's R2 on pull request #64).
+    def undrained?(error)
+      drained = read(DRAINED)
+      drained.nil? || error > drained
     end
 
     def read(key)
