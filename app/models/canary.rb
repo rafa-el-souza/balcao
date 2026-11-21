@@ -71,6 +71,17 @@ class Canary
   # The street of the store's address, as the store sheet writes it (FR-26).
   def self.marker = StoreSheet.current.identity.fetch("address").split(",").first.strip
 
+  # Whether a reply holds the street: its name after its kind ("dos
+  # Boticários" of "Rua dos Boticários"), compared without case, accents,
+  # Unicode's composition or extra spaces, so a reply that writes "R." or
+  # leaves the accent out passes (review finding V4 of pull request #64).
+  def self.marked?(text)
+    name = marker.split(" ", 2).last
+    folded(text).include?(folded(name))
+  end
+
+  def self.folded(text) = I18n.transliterate(text.unicode_normalize(:nfc)).downcase.squish
+
   def initialize(heartbeat: Heartbeat.canary, sleeper: ->(seconds) { sleep(seconds) })
     @heartbeat = heartbeat
     @sleeper = sleeper
@@ -150,7 +161,7 @@ class Canary
     if turn.mode_paused?
       return failed("paused, and the reply is not a pause's text (outcome #{outcome})", turn) unless pause_texts(turn).include?(text)
     else
-      return failed("the reply lacks the marker (outcome #{outcome})", turn) unless text.include?(self.class.marker)
+      return failed("the reply lacks the marker (outcome #{outcome})", turn) unless self.class.marked?(text)
     end
     return failed("the reply took #{took} ms from the run's time, over #{WITHIN.in_milliseconds}", turn, took) if took > WITHIN.in_milliseconds
 

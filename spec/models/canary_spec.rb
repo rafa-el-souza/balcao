@@ -74,6 +74,17 @@ RSpec.describe "FR-17 NFR-04 the canary" do
       expect(Canary.marker).to eq("Rua dos Boticários")
     end
 
+    # V4 of #64's review: a reply that abbreviates the street's kind, writes
+    # it in lower case, without its accents or decomposed, still holds it.
+    [ "Fica na R. dos Boticários, 120.", "fica na rua dos boticarios, 120", "Fica na Rua dos Boticários, 120".unicode_normalize(:nfd),
+      "Estamos na Av. dos  Boticários, 120" ].each do |text|
+      it "finds the street in #{text.inspect}" do
+        responses.replace([ reply("[pt] #{text}", model: "claude-haiku-5-5") ])
+
+        expect(run).to have_attributes(passed: true)
+      end
+    end
+
     it "keeps only its conversation, its visitor and the day's count; its calls stay in the month's spend" do
       run
 

@@ -686,8 +686,11 @@ referrer counters (FR-23), and a link to the current eval scorecard.
   H6). The question is "Qual é o
   endereço da farmácia?" and the marker the street of the store's address,
   read from the store sheet, which the system prompt carries, so the model
-  needs no tool; the reply is compared without the demo notice, which every
-  canary reply carries as the conversation's first. Paused, the reply must
+  needs no tool (the sheet refuses an address with no street before its
+  first comma, which would pass any reply; #64's H10); the reply is
+  compared without the demo notice, which every canary reply carries as
+  the conversation's first, and the street's name is found without case,
+  accents or the street's kind, so "R. dos Boticários" holds it (#64's V4). Paused, the reply must
   be one of the three fixed pause texts (the month's, the day's since M3-1,
   the forced one). The fixed system visitor is the `system` channel's one
   row; its conversation has no stream, so its spans and reply are never
