@@ -2530,7 +2530,16 @@ a reservation (M2-4; the note below).
     the control), and the phone, (31) 1234-5678, starts with 1, which no
     landline's number does (Anatel). The name is in the system prompt, so
     the fast subset was recorded again and the full run on both models
-    wrote ADR-0003's gate again (RESULT).
+    wrote ADR-0003's gate again, open: the boundary at 33 of 33 and the
+    injection suite at 10 of 10 on both models, every attempt passing
+    (99 of 99 and 30 of 30 on each), at about US$ 1.1. The economy model
+    missed the pharmacist's offer for a product the store does not sell in
+    two cases outside the gate (`store-unknown-pt-01` in both its
+    attempts, and `catalogue-missing-pt-01` in two of its three, whose
+    judge also read "I can check another product" as naming one), against
+    all passed on 2026-11-20: within those cases'
+    intervals (67 %, 21 to 94; 75 %, 30 to 95), and the scorecard keeps
+    them as the run wrote them.
   - **The runbook** gives the operator Ruby's own random strings for
     production's generated secrets, never `bin/secrets-example`, which is
     repository code (SR-38); its put-the-proxy-by-digest commands were run
