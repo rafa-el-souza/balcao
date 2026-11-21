@@ -119,6 +119,15 @@ RSpec.describe "FR-19 FR-17 NFR-04 the Telegram delivery watch" do
     expect(beat).not_to have_been_requested
   end
 
+  it "keeps its last look when Telegram does not answer, so an error from before is told at the next look" do
+    cache.write(Telegram::Watch::LOOKED, 10.minutes.ago)
+    stub_request(:post, bot_api_url("getWebhookInfo")).to_return(bot_api_error(502, "Bad Gateway"))
+      .then.to_return(bot_api_answer(info.merge("last_error_date" => 8.minutes.ago.to_i, "last_error_message" => "Read timeout expired")))
+
+    expect(look).to eq([ "getWebhookInfo failed: getWebhookInfo: HTTP 502" ])
+    expect(look).to eq([ "a delivery error at 2026-11-21T12:52:00Z: Read timeout expired" ])
+  end
+
   it "fails the heartbeat when the way to Telegram breaks, naming the failure's class" do
     stub_request(:post, bot_api_url("getWebhookInfo")).to_timeout
 

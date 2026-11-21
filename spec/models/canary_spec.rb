@@ -166,9 +166,16 @@ RSpec.describe "FR-17 NFR-04 the canary" do
 
       result = run
 
-      expect(result).to have_attributes(passed: false, reason: "the turn broke: ActiveRecord::ConnectionFailed")
-      expect(failure.with(body: "canary: the turn broke: ActiveRecord::ConnectionFailed")).to have_been_requested.once
+      expect(result).to have_attributes(passed: false, reason: "the run broke: ActiveRecord::ConnectionFailed")
+      expect(failure.with(body: "canary: the run broke: ActiveRecord::ConnectionFailed")).to have_been_requested.once
       expect(kept(Conversation.sole)).to eq([ 0, 0, 0, 0 ])
+    end
+
+    it "fails when the run breaks before any turn, as when the system visitor cannot be read" do
+      allow(Visitor).to receive(:canary!).and_raise(ActiveRecord::ConnectionFailed, "gone")
+
+      expect(run).to have_attributes(passed: false, reason: "the run broke: ActiveRecord::ConnectionFailed")
+      expect(fake.requests).to be_empty
     end
 
     # AdvisoryLock.try_hold's own spec holds the lock from another session

@@ -60,7 +60,7 @@ class Canary
     end
     held || failed("an earlier run still holds the canary's conversation")
   rescue StandardError => e
-    failed("the turn broke: #{e.class}")
+    failed("the run broke: #{e.class}")
   end
 
   def ask(conversation)

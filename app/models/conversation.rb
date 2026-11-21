@@ -21,8 +21,9 @@ class Conversation < ApplicationRecord
   # Whether a page may follow the conversation's streams: every
   # conversation of a person, and not the system visitor's, which FR-17's
   # canary keeps and which no cookie or trace link reaches, so its replies
-  # and spans are stored and never broadcast (FR-17's null transport).
-  def streamed? = visitor.channel != "system"
+  # and spans are stored and never broadcast (FR-17's null transport). One
+  # whose visitor a deletion took while it was read streams as before.
+  def streamed? = visitor&.channel != "system"
 
   # FR-12: the link to this conversation's trace page, which /trace's reply
   # writes and, on Telegram, a button opens (Telegram::Buttons). The token

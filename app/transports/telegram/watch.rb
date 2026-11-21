@@ -17,9 +17,11 @@ module Telegram
   # - getWebhookInfo refused or unreachable, by Telegram's code or the
   #   failure's class (Client::Error, whose message names no URL, SR-30).
   #
-  # Its last look's time is kept in the cache; with none (a first run, a
-  # cache that lost it or broke), an error counts when it is newer than the
-  # watch's own interval, which the earlier looks would have seen. Telegram's
+  # Its last look's time is kept in the cache, a look that read Telegram's
+  # answer alone, so an error from before a look Telegram did not answer is
+  # told at the next; with none (a first run, a cache that lost it or
+  # broke), an error counts when it is newer than the watch's own interval,
+  # which the earlier looks would have seen. Telegram's
   # words name a delivery failure, never what an update held. On a rehearsal
   # host, with no monitor URL, it looks at nothing (design §8: a bot of its
   # own with no webhook).
@@ -46,11 +48,10 @@ module Telegram
 
       now = Time.current
       problems = begin
-        problems_of(@client.webhook_info, since(now))
+        problems_of(@client.webhook_info, since(now)).tap { remember(now) }
       rescue Client::Error => e
         [ "getWebhookInfo failed: #{e.message}" ]
       end
-      remember(now)
       tell(problems)
       problems
     end
