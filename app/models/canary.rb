@@ -51,10 +51,15 @@ class Canary
   # runs on another route, with its own model and fallback, so a fault of
   # that route alone shows only in their turns. Those that called the model
   # and ended in the last half hour, a few periods of the canary, since the
-  # demo's visitors are few; at least two of them, every one answered with
-  # the fallback, fail the run. Their outcomes alone: no word of theirs.
+  # demo's visitors are few; at least two of them, every one ended by the
+  # model's API failing (model_error), fail the run. A fallback a visitor's
+  # own question causes, a reply cut at the turn's output limit, its tool
+  # calls or its time, is no fault of the route, and anyone could send two
+  # (the fix review's R1). Their outcomes alone: no word of theirs.
   VISITORS = 30.minutes
   VISITORS_AT_LEAST = 2
+  # The latest of them read, enough to see that not every one failed.
+  VISITORS_READ = 50
   # What the history calls a turn whose reply the model's call made or the
   # system wrote in its place after one (Turn::REPLY_KINDS): a pause, a
   # command and a turn's stored reservations called none.
@@ -182,19 +187,20 @@ class Canary
   end
 
   # A run that passed fails when the visitors' turns of the last half hour
-  # that called the model all ended in the fallback, naming how the latest
-  # ended; a read that breaks is the run's failure.
+  # that called the model all ended by the model's API failing, naming how
+  # the latest ended; a read that breaks is the run's failure.
   def with_visitors(result)
     return result unless result.passed
 
     turns = Turn.joins(conversation: :visitor).where.not(visitors: { channel: "system" })
-                .where(reply_kind: MODEL_KINDS, updated_at: VISITORS.ago..)
-    kinds = turns.pluck(:reply_kind)
-    return result if kinds.size < VISITORS_AT_LEAST || kinds.any? { |kind| kind != "fallback" }
+                .where(reply_kind: MODEL_KINDS, updated_at: VISITORS.ago..).order(updated_at: :desc, id: :desc).limit(VISITORS_READ).to_a
+    return result if turns.size < VISITORS_AT_LEAST || turns.any? { |turn| turn.reply_kind != "fallback" }
 
-    latest = outcome_of(turns.order(:updated_at, :id).last)
-    failed("visitors' turns: #{kinds.size} of #{kinds.size} in the last #{VISITORS.in_minutes.to_i} minutes answered with the fallback " \
-           "(outcome #{latest})")
+    outcomes = turns.map { |turn| outcome_of(turn) }
+    return result unless outcomes.all? { |outcome| outcome.start_with?("model_error") }
+
+    failed("visitors' turns: #{turns.size} of #{turns.size} in the last #{VISITORS.in_minutes.to_i} minutes failed at the model's API " \
+           "(outcome #{outcomes.first})")
   rescue StandardError => e
     failed("the visitors' turns not read: #{e.class}")
   end

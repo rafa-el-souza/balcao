@@ -691,10 +691,13 @@ kamal app logs -d ensaio --roles=job --since 1h | grep -E 'canary:|telegram watc
   fault of that model alone fails it while visitors in normal mode, on the
   other route, are still answered (#64's V3).
 - **`canary: failed: visitors' turns: N of N in the last 30 minutes
-  answered with the fallback (outcome …)`**: the canary's own question was
+  failed at the model's API (outcome …)`**: the canary's own question was
   answered, but every visitor turn that called the model in the last half
-  hour got the fallback: the visitors' route failed (normal mode runs
-  another model, with the API's refusal fallback). The outcome names the
+  hour got the fallback because the model's API failed: the visitors'
+  route failed (normal mode runs another model, with the API's refusal
+  fallback). A fallback a visitor's own question causes (a reply cut at
+  its limit, too many tool calls, the turn's time) does not count (#64's
+  fix review, R1). The outcome names the
   latest turn's error by its class: `BadRequestError` a model id or a beta
   header the API no longer takes, `NotFoundError` a model gone,
   `RateLimitError` that model's limits spent. The provider's status page

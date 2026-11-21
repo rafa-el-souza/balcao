@@ -128,6 +128,17 @@ RSpec.describe "FR-17 NFR-04 the canary" do
     end
   end
 
+  # R4 of #64's fix review: a street whose name after its kind is a letter
+  # or a number would be found in any text, the fallback's among them.
+  it "never takes the fallback's text for a street named by one letter or a number" do
+    [ "Rua A", "Rua 7" ].each do |street|
+      allow(Canary).to receive(:marker).and_return(street)
+
+      expect(Canary.marked?(FixedReply.fallback("pt-BR"))).to be(false)
+      expect(Canary.marked?("Fica na #{street.sub("Rua", "R.")}, 10.")).to be(true)
+    end
+  end
+
   describe "paused, it passes on a pause's fixed text, with no model call" do
     let(:responses) { [] }
 
@@ -336,13 +347,13 @@ RSpec.describe "FR-17 NFR-04 the canary" do
       turn.reload
     end
 
-    it "fail the run when the last half hour's turns that called the model all ended in the fallback" do
+    it "fail the run when the last half hour's turns that called the model all failed at the model's API" do
       responses.replace([ refused, refused, reply(answer, model: "claude-haiku-5-5") ])
       2.times { visitor_turn }
 
       result = run
 
-      expect(result).to have_attributes(passed: false, reason: "visitors' turns: 2 of 2 in the last 30 minutes answered with the fallback " \
+      expect(result).to have_attributes(passed: false, reason: "visitors' turns: 2 of 2 in the last 30 minutes failed at the model's API " \
                                                                "(outcome model_error, Anthropic::Errors::BadRequestError)")
       expect(counts).to eq("failed" => 1)
       expect(failure.with(body: "canary: #{result.reason}")).to have_been_requested.once
@@ -361,6 +372,17 @@ RSpec.describe "FR-17 NFR-04 the canary" do
       expect(run).to have_attributes(passed: true)
     end
 
+    # R1 of #64's fix review: a visitor's own question can end a turn in the
+    # fallback (cut at the turn's output limit, its tool calls, its time), so
+    # only a turn the model's API failed counts against the route.
+    it "let the run pass when the visitors' own questions cut the model off, the route healthy" do
+      cut = reply("[pt] Temos dipirona, paracetamol, ibuprofeno", model: "claude-opus-5-5", stop_reason: :max_tokens)
+      responses.replace([ cut, cut, reply(answer, model: "claude-haiku-5-5") ])
+      2.times { visitor_turn }
+
+      expect(run).to have_attributes(passed: true)
+    end
+
     it "leave out a turn older than half an hour and one that called no model" do
       responses.replace([ refused, refused, reply(answer, model: "claude-haiku-5-5") ])
       visitor_turn(at: 40.minutes.ago).update_columns(updated_at: 40.minutes.ago)
@@ -371,6 +393,26 @@ RSpec.describe "FR-17 NFR-04 the canary" do
 
       expect(run).to have_attributes(passed: true)
     end
+  end
+
+  # R3 of #64's fix review: the reply is committed before the turn's root
+  # span is finished with its outcome and the error's class, which the
+  # verdict reads.
+  it "reads the turn's outcome only once its job finished it, whatever the moment the reply is seen" do
+    responses.replace(Array.new(3) { { status: 529, body: { type: "error", error: { type: "overloaded_error", message: "Overloaded" } } } })
+    allow_any_instance_of(TurnProcessor).to receive(:broadcast_reply).and_wrap_original do |original, *args|
+      sleep 1.5
+      original.call(*args)
+    end
+    worker = nil
+    sleeper = lambda do |seconds|
+      worker ||= Thread.new { perform_enqueued_jobs(only: ProcessTurnJob) }
+      sleep(seconds)
+    end
+
+    expect(Canary.new(sleeper:).run.reason).to eq("the reply lacks the marker (outcome model_error, Anthropic::Errors::OverloadedError)")
+  ensure
+    worker&.join
   end
 
   it "asks through a visitor's turn job, ProcessTurnJob, never the turn's processor alone" do

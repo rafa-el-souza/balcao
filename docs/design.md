@@ -699,8 +699,10 @@ referrer counters (FR-23), and a link to the current eval scorecard.
   gate says, since its reply reaches no visitor; and since the visitors'
   normal mode runs on another route, a fault of that route alone shows only
   in their own turns, so a run that passed fails when the visitors' turns
-  of the last half hour that called the model, at least two, all ended in
-  the fallback, read by their outcomes alone (#64's H1). The question's turn runs
+  of the last half hour that called the model, at least two, all ended by
+  the model's API failing, read by their outcomes alone (#64's H1; a
+  fallback a visitor's own question causes does not count, the fix
+  review's R1). The question's turn runs
   in its own `ProcessTurnJob` on the queue, as a visitor's does (the
   conversation's lock, the job's attempts and dead letter), and the run
   waits for the reply, looking every half second (#64's C1). Each run
@@ -2472,8 +2474,11 @@ a reservation (M2-4; the note below).
     its model and the API's refusal fallback, which a run every ten minutes
     on it would cost about US$ 4 a day: so the run also reads the visitors'
     own turns of the last half hour that called the model, by their
-    outcomes alone, and fails when at least two did and every one ended in
-    the fallback, naming the latest's error by its class (#64's H1). A
+    outcomes alone, and fails when at least two did and every one ended by
+    the model's API failing (`model_error`), naming the latest's error by
+    its class (#64's H1); a fallback a visitor's own question causes, a
+    reply cut at its limit, its tool calls or its time, does not count,
+    since anyone could send two (the fix review's R1). A
     fault of the economy route alone, the converse, fails the canary while
     the normal mode's visitors are served (#64's V3, said in the runbook).
   - **The null transport.** The system visitor is the `system` channel's
