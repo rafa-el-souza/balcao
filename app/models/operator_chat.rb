@@ -47,7 +47,10 @@ class OperatorChat < ApplicationRecord
         next false
       end
 
-      row.update!(chat_id: chat_id.to_s, language:, linked_at: at, link_digest: nil, link_expires_at: nil)
+      # Written without reading the chat it replaces, which may not decrypt:
+      # linking again is how such a chat is mended (review finding H5 of pull
+      # request #63; update! decrypted the old value to compare, and raised).
+      row.update_columns(chat_id: chat_id.to_s, language:, linked_at: at, link_digest: nil, link_expires_at: nil, updated_at: at)
       Rails.logger.info("operator chat: linked")
       true
     end
@@ -74,14 +77,18 @@ class OperatorChat < ApplicationRecord
 
   # The chat the alerts go to, nil until one is linked. A chat that does not
   # decrypt (encryption keys other than the row's) is nil too, with a line, as
-  # a visitor's is (Telegram::Chat.of).
+  # a visitor's is (Telegram::Chat.of), and so is a stored value that is no
+  # chat id, named nowhere (review finding H14 of pull request #63); linked?
+  # tells those from a chat never linked (H5).
   def self.chat_id
     id = find_by(role: ROLE)&.chat_id.presence or return nil
-    Integer(id)
+    Integer(id, exception: false).tap { |chat| Rails.logger.error("operator chat: the chat is no chat id") unless chat }
   rescue ActiveRecord::Encryption::Errors::Decryption => e
     Rails.logger.error("operator chat: the chat does not decrypt, #{e.class}")
     nil
   end
+
+  def self.linked? = find_by(role: ROLE)&.linked_at.present?
 
   # The language the alerts are written in: the operator's app's at the link,
   # the default before one.

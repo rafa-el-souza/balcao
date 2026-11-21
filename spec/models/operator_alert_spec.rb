@@ -85,6 +85,40 @@ RSpec.describe "SR-35 FR-14 NFR-02 the operator's alert, sent through the bot" d
       .with("operator chat: linked, but the alerts that failed for want of a chat not sent again, ActiveRecord::StatementInvalid")
   end
 
+  # Review findings H5 and H14 of pull request #63 (teorico; fixed, since
+  # the chat's read is this pull request's own): a linked chat that cannot be
+  # read (other encryption keys, or a stored value that is no chat id) was
+  # told as no chat linked, and a value that is no integer raised with the
+  # value in its message.
+  it "fails as unreadable, not unlinked, when the linked chat does not decrypt, and linking again sends it" do
+    linked!
+    OperatorChat.connection.execute("UPDATE operator_chats SET chat_id = 'not a ciphertext'")
+    row = alert
+
+    row.deliver
+
+    expect(row.reload).to have_attributes(status: "failed", error: "unreadable")
+    expect(Rails.logger).to have_received(:error)
+      .with("operator alert #{row.id} (budget_cap): not sent, the linked chat cannot be read; link it again")
+
+    linked!
+    perform_enqueued_jobs(only: OperatorAlertJob)
+
+    expect(row.reload.status).to eq("sent")
+  end
+
+  it "fails as unreadable a stored chat that is no chat id, and names the value nowhere" do
+    linked!
+    OperatorChat.current.update!(chat_id: "chat-abc")
+    row = alert
+
+    expect { row.deliver }.not_to raise_error
+
+    expect(row.reload).to have_attributes(status: "failed", error: "unreadable")
+    expect(Rails.logger).to have_received(:error).with("operator chat: the chat is no chat id")
+    expect(Rails.logger).not_to have_received(:error).with(/chat-abc/)
+  end
+
   it "fails at once when Telegram refuses it (the operator blocked the bot), with a line of its code alone" do
     linked!
     stub_request(:post, bot_api_url("sendMessage")).to_return(bot_api_error(403, "Forbidden: bot was blocked by the user"))

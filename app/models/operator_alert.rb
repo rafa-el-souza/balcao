@@ -73,12 +73,13 @@ class OperatorAlert < ApplicationRecord
   def self.budget_key(kind, month:, day:, cap:) = "#{kind == "budget_day" ? day.iso8601 : month}:#{cap.to_d.to_s("F")}"
 
   # Review finding H3 of pull request #63: the alerts that failed for want of
-  # a linked chat, sent again once one is linked (OperatorChat.link!): this
+  # a linked chat, or of a linked one that could be read (H5), sent again once
+  # one is linked (OperatorChat.link!): this
   # month's latest of each kind, since an earlier one of its kind was
   # followed by a later one, each set pending as new by a conditional write
   # and enqueued.
   def self.resend_unlinked!(at = Time.current)
-    rows = status_failed.where(error: "unlinked").where(created_at: at.in_time_zone.beginning_of_month..)
+    rows = status_failed.where(error: %w[unlinked unreadable]).where(created_at: at.in_time_zone.beginning_of_month..)
                         .order(:created_at).group_by(&:kind).values.map(&:last)
     rows.each do |row|
       pending = where(id: row.id, status: "failed")
@@ -110,7 +111,7 @@ class OperatorAlert < ApplicationRecord
     return unless claim
     return give_up("its attempts are spent") if attempts > ATTEMPTS
 
-    chat = OperatorChat.chat_id or return give_up("no operator chat is linked", error: "unlinked")
+    chat = OperatorChat.chat_id or return unsendable
     client.send_message(chat_id: chat, text:)
     update!(status: "sent", sent_at: Time.current, next_attempt_at: nil, error: nil)
     Rails.logger.info("operator alert #{id} (#{kind}): sent")
@@ -138,6 +139,14 @@ class OperatorAlert < ApplicationRecord
     wait = error.retry_after || ((attempts**4) + 2)
     update!(next_attempt_at: Time.current + wait, error: cause)
     OperatorAlertJob.set(wait_until: next_attempt_at).perform_later(id)
+  end
+
+  # No chat to send to: none linked, or a linked one that cannot be read, which
+  # linking again mends (review finding H5 of pull request #63).
+  def unsendable
+    return give_up("the linked chat cannot be read; link it again", error: "unreadable") if OperatorChat.linked?
+
+    give_up("no operator chat is linked", error: "unlinked")
   end
 
   def give_up(why, error: why)
