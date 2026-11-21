@@ -130,4 +130,10 @@ RSpec.describe "SR-37 SR-38 the operator's account and checklist in the runbook"
     expect(chmod).to be > account.index("install -m 600 /dev/null <the file>")
     expect(chmod).to be < account.index(">> <the file>")
   end
+
+  # The fix review's R7: an SSH login with a password, on the network the
+  # development VM shares, is a door the agent can knock on.
+  it "puts the operator's VM on a network of its own, its SSH taking keys alone" do
+    expect(account.squish).to include("a virtual network of its own", "`PasswordAuthentication no`")
+  end
 end

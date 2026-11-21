@@ -341,9 +341,12 @@ and V1). Set up once, as root at the VM's own console, never from the
 development account, which has no sudo:
 
 1. The VM and the account, with a password of its own, entered only
-   through a login of its own (the VM's console, or SSH from the host),
-   never with `su` or `sudo` from another account. The account is not in
-   the VM's `docker` group, which is root-equivalent there.
+   through a login of its own (the VM's console, or SSH by key from the
+   host), never with `su` or `sudo` from another account. The VM sits on a
+   virtual network of its own, which the development VM is not on, and its
+   SSH takes keys alone (`PasswordAuthentication no` in its sshd's
+   configuration), so the agent finds no login to try. The account is not
+   in the VM's `docker` group, which is root-equivalent there.
 2. Rootless Docker for the operator account, as the development account
    has it: Docker's rootless setup run as the operator, its user service
    enabled, and `loginctl enable-linger <the operator account>` so that the

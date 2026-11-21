@@ -53,6 +53,9 @@ account lives on a VM of its own on the owner's workstation, which:
 
 - shares no folder with the development VM, has no port forwarded to it
   from the host, and is entered only by its own login;
+- sits on a virtual network of its own, which the development VM is not
+  on, its SSH taking keys alone, so the agent finds no login to try (the
+  fix review of #67, R7);
 - is reached by nothing the development VM controls: the development VM has
   no hand on the hypervisor.
 
