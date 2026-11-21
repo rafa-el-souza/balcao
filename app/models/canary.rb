@@ -62,6 +62,12 @@ class Canary
 
   Result = Data.define(:passed, :reason, :mode, :latency_ms)
 
+  # Where an error broke a run, by the app's frames, which name only code,
+  # as the nightly job's lines do (review finding H8 of pull request #64):
+  # the run keeps no trace and its job no failed execution. Never the
+  # error's message (threat model SR-30).
+  def self.frames(error) = Rails.backtrace_cleaner.clean(Array(error.backtrace)).first(8).join("\n")
+
   # The street of the store's address, as the store sheet writes it (FR-26).
   def self.marker = StoreSheet.current.identity.fetch("address").split(",").first.strip
 
@@ -98,6 +104,7 @@ class Canary
     reply = awaited(turn, due_at + WITHIN)
     judged(turn.reload, reply, due_at).tap { settled(conversation, lock) }
   rescue StandardError => e
+    Rails.logger.error("canary: the run broke: #{e.class}\n#{self.class.frames(e)}")
     failed("the run broke: #{e.class}")
   end
 

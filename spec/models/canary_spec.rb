@@ -245,6 +245,19 @@ RSpec.describe "FR-17 NFR-04 the canary" do
       expect(fake.requests).to be_empty
     end
 
+    # H8 of #64's review: the run keeps no trace, and its job no failed
+    # execution, so the line says where, by the app's frames, as the nightly
+    # job's does; the monitor's text keeps the class alone.
+    it "logs where the run broke by the app's frames, never the error's message" do
+      allow(Visitor).to receive(:canary!).and_raise(NoMethodError, "words of no one")
+
+      run
+
+      expect(Rails.logger).to have_received(:error).with(%r{\Acanary: the run broke: NoMethodError\n.*app/models/canary\.rb:\d+}m)
+      expect(Rails.logger).not_to have_received(:error).with(/words of no one/)
+      expect(failure.with(body: "canary: the run broke: NoMethodError")).to have_been_requested.once
+    end
+
     # AdvisoryLock.free?'s own spec holds the lock from another session
     # (spec/models/conversation_lock_spec.rb); here it is found held.
     it "fails at once, without waiting, while an earlier run's turn still holds the canary's conversation" do
@@ -371,6 +384,6 @@ RSpec.describe "FR-17 NFR-04 the canary" do
     expect { CanaryJob.perform_now }.not_to raise_error
     expect(enqueued_jobs).to be_empty
     expect(failure.with(body: "canary: not run, ActiveRecord::ConnectionFailed")).to have_been_requested.once
-    expect(Rails.logger).to have_received(:error).with("canary: not run, ActiveRecord::ConnectionFailed")
+    expect(Rails.logger).to have_received(:error).with(%r{\Acanary: not run, ActiveRecord::ConnectionFailed\n.*app/jobs/canary_job\.rb:\d+}m)
   end
 end

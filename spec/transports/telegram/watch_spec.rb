@@ -191,7 +191,7 @@ RSpec.describe "FR-19 FR-17 NFR-04 the Telegram delivery watch" do
 
     expect { TelegramWatchJob.perform_now }.not_to raise_error
     expect(failed_with("not looked, ActiveRecord::ConnectionFailed")).to have_been_requested.once
-    expect(Rails.logger).to have_received(:error).with("telegram watch: not looked, ActiveRecord::ConnectionFailed")
+    expect(Rails.logger).to have_received(:error).with(%r{\Atelegram watch: not looked, ActiveRecord::ConnectionFailed\n.*app/jobs/telegram_watch_job\.rb:\d+}m)
   end
 end
 

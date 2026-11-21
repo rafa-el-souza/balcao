@@ -10,7 +10,7 @@ class CanaryJob < ApplicationJob
   def perform
     Canary.new.run(due_at: enqueued_at)
   rescue StandardError => e
-    Rails.logger.error("canary: not run, #{e.class}")
+    Rails.logger.error("canary: not run, #{e.class}\n#{Canary.frames(e)}")
     Heartbeat.canary.failure("canary: not run, #{e.class}")
   end
 end

@@ -8,7 +8,7 @@ class TelegramWatchJob < ApplicationJob
   def perform
     Telegram::Watch.new.call
   rescue StandardError => e
-    Rails.logger.error("telegram watch: not looked, #{e.class}")
+    Rails.logger.error("telegram watch: not looked, #{e.class}\n#{Canary.frames(e)}")
     Heartbeat.telegram.failure("telegram: not looked, #{e.class}")
   end
 end
