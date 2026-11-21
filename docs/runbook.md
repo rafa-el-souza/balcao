@@ -715,12 +715,12 @@ kamal app logs -d ensaio --roles=job --since 1h | grep -E 'canary:|telegram watc
 - **`canary: failed: the run broke: <class>`** or **`canary: not run,
   <class>`**: an error outside the model, named by its class; the
   database first.
-- **`canary: failed: no reply within 20 s, the turn is … (…)`**: the
-  turn's job did not answer in time: `received (not run)` means no worker
-  ran it (all three busy, or the job failing before its turn, the
-  conversation's lock among the causes: `kamal app logs` shows the job's
-  lines); `running` a turn still at work, slow; `failed` with an error's
-  class, a break the job tries again. Visitors' turns wait the same way.
+- **`canary: failed: no reply, the turn is … (…)`**: the visitors' own
+  job did not answer the question: `received (not run)` means the job
+  failed before the turn ran, the conversation's lock among the causes;
+  `failed` with an error's class, a break inside the turn. The job tries it
+  again in its own time, as a visitor's, and finds it deleted; visitors'
+  turns break the same way (`kamal app logs` shows the job's lines).
 - **`canary: failed: an earlier run's turn still holds the canary's
   conversation`**: a canary turn is stuck in its job; the next runs fail
   the same way until it ends. A deploy restarts the job container.

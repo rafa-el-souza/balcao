@@ -1,20 +1,20 @@
 # FR-17: the canary, a scheduled probe of the turn pipeline in the process
 # (CanaryJob, every ten minutes, config/recurring.yml). It asks the
 # attendant a visitor's question, as the fixed system visitor (Visitor.canary!)
-# on its one conversation, through a visitor's turn: its ProcessTurnJob on
-# the queue (the conversation's lock, the job's attempts and dead letter),
-# the budget's gate, AgentRunner on the economy model whatever the month's
-# mode (ADR-0003), FR-20's check and the stored reply, with no transport
-# (the system visitor's conversation has no stream, and its channel no
-# sender). No HTTP: the edge is the external monitor's, on /up (NFR-04).
+# on its one conversation, through a visitor's turn: the visitors' own job,
+# ProcessTurnJob, called in the canary's job (the conversation's lock, the
+# job's attempts), the budget's gate, AgentRunner on the economy model
+# whatever the month's mode (ADR-0003), FR-20's check and the stored reply,
+# with no transport (the system visitor's conversation has no stream, and
+# its channel no sender). No HTTP: the edge is the external monitor's, on
+# /up (NFR-04).
 #
 # A run passes when the reply is stored within 20 seconds of the run's time,
 # its job's enqueueing, the queue's wait included, and holds the marker the
 # question elicits, the street of the store's
 # address, which the system prompt carries (FR-03); or, when the demo is
 # paused, when the reply is one of the pauses' fixed texts: the canary
-# asserts "pipeline alive", not "model answered". It waits for the reply as
-# a visitor's page would, looking every half second. Each run adds one to
+# asserts "pipeline alive", not "model answered". Each run adds one to
 # the day's passed or failed count (DailyAggregate, which FR-13's pipeline
 # uptime reads) and tells the external monitor through its heartbeat
 # (Heartbeat): all is well, or a failure with its reason, which names an
@@ -28,23 +28,20 @@
 # history and the conversation never grows; and it first clears what an
 # earlier run left. It reads the conversation's lock without taking it: a
 # run that finds an earlier run's turn still at work under it fails at once,
-# rather than queue behind a turn that may be stuck, and a turn whose job
-# still holds the lock once the run is judged keeps its rows for the next
-# run to clear (review finding C1 of pull request #64: the canary used to
-# call the turn's processor in its own job, so a fault of the visitors' job,
-# the lock among them, went unseen).
+# rather than queue behind a turn that may be stuck. The turn's job runs in
+# the run's own thread, so the canary holds one of the worker's threads, as
+# a visitor's turn does, and its verdict reads a turn its job finished
+# (review finding C1 of pull request #64: the canary used to call the
+# turn's processor alone, so a fault of the visitors' job, the lock among
+# them, went unseen; the fix review's R3 and the owner, 2026-11-21: a turn
+# run on the queue while the run waited held a second thread, and its
+# reply could be read before its outcome was written).
 class Canary
   # A visitor's question, in Portuguese, the conversation's language, whose
   # answer the system prompt holds, so the model needs no tool.
   QUESTION = "Qual é o endereço da farmácia?".freeze
-  # FR-17's time for the reply, from the question's storage to the reply's.
+  # FR-17's time for the reply, from the run's time to the reply's storage.
   WITHIN = 20.seconds
-  # How often the run looks for the reply while the turn's job works.
-  POLL = 0.5
-  # How long a judged run waits for the turn's job to let go of the
-  # conversation before it deletes the rows: the job stores the reply under
-  # the lock and lets go of it right after.
-  SETTLE = 5.seconds
 
   # The visitors' own turns the run reads (review finding H1 of pull request
   # #64): the canary asks on the economy model, the visitors' normal mode
@@ -94,9 +91,8 @@ class Canary
 
   def self.folded(text) = I18n.transliterate(text.unicode_normalize(:nfc)).downcase.squish
 
-  def initialize(heartbeat: Heartbeat.canary, sleeper: ->(seconds) { sleep(seconds) })
+  def initialize(heartbeat: Heartbeat.canary)
     @heartbeat = heartbeat
-    @sleeper = sleeper
   end
 
   # due_at is when the run was due, its job's enqueueing: a visitor's 20
@@ -123,41 +119,26 @@ class Canary
 
     clear(conversation)
     turn = ask(conversation)
-    reply = awaited(turn, due_at + WITHIN)
-    judged(turn.reload, reply, due_at).tap { settled(conversation, lock) }
+    judged(turn.reload, Message.find_by(turn_id: turn.id), due_at).tap { cleared(conversation) }
   rescue StandardError => e
     Rails.logger.error("canary: the run broke: #{e.class}\n#{self.class.frames(e)}")
     failed("the run broke: #{e.class}")
   end
 
-  # The question, stored as a visitor's message is, and its turn's job on
-  # the queue, as Intake leaves it (FR-17; C1 of #64).
+  # The question, stored as a visitor's message is, and its turn run by the
+  # visitors' own job in this thread (FR-17; C1 of #64, the fix review's
+  # R3). A turn that breaks is left, as a visitor's is, to the job's next
+  # attempt, which finds it deleted and does nothing.
   def ask(conversation)
     message = Message.record_inbound!(conversation:, external_id: "canary-#{SecureRandom.uuid}", body: QUESTION, source: "canary")
-    Turn.for_inbound!(message).tap { |turn| ProcessTurnJob.perform_later(turn.id) }
+    Turn.for_inbound!(message).tap { |turn| ProcessTurnJob.perform_now(turn.id) }
   end
 
-  # The turn's reply once its job stored it, or nil at the deadline.
-  def awaited(turn, deadline)
-    loop do
-      reply = Message.find_by(turn_id: turn.id)
-      return reply if reply
-      return if Time.current >= deadline
-
-      @sleeper.call(POLL)
-    end
-  end
-
-  # The rows go once the turn's job let go of the conversation; a job that
-  # still holds it keeps them, for the next run to clear, and so does a
-  # deletion that breaks, which never replaces the run's verdict (review
-  # finding H11 of pull request #64).
-  def settled(conversation, lock)
-    deadline = Time.current + SETTLE
-    @sleeper.call(POLL) until (free = AdvisoryLock.free?(lock)) || Time.current >= deadline
-    return clear(conversation) if free
-
-    Rails.logger.info("canary: the turn's job still holds the conversation; the next run clears its rows")
+  # The run's rows go after its verdict; a deletion that breaks leaves them
+  # for the next run to clear and never replaces the verdict (review finding
+  # H11 of pull request #64).
+  def cleared(conversation)
+    clear(conversation)
   rescue StandardError => e
     Rails.logger.error("canary: the run's rows not deleted, #{e.class}; the next run clears them")
   end
@@ -169,7 +150,7 @@ class Canary
 
   def judged(turn, reply, due_at)
     outcome = outcome_of(turn).presence || "not run"
-    return failed("no reply within #{WITHIN.to_i} s, the turn is #{turn.state} (#{outcome})", turn) unless reply
+    return failed("no reply, the turn is #{turn.state} (#{outcome})", turn) unless reply
 
     took = ((reply.created_at - due_at) * 1000).round
     text = reply.body_without_notice

@@ -37,19 +37,10 @@ RSpec.describe "FR-17 NFR-04 the canary" do
     allow(Rails.logger).to receive(:error).and_call_original
   end
 
-  # The canary's turn runs in its own ProcessTurnJob, as a visitor's does, in
-  # a worker apart: here the worker runs the jobs on the queue while the run
-  # waits, a failed one kept to itself as Solid Queue keeps it, and each wait
-  # moves the clock by its half second.
-  def worker
-    perform_enqueued_jobs(only: ProcessTurnJob)
-  rescue StandardError
-    nil
-  end
-
-  def waits(work: true) = ->(seconds) { worker if work; travel(seconds, with_usec: true) }
-
-  def run(**) = Canary.new(sleeper: waits).run(**)
+  # The canary's turn runs in the visitors' own job, ProcessTurnJob, called
+  # in the canary's job; a turn that breaks is left to the job's next
+  # attempt, enqueued as a visitor's is.
+  def run(**) = Canary.new.run(**)
 
   def counts = DailyAggregate.where(kind: "canary").to_h { |row| [ row.key, row.count ] }
 
@@ -208,7 +199,6 @@ RSpec.describe "FR-17 NFR-04 the canary" do
     # H6 of #64's review: a visitor's 20 seconds start when the message
     # arrives, before the queue; so do the canary's, when its job was due.
     it "fails when its own job started more than 20 seconds after its time, a queue the visitors' turns hold" do
-      allow(Canary).to receive(:new).and_wrap_original { |original, **kwargs| original.call(**kwargs, sleeper: waits) }
       freeze_time
       CanaryJob.perform_later
       travel(30.seconds)
@@ -231,15 +221,14 @@ RSpec.describe "FR-17 NFR-04 the canary" do
       expect(result).to have_attributes(passed: false, reason: a_string_matching(/\Athe reply took 2\d{4} ms from the run's time, over 20000\z/))
     end
 
-    it "fails when the turn breaks, as a visitor's turn would after its job's three attempts, and keeps nothing of it" do
-      responses.replace(Array.new(3) { reply(answer, model: "claude-haiku-5-5") })
+    it "fails when the turn breaks, leaving it to its job's next attempt as a visitor's, and keeps nothing of it" do
       allow(Guardrail).to receive(:new).and_raise(ActiveRecord::ConnectionFailed, "words of no one")
 
       result = run
 
-      expect(result).to have_attributes(passed: false, reason: "the reply lacks the marker (outcome dead_letter, ActiveRecord::ConnectionFailed)")
-      expect(failure.with(body: "canary: the reply lacks the marker (outcome dead_letter, ActiveRecord::ConnectionFailed)"))
-        .to have_been_requested.once
+      expect(result).to have_attributes(passed: false, reason: "no reply, the turn is failed (ActiveRecord::ConnectionFailed)")
+      expect(failure.with(body: "canary: no reply, the turn is failed (ActiveRecord::ConnectionFailed)")).to have_been_requested.once
+      expect(enqueued_jobs.map { |job| job[:job] }).to include(ProcessTurnJob)
       expect(kept(Conversation.sole)).to eq([ 0, 0, 0, 0 ])
     end
 
@@ -248,16 +237,8 @@ RSpec.describe "FR-17 NFR-04 the canary" do
     it "fails when a visitor's turn cannot run through its job, as when the conversation's lock breaks" do
       allow(ConversationLock).to receive(:hold).and_raise(ActiveRecord::StatementInvalid, "words of no one")
 
-      expect(run).to have_attributes(passed: false, reason: "no reply within 20 s, the turn is received (not run)")
+      expect(run).to have_attributes(passed: false, reason: "no reply, the turn is received (not run)")
       expect(fake.requests).to be_empty
-    end
-
-    it "fails when no worker runs the turn's job within 20 seconds" do
-      result = Canary.new(sleeper: waits(work: false)).run
-
-      expect(result).to have_attributes(passed: false, reason: "no reply within 20 s, the turn is received (not run)")
-      expect(enqueued_jobs.map { |job| job[:job] }).to include(ProcessTurnJob)
-      expect(kept(Conversation.sole)).to eq([ 0, 0, 0, 0 ])
     end
 
     it "fails when the run breaks before any turn, as when the system visitor cannot be read" do
@@ -293,16 +274,6 @@ RSpec.describe "FR-17 NFR-04 the canary" do
       expect(failure.with(body: "canary: an earlier run's turn still holds the canary's conversation")).to have_been_requested.once
     end
 
-    it "leaves the rows of a turn whose job still holds the conversation once judged, for the next run to clear" do
-      conversation = Conversation.current_for!(Visitor.canary!)
-      held = [ true, false ]
-      allow(AdvisoryLock).to receive(:free?).and_call_original
-      allow(AdvisoryLock).to receive(:free?).with("conversation:#{conversation.id}") { held.empty? ? false : held.shift }
-
-      expect(run).to have_attributes(passed: true)
-      expect(conversation.messages.count).to eq(2)
-      expect(Rails.logger).to have_received(:info).with("canary: the turn's job still holds the conversation; the next run clears its rows")
-    end
 
     # H9 of #64's review: a count the database refused is lost from FR-13's
     # uptime, and the database's faults fail most runs too, so the monitor
@@ -397,30 +368,26 @@ RSpec.describe "FR-17 NFR-04 the canary" do
 
   # R3 of #64's fix review: the reply is committed before the turn's root
   # span is finished with its outcome and the error's class, which the
-  # verdict reads.
-  it "reads the turn's outcome only once its job finished it, whatever the moment the reply is seen" do
+  # verdict reads; the turn's job runs in the run's own thread, so the
+  # verdict reads a turn its job finished.
+  it "reads the turn's outcome only once its job finished it, however long the turn's end takes" do
     responses.replace(Array.new(3) { { status: 529, body: { type: "error", error: { type: "overloaded_error", message: "Overloaded" } } } })
     allow_any_instance_of(TurnProcessor).to receive(:broadcast_reply).and_wrap_original do |original, *args|
-      sleep 1.5
+      travel(1.second)
       original.call(*args)
     end
-    worker = nil
-    sleeper = lambda do |seconds|
-      worker ||= Thread.new { perform_enqueued_jobs(only: ProcessTurnJob) }
-      sleep(seconds)
-    end
 
-    expect(Canary.new(sleeper:).run.reason).to eq("the reply lacks the marker (outcome model_error, Anthropic::Errors::OverloadedError)")
-  ensure
-    worker&.join
+    expect(run.reason).to eq("the reply lacks the marker (outcome model_error, Anthropic::Errors::OverloadedError)")
   end
 
-  it "asks through a visitor's turn job, ProcessTurnJob, never the turn's processor alone" do
-    allow(ProcessTurnJob).to receive(:perform_later).and_call_original
+  it "asks through a visitor's turn job, ProcessTurnJob, in its own thread, never the turn's processor alone" do
+    allow(ProcessTurnJob).to receive(:perform_now).and_call_original
+    allow(ProcessTurnJob).to receive(:perform_later)
 
     run
 
-    expect(ProcessTurnJob).to have_received(:perform_later).once
+    expect(ProcessTurnJob).to have_received(:perform_now).once
+    expect(ProcessTurnJob).not_to have_received(:perform_later)
   end
 
   it "clears what an earlier run left, so the model reads no history and the conversation never grows" do
@@ -438,7 +405,7 @@ RSpec.describe "FR-17 NFR-04 the canary" do
   it "runs and counts with no monitor URL, sending nothing" do
     Rails.configuration.x.monitor_url = nil
 
-    expect(Canary.new(heartbeat: Heartbeat.canary, sleeper: waits).run).to have_attributes(passed: true)
+    expect(Canary.new.run).to have_attributes(passed: true)
     expect(counts).to eq("passed" => 1)
     expect(a_request(:any, /monitor\.example/)).not_to have_been_made
   end
