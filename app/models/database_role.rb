@@ -11,10 +11,13 @@
 # The web container's entrypoint runs grant! as the owner after the
 # migrations, at every boot (bin/rails db:app_role, bin/docker-entrypoint):
 # it makes the role, or brings it back to these attributes and to
-# APP_DATABASE_PASSWORD, so a rotated password needs a deploy and nothing
-# else, and grants again what a migration added. The password never reaches
-# a statement: the database's own SCRAM hash of it does, computed here by
-# libpq, as psql's \password computes it.
+# APP_DATABASE_PASSWORD, so a rotation is a new line in the env file and a
+# deploy (the runbook says how to watch it), and grants again what a
+# migration added. An existing role's password changes last, after every
+# database's grants, since the containers still running hold the old one: a
+# grant that fails leaves it as it was (review finding F1 of pull request
+# #65). The password never reaches a statement: the database's own SCRAM
+# hash of it does, computed here by libpq, as psql's \password computes it.
 module DatabaseRole
   NAME = "balcao_app".freeze
   # The image's superuser, which owns the databases and runs the migrations
@@ -31,31 +34,41 @@ module DatabaseRole
   def grant!(password:, name: NAME, configs: ActiveRecord::Base.configurations.configs_for(env_name: Rails.env))
     raise ArgumentError, "the app's database role needs a password (APP_DATABASE_PASSWORD)" if password.to_s.strip.empty?
 
+    existed = false
     configs.each_with_index do |config, index|
       with_connection(config) do |connection|
-        make(connection, name, password) if index.zero?
+        existed = make(connection, name, password) if index.zero?
         grant(connection, name)
       end
     end
+    with_connection(configs.first) { |connection| connection.execute("ALTER ROLE #{role(connection, name)} PASSWORD #{hash(connection, name, password)}") } if existed
   end
 
-  # A role is the cluster's: made, or altered, once, on the first database.
+  # A role is the cluster's: made with its password, or brought back to its
+  # attributes, once, on the first database. Answers whether it existed.
   def make(connection, name, password)
-    role = connection.quote_column_name(name)
-    hash = connection.raw_connection.encrypt_password(password, name, "scram-sha-256")
-    verb = connection.select_value("SELECT 1 FROM pg_roles WHERE rolname = $1", "DatabaseRole", [ name ]) ? "ALTER" : "CREATE"
-    connection.execute("#{verb} ROLE #{role} #{ATTRIBUTES} PASSWORD #{connection.quote(hash)}")
+    existed = connection.select_value("SELECT 1 FROM pg_roles WHERE rolname = $1", "DatabaseRole", [ name ]) ? true : false
+    if existed
+      connection.execute("ALTER ROLE #{role(connection, name)} #{ATTRIBUTES}")
+    else
+      connection.execute("CREATE ROLE #{role(connection, name)} #{ATTRIBUTES} PASSWORD #{hash(connection, name, password)}")
+    end
+    existed
   end
+
+  def role(connection, name) = connection.quote_column_name(name)
+
+  def hash(connection, name, password) = connection.quote(connection.raw_connection.encrypt_password(password, name, "scram-sha-256"))
 
   def grant(connection, name)
-    role = connection.quote_column_name(name)
+    grantee = role(connection, name)
     database = connection.quote_column_name(connection.current_database)
-    connection.execute("GRANT CONNECT ON DATABASE #{database} TO #{role}")
-    connection.execute("GRANT USAGE ON SCHEMA public TO #{role}")
-    connection.execute("GRANT #{ROWS} ON ALL TABLES IN SCHEMA public TO #{role}")
-    connection.execute("GRANT #{SEQUENCES} ON ALL SEQUENCES IN SCHEMA public TO #{role}")
-    connection.execute("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT #{ROWS} ON TABLES TO #{role}")
-    connection.execute("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT #{SEQUENCES} ON SEQUENCES TO #{role}")
+    connection.execute("GRANT CONNECT ON DATABASE #{database} TO #{grantee}")
+    connection.execute("GRANT USAGE ON SCHEMA public TO #{grantee}")
+    connection.execute("GRANT #{ROWS} ON ALL TABLES IN SCHEMA public TO #{grantee}")
+    connection.execute("GRANT #{SEQUENCES} ON ALL SEQUENCES IN SCHEMA public TO #{grantee}")
+    connection.execute("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT #{ROWS} ON TABLES TO #{grantee}")
+    connection.execute("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT #{SEQUENCES} ON SEQUENCES TO #{grantee}")
   end
 
   # A database the app holds a connection to already (the suite's own) is

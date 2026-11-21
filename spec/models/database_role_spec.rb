@@ -88,6 +88,25 @@ RSpec.describe "SR-24 the app's database role" do
     expect(connection.select_value("SELECT rolcreatedb OR NOT rolcanlogin FROM pg_roles WHERE rolname = $1", "spec", [ name ])).to be false
   end
 
+  # Review finding F1 of pull request #65: the password changed first, so a
+  # grant that then failed left the running containers, which hold the old
+  # one, unable to open a new connection, the deploy failed all the same. It
+  # now changes after every database's grants.
+  it "changes an existing role's password only after every database's grants" do
+    skip "the database user may not read the roles' passwords" unless connection.select_value("SELECT rolsuper FROM pg_roles WHERE rolname = current_user")
+
+    grant!
+    stored = -> { connection.select_value("SELECT rolpassword FROM pg_authid WHERE rolname = $1", "spec", [ name ]) }
+    before = stored.call
+    missing = ActiveRecord::DatabaseConfigurations::HashConfig.new(
+      "test", "missing", ActiveRecord::Base.connection_db_config.configuration_hash.merge(database: "balcao_no_such_database_#{SecureRandom.hex(3)}")
+    )
+
+    expect { DatabaseRole.grant!(password: "second-password-of-the-spec", name:, configs: [ ActiveRecord::Base.connection_db_config, missing ]) }
+      .to raise_error(ActiveRecord::ActiveRecordError)
+    expect(stored.call).to eq(before)
+  end
+
   it "keeps the password out of every statement it runs, sending the database's own hash of it" do
     statements = []
     subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") { |*, payload| statements << payload[:sql] }
