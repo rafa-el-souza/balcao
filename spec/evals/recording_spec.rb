@@ -288,6 +288,40 @@ RSpec.describe "NFR-08 SR-29 the recorded fast subset" do
     end
   end
 
+  # A recorded verdict stands for the request the judge sends, all of it:
+  # its prompt, the user message's template, how it tags and escapes the
+  # reply's parts, the answer's schema and the token cap (the review of #66,
+  # C2).
+  describe "what the judge read, by digest" do
+    let(:parts) { [ Evals::Part.new(author: :attendant, text: "Olá <b>!") ] }
+    let(:read) { Evals::Recording.reads("A rubric.", parts) }
+
+    it "changes with the judge's token cap" do
+      before = read
+      stub_const("Evals::Judge::MAX_TOKENS", 1_024)
+
+      expect(Evals::Recording.reads("A rubric.", parts)).not_to eq(before)
+    end
+
+    it "changes with how the judge renders the reply's parts" do
+      before = read
+      allow_any_instance_of(Evals::Judge).to receive(:reply).and_wrap_original { |original, parts| original.call(parts).upcase }
+
+      expect(Evals::Recording.reads("A rubric.", parts)).not_to eq(before)
+    end
+
+    it "changes with the answer's schema" do
+      before = read
+      output = Class.new(Anthropic::BaseModel) do
+        required :reason, String, doc: "Another doc."
+        required :pass, Anthropic::Boolean, doc: "True only when the reply meets every point of the rubric."
+      end
+      stub_const("Evals::Judge::Output", output)
+
+      expect(Evals::Recording.reads("A rubric.", parts)).not_to eq(before)
+    end
+  end
+
   describe Evals::Recording::Recorder do
     it "keeps a 529's status, body and retry headers, and a timeout as the fake replays it" do
       overloaded = error(:overloaded).merge(headers: { "retry-after" => "1" })

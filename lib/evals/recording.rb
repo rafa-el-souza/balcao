@@ -90,12 +90,14 @@ module Evals
       { "model" => route.model, "effort" => route.effort.to_s }
     end
 
-    # What the judge reads, by digest: its prompt and route, the rubric and
-    # the reply in its authors' parts, in order.
+    # What the judge reads, by digest: the request a grade sends, whole (its
+    # prompt and route, the rubric and the reply's parts as it renders them,
+    # the answer's schema, the token cap), the client's timeout aside, which
+    # the API never reads (the review of #66, C2).
     def self.reads(rubric, parts)
-      judge = ModelPolicy.route("economy")
-      Digest::SHA256.hexdigest(JSON.generate([ Evals::Judge::SYSTEM, judge.model, judge.effort.to_s, rubric,
-                                                parts.map { |part| [ part.author.to_s, part.text.to_s ] } ]))
+      request = Evals::Judge.new(client: nil).request(rubric:, parts:).except(:request_options)
+      output = request.fetch(:output_config)
+      Digest::SHA256.hexdigest(JSON.generate(request.merge(output_config: output.merge(format: output.fetch(:format).to_json_schema))))
     end
 
     def self.load(kase, dir = DIR)
