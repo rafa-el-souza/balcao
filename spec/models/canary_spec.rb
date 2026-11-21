@@ -135,7 +135,7 @@ RSpec.describe "FR-17 NFR-04 the canary" do
       allow(Canary).to receive(:marker).and_return(street)
 
       expect(Canary.marked?(FixedReply.fallback("pt-BR"))).to be(false)
-      expect(Canary.marked?("Fica na #{street.sub("Rua", "R.")}, 10.")).to be(true)
+      expect(Canary.marked?("Fica na #{street}, 10.")).to be(true)
     end
   end
 

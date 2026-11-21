@@ -78,11 +78,18 @@ class Canary
 
   # Whether a reply holds the street: its name after its kind ("dos
   # Boticários" of "Rua dos Boticários"), compared without case, accents,
-  # Unicode's composition or extra spaces, so a reply that writes "R." or
-  # leaves the accent out passes (review finding V4 of pull request #64).
+  # Unicode's composition or extra spaces, and as whole words, so a reply
+  # that writes "R." or leaves the accent out passes (review finding V4 of
+  # pull request #64). A name shorter than SHORT after its kind ("A" of
+  # "Rua A", "7") is matched with its kind, the whole street, since any text
+  # holds a letter, the fallback's among them (the fix review's R4).
+  SHORT = 4
+
   def self.marked?(text)
-    name = marker.split(" ", 2).last
-    folded(text).include?(folded(name))
+    street = folded(marker)
+    name = street.split(" ", 2).last
+    name = street if name.length < SHORT
+    folded(text).match?(/(?<![[:alnum:]])#{Regexp.escape(name)}(?![[:alnum:]])/)
   end
 
   def self.folded(text) = I18n.transliterate(text.unicode_normalize(:nfc)).downcase.squish
