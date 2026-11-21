@@ -309,6 +309,14 @@ RSpec.describe "NFR-08 SR-29 the recorded fast subset" do
     let(:parts) { [ Evals::Part.new(author: :attendant, text: "Olá <b>!") ] }
     let(:read) { Evals::Recording.reads("A rubric.", parts) }
 
+    it "is the digest of the request a grade sends, its schema as JSON and its client timeout aside" do
+      request = Evals::Judge.new(client: nil).request(rubric: "A rubric.", parts:)
+      sent = request.except(:request_options).merge(output_config: { effort: request.dig(:output_config, :effort),
+                                                                      format: Evals::Judge::Output.to_json_schema })
+
+      expect(read).to eq(Digest::SHA256.hexdigest(JSON.generate(sent)))
+    end
+
     it "changes with the judge's token cap" do
       before = read
       stub_const("Evals::Judge::MAX_TOKENS", 1_024)
