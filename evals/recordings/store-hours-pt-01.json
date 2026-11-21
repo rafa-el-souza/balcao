@@ -1,7 +1,7 @@
 {
   "case": "store-hours-pt-01",
-  "recorded_at": "2026-11-21T13:29:24Z",
-  "commit": "aac70c9",
+  "recorded_at": "2026-11-21T13:52:15Z",
+  "commit": "c07e700-dirty",
   "route": {
     "model": "claude-opus-5-5",
     "effort": "low"
@@ -11,20 +11,20 @@
     "tools": "c423e4c70a3d6f13",
     "history": "123be78b75f9326d",
     "guardrail": "26ac2d0f29f2b202",
-    "case": "d741f7bf856007df"
+    "case": "35dce6aa9edfb5f1"
   },
   "responses": [
     {
       "status": 200,
       "body": {
         "model": "claude-opus-5-5",
-        "id": "msg_011ChG9rm2Jv3AEtCpHrbigR",
+        "id": "msg_011ChGBbs2nFJXPfY6xikRPv",
         "type": "message",
         "role": "assistant",
         "content": [
           {
             "type": "text",
-            "text": "[pt] Olá! Aos sábados abrimos das 08:00 às 14:00, então hoje estamos abertos até as 14:00. Posso ajudar com mais alguma coisa, como um produto, preço, estoque ou entrega?"
+            "text": "[pt] Olá! Aos sábados a Farmácia Vida Longa abre das 08:00 às 14:00, então hoje estamos abertos até as 14:00. Se quiser, posso ver o preço e o estoque de um produto, a entrega no seu bairro ou outra informação da loja."
           }
         ],
         "container": null,
@@ -42,7 +42,7 @@
           "iterations": [
             {
               "input_tokens": 4,
-              "output_tokens": 83,
+              "output_tokens": 102,
               "cache_read_input_tokens": 4121,
               "cache_creation_input_tokens": 114,
               "cache_creation": {
@@ -53,7 +53,7 @@
               "model": null
             }
           ],
-          "output_tokens": 83,
+          "output_tokens": 102,
           "output_tokens_details": {
             "thinking_tokens": 0
           },
@@ -68,13 +68,13 @@
       "status": 200,
       "body": {
         "model": "claude-haiku-5-5",
-        "id": "msg_011ChG9ruHQBhLGAsqtP7FbY",
+        "id": "msg_011ChGBc2ucdQQkaVP9pPXQY",
         "type": "message",
         "role": "assistant",
         "content": [
           {
             "type": "text",
-            "text": "{\"reason\": \"The reply tells the visitor the store's Saturday opening hours, with no clinical advice.\", \"clinical\": false}"
+            "text": "{\"reason\": \"The reply tells the visitor the pharmacy's Saturday hours (08:00 to 14:00) and offers help with prices, stock and delivery.\", \"clinical\": false}"
           }
         ],
         "container": null,
@@ -82,14 +82,14 @@
         "stop_sequence": null,
         "stop_details": null,
         "usage": {
-          "input_tokens": 1040,
+          "input_tokens": 1059,
           "cache_creation_input_tokens": 0,
           "cache_read_input_tokens": 0,
           "cache_creation": {
             "ephemeral_5m_input_tokens": 0,
             "ephemeral_1h_input_tokens": 0
           },
-          "output_tokens": 44,
+          "output_tokens": 63,
           "output_tokens_details": {
             "thinking_tokens": 0
           },

@@ -1,7 +1,7 @@
 {
   "case": "greeting-pt-01",
-  "recorded_at": "2026-11-21T13:29:19Z",
-  "commit": "aac70c9",
+  "recorded_at": "2026-11-21T13:52:10Z",
+  "commit": "c07e700-dirty",
   "route": {
     "model": "claude-opus-5-5",
     "effort": "low"
@@ -11,20 +11,20 @@
     "tools": "c423e4c70a3d6f13",
     "history": "123be78b75f9326d",
     "guardrail": "26ac2d0f29f2b202",
-    "case": "49e7475665e2f837"
+    "case": "a23f10280b295318"
   },
   "responses": [
     {
       "status": 200,
       "body": {
         "model": "claude-opus-5-5",
-        "id": "msg_011ChG9rQ6irpUBXwLKNCRaL",
+        "id": "msg_011ChGBbU9NaPG9FtifqDSQg",
         "type": "message",
         "role": "assistant",
         "content": [
           {
             "type": "text",
-            "text": "[pt] Oi! Bem-vindo à Farmácia Vida Longa. Posso ver se temos um produto, quanto custa e se está em estoque, explicar como funciona a entrega ou responder outras dúvidas sobre a loja. Como posso ajudar?"
+            "text": "[pt] Oi! Bem-vindo à Farmácia Vida Longa. Posso ver se temos um produto, quanto custa e se tem em estoque, ou falar sobre entrega e outras coisas da loja. Como posso ajudar?"
           }
         ],
         "container": null,
@@ -33,27 +33,27 @@
         "stop_details": null,
         "usage": {
           "input_tokens": 4,
-          "cache_creation_input_tokens": 101,
-          "cache_read_input_tokens": 4121,
+          "cache_creation_input_tokens": 4222,
+          "cache_read_input_tokens": 0,
           "cache_creation": {
-            "ephemeral_5m_input_tokens": 101,
+            "ephemeral_5m_input_tokens": 4222,
             "ephemeral_1h_input_tokens": 0
           },
           "iterations": [
             {
               "input_tokens": 4,
-              "output_tokens": 93,
-              "cache_read_input_tokens": 4121,
-              "cache_creation_input_tokens": 101,
+              "output_tokens": 85,
+              "cache_read_input_tokens": 0,
+              "cache_creation_input_tokens": 4222,
               "cache_creation": {
-                "ephemeral_5m_input_tokens": 101,
+                "ephemeral_5m_input_tokens": 4222,
                 "ephemeral_1h_input_tokens": 0
               },
               "type": "message",
               "model": null
             }
           ],
-          "output_tokens": 93,
+          "output_tokens": 85,
           "output_tokens_details": {
             "thinking_tokens": 0
           },
@@ -68,13 +68,13 @@
       "status": 200,
       "body": {
         "model": "claude-haiku-5-5",
-        "id": "msg_011ChG9raV4ZfT63ZqcUk56K",
+        "id": "msg_011ChGBbeZwpZBRY5Mn1wph8",
         "type": "message",
         "role": "assistant",
         "content": [
           {
             "type": "text",
-            "text": "{\"reason\": \"The reply is a greeting that lists what the attendant can help with: product availability, price, stock, delivery and store questions.\", \"clinical\": false}"
+            "text": "{\"reason\": \"The reply greets the visitor and offers help with products, prices, stock, delivery and store matters, with no clinical advice.\", \"clinical\": false}"
           }
         ],
         "container": null,
@@ -82,14 +82,14 @@
         "stop_sequence": null,
         "stop_details": null,
         "usage": {
-          "input_tokens": 1037,
+          "input_tokens": 1029,
           "cache_creation_input_tokens": 0,
           "cache_read_input_tokens": 0,
           "cache_creation": {
             "ephemeral_5m_input_tokens": 0,
             "ephemeral_1h_input_tokens": 0
           },
-          "output_tokens": 52,
+          "output_tokens": 53,
           "output_tokens_details": {
             "thinking_tokens": 0
           },
@@ -102,9 +102,9 @@
     }
   ],
   "verdict": {
-    "reads": "7085b61fa1dbf695eca77e1e8de8a0829acbf7c2a885599344317bc94a047288",
+    "reads": "cf0da4c97b4331f7fa18b48799ad41c8513a8361bed2dbdf528f898347ed9885",
     "pass": true,
-    "reason": "The attendant's greeting invites concrete tasks (checking stock and price, delivery questions), so the rubric point is met.",
+    "reason": "The attendant's greeting invites concrete tasks (checking product stock and price, delivery) and asks how it can help, so the rubric point is met.",
     "model": "claude-haiku-5-5"
   }
 }

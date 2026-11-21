@@ -253,8 +253,9 @@ are in the seed.
   answering each model call, FR-20's check's among them, with the
   recorded answer in order. A case fails when its recording is missing or
   stale, naming what changed (the system prompt, the tools, the history,
-  FR-20's check, the normal route's model or effort, or the case's seed
-  and messages, which an opener's text is), when the run asks for more or
+  FR-20's check, the normal route's model or effort, or the case's
+  messages, which an opener's text is, and its seed's catalogue, whose
+  names, prices and stock the tools' results carry), when the run asks for more or
   fewer answers than the recording holds, when the API or the harness
   broke it as a live run counts it, when a rule check fails, or when its
   rubric's verdict was recorded for another reply or failed; a recording
@@ -277,7 +278,7 @@ are in the seed.
   id the same product has then), and, for a case with a rubric, the
   judge's verdict with a digest of what the judge read (its prompt and
   route, the rubric and the reply in its authors' parts). The judge's own
-  calls are never recorded. The nine of 2026-11-21 cost US$ 0.08.
+  calls are never recorded. The nine of 2026-11-21 cost US$ 0.10.
 - The full run is local, at each milestone close and on the monthly bump
   day: `bin/evals --all --both-models --scorecard --repeat 3`, with the dev/eval key
   from the implementer's env file. It rewrites `scorecard.md` and writes

@@ -2479,7 +2479,9 @@ a reservation (M2-4; the note below).
     order, FR-20's check's in their place, since the check shares the
     client (#54's notes); the digests ADR-0003's gate reads
     (`PromptDigest`: the prompt, the tools, the history, the check), the
-    normal route, a digest of the case's seed and messages; the rubric's
+    normal route, a digest of the case's messages and its seed's
+    catalogue, whose names, prices and stock the tools' results carry to
+    the model (the store's sheet is the prompt's); the rubric's
     verdict with a digest of what the judge read; and the sku of each
     product an answer names by its id, since the catalogue's seed draws
     the ids anew in each attempt (the first replay of
@@ -2494,7 +2496,7 @@ a reservation (M2-4; the note below).
     new recording. `store-delivery-es-01` joins the fast subset, so the
     case of each of the three openers is recorded, as the openers' file
     said, and a spec holds it (FR-21). The nine were recorded on
-    2026-11-21 for US$ 0.08 and replay in about eight seconds.
+    2026-11-21 for US$ 0.10 and replay in about a second in CI.
   - **NFR-10's gate** (`web/e2e/gate.e2e.ts`). Playwright runs axe-core
     (4.14, now a direct dev dependency) over the build served as
     `SpaController` serves it: the four pages in the three languages, at
