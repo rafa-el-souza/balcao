@@ -7,5 +7,10 @@
 class OperatorAlertJob < ApplicationJob
   queue_as :default
 
-  def perform(alert_id) = OperatorAlert.find_by(id: alert_id)&.deliver
+  # A job whose alert is gone says so, by the row's id alone (review finding
+  # H13 of pull request #63).
+  def perform(alert_id)
+    alert = OperatorAlert.find_by(id: alert_id) or return Rails.logger.error("operator alert #{alert_id}: gone, nothing to send")
+    alert.deliver
+  end
 end
