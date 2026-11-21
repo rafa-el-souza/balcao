@@ -109,7 +109,7 @@ class OperatorAlert < ApplicationRecord
   # One attempt, when the row is pending and due and this call claims it.
   def deliver(client: Telegram::Client.new)
     return unless claim
-    return give_up("its attempts are spent") if attempts > ATTEMPTS
+    return give_up([ "its attempts are spent", ("(last: #{error})" if error) ].compact.join(" ")) if attempts > ATTEMPTS
 
     chat = OperatorChat.chat_id or return unsendable
     client.send_message(chat_id: chat, text:)
@@ -117,6 +117,9 @@ class OperatorAlert < ApplicationRecord
     Rails.logger.info("operator alert #{id} (#{kind}): sent")
   rescue Telegram::Client::Error => e
     failed(e)
+  rescue StandardError => e
+    broke(e)
+    raise
   end
 
   private
@@ -139,6 +142,16 @@ class OperatorAlert < ApplicationRecord
     wait = error.retry_after || ((attempts**4) + 2)
     update!(next_attempt_at: Time.current + wait, error: cause)
     OperatorAlertJob.set(wait_until: next_attempt_at).perform_later(id)
+  end
+
+  # What broke an attempt and is no answer of Telegram's: its class kept on
+  # the row, so the give-up at the claim after the last names it (review
+  # finding H6 of pull request #63); the job breaks all the same, for the
+  # sweep. A write that breaks too is a line.
+  def broke(error)
+    update_columns(error: error.class.name)
+  rescue StandardError => e
+    Rails.logger.error("operator alert #{id} (#{kind}): what broke the attempt, #{error.class}, not kept, #{e.class}")
   end
 
   # No chat to send to: none linked, or a linked one that cannot be read, which

@@ -196,6 +196,25 @@ RSpec.describe "SR-35 FR-14 NFR-02 the operator's alert, sent through the bot" d
     expect(row.reload).to have_attributes(status: "pending", attempts: 1, next_attempt_at: be > Time.current)
   end
 
+  # Review finding H6 of pull request #63 (teorico; fixed, since the alert's
+  # send is this pull request's own): what broke every attempt was named only
+  # in Active Job's lines, and the give-up said its attempts were spent.
+  it "keeps the class of what broke an attempt on the row, and names it when its attempts are spent" do
+    linked!
+    allow_any_instance_of(Telegram::Client).to receive(:send_message).and_raise(OpenSSL::SSL::SSLError, "certificate verify failed")
+    row = alert
+
+    expect { row.deliver }.to raise_error(OpenSSL::SSL::SSLError)
+    expect(row.reload).to have_attributes(status: "pending", error: "OpenSSL::SSL::SSLError")
+
+    row.update!(attempts: 3, next_attempt_at: 1.minute.ago)
+    row.deliver
+
+    expect(row.reload).to have_attributes(status: "failed", error: "its attempts are spent (last: OpenSSL::SSL::SSLError)")
+    expect(Rails.logger).to have_received(:error)
+      .with("operator alert #{row.id} (budget_cap): not sent, its attempts are spent (last: OpenSSL::SSL::SSLError)")
+  end
+
   it "never writes the alert's text or the chat into a line" do
     linked!
     lines = []
