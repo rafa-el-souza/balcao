@@ -120,8 +120,12 @@ from M3.
   M3-6): 1 GiB and 1.5 CPUs for `web`, `job` and `balcao-db`, 256 MiB and
   one CPU for `kamal-proxy`, so one that runs away is restarted at its limit
   and leaves the rest of the host to the others (the host has no swap). A
-  new limit reaches the accessory and the proxy only at their deliberate
-  reboots (bump day, step 4; the swap of the proxy's release).
+  deploy brings a new limit to `web` and `job`; it reaches the database and
+  the proxy only when they are rebooted, so a deploy that changes either
+  limit is followed, the same session, by the database's reboot as bump
+  day's step 4 runs it (the jobs stopped first; about ten seconds without
+  the database) and by `kamal proxy reboot -d ensaio -y` (a few seconds),
+  and then by the checklist's row (#67's review, C5).
 - **Host keys.** The deploying account's ssh config pins a host key on first
   contact and refuses a changed one, in a known-hosts file of its own. Every
   new host on the reserved IP presents a new key, so the IP's old entry is
@@ -165,7 +169,7 @@ Inside the host, as `deploy`, through
 | services up | `systemctl is-active unattended-upgrades docker fail2ban` | `active` three times |
 | listeners | `ss -ltn` | on every address only 22, and after the first deploy 80 and 443; the resolver on 127.0.0.53 and 127.0.0.54; during a deploy, the registry tunnel on 127.0.0.1:5555; never 5432 |
 | containers | `docker ps -q \| xargs docker inspect --format '{{.Name}} user={{.Config.User}} ro={{.HostConfig.ReadonlyRootfs}} published={{json .HostConfig.PortBindings}}'` | `web` and `job`: `user=1000:1000 ro=true published={}`; `balcao-db`: `published={}`; only `kamal-proxy` publishes 80 and 443 |
-| containers' limits | `docker ps -q \| xargs docker inspect --format '{{.Name}} memory={{.HostConfig.Memory}} cpus={{.HostConfig.NanoCpus}}'` | `web`, `job` and `balcao-db`: `memory=1073741824 cpus=1500000000`; `kamal-proxy`: `memory=268435456 cpus=1000000000` |
+| containers' limits | `docker ps -q \| xargs docker inspect --format '{{.Name}} memory={{.HostConfig.Memory}} cpus={{.HostConfig.NanoCpus}}'` | `web`, `job` and `balcao-db`: `memory=1073741824 cpus=1500000000`; `kamal-proxy`: `memory=268435456 cpus=1000000000` (the database's and the proxy's once rebooted after the deploy that changed them; the host contract) |
 
 From outside: the cloud firewall shows exactly TCP 22, 80, 443 and ICMP
 inbound, applied to this server (`hcloud firewall describe <firewall>`).
