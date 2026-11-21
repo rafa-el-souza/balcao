@@ -118,8 +118,12 @@ from M3.
   Kamal network with no published port, its data in `~/balcao-db/data` on
   the host. Each container has a memory and a CPU limit (`config/deploy.yml`,
   M3-6): 1 GiB and 1.5 CPUs for `web`, `job` and `balcao-db`, 256 MiB and
-  one CPU for `kamal-proxy`, so one that runs away is restarted at its limit
-  and leaves the rest of the host to the others (the host has no swap). A
+  one CPU for `kamal-proxy`, so one that runs away leaves the rest of the
+  host to the others (the host has no swap). At its memory limit the
+  kernel kills a process inside it: a Solid Queue worker is replaced by its
+  supervisor, the turn it ran failing until the sweep takes it up again; a
+  Postgres backend makes the database reset every connection; the web
+  server's container is restarted by Docker when its main process exits. A
   deploy brings a new limit to `web` and `job`; it reaches the database and
   the proxy only when they are rebooted, so a deploy that changes either
   limit is followed, the same session, by the database's reboot as bump
