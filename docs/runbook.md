@@ -443,7 +443,10 @@ start-up file.
    fresh host `kamal setup`, which boots the database accessory first.
 6. `kamal registry remove`, whether the deploy passed or not, and then
    `docker ps -a --filter name=kamal-docker-registry` lists nothing (End
-   of a deploy session, below). Production never uses `-P` (`--skip-push`,
+   of a deploy session, below); then `docker volume prune -f`, which
+   removes the registry's anonymous volume that Kamal's removal leaves,
+   about 158 MB a deploy (since Docker 23 it removes anonymous volumes
+   alone, and this account keeps no other). Production never uses `-P` (`--skip-push`,
    which deploys an image already there instead of building this
    checkout).
 7. The smoke of the MVP deploy flow, step 4, on production's commands.

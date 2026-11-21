@@ -24,4 +24,16 @@ RSpec.describe "SR-37 SR-38 the operator's account and checklist in the runbook"
     expect(create).to be < append
     expect(account).to include("stat -c %a <the file>")
   end
+
+  # Review finding C7: Kamal's removal of its local registry leaves the
+  # registry's anonymous volume, about 158 MB a deploy, which bin/deploy
+  # removes for the rehearsal and nothing removed for production.
+  it "removes the local registry's anonymous volume after each production deploy" do
+    removal = checklist.index("`kamal registry remove`")
+    prune = checklist.index("docker volume prune -f")
+
+    expect(removal).not_to be_nil
+    expect(prune).not_to be_nil
+    expect(prune).to be > removal
+  end
 end
