@@ -85,6 +85,18 @@ RSpec.describe "SR-35 the operator's chat, linked once by the runbook's command"
     expect(OperatorChat.sole.linked_at).to be_nil
   end
 
+  # The fix review's sister on pull request #63: unlinking a chat that does
+  # not decrypt raised, as linking again did before 90e48f0.
+  it "unlinks a chat that does not decrypt" do
+    link(token_of(OperatorChat.link_url!))
+    OperatorChat.connection.execute("UPDATE operator_chats SET chat_id = 'not a ciphertext'")
+
+    expect { OperatorChat.unlink! }.not_to raise_error
+
+    expect(OperatorChat.sole).to have_attributes(linked_at: nil)
+    expect(OperatorChat.connection.select_value("SELECT chat_id FROM operator_chats")).to be_nil
+  end
+
   it "answers no chat, with a line, when the linked one does not decrypt" do
     link(token_of(OperatorChat.link_url!))
     OperatorChat.connection.execute("UPDATE operator_chats SET chat_id = 'not a ciphertext'")
