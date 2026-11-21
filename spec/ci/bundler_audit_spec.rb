@@ -77,3 +77,33 @@ RSpec.describe "SR-27 bundler-audit fails CI on advisories above low only" do
     expect(status).not_to be_success
   end
 end
+
+# #1's line, kept for M3's CI furniture (design §9.2): bin/bundler-audit run
+# alone read the advisory database of its first run forever, while CI reads
+# a fresh one; only bin/ci asked for the update. The script asks for it
+# itself now, unless the caller names a database of its own (the probes
+# above), which is read as given.
+RSpec.describe "SR-27 bin/bundler-audit refreshes its advisory database itself" do
+  def arguments(*argv)
+    started = nil
+    allow(Bundler::Audit::CLI).to receive(:start) { started = ARGV.dup }
+    stub_const("ARGV", argv)
+    load Rails.root.join("bin/bundler-audit").to_s
+    started
+  end
+
+  before { require "bundler/audit/cli" }
+
+  it "updates the database before a check, with no argument or with check" do
+    expect(arguments).to include("--update", "--config", "config/bundler-audit.yml")
+    expect(arguments("check")).to include("check", "--update", "--config", "config/bundler-audit.yml")
+  end
+
+  it "reads a database given by path as given" do
+    expect(arguments("check", "--database", "/tmp/probe")).not_to include("--update")
+  end
+
+  it "adds no second --update" do
+    expect(arguments("check", "--update").count("--update")).to eq 1
+  end
+end

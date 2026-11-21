@@ -47,7 +47,7 @@ require "delegate"
 # that failed, and one scored only in v4 showed "Unknown" (the finder's note
 # 4 on pull request #39).
 module PrintRatingUsed
-  Rated = Class.new(SimpleDelegator) do
+  class Rated < SimpleDelegator
     def initialize(advisory, rating)
       super(advisory)
       @rating = rating
@@ -83,5 +83,11 @@ module ReportLowAdvisories
 end
 Bundler::Audit::CLI::Formats::Text.prepend(ReportLowAdvisories)
 
-ARGV.concat %w[ --config config/bundler-audit.yml ] if ARGV.empty? || ARGV.include?("check")
+# A check reads a fresh advisory database, as CI's does: bin/bundler-audit run
+# alone read the database of its first run forever (#1's line, M3's CI
+# furniture). A database given by path is the caller's and is read as given.
+if ARGV.empty? || ARGV.include?("check")
+  ARGV.concat %w[ --config config/bundler-audit.yml ]
+  ARGV << "--update" unless ARGV.include?("--update") || ARGV.any? { |arg| arg.start_with?("--database") || arg.start_with?("-D") }
+end
 Bundler::Audit::CLI.start
