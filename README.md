@@ -81,10 +81,12 @@ whose opening comment says what it does and why.
    as they happen in the glass box, the panel beside the chat.
 7. **Every call is paid for, and capped.**
    [`app/models/budget.rb`](app/models/budget.rb) charges each model call to
-   the month at the dated prices of
-   [`config/prices.yml`](config/prices.yml), and pauses the demo with a
-   fixed reply once the month's spend reaches its cap, before any further
-   model call; the glass box shows each call's cost in dollars and reais.
+   the month and the day at the dated prices of
+   [`config/prices.yml`](config/prices.yml), moves new turns to the cheaper
+   model once the month passes 70 % of its cap or the day its slice, and
+   pauses the demo with a fixed reply once the month's spend reaches its
+   cap, before any further model call, telling the operator through the
+   bot; the glass box shows each call's cost in dollars and reais.
 8. **It runs on one small VM.** [`config/deploy.yml`](config/deploy.yml) says
    what runs there, the [`Dockerfile`](Dockerfile) builds it and
    [`ops/cloud-init.yml`](ops/cloud-init.yml) sets up the host.
@@ -118,9 +120,9 @@ what each folder holds.
   voice notes after the MVP.
 - Shows the **glass box**: a live trace of your conversation with model,
   tools, latency, tokens and cost.
-- Runs unattended under a monthly budget cap; after the MVP the cap gains
-  three levels (normal, economy on a cheaper model, paused) and a daily
-  slice that keeps one bad day from eating the month.
+- Runs unattended under a monthly budget cap with three levels (normal,
+  economy on a cheaper model, paused) and a daily slice that keeps one bad
+  day from eating the month; at the cap the bot tells the operator.
 
 ## How it is built
 
@@ -303,13 +305,18 @@ looking something up, which reached visitors; a line of the prompt, chosen
 of seven measured, stopped it, and the evals now fail one), the rest kept,
 planned or accepted
 ([`docs/reviews/m2-first-seven-review.md`](docs/reviews/m2-first-seven-review.md)).
+Then the budget's modes: past 70 % of the month's cap, or once a day's
+spend reaches its slice of the cap, new turns go to the cheaper model, and
+while that model may not serve the demo pauses instead, until midnight for
+a day; at the cap the bot sends the operator one line, to a chat the
+operator links by opening a one-time link a command prints.
 
 Next, in two blocks (design §9.2, where a milestone's number is a label for
 its content, not its place in the order;
 [ADR-0022](docs/adr/0022-what-publishing-the-demo-needs-first-the-showcase-after.md)
 says why):
 
-- **First, what publishing the demo needs:** the budget's modes; a
+- **First, what publishing the demo needs:** a
   test conversation the app runs on a schedule (the canary); the CI's
   remaining checks; and
   production on a host of its own (until then the demo runs on the

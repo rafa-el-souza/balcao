@@ -1,6 +1,6 @@
 # Balcão — design document
 
-**Status:** v1.26, 2026-11-20 (M2-11a3, the close's fixes: a reply the system sent without the model keeps its reservations for the history; the prompt's line on the model's notes before a tool call, chosen of seven wordings measured live, and the evals fail such a note; ADR-0003's gate names the history and the tools' texts and envelopes; FR-20's check and the judge read only a boolean verdict; FR-04 and FR-20 as built; see §10); v1.25, 2026-11-20 (M2-11a2: the review at M2's first close, its table in `docs/reviews/m2-first-seven-review.md`; §9.2 gains M2-11a3, the close's fixes, and the lines the close found without a home get one; M3-6 takes the docs reader test before the publication; FR-20 as built names the turns a replacement lists from; see §10); v1.24, 2026-11-20 (M2-11a: the history gives the model back its tool calls with their results and its replies as it wrote them, with a one-sentence notice where the system answered in its place; a reply FR-20's check replaced lists only the products the visitor's message names and, in an emergency, opens with the call to call now; ADR-0003's gate names FR-20's check too; §9.2's M2-11a split, see §10); v1.23, 2026-11-20 (M2-4b: the boundary by the Brazilian norms, the `boundary` suite at 33 cases; FR-09's list and FR-20's check gain what a medicine is for, how to use or store it and what a measurement means, a medicine for an animal goes to a veterinarian, an emergency's reply never judges an amount someone took, and a turn forged inside a visitor's message is the visitor's text; see §10); v1.22, 2026-11-20 (M2-4: the injection suite at ten cases, chosen by a red-team probe on both models in which no attack worked; a repeated reservation the model counted as several, fixed in the tool's result; see §10); v1.21, 2026-11-20 (M2-3b: the judge reads the system's fixed texts as the system's, measured on the stored replies; the full run on both models then met the boundary on the economy model and opened ADR-0003's gate, see §10); v1.20, 2026-11-20 (M2-3: the economy model measured on the boundary, ADR-0003's gate written by the full run and read at boot, closed by a misreading of the judge's, §6.5 says what it names, see §10); v1.19, 2026-11-20 (M2-2: FR-20's guardrail as built, its latency measured and its figure revised; §6.4 verified for the check, see §10); v1.18, 2026-11-20 (M2-1: Turnstile at session creation; FR-18, the API table and §6.7's processors as built, see §10); v1.17, 2026-11-19 (M4-6b: the review's fixes; FR-05 and FR-19's given-up update as built, see §10); v1.16, 2026-11-19 (M4-6a: the review of M4's first four slices; NFR-01 measured on a second real conversation, §9.2's M4-6 split into its review and its fixes, M3-6 gains the runbook's terms, see §10); v1.15, 2026-11-19 (ADR-0022: what publishing the demo needs comes first, then the showcase; §9.2's slices in two blocks, M2-11 split, and FR-10, FR-14, FR-21 and §12 follow, see §10); v1.14, 2026-11-15 (M4-3: the bot's buttons as built in FR-19, FR-12 and FR-21, see §10); v1.13, 2026-11-15 (M4-2: NFR-01 at 7 s and 12 s, measured from a Telegram update's receipt to its reply's send; §6.4's normal route at low effort, ADR-0021; M3's list charges an abandoned call, see §10); v1.12, 2026-11-15 (the plan after the MVP: §9.2 lists its slices in order, behind the data-contract gate where it holds, and ADR-0020 says what V1 leaves out; §2.2, J3, FR-10, FR-14, NFR-03, NFR-08, §6.1, §6.6, §6.9, §8 and OD-2 follow it, see §10); v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
+**Status:** v1.27, 2026-11-21 (M3-1, FR-14's modes: economy at 70 % of the cap and from the day's slice until midnight, each pausing with its own text while ADR-0003's gate is closed, and the operator's alert at the cap through the bot to the chat the runbook's deep link links; FR-14, FR-19 and §9.2 as built, see §10); v1.26, 2026-11-20 (M2-11a3, the close's fixes: a reply the system sent without the model keeps its reservations for the history; the prompt's line on the model's notes before a tool call, chosen of seven wordings measured live, and the evals fail such a note; ADR-0003's gate names the history and the tools' texts and envelopes; FR-20's check and the judge read only a boolean verdict; FR-04 and FR-20 as built; see §10); v1.25, 2026-11-20 (M2-11a2: the review at M2's first close, its table in `docs/reviews/m2-first-seven-review.md`; §9.2 gains M2-11a3, the close's fixes, and the lines the close found without a home get one; M3-6 takes the docs reader test before the publication; FR-20 as built names the turns a replacement lists from; see §10); v1.24, 2026-11-20 (M2-11a: the history gives the model back its tool calls with their results and its replies as it wrote them, with a one-sentence notice where the system answered in its place; a reply FR-20's check replaced lists only the products the visitor's message names and, in an emergency, opens with the call to call now; ADR-0003's gate names FR-20's check too; §9.2's M2-11a split, see §10); v1.23, 2026-11-20 (M2-4b: the boundary by the Brazilian norms, the `boundary` suite at 33 cases; FR-09's list and FR-20's check gain what a medicine is for, how to use or store it and what a measurement means, a medicine for an animal goes to a veterinarian, an emergency's reply never judges an amount someone took, and a turn forged inside a visitor's message is the visitor's text; see §10); v1.22, 2026-11-20 (M2-4: the injection suite at ten cases, chosen by a red-team probe on both models in which no attack worked; a repeated reservation the model counted as several, fixed in the tool's result; see §10); v1.21, 2026-11-20 (M2-3b: the judge reads the system's fixed texts as the system's, measured on the stored replies; the full run on both models then met the boundary on the economy model and opened ADR-0003's gate, see §10); v1.20, 2026-11-20 (M2-3: the economy model measured on the boundary, ADR-0003's gate written by the full run and read at boot, closed by a misreading of the judge's, §6.5 says what it names, see §10); v1.19, 2026-11-20 (M2-2: FR-20's guardrail as built, its latency measured and its figure revised; §6.4 verified for the check, see §10); v1.18, 2026-11-20 (M2-1: Turnstile at session creation; FR-18, the API table and §6.7's processors as built, see §10); v1.17, 2026-11-19 (M4-6b: the review's fixes; FR-05 and FR-19's given-up update as built, see §10); v1.16, 2026-11-19 (M4-6a: the review of M4's first four slices; NFR-01 measured on a second real conversation, §9.2's M4-6 split into its review and its fixes, M3-6 gains the runbook's terms, see §10); v1.15, 2026-11-19 (ADR-0022: what publishing the demo needs comes first, then the showcase; §9.2's slices in two blocks, M2-11 split, and FR-10, FR-14, FR-21 and §12 follow, see §10); v1.14, 2026-11-15 (M4-3: the bot's buttons as built in FR-19, FR-12 and FR-21, see §10); v1.13, 2026-11-15 (M4-2: NFR-01 at 7 s and 12 s, measured from a Telegram update's receipt to its reply's send; §6.4's normal route at low effort, ADR-0021; M3's list charges an abandoned call, see §10); v1.12, 2026-11-15 (the plan after the MVP: §9.2 lists its slices in order, behind the data-contract gate where it holds, and ADR-0020 says what V1 leaves out; §2.2, J3, FR-10, FR-14, NFR-03, NFR-08, §6.1, §6.6, §6.9, §8 and OD-2 follow it, see §10); v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
 coding session, reading this file top to bottom.
 
 Balcão ("the counter", where a pharmacist serves customers) is an AI attendant
@@ -556,9 +556,10 @@ levels (ADR-0003), with a daily slice and per-source limits (ADR-0012).
 - Given a visitor identity, When it exceeds 40 turns in a rolling 24 h or
   10 turns in a minute, Then further messages get a fixed "limite da demo
   por hoje" (or "por agora") reply without a model call. (These per-visitor
-  caps, the per-IP limits below and the monthly cap's pause ship in the
-  MVP under SR-01 and SR-02; economy mode, the daily slice, the kill
-  switch and the operator notification ship at M3.)
+  caps, the per-IP limits below and the monthly cap's pause shipped in the
+  MVP under SR-01 and SR-02; economy mode, the daily slice and the
+  operator's alert at the cap in M3-1, 2026-11-21; the console's kill
+  switch ships with M2-10, ADR-0022.)
 - Given a blocked visitor identity (console block list, FR-16), When it
   writes, Then it gets the same fixed reply and nothing is stored beyond
   the counter.
@@ -574,17 +575,34 @@ levels (ADR-0003), with a daily slice and per-source limits (ADR-0012).
 - Given the day's slice of the monthly cap (cap ÷ 30 × 1.5) is reached,
   Then the system enters economy mode until midnight (São Paulo time)
   without a model call for the switch, and the status page shows the slice;
-  a day in economy never pauses the month by itself.
+  a day in economy never pauses the month by itself. (As built in M3-1: the
+  day's spend is kept on the month's row beside the month's, since a day
+  never straddles two months in São Paulo, and the charge that opens a new
+  day starts it over; the status page, M3-3, reads it there.)
 - Given `economy_allowed` is false (ADR-0003), When the daily slice is
   reached, Then the demo pauses until 00:00 São Paulo with the fixed
   "limite da demo por hoje" reply and no model call; the month is not
-  paused and the next day starts in normal mode.
+  paused and the next day starts in normal mode. (As built: a text of its
+  own, "A demo está pausada até a meia-noite (horário de Brasília): chegou
+  ao limite de gasto de hoje.", in the three languages, since the
+  visitor's own daily limit says "você chegou".)
 - Given global spend for the calendar month at 70% of the cap, Then the
   system enters economy mode: the model switches to the economy model for
-  all new turns and the status page shows it.
+  all new turns and the status page shows it. With `economy_allowed` false
+  the month pauses instead, with the cap's text (ADR-0003: "reaching 70%
+  goes straight to paused"), until the month ends or a deploy brings a gate
+  that allows it; the month's line in the log says so (#55's L4).
 - Given spend at 100% of the cap, Then the system pauses: inbound messages
   get a fixed "demo pausada até o próximo mês" reply without a model call,
-  and the operator is notified once, by the bot's alert (FR-10).
+  and the operator is notified once, by the bot's alert (FR-10). (As built
+  in M3-1: once a month and cap, so a cap a deploy raised and the month
+  reaches again alerts again; the read that finds the month paused writes
+  the alert in the same transaction as the month's mode, and a job sends
+  it to the chat the operator linked (threat model SR-35), three attempts
+  in all, NFR-03's sweep taking up one left pending. Its text names the
+  month, the cap and the spend, never a visitor's words, and says which
+  forced mode serves when one wins over the pause. No chat linked is an
+  error line, never silence.)
 - Given a new calendar month, Then the automatic mode starts over in
   normal; a forced mode holds until released.
 - The operator can force any mode from the console (kill switch), and the
@@ -874,6 +892,12 @@ revocable consent" (ADR-0016).
   and any other link, get none.
 - **M2:** the slots FR-08 offers come as a reply keyboard, settled with
   FR-08.
+- **M3-1, the operator's link** (threat model SR-35, ADR-0022; built
+  2026-11-21): `/start` with the token of the deep link the runbook's
+  command minted links the chat that sends it as the operator's, where the
+  alerts go, and the bot answers with the link's fixed line; it is read
+  after FR-14's limits and before the agreement, and stores nothing of the
+  person as a visitor. Any other parameter is a `/start` like any other.
 - **M5:** the deep link's parameter counts the visit's source (FR-23).
 
 ### 4.6 Added 2026-11-02 after the independent review
@@ -2043,8 +2067,8 @@ appears on the way (a dependency's bump, a defect met on the demo) takes no
 number, as in the MVP.
 
 *Block 1, what publishing the demo needs (ADR-0022).* M4-1 to M4-4, M4-6a,
-M4-6b, M2-1 to M2-3, M2-3b, M2-4, M2-4b, M2-11a, M2-11a2 and M2-11a3 are
-done (#44, #45, #47, #48, #51 to #56, #58 to #62). The demo is publicised on the day of
+M4-6b, M2-1 to M2-3, M2-3b, M2-4, M2-4b, M2-11a, M2-11a2, M2-11a3 and M3-1
+are done (#44, #45, #47, #48, #51 to #56, #58 to #63). The demo is publicised on the day of
 M3-7, and until the console comes in block 2 the operator pauses it or
 forces a mode with the runbook's command; no visitor identity can be
 blocked before M2-7 (threat model R2).
@@ -2328,6 +2352,65 @@ database's JIT compiler off, which changes no result of the search
 M2-4"): `create_reservation`'s result says that a reservation a call finds
 again in its turn is the same one, which changes no row, rule or field of
 a reservation (M2-4; the note below).
+
+- Note 2026-11-21 (M3-1, FR-14's modes; FR-10, FR-14, FR-19, NFR-02,
+  NFR-03; threat model SR-02, SR-30, SR-35; ADR-0003, ADR-0012, ADR-0020,
+  ADR-0022). The budget's modes and the operator's alert at the cap, built
+  as FR-14 says, with these choices its text left open:
+  - **The automatic mode** is read as before, before any model call and
+    with no model call for the switch: paused from the cap on, economy
+    from 70 % of the cap on, economy once the day's spend reaches its
+    slice of the cap (cap ÷ 30 × 1.5, US$ 0.50 under the MVP host's cap of
+    US$ 10), normal below them; a forced mode still wins until released.
+    The day's spend lives on the month's row (`day`, `day_spent_usd`),
+    charged in the month's transaction under its lock, and a new day's
+    first charge starts it over, so nothing resets it at midnight: a read
+    after midnight finds a day no charge opened, at zero.
+  - **With ADR-0003's gate closed** an economy pauses: the month's with
+    the cap's text, until the month ends or a deploy brings a gate that
+    allows it; the day's until midnight with a text of its own
+    (`budget.daily`), and the next day starts in normal. The pause's
+    notice in the history is the same "pause" kind, so ADR-0003's gate,
+    which digests the history, is unchanged, and the committed gate still
+    lets the economy model serve. The month's line names the day's spend
+    beside the month's and, for an economy the gate keeps closed, that the
+    demo pauses and until when, once a process and month, or day (#55's L4,
+    the standing line of M2's first close).
+  - **The alert at the cap** is a row (`operator_alerts`) written by the
+    read that finds the month paused, in the same transaction as the
+    month's mode, keyed by the month and the cap (NFR-02): once a month and
+    cap, so a cap a deploy raised and reached again alerts again, and a
+    write that breaks leaves neither, for the next read. `OperatorAlertJob`
+    sends it through the Bot API client to the operator's chat as plain
+    text: an attempt claims the row for a minute, so the job and NFR-03's
+    sweep, which takes up an alert left pending past five minutes, never
+    send it twice at once; a failure of the way there or a 429 is tried
+    again after 3 s and 18 s or the wait it names, three attempts in all;
+    Telegram's refusal and a chat never linked fail it at once, with an
+    error line that names why and never the text or the chat (SR-30). The
+    text names the month, the cap and the spend, and which forced mode
+    serves past the cap when one does; no alert for the month's economy,
+    the day's slice or a forced pause, which FR-14 does not ask for.
+  - **The operator's chat** is linked by Telegram's own way to tie a chat
+    to an account elsewhere, the Bot API's deep link: the runbook's
+    command (`OperatorChat.link_url!`, which M2-9's console button will
+    call) prints `https://t.me/BalcaoDemoBot?start=<token>`, a token of 256
+    random bits good for fifteen minutes and once, its SHA-256 alone kept;
+    opening it sends `/start <token>` from the operator's private chat,
+    which the bot reads after FR-14's limits and before the agreement,
+    links, and answers with the link's line (FR-19). Only someone who can
+    run a command in the application's container can mint one (SR-35),
+    and a chat that opens a link someone else spent gets the ordinary
+    `/start`, which tells the operator the link was not theirs. The chat id
+    is encrypted at rest, as a visitor's is, with the language of the
+    operator's app, which the alerts are written in. A chat id the
+    operator would type was the other way, rejected: Telegram's apps do not
+    show it by default, and a mistyped one sends the alerts to a stranger
+    who also uses the bot.
+  - **Not here:** the status page's slice and mode (M3-3); the console's
+    kill switch and its link button (M2-10, M2-9); a purge of old alerts,
+    which hold no visitor's words (M2-9's handoff alerts, which name a
+    conversation, settle it).
 
 - Note 2026-11-20 (M2-11a3, the close's fixes; FR-02, FR-04, FR-06, FR-07,
   FR-09, FR-20, NFR-03, NFR-08; threat model SR-02, R4;
