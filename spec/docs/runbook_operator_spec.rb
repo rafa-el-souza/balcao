@@ -99,4 +99,15 @@ RSpec.describe "SR-37 SR-38 the operator's account and checklist in the runbook"
 
     expect(row).to include("between the operator's checklist's steps 4 and 5")
   end
+
+  # The fix review's R4: the MVP host's two heartbeats were paused at the
+  # cut's first step, days maybe before it stops serving the demo; only its
+  # Telegram watch fails, and only from the token's rotation.
+  it "keeps the MVP host's canary heartbeat on while it serves, pausing its Telegram one at the token's rotation" do
+    cut = section("The production cut (M3-7)")
+    step1 = cut[cut.index("1. *Owner:*")...cut.index("2. *Owner:*")].squish
+
+    expect(step1).not_to include("paused in the console at the same time")
+    expect(step1).to include("Telegram heartbeat paused in the console right before the token's rotation")
+  end
 end

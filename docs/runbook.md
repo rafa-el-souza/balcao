@@ -689,10 +689,11 @@ this order; *owner* marks the steps that are the owner's alone.
    `Balcão produção: webhook do Telegram`, whose URLs go into production's
    env file alone, so that no two hosts ever tell one heartbeat (one host's
    passing beats would hide the other's failures, as the boot's refusal off
-   the public name says; #67's review, C4); the MVP host's two heartbeats
-   paused in the console at the same time, since its Telegram watch fails
-   from the token's rotation below, and deleted with the host at step 9;
-   and two values rotated for production alone,
+   the public name says; #67's review, C4); the MVP host's Telegram
+   heartbeat paused in the console right before the token's rotation
+   below, from which its watch fails, while its canary's stays on as long
+   as it serves the demo, both deleted with the host at step 9; and two
+   values rotated for production alone,
    right before step 4: a new bot token (BotFather's `/token` on the demo's
    bot; the MVP host's token stops at once, so the bot is silent until step
    7) and a new Turnstile secret (the widget's "Rotate secret key"; "the
