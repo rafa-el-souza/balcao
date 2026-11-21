@@ -59,17 +59,20 @@ test.afterAll(async () => {
   await served.close();
 });
 
-const sized = (url: string, body: Buffer) => ({
+const sized = (url: string, ok: boolean, body: Buffer) => ({
   url,
+  ok,
   built: body.length,
   sent: gzipSync(body, { level: 1 }).length,
 });
 
 // What the first visit loaded from the build, compressed and as built: what
 // the page asked for, and the icons its shell names, which a headless
-// browser does not fetch and a visitor's does.
+// browser does not fetch and a visitor's does. Each file says whether it
+// came: a file the server did not serve would count as nothing (the review
+// of #66, W2).
 async function visit(page: Page, path: string, ready: string) {
-  const loaded: Promise<{ url: string; built: number; sent: number }>[] = [];
+  const loaded: Promise<ReturnType<typeof sized>>[] = [];
   page.on("response", (response) => {
     const url = new URL(response.url());
     if (
@@ -78,7 +81,11 @@ async function visit(page: Page, path: string, ready: string) {
       NOT_BUILT.test(url.pathname)
     )
       return;
-    loaded.push(response.body().then((body) => sized(response.url(), body)));
+    loaded.push(
+      response
+        .body()
+        .then((body) => sized(response.url(), response.ok(), body)),
+    );
   });
   await page.goto(`${served.origin}${path}`);
   await page.locator(ready).first().waitFor();
@@ -92,7 +99,7 @@ async function visit(page: Page, path: string, ready: string) {
     loaded.push(
       page.request
         .get(icon)
-        .then(async (answer) => sized(icon, await answer.body())),
+        .then(async (answer) => sized(icon, answer.ok(), await answer.body())),
     );
   return Promise.all(loaded);
 }
@@ -128,6 +135,10 @@ for (const { name, path, ready } of PAGES)
           { name: "lang", value: locale, url: served.origin },
         ]);
         await standIn(page);
+        // A script that throws once loaded leaves the prerendered text, which
+        // the landing's and the privacy page's ready selector finds.
+        const thrown: string[] = [];
+        page.on("pageerror", (error) => thrown.push(error.message));
 
         const files = await visit(page, path, ready);
         const sent = files.reduce((total, file) => total + file.sent, 0);
@@ -137,6 +148,11 @@ for (const { name, path, ready } of PAGES)
           description: `${String(sent)} bytes compressed, ${String(built)} as built, ${String(files.length)} files`,
         });
 
+        expect(
+          files.filter((file) => !file.ok).map((file) => file.url),
+          "every file of the first visit is served",
+        ).toEqual([]);
+        expect(thrown, "the page throws nothing").toEqual([]);
         expect(await violations(page)).toEqual([]);
         expect(
           sent,
