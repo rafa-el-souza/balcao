@@ -12,6 +12,8 @@
 #
 #   { "responses": [ { "status": 200, "body": { ...a Messages API response... } },
 #                    { "status": 529, "body": { "type": "error", ... } },
+#                    { "status": 503, "headers": { "content-type": "text/html" },
+#                      "body_text": "<html>...</html>" },
 #                    { "timeout": true },
 #                    { "timeout": "open" },
 #                    { "timeout": "body" } ] }
@@ -39,6 +41,10 @@ class FakeModel
     @requests = []
   end
 
+  # How many responses no request has asked for yet: a recording replayed
+  # whole leaves none (Evals::Replay).
+  def left = @responses.size
+
   # An SDK client whose every request this fake answers. No retry delay, so
   # the SDK's retries cost nothing in the suite.
   def client
@@ -54,8 +60,8 @@ class FakeModel
 
     Anthropic::APIResponse.new(
       status: response.fetch(:status),
-      headers: { "content-type" => "application/json" }.merge(response.fetch(:headers, {})),
-      body: JSON.generate(response.fetch(:body)),
+      headers: { "content-type" => "application/json" }.merge(response.fetch(:headers, {}).transform_keys(&:to_s)),
+      body: response.key?(:body_text) ? response.fetch(:body_text) : JSON.generate(response.fetch(:body)),
       request:
     )
   end

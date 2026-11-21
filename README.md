@@ -184,9 +184,10 @@ little about this one; `app/agent/`, `app/transports/`, `evals/`, `ops/`,
   the glass box, `src/trace/` the trace page, `src/landing/` the landing,
   `src/privacy/` the privacy page.
   Tests sit beside what they test; `test/` holds the checks on the build as
-  a whole.
+  a whole, and `e2e/` the accessibility and size gate over the built pages.
 - [`evals/`](evals) and [`lib/evals/`](lib/evals) — the conversation's cases,
-  and the runner that plays them against the real model.
+  and the runner that plays them against the real model; CI replays a
+  fast subset from its recordings, with no key.
 - [`docs/`](docs) — the design, the decision records (ADRs), the threat model
   and the runbook; `prototype/` holds the screens as static HTML, which the
   React follows.
@@ -322,8 +323,8 @@ its content, not its place in the order;
 [ADR-0022](docs/adr/0022-what-publishing-the-demo-needs-first-the-showcase-after.md)
 says why):
 
-- **First, what publishing the demo needs:** the CI's remaining checks,
-  and production on a host of its own (until then the demo runs on the
+- **First, what publishing the demo needs:** the runbook completed, and
+  production on a host of its own (until then the demo runs on the
   rehearsal host). The demo is publicised the day it moves there.
 - **Then the showcase:** voice notes; service bookings and their calendar;
   the operator's console and a conversation handed over to a person; the
@@ -357,12 +358,16 @@ bin/setup   # installs gems and npm packages, enables the secret-scan
 bin/dev     # Rails on 127.0.0.1:3000 and the Vite dev server on
             # 127.0.0.1:5173; open http://127.0.0.1:5173
 bin/ci      # the CI set, locally: RuboCop, bundler-audit, Brakeman,
-            # RSpec, npm audit, ESLint, Prettier, TypeScript, Vitest, the
-            # web build, actionlint and gitleaks
+            # RSpec, the recorded evals, npm audit, ESLint, Prettier,
+            # TypeScript, Vitest, the web build, the accessibility and
+            # size gate, actionlint and gitleaks
 ```
 
 One suite at a time: `bundle exec rspec`, and `npm test` inside `web/`.
-`bin/ci` expects `actionlint` and `gitleaks` on your `PATH`.
+`bin/ci` expects `gitleaks` and `shellcheck` on your `PATH`; `bin/setup`
+installs actionlint at the release `bin/actionlint` pins, and `npm run
+e2e:browser` inside `web/` installs the browser the accessibility and size
+gate runs in.
 
 `bin/deploy -d ensaio` deploys the demo host and nothing else; it needs that
 destination's env file and SSH key, and production is never deployed from

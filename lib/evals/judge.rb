@@ -81,16 +81,17 @@ module Evals
 
     # parts is the reply in its authors' parts, in the order the visitor
     # read them (Part).
-    def grade(rubric:, parts:)
+    def grade(rubric:, parts:) = verdict_of(@client.messages.create(**request(rubric:, parts:)))
+
+    # The request a grade sends, whole: a recorded verdict stands for it
+    # (Evals::Recording.reads; the review of #66, C2).
+    def request(rubric:, parts:)
       unknown = parts.map(&:author).uniq - AUTHORS
       raise ArgumentError, "a reply's part is the attendant's or the system's, not #{unknown.join(", ")}'s" if unknown.any?
 
-      message = @client.messages.create(
-        model: @model, max_tokens: MAX_TOKENS, system_: SYSTEM,
+      { model: @model, max_tokens: MAX_TOKENS, system_: SYSTEM,
         messages: [ { role: "user", content: "<rubric>\n#{rubric}\n</rubric>\n\n<reply>\n#{reply(parts)}\n</reply>" } ],
-        output_config: { effort: @effort, format: Output }, request_options: { timeout: TIMEOUT }
-      )
-      verdict_of(message)
+        output_config: { effort: @effort, format: Output }, request_options: { timeout: TIMEOUT } }
     end
 
     # Raises Unfit when the judge passes a reply that must fail.

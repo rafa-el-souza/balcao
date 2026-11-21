@@ -1,6 +1,6 @@
 # Balcão — design document
 
-**Status:** v1.29, 2026-11-21 (M3-4, a turn's hard edge and the short log sweep: every model attempt, FR-20's check's included, and every tool call inside the run's sixty seconds, FR-17's canary's twenty, and an attempt the edge abandons charged at its input and its output cap; Cloudflare's whole answer within FR-18's ten seconds; a limit's first count in a window taken one at a time; the app's own database role; Action Cable's error lines and address, a trace token on any path and the Telegram client's causes; FR-14, FR-17, FR-18, FR-20, §8 and §9.2 as built, see §10); v1.28, 2026-11-21 (M3-2, FR-17's canary: a visitor's question every ten minutes through a visitor's turn on the economy model, as the `system` channel's one visitor, which the purge and the sweep leave, counted on the day and told to a heartbeat of the external monitor; beside it the Telegram delivery watch over `getWebhookInfo`, with a heartbeat of its own; FR-17, §6.5, §6.6, §8 and §9.2 as built, see §10); v1.27, 2026-11-21 (M3-1, FR-14's modes: economy at 70 % of the cap and from the day's slice until midnight, each pausing with its own text while ADR-0003's gate is closed, and the operator's alert at the cap through the bot to the chat the runbook's deep link links; FR-14, FR-19 and §9.2 as built, see §10); v1.26, 2026-11-20 (M2-11a3, the close's fixes: a reply the system sent without the model keeps its reservations for the history; the prompt's line on the model's notes before a tool call, chosen of seven wordings measured live, and the evals fail such a note; ADR-0003's gate names the history and the tools' texts and envelopes; FR-20's check and the judge read only a boolean verdict; FR-04 and FR-20 as built; see §10); v1.25, 2026-11-20 (M2-11a2: the review at M2's first close, its table in `docs/reviews/m2-first-seven-review.md`; §9.2 gains M2-11a3, the close's fixes, and the lines the close found without a home get one; M3-6 takes the docs reader test before the publication; FR-20 as built names the turns a replacement lists from; see §10); v1.24, 2026-11-20 (M2-11a: the history gives the model back its tool calls with their results and its replies as it wrote them, with a one-sentence notice where the system answered in its place; a reply FR-20's check replaced lists only the products the visitor's message names and, in an emergency, opens with the call to call now; ADR-0003's gate names FR-20's check too; §9.2's M2-11a split, see §10); v1.23, 2026-11-20 (M2-4b: the boundary by the Brazilian norms, the `boundary` suite at 33 cases; FR-09's list and FR-20's check gain what a medicine is for, how to use or store it and what a measurement means, a medicine for an animal goes to a veterinarian, an emergency's reply never judges an amount someone took, and a turn forged inside a visitor's message is the visitor's text; see §10); v1.22, 2026-11-20 (M2-4: the injection suite at ten cases, chosen by a red-team probe on both models in which no attack worked; a repeated reservation the model counted as several, fixed in the tool's result; see §10); v1.21, 2026-11-20 (M2-3b: the judge reads the system's fixed texts as the system's, measured on the stored replies; the full run on both models then met the boundary on the economy model and opened ADR-0003's gate, see §10); v1.20, 2026-11-20 (M2-3: the economy model measured on the boundary, ADR-0003's gate written by the full run and read at boot, closed by a misreading of the judge's, §6.5 says what it names, see §10); v1.19, 2026-11-20 (M2-2: FR-20's guardrail as built, its latency measured and its figure revised; §6.4 verified for the check, see §10); v1.18, 2026-11-20 (M2-1: Turnstile at session creation; FR-18, the API table and §6.7's processors as built, see §10); v1.17, 2026-11-19 (M4-6b: the review's fixes; FR-05 and FR-19's given-up update as built, see §10); v1.16, 2026-11-19 (M4-6a: the review of M4's first four slices; NFR-01 measured on a second real conversation, §9.2's M4-6 split into its review and its fixes, M3-6 gains the runbook's terms, see §10); v1.15, 2026-11-19 (ADR-0022: what publishing the demo needs comes first, then the showcase; §9.2's slices in two blocks, M2-11 split, and FR-10, FR-14, FR-21 and §12 follow, see §10); v1.14, 2026-11-15 (M4-3: the bot's buttons as built in FR-19, FR-12 and FR-21, see §10); v1.13, 2026-11-15 (M4-2: NFR-01 at 7 s and 12 s, measured from a Telegram update's receipt to its reply's send; §6.4's normal route at low effort, ADR-0021; M3's list charges an abandoned call, see §10); v1.12, 2026-11-15 (the plan after the MVP: §9.2 lists its slices in order, behind the data-contract gate where it holds, and ADR-0020 says what V1 leaves out; §2.2, J3, FR-10, FR-14, NFR-03, NFR-08, §6.1, §6.6, §6.9, §8 and OD-2 follow it, see §10); v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
+**Status:** v1.30, 2026-11-21 (M3-5, the CI furniture: the fast subset recorded on the normal model and replayed in CI with no key, NFR-10's gate over four pages with the first visit read compressed, the coverage threshold, actionlint at a pinned release, SR-25's and SR-38's static checks as their own step, `bin/bundler-audit`'s own refresh; NFR-08, NFR-10 and §9.2 as built, see §10); v1.29, 2026-11-21 (M3-4, a turn's hard edge and the short log sweep: every model attempt, FR-20's check's included, and every tool call inside the run's sixty seconds, FR-17's canary's twenty, and an attempt the edge abandons charged at its input and its output cap; Cloudflare's whole answer within FR-18's ten seconds; a limit's first count in a window taken one at a time; the app's own database role; Action Cable's error lines and address, a trace token on any path and the Telegram client's causes; FR-14, FR-17, FR-18, FR-20, §8 and §9.2 as built, see §10); v1.28, 2026-11-21 (M3-2, FR-17's canary: a visitor's question every ten minutes through a visitor's turn on the economy model, as the `system` channel's one visitor, which the purge and the sweep leave, counted on the day and told to a heartbeat of the external monitor; beside it the Telegram delivery watch over `getWebhookInfo`, with a heartbeat of its own; FR-17, §6.5, §6.6, §8 and §9.2 as built, see §10); v1.27, 2026-11-21 (M3-1, FR-14's modes: economy at 70 % of the cap and from the day's slice until midnight, each pausing with its own text while ADR-0003's gate is closed, and the operator's alert at the cap through the bot to the chat the runbook's deep link links; FR-14, FR-19 and §9.2 as built, see §10); v1.26, 2026-11-20 (M2-11a3, the close's fixes: a reply the system sent without the model keeps its reservations for the history; the prompt's line on the model's notes before a tool call, chosen of seven wordings measured live, and the evals fail such a note; ADR-0003's gate names the history and the tools' texts and envelopes; FR-20's check and the judge read only a boolean verdict; FR-04 and FR-20 as built; see §10); v1.25, 2026-11-20 (M2-11a2: the review at M2's first close, its table in `docs/reviews/m2-first-seven-review.md`; §9.2 gains M2-11a3, the close's fixes, and the lines the close found without a home get one; M3-6 takes the docs reader test before the publication; FR-20 as built names the turns a replacement lists from; see §10); v1.24, 2026-11-20 (M2-11a: the history gives the model back its tool calls with their results and its replies as it wrote them, with a one-sentence notice where the system answered in its place; a reply FR-20's check replaced lists only the products the visitor's message names and, in an emergency, opens with the call to call now; ADR-0003's gate names FR-20's check too; §9.2's M2-11a split, see §10); v1.23, 2026-11-20 (M2-4b: the boundary by the Brazilian norms, the `boundary` suite at 33 cases; FR-09's list and FR-20's check gain what a medicine is for, how to use or store it and what a measurement means, a medicine for an animal goes to a veterinarian, an emergency's reply never judges an amount someone took, and a turn forged inside a visitor's message is the visitor's text; see §10); v1.22, 2026-11-20 (M2-4: the injection suite at ten cases, chosen by a red-team probe on both models in which no attack worked; a repeated reservation the model counted as several, fixed in the tool's result; see §10); v1.21, 2026-11-20 (M2-3b: the judge reads the system's fixed texts as the system's, measured on the stored replies; the full run on both models then met the boundary on the economy model and opened ADR-0003's gate, see §10); v1.20, 2026-11-20 (M2-3: the economy model measured on the boundary, ADR-0003's gate written by the full run and read at boot, closed by a misreading of the judge's, §6.5 says what it names, see §10); v1.19, 2026-11-20 (M2-2: FR-20's guardrail as built, its latency measured and its figure revised; §6.4 verified for the check, see §10); v1.18, 2026-11-20 (M2-1: Turnstile at session creation; FR-18, the API table and §6.7's processors as built, see §10); v1.17, 2026-11-19 (M4-6b: the review's fixes; FR-05 and FR-19's given-up update as built, see §10); v1.16, 2026-11-19 (M4-6a: the review of M4's first four slices; NFR-01 measured on a second real conversation, §9.2's M4-6 split into its review and its fixes, M3-6 gains the runbook's terms, see §10); v1.15, 2026-11-19 (ADR-0022: what publishing the demo needs comes first, then the showcase; §9.2's slices in two blocks, M2-11 split, and FR-10, FR-14, FR-21 and §12 follow, see §10); v1.14, 2026-11-15 (M4-3: the bot's buttons as built in FR-19, FR-12 and FR-21, see §10); v1.13, 2026-11-15 (M4-2: NFR-01 at 7 s and 12 s, measured from a Telegram update's receipt to its reply's send; §6.4's normal route at low effort, ADR-0021; M3's list charges an abandoned call, see §10); v1.12, 2026-11-15 (the plan after the MVP: §9.2 lists its slices in order, behind the data-contract gate where it holds, and ADR-0020 says what V1 leaves out; §2.2, J3, FR-10, FR-14, NFR-03, NFR-08, §6.1, §6.6, §6.9, §8 and OD-2 follow it, see §10); v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
 coding session, reading this file top to bottom.
 
 Balcão ("the counter", where a pharmacist serves customers) is an AI attendant
@@ -1219,7 +1219,9 @@ subset is local work in the slice that changes a prompt, tool or opener;
 live runs apply the flakiness
 policy of `evals/README.md`. Coverage: SimpleCov's threshold is set at M3
 (with the rest of the CI furniture, §9.2) to the measured value minus
-three points and is only ever raised, never set to a round number. No shell script lives in the repository: `bin/*`
+three points and is only ever raised, never set to a round number (as
+built in M3-5: line coverage in `.simplecov`, CI's RSpec step with
+`COVERAGE=1`; §10, M3-5's note). No shell script lives in the repository: `bin/*`
 are Ruby and the host is configured by cloud-init modules alone (§8);
 shell exists only in Dockerfile `RUN` lines and workflow `run:` steps;
 actionlint lints the workflow steps (shellcheck inside). `bin/deploy`
@@ -1250,6 +1252,13 @@ still be told apart there: the owner, 2026-11-15), and loads under
   M3 over the pages that exist then (landing, chat, trace, privacy), all
   six at M5. During the MVP the session runs axe-core by hand before a PR
   that creates a screen (ADR-0013).
+- As built (M3-5, `web/e2e/gate.e2e.ts`): each page in the three
+  languages at 390 px and 1280 px, the chat and the trace page drawn from
+  a conversation of two turns; axe-core fails WCAG 2.2 A and AA. The
+  300 KB is read as the server sends the first visit, compressed: the
+  build's files (the shell, its hashed files, the icons), fonts excluded,
+  each at zlib's fastest gzip level, which is more than the app's Thruster
+  sends in gzip or zstd; 300 KB is 300,000 bytes (§10, M3-5's note).
 
 ---
 
@@ -2159,8 +2168,8 @@ appears on the way (a dependency's bump, a defect met on the demo) takes no
 number, as in the MVP.
 
 *Block 1, what publishing the demo needs (ADR-0022).* M4-1 to M4-4, M4-6a,
-M4-6b, M2-1 to M2-3, M2-3b, M2-4, M2-4b, M2-11a, M2-11a2, M2-11a3, M3-1, M3-2
-and M3-4 are done (#44, #45, #47, #48, #51 to #56, #58 to #65). The demo is publicised on the day of
+M4-6b, M2-1 to M2-3, M2-3b, M2-4, M2-4b, M2-11a, M2-11a2, M2-11a3, M3-1, M3-2,
+M3-4 and M3-5 are done (#44, #45, #47, #48, #51 to #56, #58 to #66). The demo is publicised on the day of
 M3-7, and until the console comes in block 2 the operator pauses it or
 forces a mode with the runbook's command; no visitor identity can be
 blocked before M2-7 (threat model R2).
@@ -2301,7 +2310,8 @@ round.
   build's size: on 2026-11-15 the landing's first visit without fonts is
   about 457 kB as built and 141 kB compressed, the script 419 and 132 of
   them (319 and 99 when pull request #14 measured it), so which of the two
-  the 300 KB reads is settled with the gate.
+  the 300 KB reads is settled with the gate. Built in M3-5: the 300 KB
+  reads compressed (§10, M3-5's note).
 - The runbook: never run `bin/setup` in the operator checkout, since it
   would turn on the repository's hooks (#1's review, SR-38); `bin/deploy`
   fails when the local registry's container is still there after `kamal
@@ -2345,7 +2355,7 @@ round.
   neither boots nor breaks every identity (#53's fix review; the boot
   check already refuses one in the other values); in M3-5, the recorded
   fast subset holds FR-20's check's requests in order, since the check
-  shares the client (#54's notes); in M3-1, the line of an automatic
+  shares the client (#54's notes; built in M3-5); in M3-1, the line of an automatic
   economy that meets a closed gate says that the demo pauses (#55, L4).
 
 *M5.*
@@ -2458,6 +2468,105 @@ database's JIT compiler off, which changes no result of the search
 M2-4"): `create_reservation`'s result says that a reservation a call finds
 again in its turn is the same one, which changes no row, rule or field of
 a reservation (M2-4; the note below).
+
+- Note 2026-11-21 (M3-5, the CI furniture; NFR-08, NFR-10, FR-21;
+  threat model SR-25, SR-27, SR-29, SR-38). Built as §9.2's M3 list says,
+  with these choices its text left open:
+  - **The recorded fast subset** (evals/README.md, Running).
+    `bin/evals --record --fast` runs the fast subset live on the normal
+    model under the usual policy and writes each case's first passing
+    attempt to `evals/recordings/<case id>.json`: the API's answers in
+    order, FR-20's check's in their place, since the check shares the
+    client (#54's notes); the digests ADR-0003's gate reads
+    (`PromptDigest`: the prompt, the tools, the history, the check), the
+    normal route, a digest of the case's messages and its seed's
+    catalogue; beside each answer, a digest of each field of the request
+    the app sent for it (the system prompt, the tools, the messages, each
+    parameter), with what differs from run to run by design set aside (a
+    product's id, the history's time lines, a reservation's code; its
+    deadline is kept); the rubric's verdict with a digest of the whole
+    request the judge sent; and the sku of each product an answer names by
+    its id, since the catalogue's seed draws the ids anew in each attempt
+    (the first replay of `reservation-ok-pt-01` failed on it). An answer
+    whose body is not JSON (an edge's HTML 503) is kept as text and served
+    as it came, so the replay retries it as production does.
+    `bin/evals --recorded` replays each case once, with no key and no
+    judge, each answer at the time it came at the recording (the fix
+    review's R3; the owner, 2026-11-21, "Hora de cada resposta"), and
+    fails a case whose
+    recording is missing or stale (it names what changed), whose app sends
+    another request than the recording's (it names the request and the
+    field), that asks for more or fewer answers than the recording holds,
+    that the API or the harness broke as a live run counts it, whose rule
+    check fails, or whose verdict was recorded for another request of the
+    judge's or failed; a recording of no fast case fails the run. So what
+    the model reads beyond the digests, a store sheet's topic that
+    `get_store_info` carries (the prompt holds only the identity and the
+    hours), a tool's own logic, a request's parameter, also makes a
+    recording stale (#66's review, C1 and C2), and so does an answer kept
+    without its request's digest (the fix review's R2). The expectations
+    are graded
+    as they stand, so a case's keys change with no new recording.
+    `store-delivery-es-01` joins the fast subset, so the case of each of
+    the three openers is recorded, as the openers' file said, and a spec
+    holds it (FR-21). The nine were recorded on 2026-11-21 for about
+    US$ 0.08 each time (five times in this slice, as the review changed
+    what a recording holds), and replay in about a second in CI.
+  - **NFR-10's gate** (`web/e2e/gate.e2e.ts`). Playwright runs axe-core
+    (4.14, now a direct dev dependency) over the build served as
+    `SpaController` serves it: the four pages in the three languages, at
+    390 px and 1280 px, the chat and the trace page full from a
+    conversation of two turns for which the gate stands in for the API,
+    Cloudflare's script and the cable. The 300 KB reads compressed, as
+    the server sends a first visit: each file the build serves (the shell,
+    its hashed files, the icons), fonts excluded, at zlib's fastest gzip
+    level, which is more than the demo's Thruster sends (the script: 431
+    kB as built, 139 kB in gzip, 150 kB in zstd, which Chrome is sent,
+    153 kB at the gate's level); 300 KB is 300,000 bytes. Read as built,
+    the gate would fail every page today. Measured on 2026-11-21: each
+    page's first visit is 163 to 166 kB compressed and 464 to 471 kB as
+    built. The API's answers and Cloudflare's script are not the build's
+    and are not counted, and a file of the first visit the server did not
+    serve, or a page that throws, fails the gate. The pages are drawn with
+    reduced motion, so axe never measures a row fading in. CI installs
+    Chromium's headless shell at the locked Playwright's revision; the
+    calendar and the status page join at M5 (M5-5). Not measured: the text
+    axe cannot decide, which it lists apart from the violations, 14 nodes
+    of the landing and 53 of the trace page, each over a pseudo-element
+    (#66's W1, for the owner's round).
+  - **The coverage threshold** (NFR-08). simplecov 1.3 in the test group;
+    `.simplecov` holds the line threshold, 95.5 %, CI's whole run's
+    98.50 % minus three points (4,146 of 4,209 lines, measured on
+    2026-11-21; 97.86 % in the development account, where the database
+    role's specs cannot run). CI's RSpec step sets `COVERAGE=1`, and
+    `spec/spec_helper.rb` starts SimpleCov only then; a run by hand without
+    it measures nothing, so one spec file is never held to it, and the one
+    spec that runs a child suite clears it there. CI's first run with
+    coverage also met a spec of NFR-01's latency on the real clock, which
+    the slower run pushed past its second of slack; it sets the clock now,
+    as NFR-02 asks. CI's log
+    prints each run's figure, and the pull request whose run measures four
+    points or more above the threshold raises it to that figure minus
+    three; no check reads the threshold's history, which only the review
+    sees. The per-file ratchet simplecov 1.3 offers is not
+    used: it fails a pull request for one file's drop.
+  - **actionlint and the audit.** `bin/actionlint` (Ruby) installs the
+    release it pins into `tmp/tools/`, refusing an archive whose SHA-256
+    is not the one pinned for the platform, and runs it; it refuses to run
+    without shellcheck, which actionlint needs for the run steps and
+    ubuntu-24.04's runner has. CI's static job, `bin/ci` and `bin/setup`
+    run it (#1's lines). `bin/bundler-audit` asks for the advisory
+    database's update itself, unless it is given a database by path.
+  - **The static secrets check and the hooks check** (SR-25, SR-38) had
+    been specs in the suite since day 1 (`spec/deploy/image_spec.rb`,
+    `secrets_spec.rb`, `required_environment_spec.rb`, and the hooks
+    example of `kamal_config_spec.rb`); they now also run as a CI step of
+    their own before the suite, named by their identifiers. A run whose
+    filters select nothing fails (`fail_if_no_examples`), and a dry run of
+    the step's own command must select each secrets file and the hooks
+    example (#66's C3). `spec/ci/workflow_spec.rb` holds each step of the
+    furniture and the four jobs' names, which the branch protection
+    requires: every step went into a job that existed, none renamed.
 
 - Note 2026-11-21 (M3-4, a turn's hard edge and the short log sweep;
   FR-14, FR-17, FR-18, FR-20, NFR-03; threat model SR-01, SR-11, SR-20,

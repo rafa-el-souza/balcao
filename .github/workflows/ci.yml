@@ -1,6 +1,10 @@
 # The day-1 CI set of design §9.1 (NFR-08): lint, static security analysis,
-# dependency audit, the suites, locale-key parity and the secret scan. CI holds
-# no secret and never deploys (threat model SR-29).
+# dependency audit, the suites, locale-key parity and the secret scan; and M3's
+# CI furniture (design §9.2): actionlint, SR-25's static secrets check and
+# SR-38's hooks check as their own step, the coverage threshold, the recorded
+# fast evals and NFR-10's gate. CI holds no secret and never deploys (threat
+# model SR-29). The jobs keep their names, which the branch protection
+# requires.
 name: CI
 
 on:
@@ -41,6 +45,9 @@ jobs:
       - name: bundler-audit (threat model SR-27)
         run: bin/bundler-audit
 
+      - name: actionlint over the workflows, shellcheck inside (design NFR-08)
+        run: bin/actionlint
+
   ruby_test:
     name: "Ruby: RSpec"
     permissions:
@@ -79,15 +86,23 @@ jobs:
       - name: Locale key parity, server (design NFR-09)
         run: bundle exec rspec spec/i18n
 
-      - name: RSpec
+      - name: Static secrets check and no Kamal hooks (threat model SR-25, SR-38)
+        run: bundle exec rspec spec/deploy -e SR-25 -e "runs no repository hook"
+
+      - name: RSpec, with the line coverage against its threshold (design NFR-08)
+        env:
+          COVERAGE: "1"
         run: bundle exec rspec
+
+      - name: The fast evals, replayed from their recordings with no key (design NFR-08, evals/README.md)
+        run: bin/evals --recorded
 
   web:
     name: "Web: ESLint, Prettier, types, Vitest, build, npm audit"
     permissions:
       contents: read
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: web
@@ -127,6 +142,12 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Chromium's headless shell, at the locked Playwright's revision
+        run: npm run e2e:browser
+
+      - name: NFR-10's gate, axe-core and the first visit's size over the four public pages
+        run: npm run e2e
 
   secret_scan:
     name: "Secrets: gitleaks"

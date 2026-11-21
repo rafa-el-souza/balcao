@@ -110,12 +110,16 @@ RSpec.describe "FR-19 SR-43 NFR-02 Telegram::Outbound, a reply on its way to the
 
     # NFR-01 (M4-2): the turn's latency runs to the send, so it is written
     # here, and a measure never holds the person's next replies back.
+    # The clock is set, as NFR-02 asks of every spec that reads it: on real
+    # time the send's own seconds counted, and CI's run with coverage took
+    # more than one (#66's first run: 5,017 ms).
     it "writes the reply's turn its latency when the reply leaves, from the message's receipt (NFR-01)" do
-      message = reply("Temos, sim.", at: 4.seconds.ago)
+      sent_at = Time.current.change(usec: 0)
+      message = reply("Temos, sim.", at: sent_at - 4.seconds)
 
-      outbound.deliver_pending(visitor)
+      travel_to(sent_at) { outbound.deliver_pending(visitor) }
 
-      expect(message.turn.reload.latency_ms).to be_within(1_000).of(4_000)
+      expect(message.turn.reload.latency_ms).to eq(4_000)
     end
 
     it "sends the person's next reply when a turn's latency cannot be written, with a line naming the reply (NFR-01)" do

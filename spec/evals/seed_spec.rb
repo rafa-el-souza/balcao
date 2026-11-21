@@ -32,6 +32,18 @@ RSpec.describe "FR-03 FR-06 FR-07 FR-21 SR-21 the eval cases find their facts in
     end
   end
 
+  # An opener's text is a recorded case's message, so a chip changed without
+  # recording again fails CI's replay (evals/README.md, Running; M3's CI
+  # furniture).
+  it "records a case for every chip in the fast subset" do
+    fast = cases.select { |kase| kase["milestone"] == "MVP" && kase["fast"] && kase["turns"].size == 1 }
+                .map { |kase| [ kase["lang"], kase["turns"].first["user"] ] }
+
+    Openers.current.keys.map { |key| Openers.current.fetch(key) }.each do |opener|
+      expect(fast).to include([ opener.lang, opener.text ])
+    end
+  end
+
   it "opens on Saturday, the hours store-hours-pt-01 asks for" do
     expect(sheet.hours_on(Date.new(2026, 11, 14))).to be_present
   end

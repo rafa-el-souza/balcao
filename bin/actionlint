@@ -1,0 +1,62 @@
+#!/usr/bin/env ruby
+# actionlint over .github/workflows (design NFR-08), with shellcheck inside
+# for the workflows' run steps, at the release pinned here. The first run
+# downloads that release from its GitHub page into tmp/tools/ and refuses an
+# archive whose SHA-256 is not the one pinned below (threat model SR-27), so
+# CI, bin/ci and bin/setup run the same binary. Arguments go to actionlint.
+#
+#   bin/actionlint             lints every workflow
+#   bin/actionlint -version    installs it if needed and prints its version
+#
+# A new release is pinned by its version and the four checksums of its
+# actionlint_<version>_checksums.txt.
+require "digest"
+require "fileutils"
+require "rbconfig"
+require "tmpdir"
+
+VERSION = "1.7.12".freeze
+SHA256 = {
+  "linux_amd64" => "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8",
+  "linux_arm64" => "325e971b6ba9bfa504672e29be93c24981eeb1c07576d730e9f7c8805afff0c6",
+  "darwin_amd64" => "5b44c3bc2255115c9b69e30efc0fecdf498fdb63c5d58e17084fd5f16324c644",
+  "darwin_arm64" => "aba9ced2dee8d27fecca3dc7feb1a7f9a52caefa1eb46f3271ea66b6e0e6953f"
+}.freeze
+ROOT = File.expand_path("..", __dir__)
+BINARY = File.join(ROOT, "tmp/tools/actionlint-#{VERSION}/actionlint")
+
+def platform
+  os = RbConfig::CONFIG["host_os"][/linux|darwin/]
+  cpu = { "x86_64" => "amd64", "amd64" => "amd64", "aarch64" => "arm64", "arm64" => "arm64" }[RbConfig::CONFIG["host_cpu"]]
+  "#{os}_#{cpu}" if os && cpu
+end
+
+# The release's archive for this machine, checksum checked, unpacked beside
+# where it is run from; a failed download or a wrong checksum leaves nothing.
+def install
+  key = platform
+  expected = SHA256[key] or abort "bin/actionlint: no pinned actionlint #{VERSION} for #{RbConfig::CONFIG["host_os"]} " \
+                                  "#{RbConfig::CONFIG["host_cpu"]}; install it by hand"
+  url = "https://github.com/rhysd/actionlint/releases/download/v#{VERSION}/actionlint_#{VERSION}_#{key}.tar.gz"
+  Dir.mktmpdir do |dir|
+    archive = File.join(dir, "actionlint.tar.gz")
+    system("curl", "--fail", "--silent", "--show-error", "--location", "--proto", "=https", "--output", archive, url) or
+      abort "bin/actionlint: could not download #{url}"
+    actual = Digest::SHA256.file(archive).hexdigest
+    abort "bin/actionlint: #{url} has SHA-256 #{actual}, not the pinned #{expected}; nothing installed" unless actual == expected
+
+    system("tar", "-xzf", archive, "-C", dir, "actionlint") or abort "bin/actionlint: could not unpack #{archive}"
+    FileUtils.mkdir_p(File.dirname(BINARY))
+    FileUtils.mv(File.join(dir, "actionlint"), BINARY)
+  end
+end
+
+# Without shellcheck actionlint skips the run steps' scripts and passes them.
+unless system("shellcheck", "--version", out: File::NULL, err: File::NULL)
+  abort "bin/actionlint: shellcheck is not on the PATH, and actionlint checks the workflows' run steps with it " \
+        "(design NFR-08); install shellcheck first"
+end
+
+install unless File.executable?(BINARY)
+Dir.chdir(ROOT)
+exec BINARY, *ARGV

@@ -88,12 +88,6 @@ RSpec.describe "NFR-08 SR-18 SR-29 bin/evals" do
       expect(evals("--list", "--all", "--both-models")).to eq(0)
     end
 
-    it "leaves recording and replaying to M3" do
-      expect(evals("--record", "--fast")).to eq(2)
-      expect(evals("--recorded")).to eq(2)
-      expect(err.string).to include("M3")
-    end
-
     it "rewrites the scorecard only from a run of every case" do
       expect(evals("--suite", "boundary", "--scorecard")).to eq(2)
       expect(err.string).to include("--all")
