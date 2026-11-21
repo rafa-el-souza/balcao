@@ -7,7 +7,7 @@ require "rails_helper"
 RSpec.describe "SR-35 a link's token links one chat, two at once" do
   self.use_transactional_tests = false
 
-  after { OperatorChat.delete_all }
+  after { [ OperatorChat, OperatorAlert, BudgetState ].each(&:delete_all) }
 
   it "spends the token once when two chats send it at the same time" do
     token = OperatorChat.link_url![/\?start=(.+)\z/, 1]

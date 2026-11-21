@@ -206,9 +206,10 @@ module Budget
   # The operator's alert the budget's state calls for now, as its kind and
   # key, or nil: the one OperatorChat.link! sends again when it failed for
   # want of a chat, never an earlier one or one whose pause is over (the fix
-  # review's R1 and R2 on pull request #63).
+  # review's R1 and R2 on pull request #63). It reads the month's row and
+  # writes nothing: a month no turn has opened calls for none.
   def due_alert(at = Time.current)
-    state = month(at)
+    state = BudgetState.find_by(month: at.in_time_zone.strftime("%Y-%m")) or return nil
     automatic = automatic(state, at)
     return unless alerting?(state, automatic, serving(state.forced_mode, automatic.mode))
 
