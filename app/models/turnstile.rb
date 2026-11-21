@@ -6,10 +6,11 @@ require "net/http"
 # asks Cloudflare's siteverify whether the token is one the widget issued,
 # for this site and this action, and not yet spent. Anything else refuses the
 # session: no token, Cloudflare's no, a yes for another hostname or action,
-# and a siteverify that does not answer yes within FR-18's ten seconds. What
-# this does follows Cloudflare's docs as read on 2026-11-20 ("Validate the
-# token"): JSON to siteverify, a token of at most 2,048 characters, valid for
-# five minutes and good once, which this keeps itself (first_yes?).
+# and a siteverify whose whole answer is not a yes within FR-18's ten
+# seconds. What this does follows Cloudflare's docs as read on 2026-11-20
+# ("Validate the token"): JSON to siteverify, a token of at most 2,048
+# characters, valid for five minutes and good once, which this keeps itself
+# (first_yes?).
 #
 # Development, the suite and the rehearsal hosts (from M3) hold one of
 # Cloudflare's published test secrets, which accept only the test site keys'
@@ -41,10 +42,20 @@ class Turnstile
   ].freeze
   # FR-18's ten seconds, by Net::HTTP's phases: the connection, which waits
   # this long for the name and the TCP connection and again for the TLS
-  # handshake, then the request's write and the answer's read.
+  # handshake, then the request's write and each read of the answer.
   OPEN_TIMEOUT = 2
   WRITE_TIMEOUT = 2
   READ_TIMEOUT = 4
+  # And for the whole of it, its reads together (review findings C3 and C4 of
+  # pull request #53, M2's first close; M3-4): Net::HTTP bounds each read,
+  # not the answer, so a siteverify that answered slowly, a piece inside each
+  # read's timeout, held one of the web's three threads as long as it took.
+  # Timeout's interrupt is safe here: the block holds nothing but this call's
+  # own connection, which Net::HTTP's ensure closes, or the garbage collector
+  # when the interrupt lands inside that ensure.
+  ANSWER_TIMEOUT = 10
+
+  class AnswerTimeout < Timeout::Error; end
   # A timeout (Net::OpenTimeout, ReadTimeout, WriteTimeout), a name that does
   # not resolve, a connection refused, reset or cut (Errno's every kind), an
   # answer cut short or not HTTP, and OpenSSL's errors, a refused certificate
@@ -63,9 +74,10 @@ class Turnstile
 
   def self.passed?(token) = new.passed?(token)
 
-  def initialize(secret: Rails.configuration.x.turnstile_secret_key, host: URI(Rails.configuration.x.public_origin).host)
+  def initialize(secret: Rails.configuration.x.turnstile_secret_key, host: URI(Rails.configuration.x.public_origin).host, url: URL)
     @secret = secret
     @host = host
+    @url = url
   end
 
   # Whether Cloudflare vouches for this token, here and now.
@@ -88,13 +100,15 @@ class Turnstile
   # (probed on 2026-11-20; the review of pull request #53): a 4xx that names
   # its codes is a refusal, never a yes, whatever else it says.
   def siteverify(token)
-    http = Net::HTTP.new(URL.host, URL.port)
-    http.use_ssl = true
+    http = Net::HTTP.new(@url.host, @url.port)
+    http.use_ssl = @url.scheme == "https"
     http.open_timeout = OPEN_TIMEOUT
     http.write_timeout = WRITE_TIMEOUT
     http.read_timeout = READ_TIMEOUT
     http.max_retries = 0
-    response = http.post(URL.path, { secret: @secret, response: token }.to_json, "Content-Type" => "application/json")
+    response = Timeout.timeout(ANSWER_TIMEOUT, AnswerTimeout) do
+      http.post(@url.path, { secret: @secret, response: token }.to_json, "Content-Type" => "application/json")
+    end
     answer = object(response.body)
     if response.is_a?(Net::HTTPSuccess)
       answer || failed("siteverify answered no JSON object")
