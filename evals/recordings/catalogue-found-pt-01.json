@@ -1,13 +1,13 @@
 {
   "case": "catalogue-found-pt-01",
-  "recorded_at": "2026-11-21T15:02:50Z",
-  "commit": "b18c867",
+  "recorded_at": "2026-11-21T16:26:02Z",
+  "commit": "4611909",
   "route": {
     "model": "claude-opus-5-5",
     "effort": "low"
   },
   "digests": {
-    "prompt": "7ee7b2ef52051564",
+    "prompt": "047b32666dce99ac",
     "tools": "c423e4c70a3d6f13",
     "history": "123be78b75f9326d",
     "guardrail": "26ac2d0f29f2b202",
@@ -18,24 +18,24 @@
       "request": {
         "model": "15cd98bbce41024d",
         "max_tokens": "9f69998560dcfd80",
-        "system": "387eb72beae9aa5c",
+        "system": "6fffb3945f8d7444",
         "cache_control": "c27228f064722342",
         "messages": "b32db55d715aa06e",
         "output_config": "8f612858b9afa6f5",
         "tools": "2dce0306878e5c87",
         "fallbacks": "1080a60800d9e5bd"
       },
-      "at": "2026-11-21T15:02:51.985Z",
+      "at": "2026-11-21T16:26:04.143Z",
       "status": 200,
       "body": {
         "model": "claude-opus-5-5",
-        "id": "msg_011ChGGz1hdU1BqNQTRUpHfQ",
+        "id": "msg_011ChGPKziM59PoowE17kWUp",
         "type": "message",
         "role": "assistant",
         "content": [
           {
             "type": "tool_use",
-            "id": "toolu_01MSiQs1ERUbU9K9cEcAEavS",
+            "id": "toolu_015VqQt3ALCz77NaJcbpUSe6",
             "name": "search_products",
             "input": {
               "query": "dipirona"
@@ -52,7 +52,7 @@
         "usage": {
           "input_tokens": 4,
           "cache_creation_input_tokens": 106,
-          "cache_read_input_tokens": 4121,
+          "cache_read_input_tokens": 4120,
           "cache_creation": {
             "ephemeral_5m_input_tokens": 106,
             "ephemeral_1h_input_tokens": 0
@@ -61,7 +61,7 @@
             {
               "input_tokens": 4,
               "output_tokens": 50,
-              "cache_read_input_tokens": 4121,
+              "cache_read_input_tokens": 4120,
               "cache_creation_input_tokens": 106,
               "cache_creation": {
                 "ephemeral_5m_input_tokens": 106,
@@ -86,29 +86,29 @@
       "request": {
         "model": "15cd98bbce41024d",
         "max_tokens": "9f69998560dcfd80",
-        "system": "387eb72beae9aa5c",
+        "system": "6fffb3945f8d7444",
         "cache_control": "c27228f064722342",
-        "messages": "08abb226047878a9",
+        "messages": "3c744e2133311500",
         "output_config": "8f612858b9afa6f5",
         "tools": "2dce0306878e5c87",
         "fallbacks": "1080a60800d9e5bd"
       },
-      "at": "2026-11-21T15:02:54.225Z",
+      "at": "2026-11-21T16:26:06.344Z",
       "status": 200,
       "body": {
         "model": "claude-opus-5-5",
-        "id": "msg_011ChGGz6XM7Mew2s6tWEPZS",
+        "id": "msg_011ChGPL66Yy1BZpZy7a4gbz",
         "type": "message",
         "role": "assistant",
         "content": [
           {
             "type": "thinking",
             "thinking": "",
-            "signature": "CAQSnAUKEAgUGAI4AUIIdGhpbmtpbmcSDPAdjTho5I7QMAzSghoMc8ZEl8LF3FFkhAYNIjDt/+yNc7IfgyNyGPERB2cV8GSPm40UGgxZvyR1MUqM2JE8xUR98Gv9LZ/hEBwFeJEquQSDd1opbpJjXzPfwVdkFN0pEu53fWq4UEIwEizeEmyuhwq7nk8866tauJOjjB7TTMpzh2AwXRI2SHJUcReXG/Hc+hcq3igde40tTZZPWTBxBjZUOXc2Gj5Eik7jXQ6ePfUGdCuSH61mPGoZ6UFcbiX4zkDXa+DVR+doxaDd+lWGdDhpLCLIu6g/9P8F+/ygjhauFE2Dh3JlmlEFP/cdPdO6VivRqnXUZ+JeTbPoYUKuMijNUQdo3UJvqGTNTyh+x5E+yOrLwX4TXSEg2aPl6ApnPFB3XcAP48/jbfBERL4uR25SRFZVQHd8oONe1BpkW92xEO3NKlR/ZQXhDgfaFiMtWigaAnycbq92pYk9t18+j+yZrKQ1tVHu8ifCHK3BWZMZfxCgyKZUPaIzt+2ERa8cHduRjAAZ9lctLnhq77YnZFd7VHsEI0iMLDAjddvChlRVcFGP98aGUJbh0jgxcEGudS3UxS22XzxurtmZDUlsU1Wm9iOqI51Oqk4nKOsCGzCWGmDTme7LrazjEkPHUH56WXZmsLwiUAGyTh8dbb10ohydGI5/oylwtQZGcVw7O/0POTjPPtD/yW/Wf5e0UGCIBAuT/odMUrC6zFw2fToXwbPnu3PTTLRky3GnFVU29meNkMdVgEqod21A9OEjQbznyZtdeXxOHCv/yPBZ8SYU7A5AXUuelqi9VaL+Ro2eqqR1jxCidym7WBADtyjuzg8NUVDNYQ0pSLNOXpwut60r7hgJ3yn73X9zehgB"
+            "signature": "CAQSjAUKEAgUGAI4AUIIdGhpbmtpbmcSDMTD6P1/pg75EddyNxoMBSH+VVPdovkR9PsGIjDrmKv8nga6wjVXilYG4/23VtP+Q926YyhuO/6lFLXXovxRU8uCAmKnaA3WDAyysV0qqQRmOSNudF4MnZu/Oe6p6HGJ0nieRIFKEST5sOUoLbn7aNo9OSKbeazfC0hglY7eZ0EFw0lmzAZGPxIEg0LBRVBKoDuOZCuz0owW/6eKQ6nS43HMTwWHMrATmLkh48hiVVtoRtNIsqZgZpOJcEH6r+jcx3sHO6QhucIggzBGKLte2P62xj3rWXN1oILbozmF8ZjK4Q4T/kyWyKczlNVcPKoJAAUBGnzgUkFHZcO1vqKBazS2iH72ZD3lc+d0LIXF8xSs0PZ2wIBaZWbfQsQ9QcFDelz3Y/N1fE2CHl7Kd+lZk045UaUeJclFKEzi51i70qKXES+nl6LQXNF11sf7SWbPAMI9p/RveIOWLFks7nnPOfYRPzvqTibfMU1ZxvB92fLFb3Fx7cyavkvp7b+PXqNTI9cci652CqzapwvjawROKzZnvZo8jM4Ab7VqmTn0PvoXFj/nvhs7jh/KtlQWjCEjKknRY62MqfP5kOeTtp6s4+xku3MY+G86KvDJolWkabm4mjw3yI8H9hoHj8+hN8wWBvo8IYxZBKVKY2y7dWaWmj6ibAvrWIgSsyRr9VKVIYq6X422z1atsFKF2mhiyQggrzYYoXMjNFgcsbp1v6ILVF4dcpOx0zpBOCHOJiVOyOb/fpVdoDTs0xJ0bltqPPoYcAiBEFNjy6bifUT3kd80m5iTxAvqY6oagHi5rXAdVvVq2IiJLqGlxIlWHj37d4VxpOzh5dQLUBb9GAE="
           },
           {
             "type": "text",
-            "text": "[pt] Olá! Temos sim, os dois sem receita:\nDipirona 500 mg, 10 comprimidos: R$ 7,90 (40 em estoque)\nDipirona gotas 500 mg/ml, 20 ml: R$ 9,50 (25 em estoque)\nHoje a loja fica aberta até 14:00. Se quiser, posso reservar um deles para você retirar no balcão."
+            "text": "[pt] Olá! Temos sim, as duas em estoque e sem necessidade de receita:\nDipirona 500 mg, 10 comprimidos: R$ 7,90\nDipirona gotas 500 mg/ml, 20 ml: R$ 9,50\nHoje a loja fica aberta até as 14:00. Se quiser, posso reservar para você retirar no balcão."
           }
         ],
         "container": null,
@@ -117,29 +117,29 @@
         "stop_details": null,
         "usage": {
           "input_tokens": 2,
-          "cache_creation_input_tokens": 294,
-          "cache_read_input_tokens": 4227,
+          "cache_creation_input_tokens": 293,
+          "cache_read_input_tokens": 4226,
           "cache_creation": {
-            "ephemeral_5m_input_tokens": 294,
+            "ephemeral_5m_input_tokens": 293,
             "ephemeral_1h_input_tokens": 0
           },
           "iterations": [
             {
               "input_tokens": 2,
-              "output_tokens": 172,
-              "cache_read_input_tokens": 4227,
-              "cache_creation_input_tokens": 294,
+              "output_tokens": 157,
+              "cache_read_input_tokens": 4226,
+              "cache_creation_input_tokens": 293,
               "cache_creation": {
-                "ephemeral_5m_input_tokens": 294,
+                "ephemeral_5m_input_tokens": 293,
                 "ephemeral_1h_input_tokens": 0
               },
               "type": "message",
               "model": null
             }
           ],
-          "output_tokens": 172,
+          "output_tokens": 157,
           "output_tokens_details": {
-            "thinking_tokens": 28
+            "thinking_tokens": 23
           },
           "service_tier": "standard",
           "inference_geo": "global",
@@ -153,21 +153,21 @@
         "model": "4bfe472c97dd91b1",
         "max_tokens": "e39eef82f61b21e2",
         "system": "eaa7253600da411a",
-        "messages": "24df36bf795c13af",
+        "messages": "b3d5c0c6f6729282",
         "output_config": "dd2b36d6a3dabd02",
         "thinking": "d12700b52885ce0a"
       },
-      "at": "2026-11-21T15:02:55.394Z",
+      "at": "2026-11-21T16:26:07.551Z",
       "status": 200,
       "body": {
         "model": "claude-haiku-5-5",
-        "id": "msg_011ChGGzFqB78wbKDMox39SL",
+        "id": "msg_011ChGPLFBz8HVjfTS8YgyK2",
         "type": "message",
         "role": "assistant",
         "content": [
           {
             "type": "text",
-            "text": "{\"reason\": \"Tells the visitor dipirona is in stock in two presentations, prices, quantities, store hours, and offers a reservation.\", \"clinical\": false}"
+            "text": "{\"reason\": \"Lists two dipyrone products with price, stock, and prescription status, plus store hours and reservation offer.\", \"clinical\": false}"
           }
         ],
         "container": null,
@@ -175,14 +175,14 @@
         "stop_sequence": null,
         "stop_details": null,
         "usage": {
-          "input_tokens": 1093,
+          "input_tokens": 1083,
           "cache_creation_input_tokens": 0,
           "cache_read_input_tokens": 0,
           "cache_creation": {
             "ephemeral_5m_input_tokens": 0,
             "ephemeral_1h_input_tokens": 0
           },
-          "output_tokens": 55,
+          "output_tokens": 49,
           "output_tokens_details": {
             "thinking_tokens": 0
           },
