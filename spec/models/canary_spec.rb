@@ -293,12 +293,32 @@ RSpec.describe "FR-17 NFR-04 the canary" do
       expect(Rails.logger).to have_received(:info).with("canary: the turn's job still holds the conversation; the next run clears its rows")
     end
 
-    it "still tells the monitor when the day's count cannot be written" do
+    # H9 of #64's review: a count the database refused is lost from FR-13's
+    # uptime, and the database's faults fail most runs too, so the monitor
+    # hears a failure rather than all is well.
+    it "tells the monitor a failure when the day's count cannot be written" do
       allow(DailyAggregate).to receive(:add!).and_raise(ActiveRecord::ConnectionFailed, "gone")
 
+      expect(run).to have_attributes(passed: false, reason: "the day's count not written: ActiveRecord::ConnectionFailed")
+      expect(failure.with(body: "canary: the day's count not written: ActiveRecord::ConnectionFailed")).to have_been_requested.once
+      expect(beat).not_to have_been_requested
+    end
+
+    # H11 of #64's review: the rows' deletion after a verdict is the next
+    # run's to finish when it breaks; it never replaces the verdict.
+    it "keeps its verdict when the rows cannot be deleted after it, for the next run to clear" do
+      deletes = 0
+      allow(Message).to receive(:where).and_wrap_original do |original, *args, **kwargs|
+        relation = original.call(*args, **kwargs)
+        next relation unless kwargs.key?(:conversation_id) || args.first.is_a?(Hash) && args.first.key?(:conversation_id)
+
+        deletes += 1
+        allow(relation).to receive(:delete_all).and_raise(ActiveRecord::QueryCanceled, "slow") if deletes == 2
+        relation
+      end
+
       expect(run).to have_attributes(passed: true)
-      expect(beat).to have_been_requested.once
-      expect(Rails.logger).to have_received(:error).with("canary: the day's count not written, ActiveRecord::ConnectionFailed")
+      expect(Rails.logger).to have_received(:error).with("canary: the run's rows not deleted, ActiveRecord::QueryCanceled; the next run clears them")
     end
   end
 

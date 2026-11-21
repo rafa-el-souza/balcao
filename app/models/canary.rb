@@ -94,8 +94,7 @@ class Canary
   def run(due_at: nil)
     due_at ||= Time.current
     result = Rails.logger.tagged("canary") { probe(due_at) }
-    result = with_visitors(result)
-    count(result)
+    result = count(with_visitors(result))
     tell(result)
     result
   end
@@ -138,13 +137,17 @@ class Canary
   end
 
   # The rows go once the turn's job let go of the conversation; a job that
-  # still holds it keeps them, for the next run to clear.
+  # still holds it keeps them, for the next run to clear, and so does a
+  # deletion that breaks, which never replaces the run's verdict (review
+  # finding H11 of pull request #64).
   def settled(conversation, lock)
     deadline = Time.current + SETTLE
     @sleeper.call(POLL) until (free = AdvisoryLock.free?(lock)) || Time.current >= deadline
     return clear(conversation) if free
 
     Rails.logger.info("canary: the turn's job still holds the conversation; the next run clears its rows")
+  rescue StandardError => e
+    Rails.logger.error("canary: the run's rows not deleted, #{e.class}; the next run clears them")
   end
 
   # Every message of the conversation is a run's; deleting them deletes their
@@ -203,12 +206,15 @@ class Canary
 
   def failed(reason, turn = nil, took = nil) = Result.new(passed: false, reason:, mode: turn&.mode, latency_ms: took)
 
-  # The day's count; one that cannot be written is a line, and the monitor
-  # is told all the same.
+  # The day's count. One the database refused is lost from FR-13's uptime,
+  # and the database's faults fail most runs too, so the run is told as a
+  # failure (review finding H9 of pull request #64).
   def count(result)
     DailyAggregate.add!(kind: "canary", key: result.passed ? "passed" : "failed")
+    result
   rescue StandardError => e
     Rails.logger.error("canary: the day's count not written, #{e.class}")
+    result.passed ? failed("the day's count not written: #{e.class}") : result
   end
 
   def tell(result)
