@@ -56,4 +56,7 @@ end
 group :test do
   # Blocks every real HTTP request from the suite (design §6.9, threat model SR-29)
   gem "webmock"
+
+  # Line coverage of CI's whole run against the threshold in .simplecov (design NFR-08)
+  gem "simplecov", require: false
 end

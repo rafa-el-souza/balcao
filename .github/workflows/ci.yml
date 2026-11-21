@@ -89,7 +89,9 @@ jobs:
       - name: Static secrets check and no Kamal hooks (threat model SR-25, SR-38)
         run: bundle exec rspec spec/deploy -e SR-25 -e "runs no repository hook"
 
-      - name: RSpec
+      - name: RSpec, with the line coverage against its threshold (design NFR-08)
+        env:
+          COVERAGE: "1"
         run: bundle exec rspec
 
       - name: The fast evals, replayed from their recordings with no key (design NFR-08, evals/README.md)

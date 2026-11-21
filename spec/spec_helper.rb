@@ -1,3 +1,8 @@
+# Line coverage of the whole run, against the threshold in .simplecov (design
+# NFR-08): CI's RSpec step sets COVERAGE=1. SimpleCov starts before the app
+# loads, so every file the run requires is counted.
+require "simplecov" if ENV["COVERAGE"] == "1"
+
 # Configuration shared by every spec; Rails-specific setup is in rails_helper.rb.
 # Every example group names the requirement it covers in its description
 # string, e.g. RSpec.describe "FR-07 reservation" (design NFR-08).

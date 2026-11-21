@@ -88,7 +88,8 @@ RSpec.describe "SR-27 bin/bundler-audit refreshes its advisory database itself" 
     started = nil
     allow(Bundler::Audit::CLI).to receive(:start) { started = ARGV.dup }
     stub_const("ARGV", argv)
-    load Rails.root.join("bin/bundler-audit").to_s
+    # The script defines its modules' constants again on every load.
+    silence_warnings { load Rails.root.join("bin/bundler-audit").to_s }
     started
   end
 

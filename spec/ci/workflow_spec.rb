@@ -25,6 +25,16 @@ RSpec.describe "NFR-08 the CI workflow runs M3's furniture in the jobs the branc
     expect(jobs.values.map { |job| job["permissions"] }).to all(eq("contents" => "read"))
   end
 
+  # NFR-08's coverage threshold (.simplecov) holds the whole suite's run,
+  # which alone measures with COVERAGE=1.
+  it "measures the line coverage of the whole suite against the threshold" do
+    whole = steps("ruby_test").find { |step| step["run"] == "bundle exec rspec" }
+
+    expect(whole["env"]).to eq("COVERAGE" => "1")
+    expect(Rails.root.join(".simplecov").read).to match(/^\s+minimum \d+\.\d+$/)
+    expect(Rails.root.join("config/ci.rb").read).to include('"Tests: RSpec", "env COVERAGE=1 bundle exec rspec"')
+  end
+
   # evals/README.md, Running: the fast subset's recordings replayed with no
   # key, after the suite, on its test database.
   it "replays the recorded fast evals with no key, after the whole suite" do
