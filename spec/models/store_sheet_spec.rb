@@ -138,6 +138,12 @@ RSpec.describe "FR-03 FR-26 the store fact sheet" do
       ],
       "a contact without a phone" => [ ->(data) { data["topics"]["contact"].delete("phone") }, /topics\.contact\.phone/ ],
       "no pharmacy name" => [ ->(data) { data["identity"]["name"] = " " }, /identity\.name/ ],
+      # H10 of #64's review: the street before the address's first comma is
+      # FR-17's marker, and an empty one would pass any reply.
+      "an address with no street before its first comma" => [
+        ->(data) { data["identity"]["address"] = ", 120 — Floresta" }, /identity\.address must start with its street/
+      ],
+      "no address" => [ ->(data) { data["identity"].delete("address") }, /identity\.address/ ],
       # Review finding N2 of pull request #8: YAML reads an unquoted on, yes,
       # no or number as another type, and the key's comparison raised
       # ArgumentError, which named nothing (the owner's word of 2026-11-15).
