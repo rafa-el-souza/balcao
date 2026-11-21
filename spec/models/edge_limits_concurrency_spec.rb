@@ -13,6 +13,7 @@ RSpec.describe "FR-14 SR-01 a limit's first count in a window, two at once" do
   let(:limit) { EdgeLimits::LIMITS.fetch("ip/sessions") }
 
   before do
+    @versions = ActiveRecord::Base.connection.select_values("SELECT version FROM schema_migrations")
     ActiveRecord::Migration.suppress_messages { load Rails.root.join("db/cache_schema.rb") }
     SolidCache::Entry.reset_column_information
     allow(Rack::Attack.cache).to receive(:store).and_return(store)
@@ -21,9 +22,13 @@ RSpec.describe "FR-14 SR-01 a limit's first count in a window, two at once" do
   # The cache's table lives in its own database in production; here it is
   # made in the suite's, outside a transaction, so it goes with the example,
   # as the primary database's tables are all the app's own (spec/db/schema_spec.rb).
+  # The cache schema's define writes its version into the suite's
+  # schema_migrations, outside a transaction too (V4 of pull request #65).
   after do
     ActiveRecord::Base.connection.drop_table(:solid_cache_entries, if_exists: true)
     SolidCache::Entry.reset_column_information
+    left = ActiveRecord::Base.connection.select_values("SELECT version FROM schema_migrations") - @versions
+    ActiveRecord::Base.connection.exec_delete("DELETE FROM schema_migrations WHERE version = ANY($1::varchar[])", "spec", [ "{#{left.join(",")}}" ]) if left.any?
   end
 
   def monotonic = Process.clock_gettime(Process::CLOCK_MONOTONIC)
