@@ -447,13 +447,14 @@ never from a shell start-up file.
 2. The deploy-path review: the diff, between what runs and what will run,
    of the files whose content Kamal and the image build read in this
    account. Kamal evaluates `config/deploy.yml` as a template and reads
-   `.kamal/secrets`, which can run commands; the build reads the rest; and
+   `.kamal/secrets`, which can run commands; the build reads the rest, the
+   two lockfiles naming every package the image installs; and
    mise, the tool that picks Ruby's version, reads `.tool-versions` and its
    own configuration files (the `mise` patterns), which can run commands
    too.
 
    ```
-   git diff "$(cat .last-deployed-sha)" origin/main -- config/deploy.yml .kamal/ Dockerfile .dockerignore web/package.json web/package-lock.json .tool-versions ':(glob)**/mise.*' ':(glob)**/.mise.*' ':(glob)**/mise/**' ':(glob)**/.mise/**' ':(glob)**/.config/mise*' ':(glob)**/.config/mise/**'
+   git diff "$(cat .last-deployed-sha)" origin/main -- config/deploy.yml .kamal/ Dockerfile .dockerignore web/package.json web/package-lock.json Gemfile Gemfile.lock .tool-versions ':(glob)**/mise.*' ':(glob)**/.mise.*' ':(glob)**/mise/**' ':(glob)**/.mise/**' ':(glob)**/.config/mise*' ':(glob)**/.config/mise/**'
    git ls-tree --name-only origin/main .kamal/
    ```
 

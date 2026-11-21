@@ -45,7 +45,8 @@ RSpec.describe "SR-37 SR-38 the operator's account and checklist in the runbook"
 
     expect(diff).not_to be_nil
     expect(diff.split).to include("config/deploy.yml", ".kamal/", "Dockerfile", ".dockerignore", "web/package.json",
-                                  "web/package-lock.json", ".tool-versions", "':(glob)**/mise.*'", "':(glob)**/.mise.*'",
+                                  "web/package-lock.json", "Gemfile", "Gemfile.lock", ".tool-versions",
+                                  "':(glob)**/mise.*'", "':(glob)**/.mise.*'",
                                   "':(glob)**/mise/**'", "':(glob)**/.mise/**'", "':(glob)**/.config/mise*'",
                                   "':(glob)**/.config/mise/**'")
   end
