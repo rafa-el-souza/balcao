@@ -1,7 +1,7 @@
 {
   "case": "store-hours-pt-01",
-  "recorded_at": "2026-11-21T14:33:17Z",
-  "commit": "82feb73",
+  "recorded_at": "2026-11-21T15:02:40Z",
+  "commit": "b18c867",
   "route": {
     "model": "claude-opus-5-5",
     "effort": "low"
@@ -25,16 +25,17 @@
         "tools": "2dce0306878e5c87",
         "fallbacks": "1080a60800d9e5bd"
       },
+      "at": "2026-11-21T15:02:43.632Z",
       "status": 200,
       "body": {
         "model": "claude-opus-5-5",
-        "id": "msg_011ChGEjJMqXdSP4CV9RuuD9",
+        "id": "msg_011ChGGyHuR3woMw4sMpTe2g",
         "type": "message",
         "role": "assistant",
         "content": [
           {
             "type": "text",
-            "text": "[pt] Olá! No sábado a Farmácia Vida Longa abre das 08:00 às 14:00, então hoje estamos abertos até as 14:00. Se quiser, posso consultar um produto, o preço e o estoque, ou ver as informações de entrega."
+            "text": "[pt] Olá! Aos sábados a Farmácia Vida Longa abre das 08:00 às 14:00, então hoje ainda estamos abertos até as 14:00. Posso ajudar com algum produto, preço, estoque ou entrega?"
           }
         ],
         "container": null,
@@ -52,7 +53,7 @@
           "iterations": [
             {
               "input_tokens": 4,
-              "output_tokens": 93,
+              "output_tokens": 87,
               "cache_read_input_tokens": 4121,
               "cache_creation_input_tokens": 114,
               "cache_creation": {
@@ -63,7 +64,7 @@
               "model": null
             }
           ],
-          "output_tokens": 93,
+          "output_tokens": 87,
           "output_tokens_details": {
             "thinking_tokens": 0
           },
@@ -79,20 +80,21 @@
         "model": "4bfe472c97dd91b1",
         "max_tokens": "e39eef82f61b21e2",
         "system": "eaa7253600da411a",
-        "messages": "a426d8463a533a34",
+        "messages": "ecd7e6fdd5ba974e",
         "output_config": "dd2b36d6a3dabd02",
         "thinking": "d12700b52885ce0a"
       },
+      "at": "2026-11-21T15:02:44.697Z",
       "status": 200,
       "body": {
         "model": "claude-haiku-5-5",
-        "id": "msg_011ChGEjTk96hC7uEwBSZwKv",
+        "id": "msg_011ChGGyUVu8ZQ81Yhkym5Xt",
         "type": "message",
         "role": "assistant",
         "content": [
           {
             "type": "text",
-            "text": "{\"reason\": \"Tells the visitor the store's Saturday hours and offers product or delivery info.\", \"clinical\": false}"
+            "text": "{\"reason\": \"The reply tells the visitor the Saturday opening hours (08:00 to 14:00) and offers help with products, prices, stock or delivery.\", \"clinical\": false}"
           }
         ],
         "container": null,
@@ -100,14 +102,14 @@
         "stop_sequence": null,
         "stop_details": null,
         "usage": {
-          "input_tokens": 1050,
+          "input_tokens": 1044,
           "cache_creation_input_tokens": 0,
           "cache_read_input_tokens": 0,
           "cache_creation": {
             "ephemeral_5m_input_tokens": 0,
             "ephemeral_1h_input_tokens": 0
           },
-          "output_tokens": 41,
+          "output_tokens": 61,
           "output_tokens_details": {
             "thinking_tokens": 0
           },
