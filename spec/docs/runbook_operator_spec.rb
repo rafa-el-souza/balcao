@@ -120,4 +120,14 @@ RSpec.describe "SR-37 SR-38 the operator's account and checklist in the runbook"
 
     expect(outside).to include("TCP 22 and ICMP alone until the cut's step 5")
   end
+
+  # The fix review's R6: the guard leaves a file that exists at its mode,
+  # so one made earlier at 644 took the secrets at 644.
+  it "narrows an existing env file to mode 600 before a secret is written to it" do
+    chmod = account.index("chmod 600 <the file>")
+
+    expect(chmod).not_to be_nil
+    expect(chmod).to be > account.index("install -m 600 /dev/null <the file>")
+    expect(chmod).to be < account.index(">> <the file>")
+  end
 end

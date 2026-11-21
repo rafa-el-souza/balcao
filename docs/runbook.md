@@ -389,7 +389,8 @@ development account, which has no sudo:
 7. Production's env file, outside the clone, readable by the operator
    alone, with the values `.kamal/secrets` names. Make it first, empty and
    at mode 600, and never over one that exists, which `install` would
-   empty: `[ -e <the file> ] || install -m 600 /dev/null <the file>`. The
+   empty: `[ -e <the file> ] || install -m 600 /dev/null <the file>`, then
+   `chmod 600 <the file>` for one made earlier at another mode. The
    generated values come from the operator's own Ruby, never from the
    repository's `bin/secrets-example`, which is repository code; the same
    lengths and characters as that script's:
