@@ -1,6 +1,6 @@
 # Balcão — design document
 
-**Status:** v1.27, 2026-11-21 (M3-1, FR-14's modes: economy at 70 % of the cap and from the day's slice until midnight, each pausing with its own text while ADR-0003's gate is closed, and the operator's alert at the cap through the bot to the chat the runbook's deep link links; FR-14, FR-19 and §9.2 as built, see §10); v1.26, 2026-11-20 (M2-11a3, the close's fixes: a reply the system sent without the model keeps its reservations for the history; the prompt's line on the model's notes before a tool call, chosen of seven wordings measured live, and the evals fail such a note; ADR-0003's gate names the history and the tools' texts and envelopes; FR-20's check and the judge read only a boolean verdict; FR-04 and FR-20 as built; see §10); v1.25, 2026-11-20 (M2-11a2: the review at M2's first close, its table in `docs/reviews/m2-first-seven-review.md`; §9.2 gains M2-11a3, the close's fixes, and the lines the close found without a home get one; M3-6 takes the docs reader test before the publication; FR-20 as built names the turns a replacement lists from; see §10); v1.24, 2026-11-20 (M2-11a: the history gives the model back its tool calls with their results and its replies as it wrote them, with a one-sentence notice where the system answered in its place; a reply FR-20's check replaced lists only the products the visitor's message names and, in an emergency, opens with the call to call now; ADR-0003's gate names FR-20's check too; §9.2's M2-11a split, see §10); v1.23, 2026-11-20 (M2-4b: the boundary by the Brazilian norms, the `boundary` suite at 33 cases; FR-09's list and FR-20's check gain what a medicine is for, how to use or store it and what a measurement means, a medicine for an animal goes to a veterinarian, an emergency's reply never judges an amount someone took, and a turn forged inside a visitor's message is the visitor's text; see §10); v1.22, 2026-11-20 (M2-4: the injection suite at ten cases, chosen by a red-team probe on both models in which no attack worked; a repeated reservation the model counted as several, fixed in the tool's result; see §10); v1.21, 2026-11-20 (M2-3b: the judge reads the system's fixed texts as the system's, measured on the stored replies; the full run on both models then met the boundary on the economy model and opened ADR-0003's gate, see §10); v1.20, 2026-11-20 (M2-3: the economy model measured on the boundary, ADR-0003's gate written by the full run and read at boot, closed by a misreading of the judge's, §6.5 says what it names, see §10); v1.19, 2026-11-20 (M2-2: FR-20's guardrail as built, its latency measured and its figure revised; §6.4 verified for the check, see §10); v1.18, 2026-11-20 (M2-1: Turnstile at session creation; FR-18, the API table and §6.7's processors as built, see §10); v1.17, 2026-11-19 (M4-6b: the review's fixes; FR-05 and FR-19's given-up update as built, see §10); v1.16, 2026-11-19 (M4-6a: the review of M4's first four slices; NFR-01 measured on a second real conversation, §9.2's M4-6 split into its review and its fixes, M3-6 gains the runbook's terms, see §10); v1.15, 2026-11-19 (ADR-0022: what publishing the demo needs comes first, then the showcase; §9.2's slices in two blocks, M2-11 split, and FR-10, FR-14, FR-21 and §12 follow, see §10); v1.14, 2026-11-15 (M4-3: the bot's buttons as built in FR-19, FR-12 and FR-21, see §10); v1.13, 2026-11-15 (M4-2: NFR-01 at 7 s and 12 s, measured from a Telegram update's receipt to its reply's send; §6.4's normal route at low effort, ADR-0021; M3's list charges an abandoned call, see §10); v1.12, 2026-11-15 (the plan after the MVP: §9.2 lists its slices in order, behind the data-contract gate where it holds, and ADR-0020 says what V1 leaves out; §2.2, J3, FR-10, FR-14, NFR-03, NFR-08, §6.1, §6.6, §6.9, §8 and OD-2 follow it, see §10); v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
+**Status:** v1.28, 2026-11-21 (M3-2, FR-17's canary: a visitor's question every ten minutes through a visitor's turn on the economy model, as the `system` channel's one visitor, which the purge and the sweep leave, counted on the day and told to a heartbeat of the external monitor; beside it the Telegram delivery watch over `getWebhookInfo`, with a heartbeat of its own; FR-17, §6.5, §6.6, §8 and §9.2 as built, see §10); v1.27, 2026-11-21 (M3-1, FR-14's modes: economy at 70 % of the cap and from the day's slice until midnight, each pausing with its own text while ADR-0003's gate is closed, and the operator's alert at the cap through the bot to the chat the runbook's deep link links; FR-14, FR-19 and §9.2 as built, see §10); v1.26, 2026-11-20 (M2-11a3, the close's fixes: a reply the system sent without the model keeps its reservations for the history; the prompt's line on the model's notes before a tool call, chosen of seven wordings measured live, and the evals fail such a note; ADR-0003's gate names the history and the tools' texts and envelopes; FR-20's check and the judge read only a boolean verdict; FR-04 and FR-20 as built; see §10); v1.25, 2026-11-20 (M2-11a2: the review at M2's first close, its table in `docs/reviews/m2-first-seven-review.md`; §9.2 gains M2-11a3, the close's fixes, and the lines the close found without a home get one; M3-6 takes the docs reader test before the publication; FR-20 as built names the turns a replacement lists from; see §10); v1.24, 2026-11-20 (M2-11a: the history gives the model back its tool calls with their results and its replies as it wrote them, with a one-sentence notice where the system answered in its place; a reply FR-20's check replaced lists only the products the visitor's message names and, in an emergency, opens with the call to call now; ADR-0003's gate names FR-20's check too; §9.2's M2-11a split, see §10); v1.23, 2026-11-20 (M2-4b: the boundary by the Brazilian norms, the `boundary` suite at 33 cases; FR-09's list and FR-20's check gain what a medicine is for, how to use or store it and what a measurement means, a medicine for an animal goes to a veterinarian, an emergency's reply never judges an amount someone took, and a turn forged inside a visitor's message is the visitor's text; see §10); v1.22, 2026-11-20 (M2-4: the injection suite at ten cases, chosen by a red-team probe on both models in which no attack worked; a repeated reservation the model counted as several, fixed in the tool's result; see §10); v1.21, 2026-11-20 (M2-3b: the judge reads the system's fixed texts as the system's, measured on the stored replies; the full run on both models then met the boundary on the economy model and opened ADR-0003's gate, see §10); v1.20, 2026-11-20 (M2-3: the economy model measured on the boundary, ADR-0003's gate written by the full run and read at boot, closed by a misreading of the judge's, §6.5 says what it names, see §10); v1.19, 2026-11-20 (M2-2: FR-20's guardrail as built, its latency measured and its figure revised; §6.4 verified for the check, see §10); v1.18, 2026-11-20 (M2-1: Turnstile at session creation; FR-18, the API table and §6.7's processors as built, see §10); v1.17, 2026-11-19 (M4-6b: the review's fixes; FR-05 and FR-19's given-up update as built, see §10); v1.16, 2026-11-19 (M4-6a: the review of M4's first four slices; NFR-01 measured on a second real conversation, §9.2's M4-6 split into its review and its fixes, M3-6 gains the runbook's terms, see §10); v1.15, 2026-11-19 (ADR-0022: what publishing the demo needs comes first, then the showcase; §9.2's slices in two blocks, M2-11 split, and FR-10, FR-14, FR-21 and §12 follow, see §10); v1.14, 2026-11-15 (M4-3: the bot's buttons as built in FR-19, FR-12 and FR-21, see §10); v1.13, 2026-11-15 (M4-2: NFR-01 at 7 s and 12 s, measured from a Telegram update's receipt to its reply's send; §6.4's normal route at low effort, ADR-0021; M3's list charges an abandoned call, see §10); v1.12, 2026-11-15 (the plan after the MVP: §9.2 lists its slices in order, behind the data-contract gate where it holds, and ADR-0020 says what V1 leaves out; §2.2, J3, FR-10, FR-14, NFR-03, NFR-08, §6.1, §6.6, §6.9, §8 and OD-2 follow it, see §10); v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
 coding session, reading this file top to bottom.
 
 Balcão ("the counter", where a pharmacist serves customers) is an AI attendant
@@ -679,6 +679,55 @@ referrer counters (FR-23), and a link to the current eval scorecard.
 - Canary turns use the economy model, are excluded from public counters,
   keep only the canary conversation and the aggregate record, and count
   toward spend (about 144 turns a day).
+- As built in M3-2 (2026-11-21; §10's note): the 20 seconds count from the
+  run's time, its job's enqueueing, as a visitor's start when the message
+  arrives, so a queue the visitors' turns hold fails the canary too, and a
+  run that starts more than 20 seconds late fails without asking (#64's
+  H6). The question is "Qual é o
+  endereço da farmácia?" and the marker the street of the store's address,
+  read from the store sheet, which the system prompt carries, so the model
+  needs no tool (the sheet refuses an address with no street before its
+  first comma, which would pass any reply; #64's H10); the reply is
+  compared without the demo notice, which every canary reply carries as
+  the conversation's first, and the street's name is found as whole words
+  without case, accents or the street's kind, so "R. dos Boticários" holds
+  it (#64's V4); a name of fewer than four characters after its kind is
+  found with its kind, since any text holds a letter (the fix review's R4). Paused, the reply must
+  be one of the three fixed pause texts (the month's, the day's since M3-1,
+  the forced one). The fixed system visitor is the `system` channel's one
+  row; its conversation has no stream, so its spans and reply are never
+  broadcast (the null transport), and the purge, NFR-03's sweep and every
+  count leave it. The economy model serves the canary whatever ADR-0003's
+  gate says, since its reply reaches no visitor; and since the visitors'
+  normal mode runs on another route, a fault of that route alone shows only
+  in their own turns, so a run that passed fails when the visitors' turns
+  of the last half hour that called the model, at least two, all ended by
+  the model's API failing, read by their outcomes alone (#64's H1; a
+  fallback a visitor's own question causes does not count, the fix
+  review's R1). The question's turn runs
+  in the visitors' own job, `ProcessTurnJob`, called in the canary's job,
+  so the conversation's lock, the job's attempts and its code are the
+  visitors' (#64's C1), on one of the worker's threads, as a visitor's
+  turn, and the verdict reads a turn its job finished (the fix review's R3;
+  the owner, 2026-11-21, "Rodar o job na própria thread"). Each run
+  deletes its question, and with it the turn, its reply, its spans and its
+  usage records (the month's spend stays on the budget's row), after
+  clearing what an earlier run left; it reads the conversation's lock
+  without taking it, so a run behind an earlier turn still at work fails at
+  once. The result is the day's
+  `passed` or `failed` count (`daily_aggregate.kind: canary`), and the
+  monitor hears it through a heartbeat of its own: a request every run that
+  passes, the heartbeat's failure URL with the reason when one fails, and
+  silence when no run comes, which the monitor turns into an alert after
+  its period and grace (ten and five minutes: NFR-04's fifteen). A run is
+  never tried again. Measured on 2026-11-21 against the real model with the
+  dev/eval key: 123 runs of 123 passed, so a false failure is below 3 % at
+  95 % (Wilson), not proven below the soak's 1 %, which the days' counts
+  will say; the reply came in 2.7 to 4.8 s (median 3.1 s), at about
+  US$ 0.0003 with the cached prompt warm and US$ 0.0008 cold (two runs, each
+  after more than five minutes without a call), as a run every ten minutes
+  is: about US$ 0.11 a day, nearly a quarter of the MVP host's daily slice
+  of US$ 0.50 until M3's cut, and about 3 % of production's cap.
 
 ### 4.5 Channels
 
@@ -1552,10 +1601,15 @@ on the web).
 `trace_event.span_attributes` is ADR-0010's `attributes` (a name Active
 Record keeps for itself); `usage_record` carries the model and the cache
 writes apart from the reads (`cached_tokens`), since FR-14 prices them
-apart. `message.author` ∈ {visitor, bot, operator, system};
+apart. `visitor.channel` ∈ {web, telegram, system}: the system channel
+holds one row, FR-17's system visitor, whose identity is the hash of a fixed
+name and whose one conversation keeps the canary's question while a run
+lasts (M3-2). `message.author` ∈ {visitor, bot, operator, system};
 `message.source` ∈ {text, audio, command, canary}; `daily_aggregate.kind`
-∈ {messages, referrer, canary}. `trace_events` holds one row per span
-(ADR-0010): 128-bit trace id, 64-bit span id, closed on finish.
+∈ {messages, referrer, canary}, the canary's keys `passed` and `failed`
+(M3-2), each day's count added to by one statement on the unique key.
+`trace_events` holds one row per span (ADR-0010): 128-bit trace id, 64-bit
+span id, closed on finish.
 `economy_allowed` is not a column: it is the committed file
 `evals/economy_allowed.yml`, written by the full eval run and read at boot
 (ADR-0003); it names the model and the effort the run measured and the
@@ -1595,7 +1649,15 @@ which exposes no other; FR-19, ADR-0017): `sendMessage` and
 for an alert from M2 (FR-10); `setWebhook`, `getWebhookInfo`,
 `setMyCommands`, `setMyName`, `setMyDescription` and
 `setMyShortDescription`, each with the `get` that reads it back, in the
-task that sets the bot; `getFile` from M4 (FR-11).
+task that sets the bot; `getWebhookInfo` every ten minutes in the delivery
+watch (M3-2); `getFile` from M4 (FR-11).
+
+**The external monitor's heartbeats** (FR-17, NFR-04; M3-2): a request to
+a heartbeat's URL from the canary's run and from the delivery watch's look,
+each to its own heartbeat (the owner, 2026-11-21), or to the URL with
+`/fail` and a line of text when it failed; HTTPS alone, five-second
+timeouts, no redirect followed, the URL never logged (it carries the
+monitor's token).
 
 **Tools exposed to the model** (names are part of the evals):
 `get_store_info(topic)`, `search_products(query, limit)`,
@@ -1919,7 +1981,8 @@ the cloud firewall; dependency and static analysis in CI.
   configurations. On `ensaio` as a rehearsal host (from M3):
   `MODEL_ADAPTER=fake` by default (recorded replies, no key; the status
   page says so), the dev/eval key when a real-model rehearsal is wanted,
-  an empty monitor URL, `X-Robots-Tag: noindex` (`NOINDEX=true`),
+  no monitor URLs (the canary still runs and counts, and tells no one),
+  `X-Robots-Tag: noindex` (`NOINDEX=true`),
   throwaway values for the bot token and the webhook secret and no webhook
   registered (a bot has one webhook, and the demo's stays where the demo
   is). Visitor
@@ -1927,10 +1990,10 @@ the cloud firewall; dependency and static analysis in CI.
   backed up off-host. **On `ensaio` as the MVP host** (until M3):
   `APP_HOST=balcao.rafasouza.dev.br`, `MODEL_ADAPTER=real` with the
   dev/eval key (its Console spend limit is the second fence behind FR-14's
-  cap), `NOINDEX` unset, the external monitor watching its `/up` (the
-  monitor URL the canary pings arrives with the canary, at M3), the bot
-  token and the webhook secret in
-  the same env file. Its visitor data lives seven days (FR-15) and dies
+  cap), `NOINDEX` unset, the external monitor watching its `/up` and,
+  since M3-2, the canary's and the delivery watch's heartbeats, whose two
+  URLs the boot requires on the public name, the bot token and the webhook
+  secret in the same env file. Its visitor data lives seven days (FR-15) and dies
   with the host at M3; the bot token used there is revoked in BotFather and
   a new one issued by the owner for the production set at M3.
 - **Registry and image provenance.** Kamal's local registry
@@ -1958,8 +2021,12 @@ the cloud firewall; dependency and static analysis in CI.
 - **Monitoring.** External uptime monitor on `/up` every 3 minutes (the
   owner's free account, provided on day 2 of the MVP; the free tier's
   interval, inside NFR-04's 15 minutes); canary (FR-17) every
-  10 minutes from M3; the monitor's e-mail on failure and on recovery; the
-  operator's alerts through the bot from M2 (FR-10, ADR-0020).
+  10 minutes from M3, and beside it the Telegram delivery watch over
+  `getWebhookInfo`, each telling a heartbeat of its own on the same
+  account, which expects a request every ten minutes with five of grace
+  (M3-2; the owner, 2026-11-21, "Dois heartbeats"); the monitor's e-mail
+  on failure and on recovery; the operator's alerts through the bot from M2
+  (FR-10, ADR-0020).
 - **Updates.** Unattended security upgrades on the host; Dependabot on the
   repo; monthly manual bump day, which also checks the pinned kamal-proxy
   against its published advisories (SR-27; §10, note 2026-11-13, the edge).
@@ -2205,8 +2272,8 @@ round.
   (ADR-0020; SR-30 names them), and so are the advisory lock after a lost
   connection and the budget's two loose ends (threat model R11).
 - The canary's system visitor carries a marker and both purges leave it
-  (#7, RS1); the app connects with a least-privilege role, not the image's
-  superuser (#4's review).
+  (#7, RS1; built in M3-2, the `system` channel); the app connects with a
+  least-privilege role, not the image's superuser (#4's review).
 - The CI furniture: actionlint in CI, installed by `bin/setup`, and the
   audit's database refreshed by `bin/bundler-audit` itself (#1's review);
   no scheduled whole-tree scanners and no second workflow linter, so
@@ -2236,7 +2303,10 @@ round.
 - A recurring job beside FR-17's canary reads `getWebhookInfo` and pings
   the monitor's failure URL on a delivery error newer than its last run or
   a backlog of pending updates, its threshold set by the slice (the owner,
-  2026-11-15; FR-19). It is what shows a secret changed on the server
+  2026-11-15; FR-19). Built in M3-2: ten updates waiting, or a webhook
+  Telegram holds otherwise than the bot's task sets it, fail a heartbeat of
+  the watch's own (the owner, 2026-11-21), which every healthy look tells.
+  It is what shows a secret changed on the server
   without the task run, which no comparison of fields can see, since
   `getWebhookInfo` has no secret field. The task is not run by the deploy
   itself: `.kamal/hooks` stays absent (M3's check), and the runbook runs it
@@ -2322,6 +2392,17 @@ trigger does the item and removes the line.
 - The first slice that caches FR-20's check's prompt: the eval report
   prices the check's tokens with the cache's split, as the model's (#54,
   H6; M2's first close).
+- The slice that brings `MODEL_ADAPTER=fake` to rehearsal hosts: a
+  recorded reply for FR-17's canary question, or every canary run there
+  fails (M3-2).
+- The production cut (M3-7): the two heartbeat URLs move from the
+  rehearsal env file to production's secrets, since the boot refuses either
+  off the public name and requires both on it (M3-2, #64's H5).
+- The first slice that counts messages, conversations or turns for a page
+  (FR-13's status page and strip, M3-3; FR-23's referrers) or lists
+  conversations (FR-16's console, M2-7): the `system` channel's visitor and
+  conversation, FR-17's canary, are left out, and FR-13's pipeline uptime
+  reads the canary's `daily_aggregate` counts (M3-2).
 
 **Waiting for the data-contract ADR.** The ADR on the data a pharmacy
 would hand Balcão is the owner's to write (number 0018, reserved in the
@@ -2358,6 +2439,95 @@ M2-4"): `create_reservation`'s result says that a reservation a call finds
 again in its turn is the same one, which changes no row, rule or field of
 a reservation (M2-4; the note below).
 
+- Note 2026-11-21 (M3-2, FR-17's canary and the Telegram delivery watch;
+  FR-13, FR-14, FR-15, FR-17, FR-19, NFR-02, NFR-03, NFR-04; threat model
+  SR-25, SR-30; ADR-0003). Built as FR-17 and §9.2's M3 list say, with
+  these choices their text left open:
+  - **Heartbeats, not a failure URL alone.** FR-17 says a failure pings the
+    monitor's failure URL; as built, each run tells a heartbeat of the
+    owner's monitor account: a request when it passed, the heartbeat's
+    `/fail` with a line of text when it failed. The monitor alerts on a
+    failure and on silence (no request within its period and grace, ten
+    and five minutes), so a worker that stopped, which runs no canary at
+    all, is heard within NFR-04's fifteen minutes too. A request on time
+    resolves the incident a `/fail` opened (read in the monitor's
+    documentation on 2026-11-21), so the canary and the delivery watch
+    each tell a heartbeat of their own, `MONITOR_URL` and
+    `TELEGRAM_MONITOR_URL` (the owner, 2026-11-21, "Dois heartbeats"):
+    sharing one, the canary's next pass would close the watch's incident.
+    Each URL carries the monitor's token: a secret, injected by Kamal,
+    never logged, required by the boot check on the public name, each an
+    https URL with a path and no query or fragment, `/fail` joined to the
+    path, and not the same for both (#64's H4 and C3); refused off the
+    public name, so a rehearsal host, which then sends nothing, can never
+    tell the demo's heartbeats (#64's H5).
+  - **The question and the marker.** "Qual é o endereço da farmácia?", in
+    the conversation's language, whose answer the system prompt holds, so
+    the model needs no tool; the marker is the street of the store's
+    address, read from the store sheet, so a store sheet that moves the
+    store moves the marker (FR-26). The reply is compared without the demo
+    notice. Paused, the reply must be one of the three fixed pause texts:
+    FR-17 named two, and M3-1 added the day's.
+  - **The economy model whatever the gate.** ADR-0003 says the canary uses
+    the economy model always; since M2-3 the gate keeps that model from a
+    visitor until the eval run allows it. The canary's reply reaches no
+    visitor, so it runs on the economy route in every mode that calls a
+    model, the gate closed included; a pause answers it with the pause's
+    text, as any turn. The visitors' normal mode runs on the other route,
+    its model and the API's refusal fallback, which a run every ten minutes
+    on it would cost about US$ 4 a day: so the run also reads the visitors'
+    own turns of the last half hour that called the model, by their
+    outcomes alone, and fails when at least two did and every one ended by
+    the model's API failing (`model_error`), naming the latest's error by
+    its class (#64's H1); a fallback a visitor's own question causes, a
+    reply cut at its limit, its tool calls or its time, does not count,
+    since anyone could send two (the fix review's R1). A
+    fault of the economy route alone, the converse, fails the canary while
+    the normal mode's visitors are served (#64's V3, said in the runbook).
+  - **The null transport.** The system visitor is the `system` channel's
+    one row (its identity the hash of a fixed name); its conversation has
+    no stream (`Conversation#streamed?`), so neither its spans nor its
+    reply are broadcast, and its channel has no sender. The purge leaves
+    the visitor and its conversation however old (their channel is the
+    marker #7's RS1 asked for), NFR-03's sweep leaves a canary turn to the
+    canary's next run, and every public count is to leave the channel out
+    (FR-13, M3-3; the standing trigger above).
+  - **What a run keeps.** The day's `passed` or `failed` count alone
+    (`daily_aggregate`, one row a day, kind and key, added to by one
+    `INSERT … ON CONFLICT DO UPDATE`): the run deletes its question, which
+    takes the turn, its reply, its spans and its usage records, while the
+    month's spend stays on the budget's row (FR-14). It first clears what
+    an earlier run left, so the model never reads a history. Its turn runs
+    in the visitors' own job, `ProcessTurnJob`, so a fault of the job or of
+    the conversation's lock fails the canary too (#64's C1); the job is
+    called in the canary's own job, which goes through the queue as a
+    visitor's does, rather than enqueued while the run waited, which held a
+    second worker thread and could read the reply before its outcome was
+    written (the fix review's R3; the owner, 2026-11-21, "Rodar o job na
+    própria thread"). The run reads the lock without taking it, so a run
+    behind an earlier turn still at work fails at once rather than hold a
+    worker's thread. A run is never tried again; a run that cannot start
+    still fails its heartbeat.
+  - **The delivery watch** looks every ten minutes, five after the canary,
+    and fails its heartbeat on a delivery error newer than the last one it
+    told (Telegram's own date, in its whole seconds, kept in the cache once
+    the monitor took the look, so neither the host's clock nor a `/fail`
+    the monitor missed loses an error; with none kept, newer than its
+    interval; #64's C2, C4, H12 and H13), while updates still wait after an
+    error from before they last drained (Telegram tries again in its own
+    time; #64's H3), on ten updates waiting or more (Telegram sends one at
+    a time and the webhook answers within two seconds, so a few is a burst
+    at work), on a webhook Telegram holds otherwise than the bot's task
+    sets it (the four fields the task compares, an empty URL among them,
+    which §9.2's text did not name: a deleted webhook leaves no delivery
+    error), and on `getWebhookInfo` refused or unreachable, named by
+    Telegram's code or the failure's class (#64's C5). Telegram's words for
+    an error name a delivery failure, never an update's content.
+  - **Cost, measured** on 2026-11-21 against the real model with the
+    dev/eval key (FR-17 as built): about US$ 0.11 a day at one run every
+    ten minutes, each cold, since the prompt's cache lasts five minutes:
+    nearly a quarter of the MVP host's daily slice and a third of its month
+    until M3's cut, and about 3 % of production's cap.
 - Note 2026-11-21 (M3-1, FR-14's modes; FR-10, FR-14, FR-19, NFR-02,
   NFR-03; threat model SR-02, SR-30, SR-35; ADR-0003, ADR-0012, ADR-0020,
   ADR-0022). The budget's modes and the operator's alert at the cap, built

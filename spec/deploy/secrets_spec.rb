@@ -19,11 +19,11 @@ RSpec.describe "SR-25 secrets are references in the repository and values in the
   def deploy_config = YAML.safe_load(Rails.root.join("config/deploy.yml").read, aliases: true)
 
   secrets_files.each do |path|
-    it "#{path} holds only NAME=$NAME references, one per required secret" do
+    it "#{path} holds only NAME=$NAME references, one per secret the app reads" do
       lines = lines_of(path)
 
       expect(lines).to all(match(reference))
-      expect(lines.map { |line| line[reference, :name] }).to match_array(Balcao::RequiredEnvironment::SECRETS)
+      expect(lines.map { |line| line[reference, :name] }).to match_array(Balcao::RequiredEnvironment::INJECTED)
     end
   end
 
@@ -32,15 +32,16 @@ RSpec.describe "SR-25 secrets are references in the repository and values in the
       .to match_array(secrets_files)
   end
 
-  it "injects exactly the required secrets into the app and the database password into the accessory" do
-    expect(deploy_config.dig("env", "secret")).to match_array(Balcao::RequiredEnvironment::SECRETS)
+  it "injects exactly the secrets the app reads into the app and the database password into the accessory" do
+    expect(Balcao::RequiredEnvironment::INJECTED).to eq(Balcao::RequiredEnvironment::SECRETS + Balcao::RequiredEnvironment::MONITORS)
+    expect(deploy_config.dig("env", "secret")).to match_array(Balcao::RequiredEnvironment::INJECTED)
     expect(deploy_config.dig("accessories", "db", "env", "secret")).to eq [ "POSTGRES_PASSWORD" ]
   end
 
   it "lists every required variable in .env.example without a value" do
     entries = lines_of(".env.example").to_h { |line| line.split("=", 2) }
 
-    expect(entries.keys).to include(*Balcao::RequiredEnvironment::NAMES)
+    expect(entries.keys).to include(*Balcao::RequiredEnvironment::NAMES, *Balcao::RequiredEnvironment::MONITORS)
     expect(entries.values).to all(be_empty)
   end
 

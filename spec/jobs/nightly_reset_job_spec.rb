@@ -116,6 +116,21 @@ RSpec.describe "FR-15 SR-31 the nightly reset and the seven-day purge" do
       expect(visitor.reload).to be_persisted
     end
 
+    # FR-17: the canary keeps no message, and its visitor is never seen, so
+    # both purges would take them; its system visitor carries a marker, its
+    # channel, and both leave it (#7, RS1).
+    it "leaves the canary's system visitor and its conversation, however old, and purges what a run of it left" do
+      visitor = at(three_am - 30.days) { Visitor.canary! }
+      conversation = at(three_am - 30.days) { Conversation.current_for!(visitor) }
+      left = message(conversation, at: three_am - 8.days)
+
+      run
+
+      expect(visitor.reload).to be_persisted
+      expect(conversation.reload).to be_persisted
+      expect(Message.where(id: left.id)).to be_empty
+    end
+
     it "keeps a conversation opened within the 7 days, even with no message yet" do
       conversation = at(three_am - 2.days) { create(:conversation, visitor: create(:visitor, last_seen_at: three_am - 2.days)) }
 

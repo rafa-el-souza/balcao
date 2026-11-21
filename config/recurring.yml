@@ -21,6 +21,19 @@ production:
   stranded_sweep:
     class: StrandedSweepJob
     schedule: every minute
+  # FR-17: the canary, a visitor's question through a visitor's turn on the
+  # economy model, told to the external monitor's heartbeat
+  # (app/models/canary.rb); a run never tried again, the next is ten minutes
+  # away.
+  canary:
+    class: CanaryJob
+    schedule: every 10 minutes
+  # Beside it, five minutes apart, the Telegram delivery watch over
+  # getWebhookInfo, told to a heartbeat of its own
+  # (app/transports/telegram/watch.rb; the owner, 2026-11-21).
+  telegram_watch:
+    class: TelegramWatchJob
+    schedule: "5-59/10 * * * *"
   clear_solid_queue_finished_jobs:
     command: "SolidQueue::Job.clear_finished_in_batches(sleep_between_batches: 0.3)"
     schedule: every hour at minute 12

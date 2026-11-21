@@ -83,17 +83,21 @@ module Telegram
 
     private
 
-    # The fields Telegram reports otherwise than the task set them, each
-    # printed with both values (all public: the URL, the kinds, the limit, a
-    # flag); a field the answer leaves out differs too (the Bot API page
-    # marks two of the four optional).
-    def differs(webhook, info)
+    # The fields of getWebhookInfo's answer that differ from what the task
+    # sets; a field the answer leaves out differs too (the Bot API page marks
+    # two of the four optional). The delivery watch reads them too
+    # (Telegram::Watch).
+    def self.differences(info, webhook = self.webhook)
       info = {} unless info.is_a?(Hash)
-      webhook.filter_map do |field, value|
-        next if info.key?(field) && info[field] == value
+      webhook.keys.reject { |field| info.key?(field) && info[field] == webhook[field] }
+    end
 
-        @out.puts("webhook #{field}: set #{value.to_json}, Telegram reports #{info.key?(field) ? info[field].to_json : "nothing"}")
-        field
+    # Each field that differs printed with both values (all public: the URL,
+    # the kinds, the limit, a flag).
+    def differs(webhook, info)
+      self.class.differences(info, webhook).each do |field|
+        reported = info.is_a?(Hash) && info.key?(field) ? info[field].to_json : "nothing"
+        @out.puts("webhook #{field}: set #{webhook[field].to_json}, Telegram reports #{reported}")
       end
     end
 

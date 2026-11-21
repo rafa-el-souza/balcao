@@ -59,9 +59,14 @@ class StoreSheet
 
   private
 
+  # The address starts with its street, before its first comma, which FR-17's
+  # canary asks for and finds in the reply: an empty one would pass any reply
+  # (review finding H10 of pull request #64).
   def check_identity(identity)
     require_mapping(identity, "identity")
-    %w[name city].each { |key| require_text(identity[key], "identity.#{key}") }
+    %w[name city address].each { |key| require_text(identity[key], "identity.#{key}") }
+    raise Invalid, "identity.address must start with its street, before its first comma" if identity["address"].split(",").first.to_s.strip.empty?
+
     identity
   end
 

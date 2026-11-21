@@ -13,7 +13,10 @@
 #    finder's note on pull request #40: a batch of visitors deleted first
 #    took all their rows in one statement); conversations whose last message
 #    went, or that never had one, once seven days old (a trace link dies with
-#    its conversation); reservations seven days past their deadline, which
+#    its conversation); never FR-17's system visitor or its conversation,
+#    which the canary keeps (its channel is the marker, #7's RS1), though
+#    whatever a broken run of it left goes by its age as any; reservations
+#    seven days past their deadline, which
 #    outlive the conversation of their turn until then; the stored Telegram
 #    updates, read or not (FR-19); and the digests of the Turnstile tokens
 #    that minted a web visitor (threat model SR-39);
@@ -53,8 +56,10 @@ class NightlyResetJob < ApplicationJob
     "turns" => ->(before) { Turn.where(created_at: ...before) },
     "spans" => ->(before) { TraceEvent.where(created_at: ...before) },
     "usage records" => ->(before) { UsageRecord.where(created_at: ...before) },
-    "visitors" => ->(_before) { Visitor.unseen_for(RETENTION) },
-    "conversations" => ->(before) { Conversation.where(created_at: ...before).where.missing(:messages) },
+    "visitors" => ->(_before) { Visitor.unseen_for(RETENTION).where.not(channel: "system") },
+    "conversations" => lambda do |before|
+      Conversation.where(created_at: ...before).where.missing(:messages).where.not(visitor_id: Visitor.where(channel: "system").select(:id))
+    end,
     "reservations" => ->(before) { Reservation.where(pickup_until: ...before) },
     "stored updates" => ->(before) { WebhookEvent.where(created_at: ...before) },
     "Turnstile tokens" => ->(before) { TurnstileRedemption.where(created_at: ...before) }

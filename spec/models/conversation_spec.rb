@@ -59,3 +59,21 @@ RSpec.describe "SR-11 FR-12 conversation trace token" do
       .to raise_error(ActiveRecord::RecordNotUnique, /"index_conversations_on_trace_token"/)
   end
 end
+
+# FR-17's null transport: the system visitor's conversation, the canary's,
+# has no stream; every person's has, as before, one whose visitor a
+# deletion took while it was read included.
+RSpec.describe "FR-17 FR-18 which conversations a page may follow" do
+  it "streams a person's conversation, on the web and on Telegram, and not the system visitor's" do
+    expect(create(:conversation, visitor: create(:visitor, channel: "web"))).to be_streamed
+    expect(create(:conversation, visitor: create(:visitor, channel: "telegram"))).to be_streamed
+    expect(Conversation.current_for!(Visitor.canary!)).not_to be_streamed
+  end
+
+  it "streams, as before, a conversation read before its visitor was deleted" do
+    conversation = Conversation.find(create(:conversation).id)
+    Visitor.where(id: conversation.visitor_id).delete_all
+
+    expect(conversation).to be_streamed
+  end
+end

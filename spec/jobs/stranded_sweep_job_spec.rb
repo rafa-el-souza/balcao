@@ -87,6 +87,18 @@ RSpec.describe "NFR-03 StrandedSweepJob, nothing left without an answer" do
       expect(enqueued(ProcessTurnJob)).to be_empty
       expect(lines).to be_empty
     end
+
+    # FR-17: the canary's next run clears what a broken run of it left, so
+    # the sweep never answers a canary's question in a visitor's job.
+    it "is left when it is the canary's, which the canary's next run clears" do
+      canary = Conversation.current_for!(Visitor.canary!)
+      travel_to(10.minutes.ago) { Turn.for_inbound!(Message.record_inbound!(conversation: canary, external_id: "canary-left", body: "?", source: "canary")) }
+
+      sweep
+
+      expect(enqueued(ProcessTurnJob)).to be_empty
+      expect(lines).to be_empty
+    end
   end
 
   describe "a Telegram update left unread" do

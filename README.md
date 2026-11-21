@@ -309,17 +309,21 @@ Then the budget's modes: past 70 % of the month's cap, or once a day's
 spend reaches its slice of the cap, new turns go to the cheaper model, and
 while that model may not serve the demo pauses instead, until midnight for
 a day; at the cap the bot sends the operator one line, to a chat the
-operator links by opening a one-time link a command prints.
+operator links by opening a one-time link a command prints. Then the
+canary: every ten minutes the app asks its own attendant where the
+pharmacy is, through the same path as a visitor's message and on the
+cheaper model, and tells an external monitor whether the answer came in
+time, or whether the visitors' own recent turns all failed; beside it, a
+look at the bot's webhook tells the monitor when Telegram fails to
+deliver. The monitor also e-mails when either goes silent.
 
 Next, in two blocks (design §9.2, where a milestone's number is a label for
 its content, not its place in the order;
 [ADR-0022](docs/adr/0022-what-publishing-the-demo-needs-first-the-showcase-after.md)
 says why):
 
-- **First, what publishing the demo needs:** a
-  test conversation the app runs on a schedule (the canary); the CI's
-  remaining checks; and
-  production on a host of its own (until then the demo runs on the
+- **First, what publishing the demo needs:** the CI's remaining checks,
+  and production on a host of its own (until then the demo runs on the
   rehearsal host). The demo is publicised the day it moves there.
 - **Then the showcase:** voice notes; service bookings and their calendar;
   the operator's console and a conversation handed over to a person; the

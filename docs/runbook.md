@@ -133,7 +133,10 @@ Only a green `main` is deployed to the MVP host.
    the secret of the owner's Turnstile widget in Cloudflare's dashboard
    (SR-39). A rehearsal host on its own name (from M3) holds Cloudflare's
    published test secret instead, which the boot refuses on the public
-   name.
+   name. Since M3-2 the two heartbeat URLs of the external monitor,
+   `MONITOR_URL` and `TELEGRAM_MONITOR_URL`, are held by the monitor's
+   console too (Monitoring, below): the boot refuses the public name
+   without them, and a rehearsal host leaves both blank.
 3. `bin/deploy -d ensaio`. It refuses a dirty working tree, prints
    `kamal version`, puts the pinned kamal-proxy's image on the host by the
    digest written beside its tag, under that tag (SR-27; Docker runs a tag
@@ -199,6 +202,23 @@ Only a green `main` is deployed to the MVP host.
      that day). Since PR-16 the same answer also carries `"mode":"normal"`
      and the rate of the real (`"brl"`), and the reply's spans carry each
      model call's cost (`balcao.cost.usd`).
+   - the canary (since M3-2): within ten minutes of the deploy the job's
+     log has a line `canary: passed in … ms (mode economy)`, or
+     `(mode paused)` while the demo is paused, and five minutes later the
+     Telegram watch's `telegram watch: the webhook delivers, 0 updates
+     waiting`; neither is followed by a `heartbeat` line, which would say
+     the monitor refused or never heard it:
+
+     ```
+     kamal app logs -d ensaio --roles=job --since 15m | grep -E 'canary:|telegram watch:|heartbeat '
+     ```
+
+     After the first deploy that sends to a new heartbeat, the monitor's
+     console (the owner's account) shows both `Balcão: canário` and
+     `Balcão: webhook do Telegram` up, not pending: a URL pasted from
+     another heartbeat answers 200 all the same, and only the console
+     shows which one heard it (#64's H7).
+
 5. The catalogue: after the first deploy that runs turns (PR-09) and after
    any change to `db/seeds/catalogue.yml`,
    `kamal app exec -d ensaio --roles=web --reuse 'bin/rails db:seed'`. It
@@ -296,8 +316,32 @@ before `kamal deploy`, as `bin/deploy` does.
 
 An external uptime monitor (the owner's free account) checks
 `https://balcao.rafasouza.dev.br/up` every three minutes and e-mails on
-failure and on recovery (NFR-04). The canary's failure URL (FR-17) joins at
-M3; until then the monitor URL in the env file stays empty.
+failure and on recovery (NFR-04).
+
+Since M3-2 the same account holds two heartbeats, each with its own
+incident (the owner, 2026-11-21): the canary's (FR-17), whose URL is
+`MONITOR_URL`, and the Telegram delivery watch's, `TELEGRAM_MONITOR_URL`.
+Each expects a request every 10 minutes with a grace of 5, so silence
+alerts within NFR-04's fifteen minutes, and e-mails on failure and on
+recovery. A run that passes requests the URL; one that fails requests the
+URL with `/fail` and a line saying why, which the monitor shows beside the
+incident; a worker that stopped requests nothing, and the monitor alerts on
+the silence. A heartbeat stays pending until its first request, so a new
+one alerts only after the first deploy that sends to it.
+
+- **Creating them** (in the monitor's console, once per account): two
+  heartbeats, `Balcão: canário` and `Balcão: webhook do Telegram`, each
+  expecting a heartbeat every 10 minutes with a 5-minute grace period and
+  e-mail on. Each heartbeat's page shows its secret URL.
+- **Their URLs** go into the destination's env file, never into a tracked
+  file, the way a held secret does (step 2 of the deploy flow); each holds
+  the monitor's token, so the app never logs it. The boot refuses the
+  public name without them, with a query or a fragment, without a path, or
+  with the same URL for both; and it refuses either off the public name: a
+  rehearsal host leaves them blank, and its canary runs and counts without
+  telling anyone, while its Telegram watch looks at nothing (design §8;
+  #64's H4, C3 and H5). Production at M3 holds the demo's two URLs; the
+  rehearsal env file then holds none.
 
 ## The budget, the nightly job and the logs (from PR-16)
 
@@ -617,6 +661,90 @@ When `/up` answers and the chat does not, the monitor says nothing: the
 first things to read are the mode that serves (the budget, above: a paused
 month answers with its fixed text) and whether the `job` container runs
 (`kamal app details -d ensaio` lists one `web` and one `job`).
+
+## When the canary or the Telegram watch fails (from M3-2)
+
+The alert is the monitor's e-mail for one of the two heartbeats
+(Monitoring, above). Its incident shows the failure's line; the job's log
+has the same line, and every line before it (design §8; the env file
+loaded, as for a deploy):
+
+```
+kamal app logs -d ensaio --roles=job --since 1h | grep -E 'canary:|telegram watch:|heartbeat |budget:'
+```
+
+- **Silence** (the heartbeat went down with no failure line): no job ran.
+  `kamal app details -d ensaio` should list one `job` container; one that
+  is missing or restarting is the cause, and the way forward is the one of
+  "When the monitor says the demo is down" (a new deploy of a green
+  `main`). A line `heartbeat canary: …` or `heartbeat telegram watch: …`
+  says the job ran and the monitor refused the request or never heard it
+  (a status or an error's class; never the URL).
+- **`canary: failed: the reply lacks the marker (outcome …)`**: the turn
+  ran and its reply did not hold the street of the store's address. The
+  outcome says where, with the error's class when there was one:
+  `model_error, Anthropic::Errors::…` (the model API failed: `NotFoundError`
+  a model gone, `AuthenticationError` a key revoked, `RateLimitError` or
+  `OverloadedError` the provider's limits; the dev/eval key's console says
+  whether its limit was reached), `replaced` (FR-20's check replaced the
+  reply), `refused`, `deadline`. The canary asks on the economy model, so a
+  fault of that model alone fails it while visitors in normal mode, on the
+  other route, are still answered (#64's V3).
+- **`canary: failed: visitors' turns: N of N in the last 30 minutes
+  failed at the model's API (outcome …)`**: the canary's own question was
+  answered, but every visitor turn that called the model in the last half
+  hour got the fallback because the model's API failed: the visitors'
+  route failed (normal mode runs another model, with the API's refusal
+  fallback). A fallback a visitor's own question causes (a reply cut at
+  its limit, too many tool calls, the turn's time) does not count (#64's
+  fix review, R1). The outcome names the
+  latest turn's error by its class: `BadRequestError` a model id or a beta
+  header the API no longer takes, `NotFoundError` a model gone,
+  `RateLimitError` that model's limits spent. The provider's status page
+  and the dev/eval key's console say which; a forced economy
+  (`Budget.force!("economy")`, The budget, above) serves visitors on the
+  canary's route meanwhile, when ADR-0003's gate allows it (#64's H1).
+- **`canary: failed: the reply took … ms from the run's time, over
+  20000`** or **`the run started … s after its time`**: the queue, the
+  model or the database is slow; the 20 seconds count from when the run was
+  due, as a visitor's count from the message's arrival, so the visitors'
+  turns wait as long.
+- **`canary: failed: paused, and the reply is not a pause's text`**: the
+  budget paused the demo and the reply was something else, a fault of the
+  code: read the `budget:` lines.
+- **`canary: failed: the run broke: <class>`** or **`canary: not run,
+  <class>`**: an error outside the model, named by its class; the
+  database first.
+- **`canary: failed: no reply, the turn is … (…)`**: the visitors' own
+  job did not answer the question: `received (not run)` means the job
+  failed before the turn ran, the conversation's lock among the causes;
+  `failed` with an error's class, a break inside the turn. The job tries it
+  again in its own time, as a visitor's, and finds it deleted; visitors'
+  turns break the same way (`kamal app logs` shows the job's lines).
+- **`canary: failed: an earlier run's turn still holds the canary's
+  conversation`**: a canary turn is stuck in its job; the next runs fail
+  the same way until it ends. A deploy restarts the job container.
+- **`telegram watch: a delivery error at …: <Telegram's words>`**:
+  Telegram could not deliver an update. `401 Unauthorized` is a webhook
+  secret the server and Telegram no longer share: run the bot's task (The
+  Telegram bot, above), which sets the webhook with the server's secret.
+  A `5xx` or a timeout is the app's side: `/up` and the web logs.
+- **`telegram watch: N updates waiting since a delivery error at …`**:
+  no new error since the last look, but updates still wait after one:
+  Telegram tries them again in its own time, and the heartbeat stays
+  failing until they drain (#64's H3).
+- **`telegram watch: N updates waiting`**: Telegram holds updates it has
+  not delivered; the delivery errors usually say why.
+- **`telegram watch: the webhook's … differ from what the bot's task sets`**:
+  the webhook was changed or deleted outside the task (another server with
+  the same token, a `deleteWebhook`): run the bot's task.
+- **`telegram watch: getWebhookInfo failed: …`**: Telegram refused the
+  call, named by its code alone (`401`: the token was revoked or rotated
+  without the env file), or could not be reached, named by the failure's
+  class or status.
+
+Each heartbeat recovers by itself at its next passing run, ten minutes
+apart, and the monitor e-mails the recovery.
 
 ## Bump day (monthly)
 

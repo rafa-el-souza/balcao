@@ -11,7 +11,8 @@
 #   worker; review findings of pull requests #11 and #18, whose page shows
 #   "pensando…" until a reply comes, #18's V3): ProcessTurnJob for the
 #   conversation's latest such turn, which answers the earlier ones first
-#   (design §6.3), a deletion among them (FR-05);
+#   (design §6.3), a deletion among them (FR-05); never one of FR-17's
+#   canary, which its next run clears;
 # - a stored Telegram reply left pending past its time (a TelegramReplyJob
 #   that was never enqueued or died): TelegramReplyJob for the visitor, which
 #   sends the visitor's pending replies in order (FR-19);
@@ -65,13 +66,18 @@ class StrandedSweepJob < ApplicationJob
   def conversations
     looking(:conversations) do
       latest = Turn.where(state: %w[received running failed]).where.missing(:outbound_message)
-                   .where(updated_at: ...STOPPED.ago).order(:created_at, :id).limit(LIMIT * 10)
+                   .where(updated_at: ...STOPPED.ago).where.not(conversation_id: canary_conversations)
+                   .order(:created_at, :id).limit(LIMIT * 10)
                    .group_by(&:conversation_id).values.map(&:last)
       latest.first(LIMIT).count do |turn|
         AdvisoryLock.free?("conversation:#{turn.conversation_id}") && ProcessTurnJob.perform_later(turn.id)
       end
     end
   end
+
+  # FR-17: the canary's conversation, whose next run clears what a run that
+  # broke or was killed left; the sweep never answers its question.
+  def canary_conversations = Conversation.where(visitor_id: Visitor.where(channel: "system").select(:id)).select(:id)
 
   def replies
     looking(:replies) do
