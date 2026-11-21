@@ -82,6 +82,26 @@ RSpec.describe "NFR-08 SR-29 the recorded fast subset" do
       expect(recording(greeting)["commit"]).to eq("5594ff9")
     end
 
+    # The fix review of #66, R4: a rename out of the recordings adds a file
+    # the run loads.
+    it "names the commit dirty when a staged rename takes a recording's path elsewhere" do
+      allow(git).to receive(:call).and_wrap_original do |original, *args|
+        args.first == "status" ? "R  evals/recordings/greeting-pt-01.json -> config/initializers/zz_probe.rb\n" : original.call(*args)
+      end
+      expect(evals("--record", "--case", greeting.id)).to eq(0), err.string
+      expect(recording(greeting)["commit"]).to eq("5594ff9-dirty")
+    end
+
+    # The fix review's sister of R4: a rename from code into the scorecard's
+    # path adds nothing the run reads, but takes away a file it loads.
+    it "names the commit dirty when a staged rename takes a file the run loads into an output's path" do
+      allow(git).to receive(:call).and_wrap_original do |original, *args|
+        args.first == "status" ? "R  config/initializers/zz_probe.rb -> evals/scorecard.md\n" : original.call(*args)
+      end
+      expect(evals("--record", "--case", greeting.id)).to eq(0), err.string
+      expect(recording(greeting)["commit"]).to eq("5594ff9-dirty")
+    end
+
     it "writes nothing for a case whose attempts all failed, and fails the run" do
       api.replace([ reply("[pt] Oi."), check, reply("[pt] Oi."), check, reply("[pt] Oi."), check ])
 
