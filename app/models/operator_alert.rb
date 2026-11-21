@@ -42,8 +42,12 @@ class OperatorAlert < ApplicationRecord
     text = if serving == "paused" then I18n.t("operator.cap.paused", locale: language, **values)
     else I18n.t("operator.cap.serving", locale: language, mode: I18n.t("operator.modes.#{serving}", locale: language), **values)
     end
-    record!(kind: "budget_cap", key: "#{state.month}:#{cap.to_d.to_s("F")}", text:)
+    record!(kind: "budget_cap", key: cap_key(state.month, cap), text:)
   end
+
+  # The cap alert's key: the month and the cap, so a cap a deploy raised and
+  # the month reaches again is a new alert.
+  def self.cap_key(month, cap) = "#{month}:#{cap.to_d.to_s("F")}"
 
   # The runbook's check of the path, sent at once rather than by the job, so
   # the command shows what became of it.

@@ -24,10 +24,9 @@
 #   threshold, a cap a deploy lowered or raised, the next day or month),
 #   saying which forced mode serves when one wins (review finding S3 of pull
 #   request #29) and that the demo pauses when the gate keeps an economy from
-#   serving (#55's L4). The read that finds the month paused at its cap
-#   writes the operator's alert in the same transaction, once a month and
-#   cap, and its job sends it through the bot (OperatorAlert, threat model
-#   SR-35).
+#   serving (#55's L4). A read that finds the month paused at its cap writes
+#   the operator's alert if it is missing, once a month and cap, and its job
+#   sends it through the bot (OperatorAlert, threat model SR-35).
 #
 # The gate reads the mode once, when a turn starts: turns already running when
 # the cap is reached finish, so the month may end a few turns past its cap
@@ -64,10 +63,11 @@ module Budget
   def status(at = Time.current)
     state = month(at)
     automatic = automatic(state, at)
-    recorded(state, automatic, at) unless state.automatic_mode == automatic.mode
+    record(state, automatic, at) unless state.automatic_mode == automatic.mode
     wanted = state.forced_mode || automatic.mode
     mode = serving(state.forced_mode, automatic.mode)
     line(state, automatic, at) if mode != wanted && !held?(state, automatic, at)
+    alert(state, automatic) if automatic.cause == "cap"
     Status.new(mode:, forced: !state.forced_mode.nil?, daily: mode == "paused" && state.forced_mode.nil? && automatic.cause == "day")
   end
 
@@ -187,32 +187,39 @@ module Budget
                         cost_usd: cost)
   end
 
-  # The mode that serves is the spend's whether or not its record is written,
-  # so a record that breaks (the operator's alert among it) never breaks the
-  # read, a turn's before its model call among them: it rolls back whole, an
-  # error line names it by its class (SR-30), and the next read tries again.
-  def recorded(state, automatic, at)
-    record(state, automatic, at)
-  rescue StandardError => e
-    Rails.logger.error("budget: #{state.month}'s automatic mode #{automatic.mode} not recorded, #{e.class}; the next read tries again")
-  end
-
-  # Written once by whichever read wins the conditional write. The month
-  # paused at its cap writes the operator's alert in the same transaction, so
-  # a write that breaks leaves neither, and the next read tries both again;
-  # the alert's job is enqueued once they are committed (FR-14, SR-35).
+  # Written once by whichever read wins the conditional write.
   def record(state, automatic, at)
-    alert = nil
-    written = ApplicationRecord.transaction do
-      count = BudgetState.where(id: state.id).where.not(automatic_mode: automatic.mode)
+    written = BudgetState.where(id: state.id).where.not(automatic_mode: automatic.mode)
                          .update_all(automatic_mode: automatic.mode, updated_at: Time.current)
-      alert = OperatorAlert.at_cap!(state, cap:, serving: serving(state.forced_mode, automatic.mode)) if count == 1 && automatic.cause == "cap"
-      count
-    end
     return if written.zero?
 
     line(state, automatic, at)
-    alert&.deliver_later
+  end
+
+  # FR-14: the month at its cap tells the operator, once a month and cap,
+  # through the bot (OperatorAlert, threat model SR-35). Any read while the
+  # cap holds writes the alert if it is missing, not only the read that moved
+  # the month's mode, so a month paused before this code, or by a container
+  # without it in a deploy's window, gets one too (review finding C3 = H11 of
+  # pull request #63); once a process knows it is written, it asks no more.
+  # The mode that serves is the spend's whether or not the alert is written,
+  # so its write never breaks the read, a turn's before its model call among
+  # them: one error line a process and alert names the failure by its class
+  # (SR-30), and a later read tries again (C7 = H7).
+  def alert(state, automatic)
+    kind, key = "budget_cap", OperatorAlert.cap_key(state.month, cap)
+    return if @alerted&.include?([ kind, key ])
+
+    unless OperatorAlert.exists?(kind:, key:)
+      written = OperatorAlert.at_cap!(state, cap:, serving: serving(state.forced_mode, automatic.mode))
+      written.deliver_later if written.previously_new_record?
+    end
+    (@alerted ||= Set.new) << [ kind, key ]
+  rescue StandardError => e
+    return if @unwritten&.include?([ kind, key ])
+
+    (@unwritten ||= Set.new) << [ kind, key ]
+    Rails.logger.error("budget: the operator's alert #{kind} #{key} not written, #{e.class}; a later read tries again")
   end
 
   # A forced mode that serves is named; an economy the eval run has not
@@ -243,5 +250,5 @@ module Budget
     forced = state.forced_mode
     [ state.month, forced, (automatic.cause unless forced), (at.in_time_zone.to_date if forced.nil? && automatic.cause == "day") ]
   end
-  private_class_method :month, :write_usage, :recorded, :record, :line, :held?, :held_key, :closed, :day_spent
+  private_class_method :month, :write_usage, :record, :alert, :line, :held?, :held_key, :closed, :day_spent
 end

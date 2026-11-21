@@ -239,26 +239,39 @@ RSpec.describe "FR-14 SR-02 the budget's automatic modes: economy at 70 %, the d
       expect(OperatorAlert.count).to eq(0)
     end
 
-    # The mode that serves is the spend's whether or not the record is
-    # written, so a record that breaks (the alert's write among it) never
-    # breaks the turn that read the mode: it rolls back whole, with an error
-    # line, and the next read writes both.
-    it "writes the line and the row's mode only with the alert: a failure records neither, pauses all the same, and the next read writes both" do
+    # Review finding C3 = H11 of pull request #63 (dono): the alert hung on
+    # the read that moved the month's mode, so a month already recorded as
+    # paused (before this code, or by a container without it in a deploy's
+    # window) never got one. Any read while the cap holds writes it if it is
+    # missing.
+    it "is written by a read that finds the month already recorded as paused at its cap" do
+      month.update_columns(spent_usd: BigDecimal("10"), automatic_mode: "paused")
+
+      2.times { expect(Budget.mode).to eq("paused") }
+
+      expect(OperatorAlert.where(kind: "budget_cap").count).to eq(1)
+      expect(OperatorAlertJob).to have_been_enqueued.once
+    end
+
+    # Review finding C7 = H7 of pull request #63: the mode that serves is the
+    # spend's whether or not the alert is written, so its write never breaks
+    # a read; it is said once a process, not on every read, and the next
+    # read tries again. The record of the mode is apart from it.
+    it "never breaks a read when the alert cannot be written: one error line a process, and a later read writes it" do
       allow(Rails.logger).to receive(:error)
       month.update!(spent_usd: BigDecimal("10"))
-      allow(OperatorAlert).to receive(:at_cap!).and_raise(ActiveRecord::ConnectionFailed, "gone")
+      allow(OperatorAlert).to receive(:at_cap!).and_raise(ActiveRecord::StatementInvalid, "gone")
 
-      expect(Budget.mode).to eq("paused")
+      3.times { expect(Budget.mode).to eq("paused") }
 
-      expect(month.automatic_mode).to eq("normal")
-      expect(Rails.logger).not_to have_received(:warn).with(/automatic mode is paused/)
+      expect(month.automatic_mode).to eq("paused")
       expect(Rails.logger).to have_received(:error)
-        .with("budget: #{month.month}'s automatic mode paused not recorded, ActiveRecord::ConnectionFailed; the next read tries again")
+        .with("budget: the operator's alert budget_cap #{month.month}:10.0 not written, ActiveRecord::StatementInvalid; " \
+              "a later read tries again").once
 
       allow(OperatorAlert).to receive(:at_cap!).and_call_original
       Budget.mode
 
-      expect(month.automatic_mode).to eq("paused")
       expect(OperatorAlert.count).to eq(1)
     end
   end
