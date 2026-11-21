@@ -602,7 +602,8 @@ levels (ADR-0003), with a daily slice and per-source limits (ADR-0012).
   left pending. Its text names the month, the cap and the spend, never a
   visitor's words, and says whether a forced mode keeps the demo paused or
   serves past the cap. No chat linked is an error line, never silence, and
-  linking a chat later sends the month's alert again. With `economy_allowed`
+  linking a chat later sends the alert the budget calls for now, if it
+  failed for want of one. With `economy_allowed`
   false the month's economy and the day's slice, which pause the demo, are
   alerted too, once a month and cap and once a day and cap: visitors cannot
   tell them from the cap's pause, and no further spend reaches the cap;
@@ -2400,9 +2401,11 @@ a reservation (M2-4; the note below).
     there or a 429 is tried again after 3 s and 18 s or the wait it names,
     three attempts in all; Telegram's refusal and a chat never linked or
     that cannot be read fail it at once, with an error line that names why
-    and never the text or the chat (SR-30); linking a chat sends this
-    month's latest alert of each kind that failed for want of one (#63's
-    H3). The texts name the month or the day, the limit and the spend, say
+    and never the text or the chat (SR-30); linking a chat sends the alert
+    the budget's state calls for now, if it failed for want of one (#63's
+    H3), never an earlier one or one whose pause is over (its fix review's
+    R1 and R2), and an alert whose chat was read a moment before a link
+    committed reads it again (R3). The texts name the month or the day, the limit and the spend, say
     whether a forced mode keeps the demo paused (#63's C2), and name no
     deploy as the way to resume, since with the gate closed a raised cap
     may land the month in an economy the gate pauses: the runbook says what

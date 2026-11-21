@@ -381,8 +381,9 @@ the host around the answer.
   The link is a secret for its fifteen minutes; paste it nowhere else.
   What is linked: the same line with
   `'p OperatorChat.current.slice(:linked_at, :language, :link_expires_at)'`.
-  Linking sends again this month's latest alert of each kind that failed
-  because no chat was linked. A test of the whole path, which sends a fixed
+  Linking sends again the alert the budget calls for now (the month at its
+  cap, or a pause of the closed gate's still on), if it failed because no
+  chat was linked or the linked one could not be read. A test of the whole path, which sends a fixed
   line to the chat and prints what became of it: `'p OperatorAlert.test!.slice(:status, :error, :next_attempt_at)'`;
   `sent` arrived, `failed` names why in `error`, and `pending` with an
   `error` and a `next_attempt_at` failed on the way and is tried again by
