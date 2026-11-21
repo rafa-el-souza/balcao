@@ -2491,7 +2491,9 @@ a reservation (M2-4; the note below).
     whose body is not JSON (an edge's HTML 503) is kept as text and served
     as it came, so the replay retries it as production does.
     `bin/evals --recorded` replays each case once, with no key and no
-    judge, every turn at the attempt's start, and fails a case whose
+    judge, each answer at the time it came at the recording (the fix
+    review's R3; the owner, 2026-11-21, "Hora de cada resposta"), and
+    fails a case whose
     recording is missing or stale (it names what changed), whose app sends
     another request than the recording's (it names the request and the
     field), that asks for more or fewer answers than the recording holds,
@@ -2501,7 +2503,9 @@ a reservation (M2-4; the note below).
     the model reads beyond the digests, a store sheet's topic that
     `get_store_info` carries (the prompt holds only the identity and the
     hours), a tool's own logic, a request's parameter, also makes a
-    recording stale (#66's review, C1 and C2). The expectations are graded
+    recording stale (#66's review, C1 and C2), and so does an answer kept
+    without its request's digest (the fix review's R2). The expectations
+    are graded
     as they stand, so a case's keys change with no new recording.
     `store-delivery-es-01` joins the fast subset, so the case of each of
     the three openers is recorded, as the openers' file said, and a spec

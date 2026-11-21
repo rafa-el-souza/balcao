@@ -248,10 +248,12 @@ are in the seed.
   (`--fast` implied), which replays the recordings under
   `evals/recordings/` for the cases marked `fast: true` of a delivered
   milestone or suite, with no key and no judge (threat model SR-29). Each
-  case runs once through the app's own pipeline on the normal route, every
-  turn at the attempt's start, the fake model (`app/agent/fake_model.rb`)
+  case runs once through the app's own pipeline on the normal route,
+  starting at the attempt's start, the fake model (`app/agent/fake_model.rb`)
   answering each model call, FR-20's check's among them, with the
-  recorded answer in order. A case fails when its recording is missing or
+  recorded answer in order, each at the time it came at the recording, so
+  what its tools compute from the clock (a reservation's deadline) reads
+  as it read then. A case fails when its recording is missing or
   stale, naming what changed (the system prompt, the tools, the history,
   FR-20's check, the normal route's model or effort, or the case's
   messages, which an opener's text is, and its seed's catalogue); when the
@@ -278,8 +280,10 @@ are in the seed.
   recording is `evals/recordings/<case id>.json`: the API's answers to the
   case's model calls in order (`{"status": 200, "headers": {...}, "body":
   {...}}`, a body that is not JSON as `"body_text"` with its type, a
-  timeout as `{"timeout": true}` or `"open"`), each with a digest of each
-  field of the request it answered (`"request"`), with what differs from
+  timeout as `{"timeout": true}` or `"open"`), each with the time it came
+  (`"at"`) and a digest of each field of the request it answered
+  (`"request"`; an answer without one makes the recording stale), with
+  what differs from
   run to run by design set aside before it: a product's id, the history's
   time lines and a reservation's code, never its deadline; the digests and
   route it speaks for; the commit it was made at (the recordings, the
