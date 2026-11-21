@@ -198,7 +198,8 @@ class AgentRunner
     def abandoned(request)
       characters = begin
         JSON.generate(request.body).length
-      rescue StandardError
+      rescue StandardError => e
+        Rails.logger.warn("agent: an abandoned attempt's request counted from its text, its JSON failed: #{e.class}")
         request.body.to_s.length
       end
       @abandoned << Usage.new(model: @route.model, input_tokens: (characters / CHARACTERS_PER_TOKEN).ceil, output_tokens: MAX_TOKENS,

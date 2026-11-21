@@ -863,6 +863,23 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
         end
       end
 
+      # Review finding F8 of pull request #65: a request whose JSON could not
+      # be written was counted from its text with no line saying so.
+      it "says so in a line, by the error's class, when it counts an abandoned request from its text" do
+        allow(JSON).to receive(:generate).and_wrap_original do |original, object, *rest|
+          raise JSON::GeneratorError, "#{object}" if object.is_a?(Hash) && object.key?(:max_tokens)
+
+          original.call(object, *rest)
+        end
+        allow(Rails.logger).to receive(:warn).and_call_original
+        fake = FakeModel.new([ { timeout: true } ])
+
+        result = AgentRunner.new(client: waiting_client(fake), tools: [ SpecTools::Echo ], clock:, sleeper:).run(turn)
+
+        expect(result.model_calls.sole.usage.sole.output_tokens).to eq(1500)
+        expect(Rails.logger).to have_received(:warn).with("agent: an abandoned attempt's request counted from its text, its JSON failed: JSON::GeneratorError")
+      end
+
       # A connection that never opened sent nothing, so nothing is billed: a
       # network down for the host would otherwise charge a whole call for
       # every turn it met.
