@@ -7,6 +7,7 @@ CI.run do
   step "Security: bundler-audit", "bin/bundler-audit"
   step "Security: Brakeman", "bin/brakeman --quiet --no-pager -w2 --exit-on-warn --exit-on-error"
   step "Tests: RSpec", "bundle exec rspec"
+  step "Tests: the fast evals, recorded", "bin/evals --recorded"
 
   step "Security: npm audit, runtime tree", "npm --prefix web audit --omit=dev --omit=optional --audit-level=high"
   step "Style: ESLint", "npm --prefix web run lint"

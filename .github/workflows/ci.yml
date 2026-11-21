@@ -92,6 +92,9 @@ jobs:
       - name: RSpec
         run: bundle exec rspec
 
+      - name: The fast evals, replayed from their recordings with no key (design NFR-08, evals/README.md)
+        run: bin/evals --recorded
+
   web:
     name: "Web: ESLint, Prettier, types, Vitest, build, npm audit"
     permissions:

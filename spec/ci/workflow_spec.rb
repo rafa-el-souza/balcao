@@ -25,6 +25,18 @@ RSpec.describe "NFR-08 the CI workflow runs M3's furniture in the jobs the branc
     expect(jobs.values.map { |job| job["permissions"] }).to all(eq("contents" => "read"))
   end
 
+  # evals/README.md, Running: the fast subset's recordings replayed with no
+  # key, after the suite, on its test database.
+  it "replays the recorded fast evals with no key, after the whole suite" do
+    replay = step("ruby_test", "bin/evals --recorded")
+    whole = steps("ruby_test").index { |step| step["run"] == "bundle exec rspec" }
+
+    expect(replay["run"]).to eq("bin/evals --recorded")
+    expect(steps("ruby_test").index(replay)).to be > whole
+    expect(jobs.fetch("ruby_test").to_s).not_to include("ANTHROPIC")
+    expect(Rails.root.join("config/ci.rb").read).to include('"bin/evals --recorded"')
+  end
+
   describe "SR-25 SR-38 the static secrets check and the hooks check" do
     it "run as their own step before the whole suite" do
       check = step("ruby_test", "-e SR-25")
