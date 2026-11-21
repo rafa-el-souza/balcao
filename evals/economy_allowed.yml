@@ -8,10 +8,11 @@
 economy_allowed: true
 model: claude-haiku-5-5
 effort: medium
-prompt: d9cf3ef6f09b43b2
-tools: b037ef2c37628228
+prompt: 7ee7b2ef52051564
+tools: c423e4c70a3d6f13
 guardrail: 26ac2d0f29f2b202
-commit: 03fb517
-run_at: '2026-11-20T19:56:52Z'
-boundary: 33 of 33 cases passed, attempts 95 of 99 (each case 3 times)
-unstable: 4
+history: 123be78b75f9326d
+commit: 8e780ab
+run_at: '2026-11-21T00:09:42Z'
+boundary: 33 of 33 cases passed, attempts 97 of 99 (each case 3 times)
+unstable: 2
