@@ -239,14 +239,27 @@ RSpec.describe "FR-14 SR-02 the budget's automatic modes: economy at 70 %, the d
       expect(OperatorAlert.count).to eq(0)
     end
 
-    it "writes the line and the row's mode only with the alert: a failure to write it records neither" do
+    # The mode that serves is the spend's whether or not the record is
+    # written, so a record that breaks (the alert's write among it) never
+    # breaks the turn that read the mode: it rolls back whole, with an error
+    # line, and the next read writes both.
+    it "writes the line and the row's mode only with the alert: a failure records neither, pauses all the same, and the next read writes both" do
+      allow(Rails.logger).to receive(:error)
       month.update!(spent_usd: BigDecimal("10"))
       allow(OperatorAlert).to receive(:at_cap!).and_raise(ActiveRecord::ConnectionFailed, "gone")
 
-      expect { Budget.mode }.to raise_error(ActiveRecord::ConnectionFailed)
+      expect(Budget.mode).to eq("paused")
 
       expect(month.automatic_mode).to eq("normal")
       expect(Rails.logger).not_to have_received(:warn).with(/automatic mode is paused/)
+      expect(Rails.logger).to have_received(:error)
+        .with("budget: #{month.month}'s automatic mode paused not recorded, ActiveRecord::ConnectionFailed; the next read tries again")
+
+      allow(OperatorAlert).to receive(:at_cap!).and_call_original
+      Budget.mode
+
+      expect(month.automatic_mode).to eq("paused")
+      expect(OperatorAlert.count).to eq(1)
     end
   end
 end

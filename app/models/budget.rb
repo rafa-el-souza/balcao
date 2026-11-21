@@ -64,7 +64,7 @@ module Budget
   def status(at = Time.current)
     state = month(at)
     automatic = automatic(state, at)
-    record(state, automatic, at) unless state.automatic_mode == automatic.mode
+    recorded(state, automatic, at) unless state.automatic_mode == automatic.mode
     wanted = state.forced_mode || automatic.mode
     mode = serving(state.forced_mode, automatic.mode)
     line(state, automatic, at) if mode != wanted && !held?(state, automatic, at)
@@ -187,6 +187,16 @@ module Budget
                         cost_usd: cost)
   end
 
+  # The mode that serves is the spend's whether or not its record is written,
+  # so a record that breaks (the operator's alert among it) never breaks the
+  # read, a turn's before its model call among them: it rolls back whole, an
+  # error line names it by its class (SR-30), and the next read tries again.
+  def recorded(state, automatic, at)
+    record(state, automatic, at)
+  rescue StandardError => e
+    Rails.logger.error("budget: #{state.month}'s automatic mode #{automatic.mode} not recorded, #{e.class}; the next read tries again")
+  end
+
   # Written once by whichever read wins the conditional write. The month
   # paused at its cap writes the operator's alert in the same transaction, so
   # a write that breaks leaves neither, and the next read tries both again;
@@ -233,5 +243,5 @@ module Budget
     forced = state.forced_mode
     [ state.month, forced, (automatic.cause unless forced), (at.in_time_zone.to_date if forced.nil? && automatic.cause == "day") ]
   end
-  private_class_method :month, :write_usage, :record, :line, :held?, :held_key, :closed, :day_spent
+  private_class_method :month, :write_usage, :recorded, :record, :line, :held?, :held_key, :closed, :day_spent
 end
