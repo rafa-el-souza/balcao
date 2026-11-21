@@ -90,4 +90,13 @@ RSpec.describe "SR-37 SR-38 the operator's account and checklist in the runbook"
     expect(account.squish).to include("Balcão produção: canário", "Balcão produção: webhook do Telegram")
     expect(checklist.squish).to include("Balcão produção: canário", "Balcão produção: webhook do Telegram")
   end
+
+  # The fix review's R3: "deploy at once" after the owner's new password
+  # cannot hold when the checklist's first steps stop the deploy, and the
+  # database and the running containers then disagree for as long.
+  it "sets the database owner's new password in production only once the checklist's steps that can stop it have passed" do
+    row = runbook.lines.find { |line| line.start_with?("| `POSTGRES_PASSWORD`") }
+
+    expect(row).to include("between the operator's checklist's steps 4 and 5")
+  end
 end
