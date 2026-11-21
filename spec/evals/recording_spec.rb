@@ -304,6 +304,18 @@ RSpec.describe "NFR-08 SR-29 the recorded fast subset" do
       expect(out.string).to include("the app's request 2 differs from the recording's in its messages")
     end
 
+    # The fix review of #66, R2: a recording made before the requests'
+    # digests would replay green whatever the app sends now.
+    it "fails a recording that keeps no request digests" do
+      path = dir.join("recordings/#{delivery.id}.json")
+      data = JSON.parse(path.read)
+      data["responses"].each { |response| response.delete("request") }
+      path.write(JSON.pretty_generate(data))
+
+      expect(replay("--case", delivery.id)).to eq(1)
+      expect(out.string).to include("stale: requests")
+    end
+
     it "passes when only what differs by design differs: the clock, the ids, a reservation's code" do
       travel_to(Time.iso8601(recording(delivery).fetch("recorded_at")) + 3.days) do
         expect(replay("--case", delivery.id)).to eq(0), out.string

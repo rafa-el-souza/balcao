@@ -136,6 +136,10 @@ module Evals
       changed = self.class.digests(kase).reject { |name, digest| data.dig("digests", name) == digest }.keys
       changed << "route" unless data["route"] == self.class.route
       changed << "case id" unless data["case"] == kase.id
+      # An answer kept with no digest of its request (a recording made before
+      # them, or by hand) would replay whatever the app sends now (the fix
+      # review of #66, R2).
+      changed << "requests" unless responses.all? { |response| response.key?("request") }
       changed
     end
 
