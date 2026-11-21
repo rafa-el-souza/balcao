@@ -2445,8 +2445,11 @@ a reservation (M2-4; the note below).
     `TELEGRAM_MONITOR_URL` (the owner, 2026-11-21, "Dois heartbeats"):
     sharing one, the canary's next pass would close the watch's incident.
     Each URL carries the monitor's token: a secret, injected by Kamal,
-    never logged, required by the boot check on the public name and blank
-    on a rehearsal host, which then sends nothing.
+    never logged, required by the boot check on the public name, each an
+    https URL with a path and no query or fragment, `/fail` joined to the
+    path, and not the same for both (#64's H4 and C3); refused off the
+    public name, so a rehearsal host, which then sends nothing, can never
+    tell the demo's heartbeats (#64's H5).
   - **The question and the marker.** "Qual é o endereço da farmácia?", in
     the conversation's language, whose answer the system prompt holds, so
     the model needs no tool; the marker is the street of the store's

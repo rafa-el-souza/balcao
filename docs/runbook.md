@@ -213,6 +213,12 @@ Only a green `main` is deployed to the MVP host.
      kamal app logs -d ensaio --roles=job --since 15m | grep -E 'canary:|telegram watch:|heartbeat '
      ```
 
+     After the first deploy that sends to a new heartbeat, the monitor's
+     console (the owner's account) shows both `Balcão: canário` and
+     `Balcão: webhook do Telegram` up, not pending: a URL pasted from
+     another heartbeat answers 200 all the same, and only the console
+     shows which one heard it (#64's H7).
+
 5. The catalogue: after the first deploy that runs turns (PR-09) and after
    any change to `db/seeds/catalogue.yml`,
    `kamal app exec -d ensaio --roles=web --reuse 'bin/rails db:seed'`. It
@@ -330,9 +336,12 @@ one alerts only after the first deploy that sends to it.
 - **Their URLs** go into the destination's env file, never into a tracked
   file, the way a held secret does (step 2 of the deploy flow); each holds
   the monitor's token, so the app never logs it. The boot refuses the
-  public name without them; a rehearsal host leaves them blank, and its
-  canary runs and counts without telling anyone, while its Telegram watch
-  looks at nothing (design §8).
+  public name without them, with a query or a fragment, without a path, or
+  with the same URL for both; and it refuses either off the public name: a
+  rehearsal host leaves them blank, and its canary runs and counts without
+  telling anyone, while its Telegram watch looks at nothing (design §8;
+  #64's H4, C3 and H5). Production at M3 holds the demo's two URLs; the
+  rehearsal env file then holds none.
 
 ## The budget, the nightly job and the logs (from PR-16)
 

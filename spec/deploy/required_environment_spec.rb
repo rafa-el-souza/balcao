@@ -46,7 +46,7 @@ RSpec.describe "SR-25 production refuses to boot when a required variable is bla
     # script mint identities past the check while refusing every visitor's
     # real token. The rehearsal hosts, on another name from M3, hold them.
     it "refuses a published test secret on the public name, never naming the value" do
-      public_name = complete.merge("APP_HOST" => "balcao.rafasouza.dev.br")
+      public_name = ProductionEnv.public_name
       %w[1x0000000000000000000000000000000AA 2x0000000000000000000000000000000AA 3x0000000000000000000000000000000AA].each do |value|
         expect { described_class.verify!(public_name.merge("TURNSTILE_SECRET_KEY" => value)) }
           .to raise_error(described_class::Missing, /TURNSTILE_SECRET_KEY.*SR-39/) { |error| expect(error.message).not_to include(value) }
@@ -116,10 +116,11 @@ RSpec.describe "SR-25 production refuses to boot when a required variable is bla
     # carries the monitor's token, so it is a secret, never named.
     it "requires the two monitor URLs on the public name, as https URLs, never naming a value" do
       expect(described_class::MONITORS).to eq(%w[MONITOR_URL TELEGRAM_MONITOR_URL])
-      public_name = complete.merge("APP_HOST" => "balcao.rafasouza.dev.br")
+      public_name = ProductionEnv.public_name
       described_class::MONITORS.each do |name|
         [ "", "  ", "http://monitor.example/api/v1/heartbeat/secret-token", "monitor.example/secret-token",
-          "https://monitor.example/api/v1/heartbeat/secret token" ].each do |value|
+          "https://monitor.example/api/v1/heartbeat/secret token", "https://monitor.example/hb/secret-token?src=x",
+          "https://monitor.example/hb/secret-token#f", "https://monitor.example/", "https://monitor.example" ].each do |value|
           expect { described_class.verify!(public_name.merge(name => value)) }
             .to raise_error(described_class::Missing, /#{name}.*FR-17/) { |error| expect(error.message).not_to include("secret-token") }
         end
@@ -127,12 +128,27 @@ RSpec.describe "SR-25 production refuses to boot when a required variable is bla
       expect { described_class.verify!(public_name) }.not_to raise_error
     end
 
-    it "lets a rehearsal host go without monitor URLs, and refuses one that is not https there too" do
+    # H5 of #64's review: a rehearsal host that told the demo's heartbeats
+    # would close the incidents of the demo's failures, and hide its
+    # silence, so off the public name the URLs stay blank.
+    it "lets a rehearsal host go only without monitor URLs, never naming a value" do
       rehearsal = complete.merge("APP_HOST" => "ensaio.rafasouza.dev.br")
 
-      expect { described_class.verify!(rehearsal.merge("MONITOR_URL" => "", "TELEGRAM_MONITOR_URL" => "")) }.not_to raise_error
-      expect { described_class.verify!(rehearsal.merge("MONITOR_URL" => "http://monitor.example/x")) }
-        .to raise_error(described_class::Missing, /MONITOR_URL.*FR-17/)
+      expect { described_class.verify!(rehearsal.merge("MONITOR_URL" => "", "TELEGRAM_MONITOR_URL" => " ")) }.not_to raise_error
+      described_class::MONITORS.each do |name|
+        expect { described_class.verify!(rehearsal.merge("MONITOR_URL" => "", "TELEGRAM_MONITOR_URL" => "", name => "https://monitor.example/hb/secret-token")) }
+          .to raise_error(described_class::Missing, /#{name}.*off the public name.*FR-17/) { |error| expect(error.message).not_to include("secret-token") }
+      end
+    end
+
+    # C3 of #64's review: one heartbeat for both, and the canary's next pass
+    # closes the watch's incident, which two were chosen to prevent.
+    it "refuses the same URL for both heartbeats on the public name, never naming it" do
+      url = "https://monitor.example/api/v1/heartbeat/secret-token"
+      public_name = ProductionEnv.public_name
+
+      expect { described_class.verify!(public_name.merge("MONITOR_URL" => url, "TELEGRAM_MONITOR_URL" => " #{url}/ ")) }
+        .to raise_error(described_class::Missing, /MONITOR_URL and TELEGRAM_MONITOR_URL.*FR-17/) { |error| expect(error.message).not_to include("secret-token") }
     end
 
     it "accepts an environment where every required variable has a value" do

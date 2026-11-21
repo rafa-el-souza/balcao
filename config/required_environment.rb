@@ -28,15 +28,18 @@ module Balcao
     # The external monitor's heartbeat URLs (FR-17, NFR-04; the owner,
     # 2026-11-21, "Dois heartbeats"): the canary's and the Telegram delivery
     # watch's, held by the monitor's console. Each carries the monitor's
-    # token, so each is a secret. Required on the public name, or a failure
-    # would reach no one; blank on a rehearsal host, which has no monitor
-    # (design §8); an https URL wherever one is set.
+    # token, so each is a secret. On the public name both are required, or
+    # a failure would reach no one, each an https URL with a path and no
+    # query or fragment (review finding H4 of pull request #64), and not the
+    # same one (C3). Off it they stay blank: a rehearsal host has no monitor
+    # (design §8), and one that told the demo's heartbeats would close the
+    # demo's incidents and hide its silence (H5).
     MONITORS = %w[MONITOR_URL TELEGRAM_MONITOR_URL].freeze
     # Every secret Kamal injects: the two secrets files and env.secret in
     # config/deploy.yml name these.
     INJECTED = (SECRETS + MONITORS).freeze
-    # An https URL with a host and a path, and no space.
-    MONITOR_URL = %r{\Ahttps://[^\s/?#]+/\S*\z}
+    # An https URL with a host and a path, and no space, query or fragment.
+    MONITOR_URL = %r{\Ahttps://[^\s/?#]+/[^\s?#]+\z}
     # Clear values set in config/deploy.yml and config/deploy.ensaio.yml.
     SETTINGS = %w[APP_HOST DB_HOST MODEL_ADAPTER BUDGET_CAP_USD].freeze
     NAMES = (SETTINGS + SECRETS).freeze
@@ -100,18 +103,25 @@ module Balcao
 
     def self.verify_monitors!(env)
       public_name = env["APP_HOST"].strip.casecmp?(PUBLIC_HOST)
-      MONITORS.each do |name|
-        value = env[name].to_s.strip
-        if value.empty?
-          next unless public_name
+      values = MONITORS.to_h { |name| [ name, env[name].to_s.strip ] }
+      values.each do |name, value|
+        if !public_name
+          next if value.empty?
 
+          raise Missing, "Refusing to boot: #{name} is set off the public name, where a rehearsal host would tell the demo's " \
+                         "heartbeats (FR-17, design §8, threat model SR-25)."
+        elsif value.empty?
           raise Missing, "Refusing to boot: #{name} is blank on the public name, where the canary's and the Telegram watch's " \
                          "failures go to the external monitor (FR-17, NFR-04, threat model SR-25)."
+        elsif !value.match?(MONITOR_URL)
+          raise Missing, "Refusing to boot: #{name} must be the monitor's https URL, with a path and no query or fragment " \
+                         "(FR-17, threat model SR-25)."
         end
-        next if value.match?(MONITOR_URL)
-
-        raise Missing, "Refusing to boot: #{name} must be the monitor's https URL (FR-17, threat model SR-25)."
       end
+      return unless public_name && values.values.map { |value| value.chomp("/") }.uniq.one?
+
+      raise Missing, "Refusing to boot: MONITOR_URL and TELEGRAM_MONITOR_URL are the same heartbeat; the canary and the " \
+                     "Telegram watch need one each (FR-17, threat model SR-25)."
     end
   end
 end
