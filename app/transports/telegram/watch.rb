@@ -5,17 +5,18 @@ module Telegram
   # tells the monitor's heartbeat of its own (Heartbeat.telegram) that all is
   # well, or fails it with what it found:
   #
-  # - a delivery error newer than its last look: Telegram's time and words
-  #   for it (a 401 from the webhook is a secret changed on the server
-  #   without the bot's task run, which no field can show, since
-  #   getWebhookInfo has no secret field);
+  # - a delivery error newer than the last one it told, and updates still
+  #   waiting after one (below): Telegram's time and words for it (a 401
+  #   from the webhook is a secret changed on the server without the bot's
+  #   task run, which no field can show, since getWebhookInfo has no secret
+  #   field);
   # - a backlog of BACKLOG updates or more waiting, which a healthy webhook
   #   never leaves, since it answers within two seconds whatever it holds;
   # - a webhook Telegram holds otherwise than the bot's task sets it
   #   (Setup.differences: the URL, the kinds of update, the connection limit,
   #   no custom certificate), an empty URL among them, the webhook gone;
   # - getWebhookInfo refused or unreachable, by Telegram's code or the
-  #   failure's class (Client::Error, whose message names no URL, SR-30).
+  #   failure's class (Client::Error's, never its description, SR-30).
   #
   # What it told is kept in the cache on Telegram's own clock: the date of
   # the last delivery error the monitor took, written once the monitor took

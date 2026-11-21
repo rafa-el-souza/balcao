@@ -313,9 +313,9 @@ operator links by opening a one-time link a command prints. Then the
 canary: every ten minutes the app asks its own attendant where the
 pharmacy is, through the same path as a visitor's message and on the
 cheaper model, and tells an external monitor whether the answer came in
-time; beside it, a look at the bot's webhook tells the monitor when
-Telegram fails to deliver. The monitor also e-mails when either goes
-silent.
+time, or whether the visitors' own recent turns all failed; beside it, a
+look at the bot's webhook tells the monitor when Telegram fails to
+deliver. The monitor also e-mails when either goes silent.
 
 Next, in two blocks (design §9.2, where a milestone's number is a label for
 its content, not its place in the order;
