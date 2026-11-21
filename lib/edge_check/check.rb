@@ -3,13 +3,16 @@ require "net/http"
 require "openssl"
 require "uri"
 require_relative "catalogue"
+require_relative "../../config/required_environment"
 
 # Threat model SR-03 seen from outside (design §9.2's M3 list, M3-6): a
 # deployed host is asked, through its proxy and Thruster, for a page of each
 # kind and for every answer of the catalogue one request can reach, and each
 # answer is read for the set the application writes on every answer (the
 # policy, nosniff, the frame, referrer and permissions headers, HSTS over
-# HTTPS, no X-Runtime). It shows what kamal-proxy or Thruster add, remove or
+# HTTPS, no X-Runtime), and for noindex: on every answer of a rehearsal
+# host's name, on none of the public name's but the trace page's own (design
+# §8, M3-6b). It shows what kamal-proxy or Thruster add, remove or
 # answer by themselves, which no test inside the process can see; the
 # proxy's own answers are read for their accepted shape instead. Plain Ruby,
 # no Rails: bin/edge-check runs it from the development account against a
@@ -19,9 +22,10 @@ module EdgeCheck
   SET = %w[content-security-policy x-content-type-options x-frame-options referrer-policy permissions-policy].freeze
   # What no answer may say: how long the server took.
   NEVER = %w[x-runtime].freeze
-  # The trace page passes no referrer on, since its link is a credential
-  # (SR-11): the one header of the set an answer writes itself.
-  OWN = { "a trace's page" => { "referrer-policy" => "no-referrer" } }.freeze
+  # The trace page passes no referrer on and is never indexed, since its link
+  # is a credential (SR-11): the headers an answer writes itself, on every
+  # name.
+  OWN = { "a trace's page" => { "referrer-policy" => "no-referrer", "x-robots-tag" => "noindex, nofollow" } }.freeze
   # A marker in a path, which no page of the proxy's may give back.
   MARKER = "edge-check-marker".freeze
 
@@ -46,7 +50,8 @@ module EdgeCheck
       Probe.app("a session asked for without Turnstile's token", "/api/session", 403, method: "POST", headers: origin, body: "{}"),
       Probe.app("an unknown path", "/no-such-page", 404),
       Probe.app("a route's constraint not met", "/trace/abc", 404),
-      Probe.app("a static file", "/robots.txt", 200),
+      Probe.app("a static file", "/favicon.ico", 200),
+      Probe.app("robots.txt", "/robots.txt", 200),
       Probe.app("a body over 16 KB", "/api/messages", 413, method: "POST", headers: origin, body: "x" * 20_000),
       Probe.app("the cable's handshake of another version", "/cable", 426,
                 headers: WEBSOCKET.merge("Origin" => "https://#{host}", "Sec-WebSocket-Version" => "12")),
@@ -71,6 +76,7 @@ module EdgeCheck
     def initialize(origin, out: $stdout, requester: nil)
       uri = origin_of(origin)
       @host = uri.host
+      @public_name = @host.casecmp?(Balcao::RequiredEnvironment::PUBLIC_HOST)
       @out = out
       @requester = requester || method(:request)
       @failures = []
@@ -124,8 +130,19 @@ module EdgeCheck
       problems << "no nosniff" if headers.key?("x-content-type-options") && headers["x-content-type-options"] != "nosniff"
       problems << "no strict-transport-security" unless headers.key?("strict-transport-security")
       problems.concat((NEVER & headers.keys).map { |name| "#{name} says too much" })
-      OWN.fetch(probe.label, {}).each { |name, value| problems << "#{name} not #{value}" unless headers[name] == value }
+      own = OWN.fetch(probe.label, {})
+      own.each { |name, value| problems << "#{name} not #{value}" unless headers[name] == value }
+      problems.concat(noindex_problems(headers)) unless own.key?("x-robots-tag")
       problems
+    end
+
+    # A rehearsal host's every answer says noindex; the public name's never
+    # say anything of the kind ("none" is noindex, nofollow).
+    def noindex_problems(headers)
+      robots = headers["x-robots-tag"]
+      return robots ? [ "x-robots-tag #{robots.inspect} on the public name" ] : [] if @public_name
+
+      robots.to_s.downcase.split(",").map(&:strip).intersect?(%w[noindex none]) ? [] : [ "no x-robots-tag noindex" ]
     end
 
     def redirect_problems(probe, answer)
