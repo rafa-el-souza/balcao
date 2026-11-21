@@ -1088,9 +1088,12 @@ destination's env file in place of the old one, a deploy (`bin/deploy -d
 ensaio` on the MVP host or a rehearsal host; the operator's checklist in
 production), and what the table says. A generated value comes from
 `bin/secrets-example` in the development account (with the old line
-deleted first, since it prints only what is missing) and from the
-operator's Ruby line in production (the operator account, above). The
-deploy is watched to its end.
+deleted first, since it prints only what is missing); in production, the
+one value alone, never the operator account's line for the whole set,
+which would rotate every generated secret at once:
+`ruby -rsecurerandom -e 'puts SecureRandom.alphanumeric(<its length>)'`,
+the length that line gives the name, written in place of the old value.
+The deploy is watched to its end.
 
 | Secret | The new value | After the deploy, and what it costs |
 |---|---|---|

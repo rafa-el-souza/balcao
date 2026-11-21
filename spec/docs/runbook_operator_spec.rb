@@ -136,4 +136,15 @@ RSpec.describe "SR-37 SR-38 the operator's account and checklist in the runbook"
   it "puts the operator's VM on a network of its own, its SSH taking keys alone" do
     expect(account.squish).to include("a virtual network of its own", "`PasswordAuthentication no`")
   end
+
+  # The fix review's note on pull request #67: the rotation sent production
+  # to the operator account's line, which appends all eight generated
+  # values, so one rotation would have rotated the encryption keys, the
+  # pepper and the owner's password with it.
+  it "rotates one production secret with a value made for it alone" do
+    rotation = section("Rotating a secret").squish
+
+    expect(rotation).to include("ruby -rsecurerandom -e 'puts SecureRandom.alphanumeric(<its length>)'")
+    expect(rotation).not_to include("from the operator's Ruby line in production")
+  end
 end
