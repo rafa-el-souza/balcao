@@ -72,9 +72,33 @@ module EdgeLimits
   # request #32, the owner's word of 2026-11-15).
   def count(limit, discriminator)
     store = Rack::Attack.cache.store
-    store.increment("limits:#{limit.name}:#{discriminator}", 1, expires_in: limit.period) || uncounted(limit)
+    key = "limits:#{limit.name}:#{discriminator}"
+    one_at_a_time(store, key) { store.increment(key, 1, expires_in: limit.period) } || uncounted(limit)
   rescue StandardError => e
     uncounted(limit, "the cache raised #{e.class}")
+  end
+
+  # The key travels as a parameter, never in the statement's text, as
+  # AdvisoryLock's does: it names an address or an identity's hash (threat
+  # model SR-30). The lock's own result is void, so the statement answers 1.
+  XACT_LOCK = "SELECT 1 FROM (SELECT pg_advisory_xact_lock(hashtextextended($1, 0))) AS locked".freeze
+
+  # Solid Cache counts a key under its row's lock, and a key with no row yet
+  # has none to lock: two first counts of a window each read no row and each
+  # wrote 1, so a source's requests at once each counted as its window's
+  # first (review finding V1 of pull request #53, M2's first close). A lock
+  # on the key for the count's transaction, taken on the cache's own
+  # connection before the count, makes the second wait for the first's row.
+  # The memory store of the specs counts under its own lock.
+  def one_at_a_time(store, key)
+    return yield unless store.is_a?(SolidCache::Store)
+
+    store.connections.with_connection_for(key) do
+      SolidCache::Record.transaction do
+        SolidCache::Record.connection.select_value(XACT_LOCK, "EdgeLimits", [ key ])
+        yield
+      end
+    end
   end
 
   def uncounted(limit, why = "the cache did not answer")
