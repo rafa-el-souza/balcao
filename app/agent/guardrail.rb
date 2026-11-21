@@ -158,9 +158,13 @@ class Guardrail
     end
   end
 
-  # A check the edge cut: no time was left to ask, or it ended with no answer
-  # once the edge had passed.
-  def cut?(error, edge) = error.is_a?(AgentRunner::DeadlineExceeded) || edge&.passed?
+  # A check the edge cut: too little time was left to ask or to try again
+  # (ModelAttempts), or its attempt timed out or lost its connection once the
+  # edge had passed. Any other failure is the check's own, R4's fail-open with
+  # its class, wherever it lands (review finding F7 of pull request #65).
+  def cut?(error, edge)
+    error.is_a?(AgentRunner::DeadlineExceeded) || (error.is_a?(Anthropic::Errors::APIConnectionError) && edge&.passed?)
+  end
 
   # Around every attempt of the check: it counts the attempts that timed out
   # once they were sent, which the provider bills though no answer came

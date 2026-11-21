@@ -307,6 +307,19 @@ RSpec.describe "FR-20 SR-18 the guardrail check" do
         expect(fake.requests).to be_empty
       end
 
+      # Review finding F7 of pull request #65: any failure once the edge had
+      # passed read as the edge's cut, a refused key or a bug of the check
+      # among them, so its class reached neither the log nor the trace; the
+      # error decides, and those stay R4's fail-open with their class.
+      it "keeps a failure of its own as its class when it lands as the edge passes" do
+        fake = FakeModel.new([ { status: 401, body: { type: "error", error: { type: "authentication_error", message: "invalid x-api-key" } } } ])
+        client = FakeModel::Client.new(fake, api_key: "fake-model", max_retries: 0, initial_retry_delay: 0,
+                                             middleware: [ ->(request, nxt) { clock.advance(request.timeout) && nxt.call(request) } ])
+        result = Guardrail.new(client:, clock:).check(message: question, reply: answer, edge: TurnEdge.new(deadline: 3, clock:))
+
+        expect(result).to have_attributes(clinical: nil, error: "Anthropic::Errors::AuthenticationError")
+      end
+
       it "keeps R4's fail-open for its own failures while the edge leaves time" do
         fake = FakeModel.new([ error(:overloaded), error(:overloaded) ])
         result = Guardrail.new(client: fake.client, clock:).check(message: question, reply: answer, edge: TurnEdge.new(deadline: 60, clock:))

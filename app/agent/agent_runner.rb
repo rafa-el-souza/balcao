@@ -167,9 +167,18 @@ class AgentRunner
       model_failed(e) if @started_at
       result(:deadline)
     rescue Anthropic::Errors::APIError => e
+      cut = cut?(e)
       model_failed(e)
-      @edge.passed? ? result(:deadline) : result(:model_error, error: e)
+      cut ? result(:deadline) : result(:model_error, error: e)
     end
+
+    # An attempt the edge ended: its time out, or its connection lost, once
+    # the edge had passed, read before the call's charge and trace widen the
+    # window. The error decides, not the clock alone: an API's answer, a
+    # refusal or an overload, landing at the edge is a model error, which
+    # FR-17's canary counts as the route's fault (review findings C5 and F7 of
+    # pull request #65).
+    def cut?(error) = error.is_a?(Anthropic::Errors::APIConnectionError) && @edge.passed?
 
     def check_deadline
       raise DeadlineExceeded, "the turn's edge is reached" if @edge.passed?

@@ -933,6 +933,23 @@ RSpec.describe "design §6.3 AgentRunner (FR-02, FR-04, FR-14, SR-16, SR-19, SR-
         end
       end
 
+      # Review findings C5 and F7 of pull request #65: an error was read as
+      # the edge's once the clock had passed it, so a refused key or request
+      # landing at the edge read as the turn's time spent, which FR-17's
+      # canary never counts as the route's fault. The error decides, not the
+      # clock: the API's refusal is a model error wherever it lands.
+      context "when the API refuses the request as the edge passes" do
+        let(:responses) { [ { status: 401, body: { type: "error", error: { type: "authentication_error", message: "invalid x-api-key" } } } ] }
+
+        it "ends the turn as a model error, with the API's error" do
+          client = FakeModel::Client.new(fake, api_key: "fake-model", max_retries: 0, initial_retry_delay: 0,
+                                               middleware: [ ->(request, nxt) { clock.advance(request.timeout) && nxt.call(request) } ])
+          result = AgentRunner.new(client:, tools: [ SpecTools::Echo ], clock:, sleeper:).run(turn)
+
+          expect(result).to have_attributes(outcome: :model_error, error: an_instance_of(Anthropic::Errors::AuthenticationError))
+        end
+      end
+
       # The caller's edge, FR-17's canary's twenty seconds among them
       # (TurnProcessor), bounds the model's steps as the sixty seconds do.
       context "when the caller gives the turn an edge of its own" do

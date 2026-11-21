@@ -38,7 +38,7 @@ RSpec.describe "SR-20 FR-14 a model call's attempts" do
     clock = FakeClock.new
     fake = FakeModel.new([ ModelResponses.error(:overloaded).merge(headers: { "x-should-retry" => "False" }), ModelResponses.reply("[pt] oi") ])
     client = fake.client
-    attempts = ModelAttempts.new(client:, edge: TurnEdge.new(deadline: 60, clock:), retries: 2, sleeper: ->(_) {})
+    attempts = ModelAttempts.new(client:, edge: TurnEdge.new(deadline: 60, clock:), retries: 2, sleeper: ->(_) { })
 
     expect { attempts.call { |options| client.messages.create(model: "m", max_tokens: 1, messages: [ { role: "user", content: "x" } ], request_options: options) } }
       .to raise_error(Anthropic::Errors::OverloadedError)
