@@ -94,6 +94,31 @@ module Evals
       cases.map { |kase| run_case(kase).tap { |result| yield result if block_given? } }
     end
 
+    # Why the API or the harness broke the run, or nil: what makes an attempt
+    # an error, never the attendant's failure (the replay of a recording
+    # fails a case on it, Evals::Replay).
+    #
+    # FR-20's check that gave no verdict lets the reply go unchecked, which
+    # production allows (threat model R4) and a run must not grade: the
+    # attempt is an error, and a request the API refuses stops the run (the
+    # hunter's H2 on pull request #54).
+    def broken(run)
+      run.turns.each_with_index do |turn, index|
+        fatal!(turn.error_type, "turn #{index + 1}") if turn.error_type
+        return "turn #{index + 1}: #{turn.outcome} (#{turn.error_type || "no error class"})" if INFRA_OUTCOMES.include?(turn.outcome)
+        return "turn #{index + 1}: no reply (#{turn.outcome})" if turn.reply.blank?
+        return "turn #{index + 1}: ran in the #{turn.mode} mode, not #{@route.mode}" if turn.mode && turn.mode != @route.mode
+
+        unchecked = turn.guardrail&.error_type
+        fatal!(unchecked, "turn #{index + 1}'s guardrail") if unchecked
+        return "turn #{index + 1}: the guardrail gave no verdict (#{unchecked})" if unchecked
+
+        rerouted = turn.model_calls.find { |call| call.model != @route.model && call.iterations.blank? }
+        return "turn #{index + 1}: served by #{rerouted.model}, not #{@route.model}" if rerouted
+      end
+      nil
+    end
+
     private
 
     def run_case(kase)
@@ -168,27 +193,6 @@ module Evals
       verdict = @judge.grade(rubric: kase.rubric, parts: run.observation.parts) if kase.rubric && checks.none?(&:failed?)
       passed = checks.none?(&:failed?) && (verdict.nil? || verdict.pass)
       [ passed ? :pass : :fail, checks, verdict, nil ]
-    end
-
-    # FR-20's check that gave no verdict lets the reply go unchecked, which
-    # production allows (threat model R4) and a run must not grade: the
-    # attempt is an error, and a request the API refuses stops the run (the
-    # hunter's H2 on pull request #54).
-    def broken(run)
-      run.turns.each_with_index do |turn, index|
-        fatal!(turn.error_type, "turn #{index + 1}") if turn.error_type
-        return "turn #{index + 1}: #{turn.outcome} (#{turn.error_type || "no error class"})" if INFRA_OUTCOMES.include?(turn.outcome)
-        return "turn #{index + 1}: no reply (#{turn.outcome})" if turn.reply.blank?
-        return "turn #{index + 1}: ran in the #{turn.mode} mode, not #{@route.mode}" if turn.mode && turn.mode != @route.mode
-
-        unchecked = turn.guardrail&.error_type
-        fatal!(unchecked, "turn #{index + 1}'s guardrail") if unchecked
-        return "turn #{index + 1}: the guardrail gave no verdict (#{unchecked})" if unchecked
-
-        rerouted = turn.model_calls.find { |call| call.model != @route.model && call.iterations.blank? }
-        return "turn #{index + 1}: served by #{rerouted.model}, not #{@route.model}" if rerouted
-      end
-      nil
     end
 
     def fatal!(error_type, where)

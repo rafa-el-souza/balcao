@@ -1,6 +1,8 @@
 require "optparse"
 require_relative "scorecard"
 require_relative "economy_gate"
+require_relative "recording"
+require_relative "replay"
 
 # bin/evals' command line (evals/README.md, Running). It reads and checks
 # every case first, selects some, and either lists them or runs them live
@@ -16,24 +18,29 @@ require_relative "economy_gate"
 # models it also rewrites ADR-0003's gate, evals/economy_allowed.yml, from
 # the boundary on the economy model alone (Evals::EconomyGate).
 #
+# The fast subset (the cases marked fast: true, of a delivered milestone) is
+# recorded live on the normal model with --record --fast, each case's first
+# passing attempt into evals/recordings/<case id>.json, and replayed with
+# --recorded, with no key, as CI does on every pull request (Evals::Recording,
+# Evals::Replay).
+#
 # Exit status: 0 when every case run passed, 1 when one failed or ended in
-# error or the run stopped, 2 for a command it does not take. Recording and
-# replaying the fast subset arrive at M3.
+# error, was not recorded or the run stopped, 2 for a command it does not
+# take.
 module Evals
   class CLI
-    BANNER = "Usage: bin/evals (--all | --suite NAME... | --case ID...) [--model normal|economy | --both-models] [--repeat N] " \
-             "[--scorecard] [--list]".freeze
+    BANNER = "Usage: bin/evals (--all | --suite NAME... | --case ID... | --fast) [--model normal|economy | --both-models] " \
+             "[--repeat N] [--scorecard] [--list]\n" \
+             "       bin/evals --record (--fast | --case ID...)\n" \
+             "       bin/evals --recorded [--case ID...]".freeze
     MODES = ModelPolicy::ROUTES.keys.freeze
-    LATER = {
-      "--record" => "recording arrives at M3", "--recorded" => "replaying recordings arrives at M3",
-      "--fast" => "the fast subset's recordings arrive at M3"
-    }.freeze
 
     class Usage < StandardError; end
 
     def initialize(argv, out: $stdout, err: $stderr, env: ENV, cases_path: CaseSet::PATH,
                    results_dir: Rails.root.join("evals/results"), scorecard_path: Scorecard::PATH,
-                   economy_gate_path: EconomyGate::PATH, git: nil, pause: ->(seconds) { sleep(seconds) })
+                   economy_gate_path: EconomyGate::PATH, recordings_dir: Recording::DIR, recording_client: nil, git: nil,
+                   pause: ->(seconds) { sleep(seconds) })
       @argv = argv
       @out = out
       @err = err
@@ -42,6 +49,12 @@ module Evals
       @results_dir = Pathname(results_dir)
       @scorecard_path = Pathname(scorecard_path)
       @economy_gate_path = Pathname(economy_gate_path)
+      @recordings_dir = Pathname(recordings_dir)
+      # A recording run's client for each attempt: the SDK's, with the key and
+      # the recorder as its middleware.
+      @recording_client = recording_client || lambda do |recorder|
+        Anthropic::Client.new(api_key: @env["ANTHROPIC_API_KEY"], max_retries: AgentRunner::MAX_RETRIES, middleware: [ recorder ])
+      end
       @git = git || self.class.git_in(Rails.root)
       @pause = pause
     end
@@ -77,6 +90,7 @@ module Evals
       selected = select(cases, options)
       repeated!(selected, options[:repeat])
       return list(selected, options[:repeat]) if options[:list]
+      return replay(cases, selected, every: options[:ids].empty?) if options[:recorded]
       # The gate speaks for a commit, so the run that writes it reads one
       # (review finding C2 of pull request #55), and a tree git cannot read
       # is no commit's (the fix review's R3).
@@ -89,7 +103,7 @@ module Evals
       end
       raise Usage, "ANTHROPIC_API_KEY is blank: a live run needs the dev/eval key in the environment" if @env["ANTHROPIC_API_KEY"].to_s.strip.empty?
 
-      live(cases, selected, scorecard: options[:scorecard], repeat: options[:repeat], modes: options[:modes])
+      live(cases, selected, scorecard: options[:scorecard], repeat: options[:repeat], modes: options[:modes], record: options[:record])
     rescue Usage, OptionParser::ParseError => e
       @err.puts("bin/evals: #{e.message}", BANNER)
       2
@@ -108,6 +122,11 @@ module Evals
                          "(#{RUNNABLE_SUITES.map { |milestone, suites| "#{milestone}'s #{suites.join(", ")}" }.join("; ")})") { options[:all] = true }
         opts.on("--suite NAME", "A suite's cases of a delivered milestone; repeatable") { |name| options[:suites] << name }
         opts.on("--case ID", "One case, whatever its milestone; repeatable") { |id| options[:ids] << id }
+        opts.on("--fast", "The fast subset: every case marked fast: true of a delivered milestone") { options[:fast] = true }
+        opts.on("--record", "Record the selected fast cases live on the normal model into #{Recording::DIR.relative_path_from(Rails.root)}/") do
+          options[:record] = true
+        end
+        opts.on("--recorded", "Replay the fast subset's recordings (or the --case ones), with no key: CI's run") { options[:recorded] = true }
         opts.on("--model MODEL", "#{MODES.join(" or ")} (normal when left out)") { |model| options[:model] = model }
         opts.on("--both-models", "Every selected case on the normal model, then on the economy model") { options[:both] = true }
         opts.on("--repeat N", Integer, "Each #{Runner::REPEATED_SUITES.to_sentence(locale: :en)} case N times (#{Runner::REPEAT.min} to #{Runner::REPEAT.max}), every attempt graded") do |count|
@@ -115,7 +134,6 @@ module Evals
         end
         opts.on("--scorecard", "With --all: rewrite evals/scorecard.md") { options[:scorecard] = true }
         opts.on("--list", "List the selected cases and stop: no key, no model call") { options[:list] = true }
-        LATER.each_key { |flag| opts.on(flag) { options[:later] = flag } }
         opts.on("-h", "--help") { options[:help] = parser }
       end
       stray = parser.parse(@argv)
@@ -125,7 +143,7 @@ module Evals
     end
 
     def check(options)
-      raise Usage, "#{options[:later]}: #{LATER.fetch(options[:later])}" if options[:later]
+      recording!(options)
       raise Usage, "--model #{options[:model]}: it takes #{MODES.join(" or ")}" if options[:model] && !MODES.include?(options[:model])
       raise Usage, "--both-models runs the normal model and then the economy model: leave --model out" if options[:both] && options[:model]
 
@@ -141,8 +159,8 @@ module Evals
                      "times or more (FR-09): add --repeat 3"
       end
 
-      kinds = [ options[:all], options[:suites].any?, options[:ids].any? ].count(&:itself)
-      raise Usage, "choose one of --all, --suite or --case" unless kinds == 1 || options[:help]
+      kinds = [ options[:all], options[:suites].any?, options[:ids].any?, options[:fast] ].count(&:itself)
+      raise Usage, "choose one of --all, --suite, --case or --fast" unless kinds == 1 || options[:help] || (options[:recorded] && kinds.zero?)
       raise Usage, "--scorecard rewrites the scorecard from --all alone" if options[:scorecard] && !options[:all]
       raise Usage, "--scorecard and --list do not go together" if options[:scorecard] && options[:list]
       if options[:repeat] && !Runner::REPEAT.cover?(options[:repeat])
@@ -151,6 +169,23 @@ module Evals
       end
 
       options
+    end
+
+    # A recording is made and replayed on the normal route alone, one attempt
+    # a case, of the fast subset's cases, with no scorecard: --record takes
+    # --fast or --case, --recorded nothing or --case.
+    def recording!(options)
+      return unless options[:record] || options[:recorded]
+
+      raise Usage, "--record records and --recorded replays: choose one" if options[:record] && options[:recorded]
+
+      flag = options[:record] ? "--record" : "--recorded"
+      others = { "--all" => options[:all], "--suite" => options[:suites].any?, "--model" => options[:model], "--both-models" => options[:both],
+                 "--repeat" => options[:repeat], "--scorecard" => options[:scorecard] }.select { |_, given| given }.keys
+      others << "--fast" if options[:recorded] && options[:fast]
+      raise Usage, "#{flag} takes #{options[:record] ? "--fast or --case" : "--case or nothing"}, not #{others.join(", ")}: " \
+                   "the fast subset is recorded on the normal model, one attempt a case" if others.any?
+      raise Usage, "--record takes --fast or --case" if options[:record] && !options[:fast] && options[:ids].empty?
     end
 
     # --repeat applies to the boundary and injection suites (README, Flakiness
@@ -168,12 +203,20 @@ module Evals
 
     def select(cases, options)
       return cases.runnable if options[:all]
+      return cases.runnable.select(&:fast) if options[:fast] || (options[:recorded] && options[:ids].empty?)
 
       if options[:ids].any?
         missing = options[:ids].reject { |id| cases.find(id) }
         raise Usage, "no case #{missing.join(", ")} in #{@cases_path}" if missing.any?
 
-        return options[:ids].uniq.map { |id| cases.find(id) }
+        selected = options[:ids].uniq.map { |id| cases.find(id) }
+        outside = selected.reject { |kase| kase.fast && kase.runnable? }.map(&:id)
+        if (options[:record] || options[:recorded]) && outside.any?
+          raise Usage, "#{outside.join(", ")}: a recording is kept for the fast subset alone, the cases marked fast: true of a " \
+                       "delivered milestone"
+        end
+
+        return selected
       end
       unknown = options[:suites] - SUITES
       raise Usage, "no suite #{unknown.join(", ")}; the suites are #{SUITES.join(", ")}" if unknown.any?
@@ -196,8 +239,9 @@ module Evals
     # The selection on each model in turn, one report each; a run that
     # stopped on one model does not go on to the next. The judge's preflight
     # runs once, before the first model's cases.
-    def live(cases, selected, scorecard:, repeat:, modes:)
+    def live(cases, selected, scorecard:, repeat:, modes:, record: false)
       ActiveRecord::Migration.maintain_test_schema!
+      @unrecorded = []
       judge = Judge.new(client: AgentRunner.default_client)
       # The commit the run measured is the one it started from, read once: a
       # commit made while the normal model ran is not the economy model's
@@ -211,7 +255,7 @@ module Evals
         reports << report
         @out.puts("bin/evals: #{selected.size} #{"case".pluralize(selected.size)} on #{route.model} (effort #{route.effort}), " \
                   "judged by #{judge.model}#{", each #{Runner::REPEATED_SUITES.to_sentence(locale: :en)} case #{repeat} times" if repeat}")
-        break unless run_on(report, judge, selected, route, repeat:, first: reports.one?)
+        break unless run_on(report, judge, selected, route, repeat:, first: reports.one?, record: ("#{head}#{"-dirty" if dirty}" if record))
       rescue Interrupt, StandardError
         # What ran is written before the interruption or the bug goes on.
         finish(reports, cases, scorecard: false, headed: modes.many?)
@@ -223,16 +267,20 @@ module Evals
       finish(reports, cases, scorecard:, headed: modes.many?)
     end
 
-    # Runs the selection on one route; false when the run stopped.
-    def run_on(report, judge, selected, route, repeat:, first:)
+    # Runs the selection on one route; false when the run stopped. record:
+    # the commit a recording run writes into each recording, nil otherwise.
+    def run_on(report, judge, selected, route, repeat:, first:, record: nil)
       if first && selected.any?(&:rubric)
         report.preflight = preflight(judge)
         @out.puts("judge: failed the #{Judge.known_bad.size} known-bad replies, as it must")
       end
-      runner = Runner.new(pipeline: Pipeline.new(mode: route.mode), checks: Checks.new(phrases:), judge:, route:, repeat:, pause: @pause)
+      pipeline = Pipeline.new(mode: route.mode)
+      pipeline = Recording::Pipeline.new(pipeline, client: @recording_client) if record
+      runner = Runner.new(pipeline:, checks: Checks.new(phrases:), judge:, route:, repeat:, pause: @pause)
       runner.call(selected) do |result|
         report.results << result
         @out.puts(outcome(result))
+        recorded(pipeline, result, record) if record
       end
       true
     rescue Judge::Unfit, Judge::Error, Runner::Fatal, Anthropic::Errors::APIError => e
@@ -256,6 +304,33 @@ module Evals
       report.stopped = "#{error.class}: #{error.message}"
       @out.puts(outcome(kept)) if kept
       @err.puts("bin/evals: the run stopped: #{report.stopped}")
+    end
+
+    # The recording of a case's first passing attempt, or why none was
+    # written, which fails the run.
+    def recorded(pipeline, result, commit)
+      unwritten = pipeline.write(result, dir: @recordings_dir, commit:)
+      @unrecorded << result.kase.id if unwritten
+      path = Recording.path(result.kase, @recordings_dir)
+      @out.puts("  #{unwritten || "recorded: #{path.to_s.delete_prefix("#{Rails.root}/")}"}")
+    end
+
+    # The fast subset replayed from its recordings (Evals::Replay), with no
+    # key; with every case selected, a recording of no selected case fails
+    # the run too, since nothing would replay it.
+    def replay(cases, selected, every:)
+      ActiveRecord::Migration.maintain_test_schema!
+      route = ModelPolicy.route("normal")
+      @out.puts("bin/evals: #{selected.size} recorded #{"case".pluralize(selected.size)} replayed on #{route.model} " \
+                "(effort #{route.effort}), with no key and no judge")
+      results = Replay.new(pipeline: Pipeline.new(mode: route.mode), checks: Checks.new(phrases:), route:, dir: @recordings_dir)
+                      .call(selected) { |result| @out.puts(outcome(result)) }
+      orphans = every ? @recordings_dir.glob("*.json").map { |path| path.basename(".json").to_s } - selected.map(&:id) : []
+      orphans.each { |id| @out.puts("#{id}: evals/recordings/#{id}.json records no case of the fast subset; delete it or mark the case fast") }
+      passed = results.count { |result| result.status == :pass }
+      @out.puts("", "#{passed} of #{results.size} recorded #{"case".pluralize(results.size)} passed" \
+                    "#{"; #{orphans.size} #{"recording".pluralize(orphans.size)} of no case" if orphans.any?}")
+      passed == results.size && orphans.empty? ? 0 : 1
     end
 
     # The preflight meets the API as an attempt does: a broken verdict or an
@@ -287,7 +362,8 @@ module Evals
       end
       write_scorecard(reports, cases) if scorecard
       ok = reports.all? { |report| report.stopped.nil? && report.results.all? { |result| result.status == :pass } }
-      ok ? 0 : 1
+      @err.puts("bin/evals: not recorded: #{@unrecorded.join(", ")}") if @unrecorded.present?
+      ok && @unrecorded.blank? ? 0 : 1
     end
 
     # The scorecard from the normal model's report, with the economy model's

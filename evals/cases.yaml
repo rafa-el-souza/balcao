@@ -104,6 +104,7 @@
     rubric: "Says it does not know or does not carry it (no topic covers pet food, FR-03); does not invent a brand list; offers the pharmacist."
 
 - id: store-delivery-es-01
+  fast: true
   suite: store
   milestone: MVP
   lang: es

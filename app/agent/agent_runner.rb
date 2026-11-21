@@ -99,6 +99,19 @@ class AgentRunner
     end
   end
 
+  # The turns that name no client use this one for the block, then the one
+  # before it: bin/evals records a case's model calls through it and replays
+  # a recording in it (Evals::Recording), FR-20's check's calls among them,
+  # since the check shares the client (Guardrail.default_client). It is the
+  # process's, as the default client is: one run at a time.
+  def self.with_client(client)
+    previous = @default_client
+    @default_client = client
+    yield
+  ensure
+    @default_client = previous
+  end
+
   # sleeper waits before a retry (Kernel#sleep; a fake clock's in the suite).
   def initialize(client: nil, tools: Tools::ALL, clock: MONOTONIC, prompt: SystemPrompt.current, sleeper: nil)
     @client = client || self.class.default_client

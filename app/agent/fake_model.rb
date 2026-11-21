@@ -39,6 +39,10 @@ class FakeModel
     @requests = []
   end
 
+  # How many responses no request has asked for yet: a recording replayed
+  # whole leaves none (Evals::Replay).
+  def left = @responses.size
+
   # An SDK client whose every request this fake answers. No retry delay, so
   # the SDK's retries cost nothing in the suite.
   def client
