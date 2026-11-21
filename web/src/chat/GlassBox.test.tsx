@@ -526,6 +526,35 @@ describe("FR-20 FR-12 the guardrail's check in the glass box", () => {
     expect(row).toHaveAttribute("data-state", "error");
   });
 
+  // Threat model SR-20 (pull request #65, C1 and F3): the turn's time ran
+  // out during the check, so the fallback went in the reply's place; the row
+  // says the time was spent, as a model call's row does.
+  it("says the turn's time ran out during the check, in the error colour", async () => {
+    const row = await checkRow(
+      {
+        "balcao.guardrail.clinical": undefined,
+        "gen_ai.response.model": undefined,
+        "balcao.cost.usd": undefined,
+        "error.type": "AgentRunner::DeadlineExceeded",
+        "balcao.latency_ms": 1800,
+      },
+      "deadline",
+    );
+
+    expect(within(row).getByText("sem veredito")).toBeInTheDocument();
+    expect(
+      within(row).getByText(pt.instrument.errors.deadline),
+    ).toBeInTheDocument();
+    // "erro" is also the details' label for the error (a <dt>); the word
+    // the row gives the error itself is never the plain one.
+    expect(
+      within(row).queryByText(pt.instrument.errors.other, {
+        ignore: "dt, script, style",
+      }),
+    ).toBeNull();
+    expect(row).toHaveAttribute("data-state", "error");
+  });
+
   // Review finding W1 of pull request #54: a run that stopped or broke
   // during the check stored no reply, so its row says the run was
   // interrupted, never that a reply left.

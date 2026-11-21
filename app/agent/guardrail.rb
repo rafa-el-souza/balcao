@@ -98,8 +98,11 @@ class Guardrail
   end
   private_class_method :data, :earlier_block
 
-  # The error of a check the turn's edge cut (SR-20).
-  DEADLINE = "deadline".freeze
+  # The error of a check the turn's edge cut (SR-20): the class a model call
+  # the edge cut is named by, which the trace page words as the turn's time
+  # spent (review findings C1 and F3 of pull request #65: a bare "deadline"
+  # read as a plain error there).
+  DEADLINE = AgentRunner::DeadlineExceeded.name
 
   # sleeper waits before the retry (Kernel#sleep; a fake clock's in the suite).
   def initialize(client: nil, route: ModelPolicy.guardrail, thinking: THINKING, clock: AgentRunner::MONOTONIC, sleeper: nil)

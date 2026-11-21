@@ -351,8 +351,10 @@ function ToolRow({
 // it found, its cost and its time, opening to its model and tokens. Clinical
 // advice found keeps the instrument's own ink, since a rule at work is no
 // failure; a check that gave no verdict takes the error colour, since the
-// reply went as the model wrote it (threat model R4), and so does a run
-// that stopped during the check. The reply's own row says whether it left.
+// reply went as the model wrote it (threat model R4), or, when the turn's
+// time ran out during it, the fallback went in the reply's place (SR-20),
+// and so does a run that stopped during the check. The reply's own row says
+// what left.
 function GuardrailRow({
   row,
   open,

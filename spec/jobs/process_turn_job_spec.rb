@@ -643,6 +643,24 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       expect(UsageRecord.where(turn_id: turn.id).pluck(:output_tokens)).to include(Guardrail::MAX_TOKENS)
     end
 
+    # Review findings C1 and F3 of pull request #65: the check's span named
+    # the cut "deadline", a word the trace page does not know, so its row
+    # read a plain "erro"; it now names the error the page words as the
+    # turn's time spent, as a model call's span does.
+    it "names the edge's cut on the check's span as the page words the turn's time spent" do
+      clock = FakeClock.new
+      allow(TurnEdge).to receive(:after) { |seconds, **| TurnEdge.new(deadline: clock.call + seconds, clock:) }
+      allow(Guardrail).to receive(:default_client) do
+        FakeModel::Client.new(FakeModel.new([ { timeout: true } ]), api_key: "fake-model", max_retries: 0, initial_retry_delay: 0,
+                                                                    middleware: [ ->(request, nxt) { clock.advance(60) && nxt.call(request) } ])
+      end
+      turn = inbound("oi")
+
+      perform(turn)
+
+      expect(spans(turn).find_by(name: "balcao.guardrail").span_attributes).to include("error.type" => "AgentRunner::DeadlineExceeded")
+    end
+
     it "keeps the emergency line that the reply the edge left unchecked asked for, the system's own text" do
       responses.replace([ reply("[pt] Ligue agora para o SAMU. [emergency]") ])
       clock = FakeClock.new
