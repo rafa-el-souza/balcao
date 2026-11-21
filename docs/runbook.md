@@ -717,14 +717,19 @@ kamal app logs -d ensaio --roles=job --since 1h | grep -E 'canary:|telegram watc
   secret the server and Telegram no longer share: run the bot's task (The
   Telegram bot, above), which sets the webhook with the server's secret.
   A `5xx` or a timeout is the app's side: `/up` and the web logs.
+- **`telegram watch: N updates waiting since a delivery error at …`**:
+  no new error since the last look, but updates still wait after one:
+  Telegram tries them again in its own time, and the heartbeat stays
+  failing until they drain (#64's H3).
 - **`telegram watch: N updates waiting`**: Telegram holds updates it has
   not delivered; the delivery errors usually say why.
 - **`telegram watch: the webhook's … differ from what the bot's task sets`**:
   the webhook was changed or deleted outside the task (another server with
   the same token, a `deleteWebhook`): run the bot's task.
 - **`telegram watch: getWebhookInfo failed: …`**: Telegram refused the
-  token (`401`: the token was revoked or rotated without the env file) or
-  could not be reached.
+  call, named by its code alone (`401`: the token was revoked or rotated
+  without the env file), or could not be reached, named by the failure's
+  class or status.
 
 Each heartbeat recovers by itself at its next passing run, ten minutes
 apart, and the monitor e-mails the recovery.

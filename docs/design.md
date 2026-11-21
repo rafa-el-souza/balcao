@@ -2488,15 +2488,20 @@ a reservation (M2-4; the note below).
     a worker's thread. A run is never tried again; a run that cannot start
     still fails its heartbeat.
   - **The delivery watch** looks every ten minutes, five after the canary,
-    and fails its heartbeat on a delivery error newer than its last look
-    (the look's time kept in the cache; with none, newer than its
-    interval), on ten updates waiting or more (Telegram sends one at a
-    time and the webhook answers within two seconds, so a few is a burst at
-    work), on a webhook Telegram holds otherwise than the bot's task sets
-    it (the four fields the task compares, an empty URL among them, which
-    §9.2's text did not name: a deleted webhook leaves no delivery error),
-    and on `getWebhookInfo` refused or unreachable. Telegram's words for an
-    error name a delivery failure, never an update's content.
+    and fails its heartbeat on a delivery error newer than the last one it
+    told (Telegram's own date, in its whole seconds, kept in the cache once
+    the monitor took the look, so neither the host's clock nor a `/fail`
+    the monitor missed loses an error; with none kept, newer than its
+    interval; #64's C2, C4, H12 and H13), while updates still wait after an
+    error from before they last drained (Telegram tries again in its own
+    time; #64's H3), on ten updates waiting or more (Telegram sends one at
+    a time and the webhook answers within two seconds, so a few is a burst
+    at work), on a webhook Telegram holds otherwise than the bot's task
+    sets it (the four fields the task compares, an empty URL among them,
+    which §9.2's text did not name: a deleted webhook leaves no delivery
+    error), and on `getWebhookInfo` refused or unreachable, named by
+    Telegram's code or the failure's class (#64's C5). Telegram's words for
+    an error name a delivery failure, never an update's content.
   - **Cost, measured** on 2026-11-21 against the real model with the
     dev/eval key (FR-17 as built): about US$ 0.11 a day at one run every
     ten minutes, each cold, since the prompt's cache lasts five minutes:
