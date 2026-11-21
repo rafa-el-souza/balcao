@@ -114,12 +114,14 @@ production:
     <<: *default
     host: <%= ENV["DB_HOST"] %>
     database: balcao_production
+    # Each password as JSON, a string YAML reads back exactly, whatever its
+    # characters, as the role's step reads it (review finding F5 of #65).
     <% if ENV["DATABASE_OWNER"] == "1" %>
     username: balcao
-    password: <%= ENV["POSTGRES_PASSWORD"] %>
+    password: <%= ENV["POSTGRES_PASSWORD"].to_json %>
     <% else %>
     username: balcao_app
-    password: <%= ENV["APP_DATABASE_PASSWORD"] %>
+    password: <%= ENV["APP_DATABASE_PASSWORD"].to_json %>
     <% end %>
   cache:
     <<: *primary_production

@@ -31,6 +31,19 @@ RSpec.describe "SR-24 SR-25 the app's database role in production" do
     end
   end
 
+  # Review finding F5 of pull request #65: the role's step reads a password
+  # raw, the server reads it through ERB into YAML, where "abc #x" read as
+  # "abc", so a hand-made value would set the role one password and connect
+  # with another.
+  it "reads each password exactly as the role's step does, whatever its characters" do
+    odd = "abc #x: &y !z 'q\" {[]} \\ \u00e7"
+    configs = production(passwords.merge("APP_DATABASE_PASSWORD" => odd, "DATABASE_OWNER" => nil))
+    expect(configs.values.map { |config| config[:password] }.uniq).to eq([ odd ])
+
+    configs = production(passwords.merge("POSTGRES_PASSWORD" => odd, "DATABASE_OWNER" => "1"))
+    expect(configs.values.map { |config| config[:password] }.uniq).to eq([ odd ])
+  end
+
   describe "the entrypoint's task, db:app_role" do
     before do
       Rails.application.load_tasks if Rake::Task.tasks.none? { |task| task.name == "db:app_role" }
