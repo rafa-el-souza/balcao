@@ -1,0 +1,24 @@
+# The requirements verified by a step, a CI step or a measure rather than by
+# an example that cites the identifier (design NFR-08, written at M3-6).
+# bin/traceability (M2-11b) counts the suite's examples by identifier and
+# reads this file for these; spec/docs/traceability_yml_spec.rb keeps the
+# list equal to the one NFR-08 names. One line each: where it is verified.
+
+steps:
+  SR-24: "Host checklist in `docs/runbook.md`, run inside every new host and the cloud firewall read from outside; the containers' settings in `spec/deploy/kamal_config_spec.rb`; an external port scan recorded at M3's close."
+  SR-26: "Every host made from `ops/cloud-init.yml` with the provider's CLI: the MVP host once, the production host at the cut and every rehearsal host (`docs/runbook.md`, the rehearsal flow and the production cut)."
+  SR-33: "Names checked against real businesses before the publication (M3-6; design §10, M3-6's note): the pharmacy's name, street and phone; the Telegram updates in the specs carry invented ids and names."
+  SR-37: "The operator account in `docs/runbook.md`, set up and checked by the owner before the first production deploy."
+  SR-38: "The operator's checklist in `docs/runbook.md` (the deploy-path review before every production deploy); `bin/deploy` knows one destination (`spec/deploy/bin_deploy_spec.rb`); no Kamal hooks (CI's secrets and hooks step)."
+
+ci:
+  SR-25: "CI's step \"Static secrets check and no Kamal hooks\" in `.github/workflows/ci.yml` (the boot check's and the secrets files' specs) and the gitleaks job over every commit; the pre-commit hook in `.githooks/pre-commit`."
+  SR-27: "CI's bundler-audit and npm audit steps (`bin/bundler-audit`), Dependabot, and the bump day's kamal-proxy and Postgres checks in `docs/runbook.md`."
+  SR-28: "CI's Brakeman step, no medium or high warning."
+  SR-29: "CI holds no secret: the workflow names none, and the fast evals replay their recordings with no key (`bin/evals --recorded`)."
+  NFR-10: "CI's NFR-10 gate, axe-core and the first visit's size over the four public pages (`web/e2e/gate.e2e.ts`)."
+
+measured:
+  NFR-01: "A turn's latency, recorded on the turn (`latency_ms`) and measured on the demo (design §10, M4-2's and M4-6a's notes); on the status page from M3-3."
+  NFR-04: "The external monitor on `/up` every three minutes and the canary's and the Telegram watch's heartbeats (`docs/runbook.md`, Monitoring); the pipeline uptime on the status page from M3-3."
+  NFR-06: "The month's spend against the cap in the budget's ledger and the model console's usage page (`docs/runbook.md`, the budget); the infrastructure's on the provider's invoice."

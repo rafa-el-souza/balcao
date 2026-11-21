@@ -19,7 +19,7 @@ RSpec.describe "FR-18 SR-03 POST /api/session issues the visitor cookie", type: 
     expect(json).to eq("conversation_id" => conversation.id, "trace_token" => conversation.trace_token, "language" => "pt-BR",
                        "mode" => "normal", "brl" => { "per_usd" => 5.6518, "verified_on" => "2026-11-13" })
     cookie = response.headers["Set-Cookie"]
-    expect(cookie).to match(/\A#{WebSession::COOKIE}=/o)
+    expect(cookie).to match(/\A#{WebSession::PLAIN_NAME}=/o)
     expect(cookie).to include("httponly").and include("samesite=strict").and include("path=/")
     expect(cookie_visitor).to eq conversation.visitor
     expect(conversation.visitor).to have_attributes(channel: "web")
@@ -38,11 +38,43 @@ RSpec.describe "FR-18 SR-03 POST /api/session issues the visitor cookie", type: 
     expect(json["mode"]).to eq("paused")
   end
 
-  it "marks the cookie Secure over HTTPS, as production always is" do
+  # Threat model R7, closed at M3-6 (and the security scan's F1 of
+  # 2026-11-21): over HTTPS, as production always is, the cookie carries the
+  # __Host- prefix, which a browser keeps only when this host itself sets it,
+  # Secure, with Path=/ and no Domain, so no other name under the domain, a
+  # sibling or a network attacker answering as one over plain HTTP, can plant
+  # one for the visitor to adopt.
+  it "names the cookie __Host-balcao_visitor over HTTPS, Secure, with Path=/ and no Domain (R7)" do
     https!
-    api_post "/api/session", minting, headers: { "Origin" => origin }
+    api_post "/api/session", minting
 
-    expect(response.headers["Set-Cookie"]).to include("secure")
+    cookie = response.headers["Set-Cookie"]
+    expect(cookie).to start_with("__Host-balcao_visitor=")
+    expect(cookie).to include("secure").and include("path=/").and include("httponly").and include("samesite=strict")
+    expect(cookie).not_to match(/domain=/i)
+  end
+
+  it "answers the same visitor when the __Host- cookie comes back over HTTPS, creating nothing" do
+    https!
+    api_post "/api/session", minting
+    first = Visitor.sole
+
+    expect { api_post "/api/session" }.not_to change(Visitor, :count)
+    expect(response).to have_http_status(:created)
+    expect(json["conversation_id"]).to eq first.conversations.sole.id
+  end
+
+  # A clean cut, with no migration (R7): reading the bare name over HTTPS
+  # would let a planted cookie back in.
+  it "reads no cookie of the bare name over HTTPS: one signed and valid is not adopted, and mints nothing without a token" do
+    start_session
+    https!
+
+    expect { api_post "/api/session" }.not_to change(Visitor, :count)
+    expect(response).to have_http_status(:forbidden)
+    expect(json).to eq("error" => "challenge")
+    get "/api/conversations/current"
+    expect(response).to have_http_status(:unauthorized)
   end
 
   it "keeps the visitor's token out of the body and of every header but Set-Cookie (no token in a header)" do
@@ -97,7 +129,7 @@ RSpec.describe "FR-18 SR-03 POST /api/session issues the visitor cookie", type: 
   end
 
   it "mints a new visitor for a cookie whose signature does not verify, with the widget's token" do
-    cookies[WebSession::COOKIE.to_s] = "forged-token"
+    cookies[WebSession::PLAIN_NAME.to_s] = "forged-token"
 
     expect { api_post "/api/session" }.not_to change(Visitor, :count)
     expect(json).to eq("error" => "challenge")

@@ -11,7 +11,7 @@ RSpec.describe "FR-03 FR-26 the store fact sheet" do
     subject(:sheet) { StoreSheet.load(Rails.root.join("config/store.yml")) }
 
     it "names the fictional pharmacy of design §1.2" do
-      expect(sheet.identity).to include("name" => "Farmácia Vida Longa", "city" => "Belo Horizonte")
+      expect(sheet.identity).to include("name" => "Farmácia Copaíba", "city" => "Belo Horizonte")
     end
 
     it "carries exactly the topics get_store_info answers, in the order of FR-03" do

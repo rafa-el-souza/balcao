@@ -1,0 +1,24 @@
+#!/usr/bin/env ruby
+# Threat model SR-03 seen from outside (design §9.2's M3 list, M3-6): asks a
+# deployed host, through its proxy, for a page of each kind and for every
+# answer of the catalogue one request can reach, and reads each for the
+# headers the application writes on every answer. Part of the rehearsal flow
+# before a production deploy (docs/runbook.md); run from the development
+# account, never in the operator account (SR-38). It spends about seventy
+# requests of the caller's address on the API, whose limit then refuses that
+# address for up to a minute.
+#
+#   bin/edge-check https://ensaio.rafasouza.dev.br
+require_relative "../lib/edge_check/check"
+
+unless ARGV.size == 1
+  warn "usage: bin/edge-check https://<host>"
+  exit 2
+end
+
+begin
+  exit(EdgeCheck::Check.new(ARGV.first).run ? 0 : 1)
+rescue ArgumentError => e
+  warn "bin/edge-check: #{e.message}"
+  exit 2
+end

@@ -77,6 +77,14 @@ module Balcao
 
     class Missing < StandardError; end
 
+    # A required value as the boot check reads it, without the spaces or line
+    # break a paste may leave around it. The app reads the host, the
+    # encryption keys, the pepper and the secret key base through here, so a
+    # paste mended later changes none of them: every stored row still
+    # decrypts and every identity holds (the fix review of pull request #53;
+    # M3-6). The other values the boot check would refuse with a line break.
+    def self.read(name, env = ENV) = env.fetch(name).strip
+
     def self.missing(env)
       names = env["DATABASE_OWNER"] == "1" ? NAMES + OWNER : NAMES
       names.select { |name| env[name].to_s.strip.empty? }

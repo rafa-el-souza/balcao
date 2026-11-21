@@ -210,5 +210,38 @@ RSpec.describe "SR-25 production refuses to boot when a required variable is bla
       expect(status).to be_success, err
       expect(out.lines.last).to eq "\"0x4AAAAAAAvalue-of-a-real-secret\"\n"
     end
+
+    # The fix review of pull request #53, given to M3-6 by the owner on
+    # 2026-11-20: the host, the three encryption keys and the pepper were read
+    # with the spaces or line break a paste left, which the boot check reads
+    # past. A host with a line break boots and answers no request; a key or
+    # the pepper with one boots, and the day the paste is mended every stored
+    # row stops decrypting and every Telegram identity changes. The secret
+    # key base, which signs the web visitor's cookie, breaks every web
+    # identity the same way (M3-6).
+    it "reads the host, the encryption keys, the pepper and the secret key base without a paste's spaces or line break" do
+      names = %w[APP_HOST ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY
+                 ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT IDENTITY_PEPPER SECRET_KEY_BASE]
+      clean = names.to_h { |name| [ name, name == "APP_HOST" ? "demo.example" : "value-of-#{name.downcase}" ] }
+      env = complete.merge(clean.transform_values { |value| " #{value}\n" })
+                    .merge("RAILS_ENV" => "production", "DATABASE_URL" => nil)
+      read = <<~RUBY
+        encryption = Rails.application.config.active_record.encryption
+        puts "READ " + JSON.generate(
+          "APP_HOST" => Rails.application.config.hosts.first,
+          "origin" => Rails.configuration.x.public_origin,
+          "mailer" => Rails.application.config.action_mailer.default_url_options[:host],
+          "ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY" => Array(encryption.primary_key).first,
+          "ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY" => Array(encryption.deterministic_key).first,
+          "ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT" => encryption.key_derivation_salt,
+          "IDENTITY_PEPPER" => Rails.configuration.x.identity_pepper,
+          "SECRET_KEY_BASE" => Rails.application.secret_key_base)
+      RUBY
+      out, err, status = Open3.capture3(env, "bin/rails", "runner", read, chdir: Rails.root.to_s)
+
+      expect(status).to be_success, err
+      expect(JSON.parse(out.lines.grep(/\AREAD /).last.delete_prefix("READ ")))
+        .to eq(clean.merge("origin" => "https://demo.example", "mailer" => "demo.example"))
+    end
   end
 end

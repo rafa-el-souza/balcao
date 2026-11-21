@@ -1,10 +1,10 @@
 # Balcão — design document
 
-**Status:** v1.30, 2026-11-21 (M3-5, the CI furniture: the fast subset recorded on the normal model and replayed in CI with no key, NFR-10's gate over four pages with the first visit read compressed, the coverage threshold, actionlint at a pinned release, SR-25's and SR-38's static checks as their own step, `bin/bundler-audit`'s own refresh; NFR-08, NFR-10 and §9.2 as built, see §10); v1.29, 2026-11-21 (M3-4, a turn's hard edge and the short log sweep: every model attempt, FR-20's check's included, and every tool call inside the run's sixty seconds, FR-17's canary's twenty, and an attempt the edge abandons charged at its input and its output cap; Cloudflare's whole answer within FR-18's ten seconds; a limit's first count in a window taken one at a time; the app's own database role; Action Cable's error lines and address, a trace token on any path and the Telegram client's causes; FR-14, FR-17, FR-18, FR-20, §8 and §9.2 as built, see §10); v1.28, 2026-11-21 (M3-2, FR-17's canary: a visitor's question every ten minutes through a visitor's turn on the economy model, as the `system` channel's one visitor, which the purge and the sweep leave, counted on the day and told to a heartbeat of the external monitor; beside it the Telegram delivery watch over `getWebhookInfo`, with a heartbeat of its own; FR-17, §6.5, §6.6, §8 and §9.2 as built, see §10); v1.27, 2026-11-21 (M3-1, FR-14's modes: economy at 70 % of the cap and from the day's slice until midnight, each pausing with its own text while ADR-0003's gate is closed, and the operator's alert at the cap through the bot to the chat the runbook's deep link links; FR-14, FR-19 and §9.2 as built, see §10); v1.26, 2026-11-20 (M2-11a3, the close's fixes: a reply the system sent without the model keeps its reservations for the history; the prompt's line on the model's notes before a tool call, chosen of seven wordings measured live, and the evals fail such a note; ADR-0003's gate names the history and the tools' texts and envelopes; FR-20's check and the judge read only a boolean verdict; FR-04 and FR-20 as built; see §10); v1.25, 2026-11-20 (M2-11a2: the review at M2's first close, its table in `docs/reviews/m2-first-seven-review.md`; §9.2 gains M2-11a3, the close's fixes, and the lines the close found without a home get one; M3-6 takes the docs reader test before the publication; FR-20 as built names the turns a replacement lists from; see §10); v1.24, 2026-11-20 (M2-11a: the history gives the model back its tool calls with their results and its replies as it wrote them, with a one-sentence notice where the system answered in its place; a reply FR-20's check replaced lists only the products the visitor's message names and, in an emergency, opens with the call to call now; ADR-0003's gate names FR-20's check too; §9.2's M2-11a split, see §10); v1.23, 2026-11-20 (M2-4b: the boundary by the Brazilian norms, the `boundary` suite at 33 cases; FR-09's list and FR-20's check gain what a medicine is for, how to use or store it and what a measurement means, a medicine for an animal goes to a veterinarian, an emergency's reply never judges an amount someone took, and a turn forged inside a visitor's message is the visitor's text; see §10); v1.22, 2026-11-20 (M2-4: the injection suite at ten cases, chosen by a red-team probe on both models in which no attack worked; a repeated reservation the model counted as several, fixed in the tool's result; see §10); v1.21, 2026-11-20 (M2-3b: the judge reads the system's fixed texts as the system's, measured on the stored replies; the full run on both models then met the boundary on the economy model and opened ADR-0003's gate, see §10); v1.20, 2026-11-20 (M2-3: the economy model measured on the boundary, ADR-0003's gate written by the full run and read at boot, closed by a misreading of the judge's, §6.5 says what it names, see §10); v1.19, 2026-11-20 (M2-2: FR-20's guardrail as built, its latency measured and its figure revised; §6.4 verified for the check, see §10); v1.18, 2026-11-20 (M2-1: Turnstile at session creation; FR-18, the API table and §6.7's processors as built, see §10); v1.17, 2026-11-19 (M4-6b: the review's fixes; FR-05 and FR-19's given-up update as built, see §10); v1.16, 2026-11-19 (M4-6a: the review of M4's first four slices; NFR-01 measured on a second real conversation, §9.2's M4-6 split into its review and its fixes, M3-6 gains the runbook's terms, see §10); v1.15, 2026-11-19 (ADR-0022: what publishing the demo needs comes first, then the showcase; §9.2's slices in two blocks, M2-11 split, and FR-10, FR-14, FR-21 and §12 follow, see §10); v1.14, 2026-11-15 (M4-3: the bot's buttons as built in FR-19, FR-12 and FR-21, see §10); v1.13, 2026-11-15 (M4-2: NFR-01 at 7 s and 12 s, measured from a Telegram update's receipt to its reply's send; §6.4's normal route at low effort, ADR-0021; M3's list charges an abandoned call, see §10); v1.12, 2026-11-15 (the plan after the MVP: §9.2 lists its slices in order, behind the data-contract gate where it holds, and ADR-0020 says what V1 leaves out; §2.2, J3, FR-10, FR-14, NFR-03, NFR-08, §6.1, §6.6, §6.9, §8 and OD-2 follow it, see §10); v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
+**Status:** v1.31, 2026-11-21 (M3-6, the runbook completed and the cut prepared: the operator account and its checklist, roll back, the rotations, resetting the demo, the rehearsal flow with the Certificate Transparency count, the production cut; the containers' resource limits, `bin/deploy` failing on a registry left behind, the `__Host-` cookie, the boot reading past a paste's line break, `docs/traceability.yml`, SR-03 seen from outside with `bin/edge-check`, the pharmacy renamed Farmácia Copaíba after the names' check; §9.2 gains M3-6b, the rehearsal hosts' own mode; ADR-0023, the operator account on a VM of its own; NFR-08, §8 and §9.2 as built, see §10); v1.30, 2026-11-21 (M3-5, the CI furniture: the fast subset recorded on the normal model and replayed in CI with no key, NFR-10's gate over four pages with the first visit read compressed, the coverage threshold, actionlint at a pinned release, SR-25's and SR-38's static checks as their own step, `bin/bundler-audit`'s own refresh; NFR-08, NFR-10 and §9.2 as built, see §10); v1.29, 2026-11-21 (M3-4, a turn's hard edge and the short log sweep: every model attempt, FR-20's check's included, and every tool call inside the run's sixty seconds, FR-17's canary's twenty, and an attempt the edge abandons charged at its input and its output cap; Cloudflare's whole answer within FR-18's ten seconds; a limit's first count in a window taken one at a time; the app's own database role; Action Cable's error lines and address, a trace token on any path and the Telegram client's causes; FR-14, FR-17, FR-18, FR-20, §8 and §9.2 as built, see §10); v1.28, 2026-11-21 (M3-2, FR-17's canary: a visitor's question every ten minutes through a visitor's turn on the economy model, as the `system` channel's one visitor, which the purge and the sweep leave, counted on the day and told to a heartbeat of the external monitor; beside it the Telegram delivery watch over `getWebhookInfo`, with a heartbeat of its own; FR-17, §6.5, §6.6, §8 and §9.2 as built, see §10); v1.27, 2026-11-21 (M3-1, FR-14's modes: economy at 70 % of the cap and from the day's slice until midnight, each pausing with its own text while ADR-0003's gate is closed, and the operator's alert at the cap through the bot to the chat the runbook's deep link links; FR-14, FR-19 and §9.2 as built, see §10); v1.26, 2026-11-20 (M2-11a3, the close's fixes: a reply the system sent without the model keeps its reservations for the history; the prompt's line on the model's notes before a tool call, chosen of seven wordings measured live, and the evals fail such a note; ADR-0003's gate names the history and the tools' texts and envelopes; FR-20's check and the judge read only a boolean verdict; FR-04 and FR-20 as built; see §10); v1.25, 2026-11-20 (M2-11a2: the review at M2's first close, its table in `docs/reviews/m2-first-seven-review.md`; §9.2 gains M2-11a3, the close's fixes, and the lines the close found without a home get one; M3-6 takes the docs reader test before the publication; FR-20 as built names the turns a replacement lists from; see §10); v1.24, 2026-11-20 (M2-11a: the history gives the model back its tool calls with their results and its replies as it wrote them, with a one-sentence notice where the system answered in its place; a reply FR-20's check replaced lists only the products the visitor's message names and, in an emergency, opens with the call to call now; ADR-0003's gate names FR-20's check too; §9.2's M2-11a split, see §10); v1.23, 2026-11-20 (M2-4b: the boundary by the Brazilian norms, the `boundary` suite at 33 cases; FR-09's list and FR-20's check gain what a medicine is for, how to use or store it and what a measurement means, a medicine for an animal goes to a veterinarian, an emergency's reply never judges an amount someone took, and a turn forged inside a visitor's message is the visitor's text; see §10); v1.22, 2026-11-20 (M2-4: the injection suite at ten cases, chosen by a red-team probe on both models in which no attack worked; a repeated reservation the model counted as several, fixed in the tool's result; see §10); v1.21, 2026-11-20 (M2-3b: the judge reads the system's fixed texts as the system's, measured on the stored replies; the full run on both models then met the boundary on the economy model and opened ADR-0003's gate, see §10); v1.20, 2026-11-20 (M2-3: the economy model measured on the boundary, ADR-0003's gate written by the full run and read at boot, closed by a misreading of the judge's, §6.5 says what it names, see §10); v1.19, 2026-11-20 (M2-2: FR-20's guardrail as built, its latency measured and its figure revised; §6.4 verified for the check, see §10); v1.18, 2026-11-20 (M2-1: Turnstile at session creation; FR-18, the API table and §6.7's processors as built, see §10); v1.17, 2026-11-19 (M4-6b: the review's fixes; FR-05 and FR-19's given-up update as built, see §10); v1.16, 2026-11-19 (M4-6a: the review of M4's first four slices; NFR-01 measured on a second real conversation, §9.2's M4-6 split into its review and its fixes, M3-6 gains the runbook's terms, see §10); v1.15, 2026-11-19 (ADR-0022: what publishing the demo needs comes first, then the showcase; §9.2's slices in two blocks, M2-11 split, and FR-10, FR-14, FR-21 and §12 follow, see §10); v1.14, 2026-11-15 (M4-3: the bot's buttons as built in FR-19, FR-12 and FR-21, see §10); v1.13, 2026-11-15 (M4-2: NFR-01 at 7 s and 12 s, measured from a Telegram update's receipt to its reply's send; §6.4's normal route at low effort, ADR-0021; M3's list charges an abandoned call, see §10); v1.12, 2026-11-15 (the plan after the MVP: §9.2 lists its slices in order, behind the data-contract gate where it holds, and ADR-0020 says what V1 leaves out; §2.2, J3, FR-10, FR-14, NFR-03, NFR-08, §6.1, §6.6, §6.9, §8 and OD-2 follow it, see §10); v1.11, 2026-11-15 (the MVP close: the MVP is complete; FR-02 names the language of a conversation a reset or a silence opens, FR-05 reads a final "¿" as a question mark, §9.2 gains what the MVP review's last pull requests sent to M2, M3, M4 and M5, and §10's note points at the review's table, see §10); v1.10, 2026-11-15 (the owner's round at the MVP close: §10's note says what it changed here, and ADR-0019, written by the pull request that closes the MVP, its method); v1.9, 2026-11-14 (PR-19: Telegram's outbound side as built, the bot's menu and profile set by the task, the landing's receipt with the bot's QR, see §10); v1.8, 2026-11-14 (PR-18: Telegram's inbound side as built, the transport adapters in `app/transports/`, the webhook set at every run of the bot's task, see §10); v1.7, 2026-11-14 (PR-17: the privacy page as built, the QR placeholder moved to day 12 and the landing's stack line to day 10, the privacy page's backups line at M3, see §10); v1.6, 2026-11-14 (ADR-0016: the messaging channel is Telegram, and ADR-0017: what the bot uses of the platform; §1, §2, J2, FR-01, FR-05, FR-10, FR-11, FR-12, FR-15, FR-16, FR-18, FR-19, FR-21, FR-23, NFR-02, NFR-03, §6, §7, §8, §9, §11 and §12 follow them, see §10); v1.5, 2026-11-09 (night: FR-19 identity by BSUID, see §10); v1.4, 2026-11-09 (the MVP: §9 rewritten as a twelve-day plan with per-PR estimates, the rest re-sequenced with a days column; FR-09, FR-10, FR-14, FR-18 gain MVP notes; §6.7 `/privacy`; §8 the MVP host; §10 amendment; §12 `MVP` column; ADR-0013 review policy); v1.3, 2026-11-04 (night: three independent reviews, fourteen owner decisions, see §10: FR-05, FR-13, FR-14, FR-15, FR-16, FR-17, FR-22 rewritten, FR-24 moved to §11, NFR-02, NFR-08, §6.4, §6.5, §6.8, §8, §9, §12); v1.2 the same day (testing-strategy review; consistency batch); v1.1 the same day (amended before hand-over, see §10 and ADR-0011); v1 2026-11-02. Owner: Rafa Souza. Implementer: a separate
 coding session, reading this file top to bottom.
 
 Balcão ("the counter", where a pharmacist serves customers) is an AI attendant
-for a fictional neighbourhood pharmacy, **Farmácia Vida Longa**, reachable on
+for a fictional neighbourhood pharmacy, **Farmácia Copaíba**, reachable on
 the web and on Telegram. It exists to be *used*, not just read: a visitor
 talks to it, and a side panel shows exactly what the system did for that
 conversation. Every requirement below has an identifier; acceptance tests cite
@@ -42,7 +42,7 @@ and the offer the day the bot goes live.
 
 ### 1.2 The fictional business
 
-Farmácia Vida Longa, a neighbourhood pharmacy in Belo Horizonte. It sells
+Farmácia Copaíba, a neighbourhood pharmacy in Belo Horizonte. It sells
 over-the-counter and prescription products, offers in-store services
 (injection administration, blood-pressure and glucose checks), and delivers
 within a few neighbourhoods. All data is invented and reset nightly (FR-15).
@@ -1271,7 +1271,7 @@ C4Context
   title Balcão — system context
   Person(visitor, "Visitor", "Recruiter, client, anyone")
   Person(operator, "Operator", "Project owner, pharmacist on duty")
-  System(balcao, "Balcão", "AI attendant for Farmácia Vida Longa")
+  System(balcao, "Balcão", "AI attendant for Farmácia Copaíba")
   System_Ext(claude, "Claude API", "Anthropic Messages API")
   System_Ext(telegram, "Telegram Bot API", "Telegram")
   System_Ext(stt, "Transcription service", "ADR-0005")
@@ -1747,7 +1747,7 @@ each screen follows the sketch.
 
 ```
 +----------------------------------------------------------------------+
-| BALCÃO  Farmácia Vida Longa                  PT · EN · ES    status   |
+| BALCÃO  Farmácia Copaíba                  PT · EN · ES    status   |
 +----------------------------------------------------------------------+
 |                                                                      |
 |  Um atendente de IA para uma farmácia de bairro.                     |
@@ -1996,7 +1996,8 @@ the cloud firewall; dependency and static analysis in CI.
   (SR-24, `APP_DATABASE_PASSWORD` beside `POSTGRES_PASSWORD`; since M3-4).
 - **Secrets.** No Rails credentials file: every runtime secret is an
   environment variable injected by Kamal from the destination's env file,
-  a mode-600 file of a dedicated operator account on the operator's
+  a mode-600 file of a dedicated operator account, on a VM of its own
+  (ADR-0023), on the operator's
   workstation, separate from the development account (SR-37); the
   rehearsal destination has its own throwaway set in the development
   account. One Console workspace and key per purpose: the production app
@@ -2027,8 +2028,9 @@ the cloud firewall; dependency and static analysis in CI.
   a new one issued by the owner for the production set at M3.
 - **Registry and image provenance.** Kamal's local registry
   (`registry: server: localhost:5556` in the base configuration,
-  `localhost:5555` in `ensaio`, so the two Unix accounts never share a
-  loopback port): the image is built in the deploying account and reaches
+  `localhost:5555` in `ensaio`, so the two accounts' registries never
+  collide; a loopback port is open to every user of one system, so the
+  operator account has a VM of its own, ADR-0023): the image is built in the deploying account and reaches
   the host through an SSH port forward, so TCP forwarding stays enabled on
   the host; accessories pull their public images from Docker Hub directly;
   every deploy procedure ends with `kamal registry remove` (with `-d
@@ -2062,8 +2064,8 @@ the cloud firewall; dependency and static analysis in CI.
 - **Runbook.** `docs/runbook.md` (started on day 2 of the MVP with the
   host contract, the host checklist and the MVP deploy flow; the per-slice
   rehearsal flow, including the Certificate Transparency count before a
-  rehearsal deploy, is written when it starts at M3; completed during
-  M3): the operator checklist for production (workstation
+  rehearsal deploy, and the production cut written in M3-6; completed in
+  M3-6): the operator checklist for production (workstation
   requirements of SR-37, the pinned `kamal` version, fetch, review the
   deploy-path diff, fast-forward, `kamal deploy`, post-deploy smoke), roll
   back, rotate the model key, rotate the bot token and the webhook secret,
@@ -2162,14 +2164,15 @@ the review of M4's first four slices split M4-6 (2026-11-19), so it had
 35, M2-3b and M2-4b, which the owner added on 2026-11-20, make it 37, and
 M2-11a's split the same day (the owner, "Dividir em duas") makes it 38,
 and the slice its close gave its fixes, M2-11a3 (the owner, 2026-11-20,
-"Fatia própria, já"), makes it 39; the days above are the estimates of 2026-11-09 and were not
+"Fatia própria, já"), makes it 39, and the rehearsal hosts' own mode,
+M3-6b (the owner, 2026-11-21, "Fatia própria, M3-6b"), makes it 40; the days above are the estimates of 2026-11-09 and were not
 revised. A slice that splits keeps its number with a letter; one that
 appears on the way (a dependency's bump, a defect met on the demo) takes no
 number, as in the MVP.
 
 *Block 1, what publishing the demo needs (ADR-0022).* M4-1 to M4-4, M4-6a,
 M4-6b, M2-1 to M2-3, M2-3b, M2-4, M2-4b, M2-11a, M2-11a2, M2-11a3, M3-1, M3-2,
-M3-4 and M3-5 are done (#44, #45, #47, #48, #51 to #56, #58 to #66). The demo is publicised on the day of
+M3-4, M3-5 and M3-6 are done (#44, #45, #47, #48, #51 to #56, #58 to #67). The demo is publicised on the day of
 M3-7, and until the console comes in block 2 the operator pauses it or
 forces a mode with the runbook's command; no visitor identity can be
 blocked before M2-7 (threat model R2).
@@ -2196,6 +2199,7 @@ blocked before M2-7 (threat model R2).
 | M3-4 | A turn's hard edge and the short log sweep: SR-20's exception closed, a least-privilege database role, and SR-30's lines that stay (the list below) | — |
 | M3-5 | The CI furniture: the recorded fast subset, NFR-10's gate over four pages with the build's size, the SimpleCov ratchet, actionlint, the static secrets check, the `.kamal/hooks` check | — |
 | M3-6 | The runbook completed and the cut prepared: the operator checklist, roll back, the rotations, the modes, the rehearsal flow, Kamal's resource limits, `bin/deploy`'s exit, the `__Host-` cookie, `docs/traceability.yml`, SR-03's catalogue from outside, the runbook's terms said where they first appear (the list below), the docs reader test over the README and the completed runbook (M2-11a2's close; until then M5-8 held the next), and the invented names checked before the publication (SR-33; from M5-6, ADR-0022) | A security scan of the codebase, run and read |
+| M3-6b | The rehearsal hosts' own mode, before their first host at the cut (the owner, 2026-11-21, "Fatia própria, M3-6b"): `MODEL_ADAPTER=fake` by default, with a recorded reply for FR-17's canary question, which would otherwise fail there at every run; `X-Robots-Tag: noindex` with `NOINDEX=true`; `public/robots.txt` and its year of cache settled (§10's standing triggers; #40's thirteenth line) | — |
 | M3-7 | The production cut (ADR-0011): the owner's host, the demo's name moved to it, the bot's token reissued, the MVP host destroyed; the demo publicised the same day (the owner, 2026-11-19); then the soak's seven days, with real visitors | The owner's operator account, host, DNS records and production secrets |
 | M3-8 | M3's close, after the soak: the full eval run, the threat model's verification table, an external port scan, the review at the close, the merging policy revisited | The soak passed |
 
@@ -2406,9 +2410,9 @@ trigger does the item and removes the line.
   forbidden by rule (#1's review).
 - The next slice that touches the Dockerfile: the image spec's guard reads
   the whole leading directive block, case-insensitive (#4, FR4).
-- The next slice that touches the static files' headers:
-  `public/robots.txt` and its year of cache, pinned on purpose (#22, C1's
-  sister).
+- The next slice that touches the static files' headers, M3-6b at the
+  latest: `public/robots.txt` and its year of cache, pinned on purpose
+  (#22, C1's sister).
 - The next slice that touches `config/openers.yml` or
   `config/commands.yml`: a key that is not text is named as the store
   sheet names one, not raised as an `ArgumentError` (#40's twelfth line);
@@ -2422,12 +2426,15 @@ trigger does the item and removes the line.
 - The first slice that caches FR-20's check's prompt: the eval report
   prices the check's tokens with the cache's split, as the model's (#54,
   H6; M2's first close).
-- The slice that brings `MODEL_ADAPTER=fake` to rehearsal hosts: a
-  recorded reply for FR-17's canary question, or every canary run there
-  fails (M3-2).
-- The production cut (M3-7): the two heartbeat URLs move from the
-  rehearsal env file to production's secrets, since the boot refuses either
-  off the public name and requires both on it (M3-2, #64's H5).
+- The slice that brings `MODEL_ADAPTER=fake` to rehearsal hosts, M3-6b
+  since 2026-11-21: a recorded reply for FR-17's canary question, or every
+  canary run there fails (M3-2).
+- The production cut (M3-7): production gets two heartbeats of its own,
+  whose URLs go into its secrets alone, and the MVP host's two are paused
+  at the cut's first step and deleted with that host, so no two hosts tell
+  one heartbeat; the rehearsal env file then holds none, since the boot
+  refuses either off the public name and requires both on it (M3-2, #64's
+  H5; #67's review, C4; the runbook's production cut).
 - The first slice that counts messages, conversations or turns for a page
   (FR-13's status page and strip, M3-3; FR-23's referrers) or lists
   conversations (FR-16's console, M2-7): the `system` channel's visitor and
@@ -2468,6 +2475,103 @@ database's JIT compiler off, which changes no result of the search
 M2-4"): `create_reservation`'s result says that a reservation a call finds
 again in its turn is the same one, which changes no row, rule or field of
 a reservation (M2-4; the note below).
+
+- Note 2026-11-21 (M3-6, the runbook completed and the cut prepared;
+  NFR-08, §8, §9.2; threat model SR-03, SR-24, SR-25, SR-27, SR-33, SR-37,
+  SR-38, R7). Built as §9.2's M3 list says, with these choices and
+  findings:
+  - **The security scan before it.** A codebase scan by the owner's
+    plugin, once, at medium effort over the whole repository at `2cc11db`,
+    its report kept outside the repository: one finding survived its three
+    verifiers, low, the visitor cookie a name under the domain could plant
+    (R7), with a reason the acceptance had missed, an active network
+    attacker answering as any plain-HTTP name under the domain; three
+    other candidates were refuted 3 to 0 (each needed an attacker reading
+    the database without its keys). The defaults that fail open were read
+    beside it: FR-20's check (R4) and the edge's limits when the cache
+    fails (the owner, 2026-11-14) let a request go; every other gate
+    refuses (Turnstile, the Origin, the webhook's secret, ADR-0003's gate,
+    the boot check).
+  - **The cookie** is `__Host-balcao_visitor` over HTTPS, Secure, `Path=/`
+    and no `Domain`, and only that name is read there, by the API, the
+    cable and the edge's per-visitor count; plain HTTP (development, the
+    suite's requests) keeps the bare name, which a browser refuses with the
+    prefix. `WebSession` now takes the request, whose scheme names the
+    cookie, since Action Cable's test cookie jar holds no request.
+  - **The boot's reading** strips the host, the three encryption keys and
+    the pepper, as #53's fix review asked, and the secret key base too,
+    which its list left out but which breaks every web identity the same
+    way when a pasted line break is mended later.
+  - **`bin/deploy`** exits 1 when the deploy ran but the local registry is
+    still there after its removal (#4, R4).
+  - **The containers' limits** (`config/deploy.yml`): 1 GiB and 1.5 CPUs
+    for `web`, `job` and the database, 256 MiB and one CPU for kamal-proxy,
+    from the peaks measured on the MVP host the same day (job 443 MiB, web
+    179, Postgres 114 over six days, the proxy 13 over eight); the four
+    together, 3.25 GiB, fit the CX23's 3.73. A deploy brings the app's
+    limits; the database's and the proxy's come at their deliberate
+    reboots.
+  - **`docs/traceability.yml`** lists the steps, the CI steps and the
+    measured identifiers NFR-08 names, each with where it is verified; a
+    spec keeps the list equal to NFR-08's and the files it names real.
+  - **SR-03 from outside** is `bin/edge-check <origin>`, plain Ruby in
+    `lib/edge_check/`, which the app never loads, reading the catalogue
+    the inside spec reads (one list). Against the MVP host every answer
+    held, and it showed what no spec could: kamal-proxy answers two
+    requests itself, without SR-03's set, its redirect of plain HTTP and
+    its page for a host it does not serve (static, giving nothing of the
+    request back, and unreachable by a browser on the demo's name), both
+    accepted beside Puma's 500 and Thruster's 502; the cable's handshake
+    is refused as the catalogue says only over HTTP/1.1, which the check
+    speaks (over HTTP/2 the same request is an ordinary GET and gets the
+    route's 404, with the set).
+  - **The names (SR-33).** The pharmacy's name, Farmácia Vida Longa, is a
+    Rio de Janeiro company's registered name (its trading name is
+    another), and `@FarmaciaVidaLongaBot` is a stranger's Telegram bot; the
+    owner chose Farmácia Copaíba ("Farmácia Copaíba (Recomendado)",
+    2026-11-21), under which two searches found no business and Telegram
+    no bot. The street is in no postal record of Belo Horizonte (ViaCEP,
+    which mirrors the post office's, with a known street of Floresta as
+    the control), and the phone, (31) 1234-5678, starts with 1, which no
+    landline's number does (Anatel). The name is in the system prompt, so
+    the fast subset was recorded again and the full run on both models
+    wrote ADR-0003's gate again, open: the boundary at 33 of 33 and the
+    injection suite at 10 of 10 on both models, every attempt passing
+    (99 of 99 and 30 of 30 on each), at about US$ 1.1. The economy model
+    missed the pharmacist's offer for a product the store does not sell in
+    two cases outside the gate (`store-unknown-pt-01` in both its
+    attempts, and `catalogue-missing-pt-01` in two of its three, whose
+    judge also read "I can check another product" as naming one), against
+    all passed on 2026-11-20: within those cases'
+    intervals (67 %, 21 to 94; 75 %, 30 to 95), and the scorecard keeps
+    them as the run wrote them.
+  - **The runbook** gives the operator Ruby's own random strings for
+    production's generated secrets, never `bin/secrets-example`, which is
+    repository code (SR-38); its put-the-proxy-by-digest commands were run
+    against the MVP host first; a rollback is Kamal's, which keeps the last
+    five deploys' containers; resetting the demo erases every visitor but
+    the canary's, as a deletion does. The Certificate Transparency count
+    reads Cert Spotter's API: crt.sh's JSON answered an empty list for the
+    demo's name that day, which a count would have read as zero.
+  - **The rehearsal hosts' own mode** (the fake model, `noindex`, the
+    robots file) had no slice: M3-6b brings it, before the cut (the owner,
+    "Fatia própria, M3-6b (Recomendado)", 2026-11-21).
+  - **The review** of #67 read the runbook as the owner would follow it on
+    production. Its gravest finding: on one system with the development
+    account, the agent could push its own image to the operator's local
+    registry, which takes pushes from anyone on the loopback, or answer the
+    host's pull on `[::1]` with no race, and reach the clone Kamal builds
+    from in the shared temporary directory; the port pair kept the two
+    registries from colliding, never the accounts apart. The operator
+    account now lives on a VM of its own (ADR-0023; the owner, "VM própria
+    (Recomendado)"), and the checklist keeps Kamal's clone in the account's
+    own directory and reads, after each deploy, that the host runs the
+    image the checkout built. With it: mise's configuration files in the
+    deploy-path review, the env file made at mode 600 before a secret is
+    written, the CI read as the four checks by name, the registry's volume
+    removed, production's own heartbeats at the cut, the firewall opened
+    only after the name's TTL, and the database's and the proxy's limits
+    brought by their reboots.
 
 - Note 2026-11-21 (M3-5, the CI furniture; NFR-08, NFR-10, FR-21;
   threat model SR-25, SR-27, SR-29, SR-38). Built as §9.2's M3 list says,

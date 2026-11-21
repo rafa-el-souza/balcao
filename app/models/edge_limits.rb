@@ -152,7 +152,7 @@ module EdgeLimits
   # The hash of the visitor cookie's token, read once per request.
   def visitor(request)
     request.env.fetch("balcao.visitor") do
-      request.env["balcao.visitor"] = WebSession.identity_hash_of(ActionDispatch::Request.new(request.env).cookie_jar)
+      request.env["balcao.visitor"] = WebSession.identity_hash_of(ActionDispatch::Request.new(request.env))
     end
   end
 

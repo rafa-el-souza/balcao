@@ -68,20 +68,24 @@ Rails.application.configure do
   # config.action_mailer.raise_delivery_errors = false
 
   # Set host to be used by links generated in mailer templates (APP_HOST, design §8).
-  config.action_mailer.default_url_options = { host: ENV.fetch("APP_HOST") }
-  config.x.public_origin = "https://#{ENV.fetch("APP_HOST")}"
+  config.action_mailer.default_url_options = { host: Balcao::RequiredEnvironment.read("APP_HOST") }
+  config.x.public_origin = "https://#{Balcao::RequiredEnvironment.read("APP_HOST")}"
   # Each destination's own cap (FR-14), a positive decimal checked at boot
   # (config/required_environment.rb): 100 for production, 10 for the MVP host.
   config.x.budget_cap_usd = BigDecimal(ENV.fetch("BUDGET_CAP_USD"))
 
   # What visitors send is encrypted at rest with these keys, which live in the
   # env file and never in the database (threat model SR-41); a Telegram
-  # identity is the user id hashed with the pepper (SR-10). The bot's token
-  # and the webhook's secret are the Telegram channel's (FR-19, SR-06).
-  config.active_record.encryption.primary_key = ENV.fetch("ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY")
-  config.active_record.encryption.deterministic_key = ENV.fetch("ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY")
-  config.active_record.encryption.key_derivation_salt = ENV.fetch("ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT")
-  config.x.identity_pepper = ENV.fetch("IDENTITY_PEPPER")
+  # identity is the user id hashed with the pepper (SR-10), and a web one is
+  # a token in a cookie signed with the secret key base (SR-03). Each is read
+  # without a paste's spaces or line break, as the boot check reads it, so a
+  # paste mended later breaks no stored row and no identity (M3-6). The bot's
+  # token and the webhook's secret are the Telegram channel's (FR-19, SR-06).
+  config.active_record.encryption.primary_key = Balcao::RequiredEnvironment.read("ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY")
+  config.active_record.encryption.deterministic_key = Balcao::RequiredEnvironment.read("ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY")
+  config.active_record.encryption.key_derivation_salt = Balcao::RequiredEnvironment.read("ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT")
+  config.x.identity_pepper = Balcao::RequiredEnvironment.read("IDENTITY_PEPPER")
+  config.secret_key_base = Balcao::RequiredEnvironment.read("SECRET_KEY_BASE")
   config.x.telegram_bot_token = ENV.fetch("TELEGRAM_BOT_TOKEN")
   config.x.telegram_webhook_secret = ENV.fetch("TELEGRAM_WEBHOOK_SECRET")
   # The Turnstile widget's secret, for siteverify (SR-39): the owner's on the
@@ -118,6 +122,6 @@ Rails.application.configure do
   # Answer only to the public name of this destination (APP_HOST, design §8),
   # which guards against DNS rebinding and Host header attacks. kamal-proxy's
   # health check reaches the container by its own address, so /up is exempt.
-  config.hosts = [ ENV.fetch("APP_HOST") ]
+  config.hosts = [ Balcao::RequiredEnvironment.read("APP_HOST") ]
   config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
 end

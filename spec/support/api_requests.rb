@@ -12,9 +12,9 @@ module ApiRequests
 
   # The token in the visitor cookie the app set, read as the app reads it.
   def cookie_token
-    value = cookies[WebSession::COOKIE.to_s] or return
-    env = Rails.application.env_config.merge("HTTP_COOKIE" => "#{WebSession::COOKIE}=#{value}")
-    ActionDispatch::Request.new(env).cookie_jar.signed[WebSession::COOKIE]
+    value = cookies[WebSession::PLAIN_NAME.to_s] or return
+    env = Rails.application.env_config.merge("HTTP_COOKIE" => "#{WebSession::PLAIN_NAME}=#{value}")
+    ActionDispatch::Request.new(env).cookie_jar.signed[WebSession::PLAIN_NAME]
   end
 
   # The visitor the cookie names, by the hash of its token.

@@ -15,6 +15,18 @@ image: balcao
 # Every container runs as the image's non-root user (uid 1000) on a read-only
 # root filesystem; Rails writes only its tmp directory and /tmp, both in
 # memory (threat model SR-24). Docker would mount /rails/tmp owned by root.
+# Each container has its own memory and CPU limit (M3-6), so one that runs
+# away, a leak or a loop, leaves the host's memory and its other CPU to the
+# rest; the host has no swap. At its memory limit the kernel kills a process
+# inside it: a Solid Queue worker, which its supervisor replaces (the turn it
+# ran fails, and the sweep takes it up again within minutes), a Postgres
+# backend, after which the database resets every connection, or the web
+# server, whose container Docker restarts when its main process exits
+# (#67's review, C8). Measured on the MVP host on 2026-11-21, each container's peak since
+# its start: job 443 MiB, web 179, Postgres 114, kamal-proxy 13. Two to
+# nineteen times that each, and the four limits together, 3.25 GiB, fit the
+# 3.73 GiB of a CX23; a new limit reaches a running accessory or proxy only
+# at its deliberate reboot (docs/runbook.md).
 servers:
   web:
     hosts:
@@ -24,6 +36,8 @@ servers:
       tmpfs:
         - /rails/tmp:uid=1000,gid=1000,mode=0700
         - /tmp
+      memory: 1g
+      cpus: 1.5
   # Solid Queue in its own container, never inside Puma (design §6.2).
   job:
     hosts:
@@ -56,6 +70,9 @@ proxy:
   # tag, before Kamal boots the proxy (the runbook's swap).
   run:
     version: v0.10.2 # basecamp/kamal-proxy@sha256:a686220c2aa42c4f9bbcfe851b1d21b2cedee0b5c389890c29d205282379da7c
+    options:
+      memory: 256m
+      cpus: 1
 
 # Kamal's local registry: the image is built in the deploying account and
 # reaches the host through an SSH port forward, so no registry account exists.
@@ -133,6 +150,9 @@ accessories:
     image: postgres:18.6@sha256:e3d24f6906d0760bf4da0dae872415391ededefad23fd471c47dc53b0ddf3c42
     cmd: postgres -c log_min_error_statement=panic -c log_error_verbosity=terse
     role: web
+    options:
+      memory: 1g
+      cpus: 1.5
     env:
       clear:
         POSTGRES_USER: balcao

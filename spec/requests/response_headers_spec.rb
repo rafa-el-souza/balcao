@@ -1,6 +1,7 @@
 require "rails_helper"
 require "open3"
 require_relative "../../config/required_environment"
+require_relative "../../lib/edge_check/catalogue"
 
 # Threat model SR-03: what the browser is told besides the policy of
 # spec/requests/content_security_policy_spec.rb. A static file is never read
@@ -50,12 +51,9 @@ RSpec.describe "SR-03 the response headers", :spa_shells, type: :request do
   # answers no route's endpoint writes; a new answer outside a route joins
   # the catalogue in the pull request that adds it. The database is a
   # socket that does not exist, so nothing here reaches one.
-  CATALOGUE = {
-    "an unknown path" => 404, "a route's constraint not met" => 404, "another host" => 403, "a static file" => 200,
-    "a body over 16 KB" => 413, "a request past the edge's limit" => 429,
-    "the cable's handshake of another version" => 426, "the cable's handshake without a key" => 400,
-    "the cable's socket past a source's cap" => 429, "the cable's socket past the process's cap" => 503
-  }.freeze
+  # The catalogue is lib/edge_check/catalogue.rb's, which bin/edge-check asks
+  # a deployed host from outside (M3-6).
+  CATALOGUE = EdgeCheck::CATALOGUE
   # A header of the set an answer writes itself, which nothing overrides: the
   # trace page passes no referrer on, since its link is a credential (SR-11).
   OWN = { "GET /trace" => { "referrer-policy" => "no-referrer" } }.freeze

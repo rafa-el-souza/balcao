@@ -70,7 +70,7 @@ RSpec.describe "FR-14 SR-01 SR-36 per-IP and per-visitor limits", type: :request
     end
 
     it "refuses its 21st new session within an hour, storing nothing" do
-      20.times { session_from("203.0.113.7").then { cookies.delete(WebSession::COOKIE.to_s) } }
+      20.times { session_from("203.0.113.7").then { cookies.delete(WebSession::PLAIN_NAME.to_s) } }
       expect(response).to have_http_status(:created)
 
       expect { session_from("203.0.113.7") }.not_to change(Visitor, :count)
@@ -109,7 +109,7 @@ RSpec.describe "FR-14 SR-01 SR-36 per-IP and per-visitor limits", type: :request
       200.times do |n|
         if (n % 10).zero?
           travel 61.seconds
-          cookies.delete(WebSession::COOKIE.to_s)
+          cookies.delete(WebSession::PLAIN_NAME.to_s)
           session_from("203.0.113.7")
         end
         message_from("203.0.113.7")
@@ -236,11 +236,11 @@ RSpec.describe "FR-14 SR-01 SR-36 per-IP and per-visitor limits", type: :request
     # As a browser sends it: another site's Origin, and no SameSite=Strict
     # cookie, which rack-test would otherwise send.
     def cross_site(path)
-      held = cookies[WebSession::COOKIE.to_s]
-      cookies.delete(WebSession::COOKIE.to_s)
+      held = cookies[WebSession::PLAIN_NAME.to_s]
+      cookies.delete(WebSession::PLAIN_NAME.to_s)
       post(path, params: "x", headers: { "Content-Type" => "text/plain", "Origin" => "https://evil.example" }, env: from("203.0.113.7"))
     ensure
-      cookies[WebSession::COOKIE.to_s] = held if held
+      cookies[WebSession::PLAIN_NAME.to_s] = held if held
     end
 
     it "do not spend the address's turns" do
@@ -329,7 +329,7 @@ RSpec.describe "FR-14 SR-01 SR-36 per-IP and per-visitor limits", type: :request
 
     def raw_session
       _, headers = raw("POST", "/api/session", body: minting)
-      Array(headers["set-cookie"]).join("\n")[/#{WebSession::COOKIE}=[^;]+/o]
+      Array(headers["set-cookie"]).join("\n")[/#{WebSession::PLAIN_NAME}=[^;]+/o]
     end
 
     def turn(path, cookie) = raw("POST", path, body: { id: SecureRandom.uuid, text: "oi" }.to_json, cookie:).first
@@ -371,6 +371,20 @@ RSpec.describe "FR-14 SR-01 SR-36 per-IP and per-visitor limits", type: :request
       expect { message_from("203.0.113.8") }.not_to change(Message, :count)
       expect(limited?("limits.now")).to be true
       expect(enqueued_jobs.size).to eq 10
+    end
+
+    # Threat model R7, closed at M3-6: over HTTPS, as production always is,
+    # the edge counts the visitor by the __Host- cookie the session set
+    # there; read by the bare name, it would count no visitor at all.
+    it "counts a visitor by the __Host- cookie over HTTPS, and refuses its 11th turn within a minute" do
+      reset!
+      https!
+      session_from("203.0.113.9")
+      expect(response.headers["Set-Cookie"]).to start_with("__Host-balcao_visitor=")
+      10.times { message_from("203.0.113.9") }
+
+      expect { message_from("203.0.113.10") }.not_to change(Message, :count)
+      expect(limited?("limits.now")).to be true
     end
 
     it "refuses its 41st turn within 24 hours with 'por hoje', and counts from its first turn" do

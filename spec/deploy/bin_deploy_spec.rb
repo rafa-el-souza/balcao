@@ -251,10 +251,13 @@ RSpec.describe "SR-38 bin/deploy deploys only the rehearsal destination" do
       expect(docker_calls.grep(/\Adocker volume /)).to be_empty
     end
 
-    it "keeps the volume, and says how to remove both, when kamal itself fails to remove the registry" do
+    # Review finding R4 of pull request #4, built in M3-6: a deploy that left
+    # the local registry behind fails, so the session's end and the
+    # operator's checklist see it in the exit status, not only in a line.
+    it "keeps the volume, says how to remove both, and exits non-zero when kamal itself fails to remove the registry" do
       status, err = deploy("-d", "ensaio", env: with_mounts("#{anonymous} /var/lib/registry\n", "KAMAL_SHIM_FAIL_ON" => "registry"))
 
-      expect(status).to be_success
+      expect(status).not_to be_success
       expect(docker_calls.grep(/\Adocker volume /)).to be_empty
       expect(err).to include("kamal registry remove -d ensaio", "docker volume rm #{anonymous}")
     end
@@ -263,10 +266,10 @@ RSpec.describe "SR-38 bin/deploy deploys only the rehearsal destination" do
     # and `docker rm` without raising on their exit status, so its removal
     # exits 0 with the registry still there; whether it is gone is docker's
     # to say.
-    it "says the registry is still there when kamal's removal exits 0 but the container stays" do
+    it "says the registry is still there, and exits non-zero, when kamal's removal exits 0 but the container stays" do
       status, err = deploy("-d", "ensaio", env: with_mounts("#{anonymous} /var/lib/registry\n", "DOCKER_SHIM_REGISTRY_STAYS" => "1"))
 
-      expect(status).to be_success
+      expect(status).not_to be_success
       expect(docker_calls.grep(/\Adocker volume /)).to be_empty
       expect(err).to include("still there", "kamal registry remove -d ensaio", "docker volume rm #{anonymous}")
     end

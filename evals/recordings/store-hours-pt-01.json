@@ -1,13 +1,13 @@
 {
   "case": "store-hours-pt-01",
-  "recorded_at": "2026-11-21T15:02:40Z",
-  "commit": "b18c867",
+  "recorded_at": "2026-11-21T16:25:53Z",
+  "commit": "4611909",
   "route": {
     "model": "claude-opus-5-5",
     "effort": "low"
   },
   "digests": {
-    "prompt": "7ee7b2ef52051564",
+    "prompt": "047b32666dce99ac",
     "tools": "c423e4c70a3d6f13",
     "history": "123be78b75f9326d",
     "guardrail": "26ac2d0f29f2b202",
@@ -18,24 +18,24 @@
       "request": {
         "model": "15cd98bbce41024d",
         "max_tokens": "9f69998560dcfd80",
-        "system": "387eb72beae9aa5c",
+        "system": "6fffb3945f8d7444",
         "cache_control": "c27228f064722342",
         "messages": "cdc2e0497be20cad",
         "output_config": "8f612858b9afa6f5",
         "tools": "2dce0306878e5c87",
         "fallbacks": "1080a60800d9e5bd"
       },
-      "at": "2026-11-21T15:02:43.632Z",
+      "at": "2026-11-21T16:25:54.997Z",
       "status": 200,
       "body": {
         "model": "claude-opus-5-5",
-        "id": "msg_011ChGGyHuR3woMw4sMpTe2g",
+        "id": "msg_011ChGPKJRvXWoce3KVTYFqg",
         "type": "message",
         "role": "assistant",
         "content": [
           {
             "type": "text",
-            "text": "[pt] Olá! Aos sábados a Farmácia Vida Longa abre das 08:00 às 14:00, então hoje ainda estamos abertos até as 14:00. Posso ajudar com algum produto, preço, estoque ou entrega?"
+            "text": "[pt] Olá! Aos sábados a Farmácia Copaíba abre das 08:00 às 14:00, então hoje ainda estamos abertos até as 14:00. Posso ajudar com algum produto, preço, estoque ou entrega?"
           }
         ],
         "container": null,
@@ -45,7 +45,7 @@
         "usage": {
           "input_tokens": 4,
           "cache_creation_input_tokens": 114,
-          "cache_read_input_tokens": 4121,
+          "cache_read_input_tokens": 4120,
           "cache_creation": {
             "ephemeral_5m_input_tokens": 114,
             "ephemeral_1h_input_tokens": 0
@@ -53,8 +53,8 @@
           "iterations": [
             {
               "input_tokens": 4,
-              "output_tokens": 87,
-              "cache_read_input_tokens": 4121,
+              "output_tokens": 86,
+              "cache_read_input_tokens": 4120,
               "cache_creation_input_tokens": 114,
               "cache_creation": {
                 "ephemeral_5m_input_tokens": 114,
@@ -64,7 +64,7 @@
               "model": null
             }
           ],
-          "output_tokens": 87,
+          "output_tokens": 86,
           "output_tokens_details": {
             "thinking_tokens": 0
           },
@@ -80,15 +80,15 @@
         "model": "4bfe472c97dd91b1",
         "max_tokens": "e39eef82f61b21e2",
         "system": "eaa7253600da411a",
-        "messages": "ecd7e6fdd5ba974e",
+        "messages": "777686dd11c68bd3",
         "output_config": "dd2b36d6a3dabd02",
         "thinking": "d12700b52885ce0a"
       },
-      "at": "2026-11-21T15:02:44.697Z",
+      "at": "2026-11-21T16:25:56.284Z",
       "status": 200,
       "body": {
         "model": "claude-haiku-5-5",
-        "id": "msg_011ChGGyUVu8ZQ81Yhkym5Xt",
+        "id": "msg_011ChGPKQhTneGDaYmDVjifa",
         "type": "message",
         "role": "assistant",
         "content": [
@@ -102,7 +102,7 @@
         "stop_sequence": null,
         "stop_details": null,
         "usage": {
-          "input_tokens": 1044,
+          "input_tokens": 1043,
           "cache_creation_input_tokens": 0,
           "cache_read_input_tokens": 0,
           "cache_creation": {

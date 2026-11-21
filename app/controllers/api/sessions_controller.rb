@@ -16,7 +16,7 @@ module Api
     def create
       body = request.content_length.to_i.zero? ? {} : json_body
       language = requested_language(body)
-      token = WebSession.issue(cookies, secure: request.ssl?, token: WebSession.token(cookies) || minted(body))
+      token = WebSession.issue(request, token: WebSession.token(request) || minted(body))
       visitor = Visitor.identify!(channel: "web", identity_hash: WebSession.identity_hash(token))
       conversation = Conversation.current_for!(visitor)
       conversation.update!(language:) if language && !conversation.messages.outbound.exists?

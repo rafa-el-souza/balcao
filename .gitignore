@@ -47,3 +47,7 @@ evals/results/
 # Owner's private files (hand list, CLAUDE.md, voice, settings, handoff):
 # beside the spec, never tracked (ADR-0007)
 OWNER-*
+
+# The operator checkout's record of the last production deploy (docs/runbook.md,
+# threat model SR-38): kept beside the checkout, never committed.
+/.last-deployed-sha
