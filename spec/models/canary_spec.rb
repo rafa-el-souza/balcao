@@ -37,7 +37,19 @@ RSpec.describe "FR-17 NFR-04 the canary" do
     allow(Rails.logger).to receive(:error).and_call_original
   end
 
-  def run = Canary.new.run
+  # The canary's turn runs in its own ProcessTurnJob, as a visitor's does, in
+  # a worker apart: here the worker runs the jobs on the queue while the run
+  # waits, a failed one kept to itself as Solid Queue keeps it, and each wait
+  # moves the clock by its half second.
+  def worker
+    perform_enqueued_jobs(only: ProcessTurnJob)
+  rescue StandardError
+    nil
+  end
+
+  def waits(work: true) = ->(seconds) { worker if work; travel(seconds, with_usec: true) }
+
+  def run(**) = Canary.new(sleeper: waits).run(**)
 
   def counts = DailyAggregate.where(kind: "canary").to_h { |row| [ row.key, row.count ] }
 
@@ -171,13 +183,32 @@ RSpec.describe "FR-17 NFR-04 the canary" do
       expect(run).to have_attributes(passed: false, reason: a_string_matching(/\Athe reply took 2\d{4} ms, over 20000\z/))
     end
 
-    it "fails when the turn breaks, naming the error's class alone, and keeps nothing of it" do
+    it "fails when the turn breaks, as a visitor's turn would after its job's three attempts, and keeps nothing of it" do
+      responses.replace(Array.new(3) { reply(answer, model: "claude-haiku-5-5") })
       allow(Guardrail).to receive(:new).and_raise(ActiveRecord::ConnectionFailed, "words of no one")
 
       result = run
 
-      expect(result).to have_attributes(passed: false, reason: "the run broke: ActiveRecord::ConnectionFailed")
-      expect(failure.with(body: "canary: the run broke: ActiveRecord::ConnectionFailed")).to have_been_requested.once
+      expect(result).to have_attributes(passed: false, reason: "the reply lacks the marker (outcome dead_letter, ActiveRecord::ConnectionFailed)")
+      expect(failure.with(body: "canary: the reply lacks the marker (outcome dead_letter, ActiveRecord::ConnectionFailed)"))
+        .to have_been_requested.once
+      expect(kept(Conversation.sole)).to eq([ 0, 0, 0, 0 ])
+    end
+
+    # C1 of #64's review: the canary's turn takes a visitor's way, its job
+    # and the conversation's lock, so a fault there fails it too.
+    it "fails when a visitor's turn cannot run through its job, as when the conversation's lock breaks" do
+      allow(ConversationLock).to receive(:hold).and_raise(ActiveRecord::StatementInvalid, "words of no one")
+
+      expect(run).to have_attributes(passed: false, reason: "no reply within 20 s, the turn is received (not run)")
+      expect(fake.requests).to be_empty
+    end
+
+    it "fails when no worker runs the turn's job within 20 seconds" do
+      result = Canary.new(sleeper: waits(work: false)).run
+
+      expect(result).to have_attributes(passed: false, reason: "no reply within 20 s, the turn is received (not run)")
+      expect(enqueued_jobs.map { |job| job[:job] }).to include(ProcessTurnJob)
       expect(kept(Conversation.sole)).to eq([ 0, 0, 0, 0 ])
     end
 
@@ -188,16 +219,28 @@ RSpec.describe "FR-17 NFR-04 the canary" do
       expect(fake.requests).to be_empty
     end
 
-    # AdvisoryLock.try_hold's own spec holds the lock from another session
-    # (spec/models/conversation_lock_spec.rb); here the try finds it held.
-    it "fails at once, without waiting, while an earlier run still holds the canary's conversation" do
+    # AdvisoryLock.free?'s own spec holds the lock from another session
+    # (spec/models/conversation_lock_spec.rb); here it is found held.
+    it "fails at once, without waiting, while an earlier run's turn still holds the canary's conversation" do
       conversation = Conversation.current_for!(Visitor.canary!)
-      allow(AdvisoryLock).to receive(:try_hold).with("conversation:#{conversation.id}").and_return(false)
+      allow(AdvisoryLock).to receive(:free?).and_call_original
+      allow(AdvisoryLock).to receive(:free?).with("conversation:#{conversation.id}").and_return(false)
 
-      expect(run).to have_attributes(passed: false, reason: "an earlier run still holds the canary's conversation")
+      expect(run).to have_attributes(passed: false, reason: "an earlier run's turn still holds the canary's conversation")
       expect(fake.requests).to be_empty
       expect(counts).to eq("failed" => 1)
-      expect(failure.with(body: "canary: an earlier run still holds the canary's conversation")).to have_been_requested.once
+      expect(failure.with(body: "canary: an earlier run's turn still holds the canary's conversation")).to have_been_requested.once
+    end
+
+    it "leaves the rows of a turn whose job still holds the conversation once judged, for the next run to clear" do
+      conversation = Conversation.current_for!(Visitor.canary!)
+      held = [ true, false ]
+      allow(AdvisoryLock).to receive(:free?).and_call_original
+      allow(AdvisoryLock).to receive(:free?).with("conversation:#{conversation.id}") { held.empty? ? false : held.shift }
+
+      expect(run).to have_attributes(passed: true)
+      expect(conversation.messages.count).to eq(2)
+      expect(Rails.logger).to have_received(:info).with("canary: the turn's job still holds the conversation; the next run clears its rows")
     end
 
     it "still tells the monitor when the day's count cannot be written" do
@@ -207,6 +250,14 @@ RSpec.describe "FR-17 NFR-04 the canary" do
       expect(beat).to have_been_requested.once
       expect(Rails.logger).to have_received(:error).with("canary: the day's count not written, ActiveRecord::ConnectionFailed")
     end
+  end
+
+  it "asks through a visitor's turn job, ProcessTurnJob, never the turn's processor alone" do
+    allow(ProcessTurnJob).to receive(:perform_later).and_call_original
+
+    run
+
+    expect(ProcessTurnJob).to have_received(:perform_later).once
   end
 
   it "clears what an earlier run left, so the model reads no history and the conversation never grows" do
@@ -224,7 +275,7 @@ RSpec.describe "FR-17 NFR-04 the canary" do
   it "runs and counts with no monitor URL, sending nothing" do
     Rails.configuration.x.monitor_url = nil
 
-    expect(run).to have_attributes(passed: true)
+    expect(Canary.new(heartbeat: Heartbeat.canary, sleeper: waits).run).to have_attributes(passed: true)
     expect(counts).to eq("passed" => 1)
     expect(a_request(:any, /monitor\.example/)).not_to have_been_made
   end

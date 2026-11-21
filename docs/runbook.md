@@ -688,9 +688,15 @@ kamal app logs -d ensaio --roles=job --since 1h | grep -E 'canary:|telegram watc
 - **`canary: failed: the run broke: <class>`** or **`canary: not run,
   <class>`**: an error outside the model, named by its class; the
   database first.
-- **`canary: failed: an earlier run still holds the canary's
-  conversation`**: a run is stuck in its turn; the next ones fail the same
-  way until it ends. A deploy restarts the job container.
+- **`canary: failed: no reply within 20 s, the turn is … (…)`**: the
+  turn's job did not answer in time: `received (not run)` means no worker
+  ran it (all three busy, or the job failing before its turn, the
+  conversation's lock among the causes: `kamal app logs` shows the job's
+  lines); `running` a turn still at work, slow; `failed` with an error's
+  class, a break the job tries again. Visitors' turns wait the same way.
+- **`canary: failed: an earlier run's turn still holds the canary's
+  conversation`**: a canary turn is stuck in its job; the next runs fail
+  the same way until it ends. A deploy restarts the job container.
 - **`telegram watch: a delivery error at …: <Telegram's words>`**:
   Telegram could not deliver an update. `401 Unauthorized` is a webhook
   secret the server and Telegram no longer share: run the bot's task (The

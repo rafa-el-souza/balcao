@@ -689,11 +689,16 @@ referrer counters (FR-23), and a link to the current eval scorecard.
   row; its conversation has no stream, so its spans and reply are never
   broadcast (the null transport), and the purge, NFR-03's sweep and every
   count leave it. The economy model serves the canary whatever ADR-0003's
-  gate says, since its reply reaches no visitor. Each run deletes its
-  question, and with it the turn, its reply, its spans and its usage
-  records (the month's spend stays on the budget's row), after clearing
-  what a broken run left; it tries the conversation's lock without waiting,
-  so a run behind a stuck one fails at once. The result is the day's
+  gate says, since its reply reaches no visitor. The question's turn runs
+  in its own `ProcessTurnJob` on the queue, as a visitor's does (the
+  conversation's lock, the job's attempts and dead letter), and the run
+  waits for the reply, looking every half second (#64's C1). Each run
+  deletes its question, and with it the turn, its reply, its spans and its
+  usage records (the month's spend stays on the budget's row), after
+  clearing what an earlier run left; it reads the conversation's lock
+  without taking it, so a run behind an earlier turn still at work fails at
+  once, and a turn whose job still holds the lock once the run is judged
+  keeps its rows for the next run. The result is the day's
   `passed` or `failed` count (`daily_aggregate.kind: canary`), and the
   monitor hears it through a heartbeat of its own: a request every run that
   passes, the heartbeat's failure URL with the reason when one fails, and
@@ -2460,11 +2465,13 @@ a reservation (M2-4; the note below).
     `INSERT … ON CONFLICT DO UPDATE`): the run deletes its question, which
     takes the turn, its reply, its spans and its usage records, while the
     month's spend stays on the budget's row (FR-14). It first clears what
-    a broken run left, so the model never reads a history. It holds the
-    conversation's lock, tried without waiting (`AdvisoryLock.try_hold`):
-    a run behind a stuck one fails at once rather than hold a worker's
-    thread. A run is never tried again; a run that cannot start still
-    fails its heartbeat.
+    an earlier run left, so the model never reads a history. Its turn runs
+    in the visitors' own job, `ProcessTurnJob`, enqueued as Intake enqueues
+    it, so a fault of the job or of the conversation's lock fails the
+    canary too (#64's C1); the run reads the lock without taking it, so a
+    run behind an earlier turn still at work fails at once rather than hold
+    a worker's thread. A run is never tried again; a run that cannot start
+    still fails its heartbeat.
   - **The delivery watch** looks every ten minutes, five after the canary,
     and fails its heartbeat on a delivery error newer than its last look
     (the look's time kept in the cache; with none, newer than its
