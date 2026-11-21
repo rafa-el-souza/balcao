@@ -2477,7 +2477,7 @@ a reservation (M2-4; the note below).
     is refused past it. The eval runner runs each case through the same
     turn job, so the evals measure the model and the check inside the same
     edge as production (#65's C3: two comments had said the evals ran
-    without one). An attempt starts only with the least time it needs left
+    without one; the owner, 2026-11-21, "Sim, como a produção"). An attempt starts only with the least time it needs left
     of the edge, 3 s for a step's (a first token comes about a second after
     the request, §10's note of M4-2) and 2 s for the check's (its p95 with
     earlier messages, M2-2's note), and a retry only when its wait leaves
@@ -2543,7 +2543,13 @@ a reservation (M2-4; the note below).
     command, where a process of the app's user could read it, so the
     runbook runs every command in a new container (#65's C2 and A1). Kamal still
     injects `POSTGRES_PASSWORD` into both roles, so an image from before
-    M3-4, which connects as the owner, boots on a rollback. Rehearsed on
+    M3-4, which connects as the owner, boots on a rollback. An existing
+    role's password changes last, after every database's grants (#65's
+    F1), and a rotation still leaves the containers running unable to open
+    a new connection until Kamal replaces them, about a minute, which the
+    runbook says how to watch: one role's window, accepted by the owner
+    (2026-11-21, "Aceitar, documentado"; #65's V3) over two roles taking
+    turns. Rehearsed on
     2026-11-21 in production mode against the accessory's image (Postgres
     18.6, the owner as its superuser with a password): the entrypoint made
     the three other databases and granted the role on all four; the server
@@ -2568,7 +2574,8 @@ a reservation (M2-4; the note below).
     the Bot API client keeps a cause, not even one its caller was handling
     when it called (#41's H5). R10 was looked at again: production runs
     the demo's Kamal configuration, so its logs are the demo's and both
-    effects stand; the owner's word is in the pull request.
+    effects stand; the owner kept both accepted (2026-11-21, "Manter
+    aceito").
   - **Left as they were** (ADR-0020): the lines SR-30 names as accepted,
     the advisory lock after a lost connection and the budget's two loose
     ends (R11).
