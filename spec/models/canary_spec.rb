@@ -198,6 +198,15 @@ RSpec.describe "FR-17 NFR-04 the canary" do
 
     # H6 of #64's review: a visitor's 20 seconds start when the message
     # arrives, before the queue; so do the canary's, when its job was due.
+    # SR-20's hard edge (M3-4): the canary's turn has FR-17's twenty seconds,
+    # not a visitor's sixty, so a slow model ends it at the canary's own time
+    # and frees the worker's thread then.
+    it "gives its turn's model only the canary's twenty seconds" do
+      run
+
+      expect(fake.requests.first.options[:timeout]).to be_between(Canary::WITHIN.to_f - 1, Canary::WITHIN.to_f)
+    end
+
     it "fails when its own job started more than 20 seconds after its time, a queue the visitors' turns hold" do
       freeze_time
       CanaryJob.perform_later

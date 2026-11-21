@@ -622,6 +622,49 @@ RSpec.describe "design §6.3 ProcessTurnJob, one turn from its inbound message t
       expect(enqueued_jobs).to be_empty
     end
 
+    # SR-20's hard edge (M3-4): FR-20's check runs inside the turn's sixty
+    # seconds, after the model's steps, and a check the edge cut is the
+    # turn's deadline: the fallback, never the reply it did not judge. R4's
+    # fail-open is the check's own failures', in its own time.
+    it "answers with the fallback when the turn's edge cut the check, never with the reply the check did not judge" do
+      clock = FakeClock.new
+      allow(TurnEdge).to receive(:after) { |seconds, **| TurnEdge.new(deadline: clock.call + seconds, clock:) }
+      allow(Guardrail).to receive(:default_client) do
+        FakeModel::Client.new(FakeModel.new([ { timeout: true } ]), api_key: "fake-model", max_retries: 0, initial_retry_delay: 0,
+                                                                    middleware: [ ->(request, nxt) { clock.advance(60) && nxt.call(request) } ])
+      end
+      turn = inbound("oi")
+
+      perform(turn)
+
+      expect(turn.reload.state).to eq("failed")
+      expect(turn.outbound_message.body).to eq(FixedReply.with_notice(FixedReply.fallback("pt-BR"), "pt-BR"))
+      expect(spans(turn).first.span_attributes).to include("balcao.turn.outcome" => "deadline")
+      expect(UsageRecord.where(turn_id: turn.id).pluck(:output_tokens)).to include(Guardrail::MAX_TOKENS)
+    end
+
+    it "keeps the emergency line that the reply the edge left unchecked asked for, the system's own text" do
+      responses.replace([ reply("[pt] Ligue agora para o SAMU. [emergency]") ])
+      clock = FakeClock.new
+      allow(TurnEdge).to receive(:after) { |seconds, **| TurnEdge.new(deadline: clock.call + seconds, clock:) }
+      allow(Guardrail).to receive(:default_client) do
+        FakeModel::Client.new(FakeModel.new([ { timeout: true } ]), api_key: "fake-model", max_retries: 0, initial_retry_delay: 0,
+                                                                    middleware: [ ->(request, nxt) { clock.advance(60) && nxt.call(request) } ])
+      end
+      turn = inbound("meu filho tomou o vidro todo")
+
+      perform(turn)
+
+      expected = FixedReply.with_emergency(FixedReply.fallback("pt-BR"), "pt-BR")
+      expect(turn.outbound_message.body).to eq(FixedReply.with_notice(expected, "pt-BR"))
+    end
+
+    it "gives a visitor's turn its sixty seconds" do
+      perform(inbound("oi"))
+
+      expect(fake.requests.sole.options[:timeout]).to be_within(1).of(AgentRunner::WALL_CLOCK)
+    end
+
     it "carries the line of a reservation stored before the error" do
       product = create(:product)
       responses.replace([ tool_turn(tool_use("create_reservation", { product_id: product.id, quantity: 2 })),

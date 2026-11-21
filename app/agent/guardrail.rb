@@ -19,6 +19,13 @@
 # it and traces the failure. Its own timeout and one retry bound what an
 # outage adds to a turn.
 #
+# It runs inside the turn's edge, after the model's steps (threat model
+# SR-20; design §10, M3-4): each attempt takes at most what is left of the
+# edge (ModelAttempts), and a check that ends with no verdict once the edge
+# has passed, or that the edge left no time to ask, gives the edge's reason,
+# DEADLINE, for which the caller sends the turn's fallback: the edge is the
+# turn's, not an outage of the check's, and no run passes its sixty seconds.
+#
 # Like AgentRunner it stores nothing: it yields Started before the call and
 # the Verdict after it, for the trace (FR-12) and the ledger (FR-14), outside
 # its own rescue, so a ledger or a trace that breaks breaks the turn as any
@@ -32,8 +39,8 @@ class Guardrail
   TIMEOUT = 5.0
   MAX_RETRIES = 1
   # The longest wait before the retry the check makes: a response that asks
-  # for longer is no verdict at once (Watch; review finding C1 of pull
-  # request #54). The SDK's own backoff for one retry is under a second.
+  # for longer is no verdict at once (ModelAttempts; review finding C1 of
+  # pull request #54). The SDK's own backoff for one retry is under a second.
   MAX_WAIT = 1.0
   # Thinking costs the check its latency (FR-20: at most 1.5 s more at p95);
   # the reason before the verdict is its reasoning.
@@ -91,25 +98,31 @@ class Guardrail
   end
   private_class_method :data, :earlier_block
 
-  def initialize(client: nil, route: ModelPolicy.guardrail, thinking: THINKING, clock: AgentRunner::MONOTONIC)
+  # The error of a check the turn's edge cut (SR-20).
+  DEADLINE = "deadline".freeze
+
+  # sleeper waits before the retry (Kernel#sleep; a fake clock's in the suite).
+  def initialize(client: nil, route: ModelPolicy.guardrail, thinking: THINKING, clock: AgentRunner::MONOTONIC, sleeper: nil)
     @client = client || self.class.default_client
     @route = route
     @thinking = thinking
     @clock = clock
+    @sleeper = sleeper
   end
 
   # earlier are the visitor's messages before this one, oldest first, which
   # may hold the question a short reply answers (review finding C2 of pull
-  # request #54).
-  def check(message:, reply:, earlier: [])
+  # request #54); edge is the turn's (TurnEdge), or nil for a check with
+  # none, the eval runner's.
+  def check(message:, reply:, earlier: [], edge: nil)
     yield Started.new(model: @route.model, effort: @route.effort) if block_given?
     started = @clock.call
     content = self.class.content(message:, reply:, earlier:)
     watch = Watch.new(0)
     verdict = begin
-      verdict_of(request(content, watch), started)
+      verdict_of(request(content, watch, edge), started)
     rescue StandardError => e
-      no_verdict(e.class.name, started)
+      no_verdict(cut?(e, edge) ? DEADLINE : e.class.name, started)
     end
     verdict = verdict.with(usage: abandoned(content, watch.timed_out) + verdict.usage) if watch.timed_out.positive?
     yield verdict if block_given?
@@ -119,40 +132,44 @@ class Guardrail
 
   private
 
-  def request(content, watch)
-    @client.messages.create(
-      model: @route.model, max_tokens: MAX_TOKENS, system_: SYSTEM, messages: [ { role: "user", content: } ],
-      output_config: { effort: @route.effort, format: Output }, **thinking,
-      request_options: { timeout: TIMEOUT, max_retries: MAX_RETRIES, middleware: [ watch ] }
-    )
+  # The check's attempts (ModelAttempts): each at most its own TIMEOUT and
+  # what is left of the turn's edge, and one retry, made only after a wait of
+  # at most MAX_WAIT that the edge leaves time for: the SDK waited as long as
+  # a failed attempt's retry-after asked, holding the turn, the
+  # conversation's lock and the typing status (review finding C1 of pull
+  # request #54).
+  def request(content, watch, edge)
+    ModelAttempts.new(client: @client, edge:, retries: MAX_RETRIES, timeout: TIMEOUT, max_wait: MAX_WAIT, sleeper: @sleeper).call do |options|
+      @client.messages.create(
+        model: @route.model, max_tokens: MAX_TOKENS, system_: SYSTEM, messages: [ { role: "user", content: } ],
+        output_config: { effort: @route.effort, format: Output }, **thinking,
+        request_options: options.merge(middleware: [ watch ])
+      )
+    end
   end
 
-  # Around every attempt of the check. The SDK waits as long as a failed
-  # attempt's retry-after asks before it retries, however long, holding the
-  # turn, the conversation's lock and the typing status: a wait past
-  # MAX_WAIT is not made, and the SDK raises the attempt's error at once
-  # (review finding C1 of pull request #54; RetryAfter). And it counts the
-  # attempts that timed out, which the provider bills though no answer came
-  # (review finding V3 of pull request #54).
+  # A check the edge cut: no time was left to ask, or it ended with no answer
+  # once the edge had passed.
+  def cut?(error, edge) = error.is_a?(AgentRunner::DeadlineExceeded) || edge&.passed?
+
+  # Around every attempt of the check: it counts the attempts that timed out
+  # once they were sent, which the provider bills though no answer came
+  # (review finding V3 of pull request #54; ModelAttempts.abandoned?).
   Watch = Struct.new(:timed_out) do
     def call(request, nxt)
-      response = nxt.call(request)
-      return response if response.status < 300
-
-      wait = RetryAfter.seconds(response.headers)
-      wait && wait > MAX_WAIT ? RetryAfter.refused(response) : response
-    rescue Anthropic::Errors::APITimeoutError
-      self.timed_out += 1
+      nxt.call(request)
+    rescue Anthropic::Errors::APITimeoutError => e
+      self.timed_out += 1 if ModelAttempts.abandoned?(e)
       raise
     end
   end
 
   # An attempt the client stopped waiting for is billed whole (design §10,
   # M4-2's note on question 20), so it is charged at its input, counted high
-  # from the request's characters (about a third of a token's worth each),
-  # and at its output cap: the ledger errs on the side of the month's cap.
+  # from the request's characters (AgentRunner::CHARACTERS_PER_TOKEN), and at
+  # its output cap: the ledger errs on the side of the month's cap.
   def abandoned(content, count)
-    input = ((SYSTEM.length + content.length) / 3.0).ceil
+    input = ((SYSTEM.length + content.length) / AgentRunner::CHARACTERS_PER_TOKEN).ceil
     Array.new(count) do
       AgentRunner::Usage.new(model: @route.model, input_tokens: input, output_tokens: MAX_TOKENS, cache_creation_tokens: 0,
                              cached_tokens: 0)

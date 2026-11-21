@@ -30,7 +30,12 @@
 #   that, and a text it finds clinical is replaced by FR-09's decline and the
 #   facts the turn's tools produced, or by the call to call now in an
 #   emergency (replaced); a check that gives no verdict lets the text go,
-#   traced and logged (threat model R4);
+#   traced and logged (threat model R4), unless the turn's edge cut it;
+# - the model's steps and the check run inside the turn's edge (TurnEdge,
+#   threat model SR-20), set when the model's work starts: sixty seconds, or
+#   FR-17's canary's twenty, so a slow model ends a canary's turn at the
+#   canary's own time; past it the turn ends at its deadline with the
+#   fallback, a reply the edge left unchecked among them;
 # - a turn the job gave up on after its attempts gets the fallback too
 #   (give_up, NFR-03).
 #
@@ -383,16 +388,21 @@ class TurnProcessor
     @turn.update!(mode:, model: ModelPolicy.route(mode).model)
     @root.attributes["balcao.turn.mode"] = mode
     events = TurnTrace.new(@recorder, @root)
+    edge = TurnEdge.after(canary? ? Canary::WITHIN.to_i : AgentRunner::WALL_CLOCK)
     result, verdict = typing.during do
-      result = AgentRunner.new.run(@turn, mode:) do |event|
+      result = AgentRunner.new.run(@turn, mode:, edge:) do |event|
         Budget.charge!(@turn, event.usage) if event.is_a?(AgentRunner::ModelCall)
         events.on(event)
       end
-      [ result, guard(result, events) ]
+      [ result, guard(result, events, edge) ]
     end
     @exchange = result.exchange.presence
     @conversation.update!(language: result.language) if result.language
     return replace(result) if verdict&.clinical?
+
+    # A reply the edge left unchecked is not sent: the turn's sixty seconds
+    # are spent, and SR-20 answers that with the fallback (M3-4).
+    result = result.with(outcome: :deadline, text: nil) if verdict&.error == Guardrail::DEADLINE
 
     text, state = reply_of(result)
     wrote = result.outcome == :replied
@@ -410,15 +420,23 @@ class TurnProcessor
   # that breaks breaks the turn, for the job's retry, and the trace still
   # says what the check found (review finding V1 of pull request #54, the
   # hunter's H7).
-  def guard(result, events)
+  def guard(result, events, edge)
     return unless result.outcome == :replied && result.text.present?
 
-    Guardrail.new.check(message: @inbound.body, reply: result.text, earlier: earlier_messages) do |event|
+    Guardrail.new.check(message: @inbound.body, reply: result.text, earlier: earlier_messages, edge:) do |event|
       events.on(event)
       next unless event.is_a?(Guardrail::Verdict)
 
-      Rails.logger.error("turn #{@turn.id}: the guardrail gave no verdict (#{event.error}); the reply is sent as the model wrote it") if event.error
+      log_no_verdict(event) if event.error
       Budget.charge!(@turn, event.usage)
+    end
+  end
+
+  def log_no_verdict(verdict)
+    if verdict.error == Guardrail::DEADLINE
+      Rails.logger.error("turn #{@turn.id}: the turn's edge cut the guardrail's check; the fallback is sent in the reply's place")
+    else
+      Rails.logger.error("turn #{@turn.id}: the guardrail gave no verdict (#{verdict.error}); the reply is sent as the model wrote it")
     end
   end
 
@@ -437,8 +455,16 @@ class TurnProcessor
     when :replied then [ with_facts(result, language), "replied" ]
     when :refused then [ FixedReply.with_reservations(FixedReply.with_emergency(FixedReply.declined(language), language),
                                                       reservations, language), "replied" ]
-    else [ FixedReply.with_reservations(FixedReply.fallback(language), reservations, language), "failed" ]
+    else [ FixedReply.with_reservations(fallback(result, language), reservations, language), "failed" ]
     end
+  end
+
+  # NFR-03's fallback, followed by the emergency line when the reply the
+  # turn's edge left unchecked asked for it: the line is the system's own
+  # text, and an emergency's one instruction (FR-09, SR-20).
+  def fallback(result, language)
+    text = FixedReply.fallback(language)
+    result.emergency ? FixedReply.with_emergency(text, language) : text
   end
 
   # FR-20: a reply the check found clinical is FR-09's decline, followed by
