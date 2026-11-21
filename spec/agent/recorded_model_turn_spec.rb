@@ -24,15 +24,26 @@ RSpec.describe "Design §8 ADR-0011 FR-17 FR-21 turns on a rehearsal host's reco
 
   def reply(turn) = Message.find_by(turn_id: turn.id).body_without_notice
 
+  # FR-20's verdicts the block's turns got (Guardrail::EVENT): a check the
+  # recorded model could not answer fails open (threat model R4), and the
+  # reply would go out all the same, so a turn's outcome alone cannot tell.
+  def verdicts(&)
+    seen = []
+    ActiveSupport::Notifications.subscribed(->(*, payload) { seen << payload.fetch(:verdict) }, Guardrail::EVENT, &)
+    seen
+  end
+
   # The canary asks on the economy model, the recording was made on the
   # normal one: the recorded model answers the message, whatever the route.
   it "passes FR-17's canary, its question answered by the recording and checked by FR-20's recorded check" do
     saved = Rails.configuration.x.budget_cap_usd
     Rails.configuration.x.budget_cap_usd = BigDecimal("10")
 
-    result = Canary.new(heartbeat: Heartbeat.new(nil, name: "canary")).run
+    result = nil
+    checked = verdicts { result = Canary.new(heartbeat: Heartbeat.new(nil, name: "canary")).run }
 
     expect(result).to have_attributes(passed: true, mode: "economy")
+    expect(checked.map { |verdict| [ verdict.clinical, verdict.error ] }).to eq [ [ false, nil ] ]
     expect(DailyAggregate.find_by(kind: "canary", key: "passed")&.count).to eq 1
   ensure
     Rails.configuration.x.budget_cap_usd = saved
@@ -41,8 +52,12 @@ RSpec.describe "Design §8 ADR-0011 FR-17 FR-21 turns on a rehearsal host's reco
   # The rehearsal flow's smoke sends the stock chip (docs/runbook.md); every
   # chip of the landing is a recorded case's message (spec/evals/seed_spec.rb).
   it "answers every chip of the landing through a visitor's turn, the stock chip with a price from the host's catalogue" do
-    replies = Openers.current.keys.to_h { |key| [ key, turn_for(Openers.current.fetch(key).text) ] }
+    replies = nil
+    checked = verdicts { replies = Openers.current.keys.to_h { |key| [ key, turn_for(Openers.current.fetch(key).text) ] } }
 
+    expect(checked.size).to eq replies.size
+    expect(checked.map(&:error)).to all(be_nil)
+    expect(checked.map(&:clinical)).to all(be_in([ true, false ]))
     expect(replies.values.map(&:state)).to all(eq "replied")
     expect(replies.values.map(&:reply_kind)).to all(be_in(%w[model decline call_now]))
     expect(reply(replies.fetch("stock_pt"))).to include("R$")
