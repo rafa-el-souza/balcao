@@ -172,6 +172,9 @@ module Evals
       def call(request, nxt)
         sent = Recording.request(request.body)
         response = nxt.call(request)
+        # The time the answer came, which the tools it asks for run at: the
+        # replay serves it at that time (the fix review of #66, R3).
+        at = Time.current.utc.iso8601(3)
         response.buffer!
         body = response.body.join
         parsed = parse(body)
@@ -185,15 +188,15 @@ module Evals
           # The SDK hands a body over in bytes; one past ASCII is kept as
           # UTF-8, its invalid bytes replaced (the fix review of #66, R1).
           text = body.dup.force_encoding(Encoding::UTF_8).scrub
-          @responses << { "request" => sent, "status" => response.status, "headers" => kept.presence, "body_text" => text }.compact
+          @responses << { "request" => sent, "at" => at, "status" => response.status, "headers" => kept.presence, "body_text" => text }.compact
           return response
         end
 
-        @responses << { "request" => sent, "status" => response.status, "headers" => kept.presence, "body" => parsed }.compact
+        @responses << { "request" => sent, "at" => at, "status" => response.status, "headers" => kept.presence, "body" => parsed }.compact
         @products.merge!(Product.where(id: body.scan(UUID).uniq).pluck(:id, :sku).to_h)
         response
       rescue Anthropic::Errors::APITimeoutError => e
-        @responses << { "request" => sent, "timeout" => e.cause.is_a?(Net::ReadTimeout) ? true : "open" }
+        @responses << { "request" => sent, "at" => Time.current.utc.iso8601(3), "timeout" => e.cause.is_a?(Net::ReadTimeout) ? true : "open" }
         raise
       rescue StandardError => e
         @broken ||= "#{e.class}: #{e.message}"
@@ -253,21 +256,26 @@ module Evals
     # after the attempt's seed. It notes the first request that differs from
     # the one the answer was recorded for (Recording.request), by its
     # position and the fields that differ, and serves the answer all the
-    # same, so the run ends and the replay names it.
+    # same, so the run ends and the replay names it. clock moves the time to
+    # the moment an answer came at the recording, before it is served, so
+    # what its tools compute from the clock (a reservation's deadline) is
+    # computed at that moment again (the fix review of #66, R3).
     class Replayed < FakeModel
       # The first request that differed, as "request N differs from the
       # recording's in its messages", or nil.
       attr_reader :differed
 
-      def initialize(recording)
+      def initialize(recording, clock: nil)
         super(recording.responses)
         @products = recording.products
+        @clock = clock
         @differed = nil
       end
 
       def call(request, nxt)
         if @responses.any?
           compare(@responses[0][:request], request.body) unless @differed
+          @clock.call(Time.iso8601(@responses[0][:at])) if @clock && @responses[0][:at]
           @responses[0] = current(@responses[0]) if @products.any?
         end
         super

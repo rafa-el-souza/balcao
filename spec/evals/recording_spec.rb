@@ -59,7 +59,8 @@ RSpec.describe "NFR-08 SR-29 the recorded fast subset" do
       expect(evals("--record", "--case", greeting.id)).to eq(0), err.string
 
       kept = recording(greeting)
-      expect(kept["responses"].map { |response| response.except("request") }).to eq(JSON.parse(JSON.generate(api)))
+      expect(kept["responses"].map { |response| response.except("request", "at") }).to eq(JSON.parse(JSON.generate(api)))
+      expect(kept["responses"].map { |response| Time.iso8601(response.fetch("at")) }).to all(be_within(1.minute).of(Time.current))
       expect(kept["responses"].map { |response| response["request"] }).to all(include("messages" => match(/\A\h{16}\z/)))
       expect(kept["digests"]).to eq(Evals::Recording.digests(greeting))
       expect(kept["route"]).to eq("model" => "claude-opus-5-5", "effort" => "low")
@@ -206,9 +207,9 @@ RSpec.describe "NFR-08 SR-29 the recorded fast subset" do
 
     it "replays at the recording's time" do
       seen = nil
-      allow(Evals::Recording::Replayed).to receive(:new).and_wrap_original do |original, *args|
+      allow(Evals::Recording::Replayed).to receive(:new).and_wrap_original do |original, *args, **options|
         seen = Time.current
-        original.call(*args)
+        original.call(*args, **options)
       end
       recorded_at = Time.iso8601(recording(greeting).fetch("recorded_at"))
 
@@ -265,6 +266,29 @@ RSpec.describe "NFR-08 SR-29 the recorded fast subset" do
       expect(out.string).to include("differs from the recording's in its messages")
     end
 
+    # The fix review of #66, R3: the reservation turn of a recording ran
+    # seconds after its attempt began; across midnight its deadline is
+    # another day's, which a replay at the attempt's start would compute
+    # otherwise.
+    it "replays a recording whose attempt began before midnight and reserved after it" do
+      started = Time.zone.parse("2026-11-17 23:59:58")
+      travel_to(started)
+      allow(Evals::Recording::Recorder).to receive(:new).and_wrap_original do |original|
+        original.call.tap do |recorder|
+          allow(recorder).to receive(:call).and_wrap_original do |call, request, nxt|
+            travel(1.second)
+            call.call(request, nxt)
+          end
+        end
+      end
+      expect(evals("--record", "--case", reservation.id)).to eq(0), out.string + err.string
+      travel_back
+      out.truncate(0)
+      out.rewind
+
+      expect(replay("--case", reservation.id)).to eq(0), out.string
+    end
+
     it "is made again on the product's id of the replay" do
       expect(evals("--record", "--case", reservation.id)).to eq(0), out.string + err.string
       expect(recording(reservation)["products"].values).to eq([ "dipirona-500mg-10cp" ])
@@ -316,7 +340,9 @@ RSpec.describe "NFR-08 SR-29 the recorded fast subset" do
       expect(out.string).to include("stale: requests")
     end
 
-    it "passes when only what differs by design differs: the clock, the ids, a reservation's code" do
+    # The day CI runs a replay is not the recording's: the replay runs at
+    # the recording's own times (the fix review of #66's note on this test).
+    it "passes on another day than the recording's" do
       travel_to(Time.iso8601(recording(delivery).fetch("recorded_at")) + 3.days) do
         expect(replay("--case", delivery.id)).to eq(0), out.string
       end
@@ -431,7 +457,7 @@ RSpec.describe "NFR-08 SR-29 the recorded fast subset" do
       expect { call.() }.to raise_error(Anthropic::Errors::APITimeoutError)
       expect(call.().content.last.text).to eq("[pt] Oi.")
 
-      expect(recorder.responses.map { |response| response.except("body", "request") }).to eq(
+      expect(recorder.responses.map { |response| response.except("body", "request", "at") }).to eq(
         [ { "status" => 529, "headers" => { "retry-after" => "1" } }, { "timeout" => true }, { "timeout" => "open" }, { "status" => 200 } ]
       )
       expect(recorder.responses.map { |response| response["request"] }.uniq).to eq([ Evals::Recording.request(

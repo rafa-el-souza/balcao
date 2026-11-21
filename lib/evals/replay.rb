@@ -5,13 +5,14 @@ require_relative "runner"
 # bin/evals --recorded (evals/README.md, Running): each selected case once,
 # through the app's own pipeline (Evals::Pipeline) on the normal route, with
 # its recording in the model's place (Evals::Recording): no key, no network,
-# no judge. The run happens at one instant, the recorded attempt's start, so
-# its date is the recording's; every turn of the case runs at that instant,
-# while the recording's turns ran seconds apart, so what the app computes from
-# the clock (a time line, a reservation's deadline) can differ from the
-# recording's across a boundary: the requests' digests set those values aside
-# (Recording::VOLATILE), and no check reads them (the review of #66, C5 and
-# V2). A case fails when its recording is missing or stale, when the app sends
+# no judge. The run starts at the recorded attempt's start, and each answer
+# is served at the time it came at the recording (Recording::Replayed's
+# clock), so what the app computes from the clock after it, a reservation's
+# deadline among it, reads as it read then; a visitor message's time line,
+# which the app writes before the turn's first answer, can still differ by
+# seconds, and the requests' digests set it aside (Recording::VOLATILE; the
+# review of #66, C5 and V2, and its fix review's R3). A case fails when its
+# recording is missing or stale, when the app sends
 # another request than the recording's, when the run asks the model for more
 # or fewer answers than the recording holds, when the API or the harness
 # broke the run as a live run would count it (Runner#broken), when a rule
@@ -50,7 +51,7 @@ module Evals
 
       started_at = Time.current
       started = AgentRunner::MONOTONIC.call
-      fake = Recording::Replayed.new(recording)
+      fake = Recording::Replayed.new(recording, clock: ->(time) { travel_to(time, with_usec: true) })
       run = travel_to(recording.recorded_at) { AgentRunner.with_client(fake.client) { @pipeline.run(kase) } }
       graded(kase, run, fake, recording, verdicts).then do |status, checks, verdict|
         attempt = Runner::Attempt.new(status:, checks:, verdict:, error: nil, run:, started_at:, seconds: AgentRunner::MONOTONIC.call - started)
