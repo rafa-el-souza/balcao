@@ -362,17 +362,20 @@ never from the development account, which has no sudo:
 6. A clone of the public repository, used read-only:
    `git clone https://github.com/rafa-el-souza/balcao.git`. It is fetched,
    read and fast-forwarded by the checklist below, never edited.
-7. Production's env file, outside the clone, mode 600 (`chmod 600 <the
-   file>`), with the values `.kamal/secrets` names. The generated ones come
-   from the operator's own Ruby, never from the repository's
-   `bin/secrets-example`, which is repository code; the same lengths and
-   characters as that script's:
+7. Production's env file, outside the clone, readable by the operator
+   alone, with the values `.kamal/secrets` names. Make it first, empty and
+   at mode 600, and never over one that exists, which `install` would
+   empty: `[ -e <the file> ] || install -m 600 /dev/null <the file>`. The
+   generated values come from the operator's own Ruby, never from the
+   repository's `bin/secrets-example`, which is repository code; the same
+   lengths and characters as that script's:
 
    ```
    ruby -rsecurerandom -e '%w[SECRET_KEY_BASE:128 POSTGRES_PASSWORD:40 APP_DATABASE_PASSWORD:40 ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY:32 ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY:32 ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT:32 IDENTITY_PEPPER:64 TELEGRAM_WEBHOOK_SECRET:64].each { |pair| name, size = pair.split(":"); puts "#{name}=#{SecureRandom.alphanumeric(Integer(size))}" }' >> <the file>
    ```
 
-   The held ones are pasted from their consoles: `ANTHROPIC_API_KEY` from
+   Then `stat -c %a <the file>` prints `600`. The held ones are pasted
+   from their consoles: `ANTHROPIC_API_KEY` from
    the production workspace of the model's console, whose spend limit sits
    just below the cap (design §8); `TELEGRAM_BOT_TOKEN` from BotFather;
    `TURNSTILE_SECRET_KEY` from the widget's page in Cloudflare's
