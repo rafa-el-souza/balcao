@@ -193,16 +193,20 @@ RSpec.describe "FR-14 SR-02 FR-12 the budget in a turn: the pause before the mod
 
     # Review finding C3 of pull request #29: the glass box's head follows the
     # month's mode, which the turn's own charge may have changed.
+    # Past 70 % of the cap the month runs in economy (M3-1), so the turn that
+    # reaches the cap runs on the economy model, with the gate open.
     it "closes a turn's root with the mode it ran in and the month's mode after its own charge" do
+      Rails.configuration.x.economy_allowed = true
       BudgetState.for_month!.update!(spent_usd: BigDecimal("9.999"))
       turn = inbound("oi")
 
       perform(turn)
 
-      expect(root(turn).span_attributes).to include("balcao.turn.mode" => "normal", "balcao.budget.mode" => "paused")
+      expect(root(turn).span_attributes).to include("balcao.turn.mode" => "economy", "balcao.budget.mode" => "paused")
     end
 
     it "answers the turn that reaches the cap, and pauses the next one" do
+      Rails.configuration.x.economy_allowed = true
       BudgetState.for_month!.update!(spent_usd: BigDecimal("9.999"))
       responses.replace([ reply("[pt] Olá!") ])
       first = inbound("oi")
@@ -211,9 +215,70 @@ RSpec.describe "FR-14 SR-02 FR-12 the budget in a turn: the pause before the mod
 
       perform(second)
 
-      expect(first.reload.mode).to eq("normal")
+      expect(first.reload.mode).to eq("economy")
       expect(second.reload.mode).to eq("paused")
       expect(fake.requests.size).to eq(1)
+    end
+
+    # M3-1 (SR-02 in full): the month's economy at 70 % of the cap and the
+    # day's slice move the turn to the economy model, read before any model
+    # call; with ADR-0003's gate closed the month's economy pauses with the
+    # month's text and the day's slice until midnight with the day's.
+    it "runs a turn of a month at 70 % of its cap on the economy model, with no model call for the switch" do
+      Rails.configuration.x.economy_allowed = true
+      BudgetState.for_month!.update!(spent_usd: BigDecimal("7"))
+      turn = inbound("tem dipirona?")
+
+      perform(turn)
+
+      expect(fake.requests.map { |request| request.body[:model] }).to eq([ "claude-haiku-5-5" ])
+      expect(turn.reload).to have_attributes(state: "replied", mode: "economy", model: "claude-haiku-5-5")
+      expect(root(turn).span_attributes).to include("balcao.turn.mode" => "economy")
+    end
+
+    it "runs a turn of a day past its slice on the economy model until midnight, then on the normal one" do
+      Rails.configuration.x.economy_allowed = true
+      responses.replace([ reply("[pt] Olá!"), reply("[pt] Olá de novo!") ])
+      travel_to(Time.zone.local(2026, 11, 21, 23, 0)) do
+        BudgetState.for_month!.update!(day: Date.new(2026, 11, 21), day_spent_usd: BigDecimal("0.5"), spent_usd: BigDecimal("0.5"))
+        perform(inbound("oi"))
+      end
+
+      travel_to(Time.zone.local(2026, 11, 22, 0, 0, 1)) { perform(inbound("tem dipirona?")) }
+
+      expect(fake.requests.map { |request| request.body[:model] }).to eq([ "claude-haiku-5-5", "claude-opus-5-5" ])
+    end
+
+    it "pauses a turn of a day past its slice until midnight, with the day's text and no model call, while the gate is closed" do
+      travel_to(Time.zone.local(2026, 11, 21, 15, 0)) do
+        BudgetState.for_month!.update!(day: Date.new(2026, 11, 21), day_spent_usd: BigDecimal("0.5"), spent_usd: BigDecimal("0.5"))
+        turn = inbound("tem dipirona?")
+
+        perform(turn)
+
+        expect(fake.requests).to be_empty
+        expect(turn.reload).to have_attributes(state: "replied", mode: "paused", model: nil)
+        expect(turn.outbound_message.body).to eq(FixedReply.with_notice(FixedReply.daily_pause("pt-BR"), "pt-BR"))
+        expect(root(turn).span_attributes).to include("balcao.turn.outcome" => "paused")
+      end
+    end
+
+    it "pauses a turn of a month at 70 % with the month's text and no model call, while the gate is closed" do
+      BudgetState.for_month!.update!(spent_usd: BigDecimal("7"))
+      turn = inbound("tem dipirona?")
+
+      perform(turn)
+
+      expect(fake.requests).to be_empty
+      expect(turn.outbound_message.body).to eq(FixedReply.with_notice(FixedReply.paused("pt-BR"), "pt-BR"))
+    end
+
+    it "keeps the day's text apart from the month's and the forced pause's in the three languages" do
+      %w[pt-BR en es].each do |locale|
+        expect([ FixedReply.daily_pause(locale), FixedReply.paused(locale), FixedReply.forced_pause(locale) ].uniq.size).to eq(3)
+        expect(FixedReply.in_place_kind(FixedReply.daily_pause(locale))).to eq("pause")
+      end
+      expect(FixedReply.daily_pause("pt-BR")).to eq("A demo está pausada até a meia-noite (horário de Brasília): chegou ao limite de gasto de hoje.")
     end
 
     it "still answers the commands, which call no model (FR-04, FR-05, FR-12)" do

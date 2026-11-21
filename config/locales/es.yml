@@ -42,6 +42,21 @@ es:
   budget:
     paused: "La demo está en pausa hasta el próximo mes: llegó al límite de gasto de este mes."
     forced: "La demo está en pausa por ahora. Vuelve más tarde."
+    daily: "La demo está en pausa hasta la medianoche (hora de Brasilia): llegó al límite de gasto de hoy."
+  # Threat model SR-35: the operator's alerts through the bot, in the
+  # language of the operator's app at the link, and the bot's answer to the
+  # link (OperatorChat, OperatorAlert); FR-14's at the cap names the month,
+  # the cap and the spend, never a visitor's words.
+  operator:
+    linked: "Este chat está vinculado a Balcão: las alertas del operador llegarán aquí."
+    test: "Balcão: prueba de la alerta del operador. Si este mensaje llegó, las alertas llegan a este chat."
+    cap:
+      paused: "Balcão: el gasto de %{month} llegó al tope de US$ %{cap} (US$ %{spent} gastados), y la demo está en pausa hasta el próximo mes. Para reanudarla antes, sube el tope con un deploy (el runbook dice cómo)."
+      serving: "Balcão: el gasto de %{month} llegó al tope de US$ %{cap} (US$ %{spent} gastados), pero el modo forzado %{mode} sigue sirviendo, y gastando, hasta que se libere."
+    modes:
+      normal: "normal"
+      economy: "economía"
+    decimal_mark: ","
   # FR-19's fixed texts on Telegram, sent with no model call: the ask for the
   # agreement, after FR-01's notice, naming the button's phrase of
   # config/commands.yml; the line for a message that is not text, which no

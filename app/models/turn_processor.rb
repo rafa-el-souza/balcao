@@ -7,10 +7,12 @@
 # - a turn whose reservation an earlier run stored is answered with the
 #   reservation's fixed line, never through the model again, which could
 #   reserve another product (NFR-02);
-# - a turn of a month the budget paused, at its cap or by the operator's
+# - a turn the budget paused, at the month's cap, at an economy the eval
+#   run has not allowed (the month's or the day's), or by the operator's
 #   hand, is answered with that pause's fixed reply, and no model is called
 #   (FR-14, threat model SR-02); the budget's mode is read here, before any
-#   model call, and names the route of the turn's model (ModelPolicy);
+#   model call, and names the route of the turn's model (ModelPolicy), the
+#   economy model's from 70 % of the cap and from the day's slice on;
 # - anything else goes through AgentRunner, whose events become the turn's
 #   spans (FR-12), and its outcome becomes the reply: the model's text, FR-09's
 #   decline for a refusal (SR-19) or the fallback (NFR-03), the last two
@@ -346,7 +348,7 @@ class TurnProcessor
     end
 
     budget = Budget.status
-    return paused(forced: budget.forced) if budget.mode == "paused"
+    return paused(budget) if budget.mode == "paused"
 
     run_model(budget.mode)
   rescue StandardError => e
@@ -354,14 +356,20 @@ class TurnProcessor
     raise
   end
 
-  # FR-14: the month is paused, so the reply is the pause's, with no model:
-  # the cap's, or the forced pause's own (the owner, 2026-11-15); a model an
-  # earlier run of the turn named is no longer the turn's.
-  def paused(forced:)
+  # FR-14: the demo is paused, so the reply is the pause's, with no model:
+  # the forced pause's own (the owner, 2026-11-15), the day's until midnight
+  # when the day's slice paused it, or the month's (the cap, or the month's
+  # economy the gate keeps closed); a model an earlier run of the turn named
+  # is no longer the turn's.
+  def paused(budget)
     @turn.update!(mode: "paused", model: nil)
     @root.attributes["balcao.turn.mode"] = "paused"
     language = @conversation.language
-    finish("paused", "replied", forced ? FixedReply.forced_pause(language) : FixedReply.paused(language))
+    text = if budget.forced then FixedReply.forced_pause(language)
+    elsif budget.daily then FixedReply.daily_pause(language)
+    else FixedReply.paused(language)
+    end
+    finish("paused", "replied", text)
   end
 
   def run_model(mode)

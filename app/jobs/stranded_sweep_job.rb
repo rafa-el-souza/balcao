@@ -14,7 +14,11 @@
 #   (design §6.3), a deletion among them (FR-05);
 # - a stored Telegram reply left pending past its time (a TelegramReplyJob
 #   that was never enqueued or died): TelegramReplyJob for the visitor, which
-#   sends the visitor's pending replies in order (FR-19).
+#   sends the visitor's pending replies in order (FR-19);
+# - an operator's alert left pending past its time (an OperatorAlertJob that
+#   was never enqueued, or broke or died while it sent): OperatorAlertJob for
+#   the alert, whose claim keeps two jobs from sending it at once (FR-14,
+#   threat model SR-35).
 #
 # Stranded means stopped for more than five minutes, by the row's own clock
 # (each read, run and attempt moves it), with nothing at work on it now: its
@@ -22,12 +26,12 @@
 # conversation busy past five minutes gets no second job. Whether a thing is
 # run again or given up is the bound of the job that runs it, three reads,
 # three runs, three attempts, counted on its row: the sweep takes it up, the
-# job decides, and gives up with a fixed line (the fallback's), never in
-# silence.
+# job decides, and gives up with a fixed line (the fallback's; an alert's
+# error line), never in silence.
 #
 # Each pass takes up at most LIMIT of each kind, oldest first; a pass that
 # took something up writes one line, with counts alone (SR-30). Each of the
-# three looks is apart: one that breaks is a line naming the error's class,
+# four looks is apart: one that breaks is a line naming the error's class,
 # and the others go on.
 class StrandedSweepJob < ApplicationJob
   STOPPED = 5.minutes
@@ -36,11 +40,11 @@ class StrandedSweepJob < ApplicationJob
   queue_as :default
 
   def perform
-    counts = { updates:, conversations:, replies: }
+    counts = { updates:, conversations:, replies:, alerts: }
     return if counts.values.all?(&:zero?)
 
     Rails.logger.info("sweep: taken up again #{counts[:updates]} updates, #{counts[:conversations]} conversations, " \
-                      "#{counts[:replies]} visitors' replies")
+                      "#{counts[:replies]} visitors' replies, #{counts[:alerts]} operator alerts")
   end
 
   private
@@ -79,6 +83,14 @@ class StrandedSweepJob < ApplicationJob
       visitors.count do |visitor|
         AdvisoryLock.free?("telegram-send:#{visitor.identity_hash}") && TelegramReplyJob.perform_later(visitor.id)
       end
+    end
+  end
+
+  def alerts
+    looking(:alerts) do
+      OperatorAlert.status_pending.where(updated_at: ...STOPPED.ago)
+                   .where("next_attempt_at IS NULL OR next_attempt_at <= ?", Time.current)
+                   .order(:created_at).limit(LIMIT).pluck(:id).count { |id| OperatorAlertJob.perform_later(id) }
     end
   end
 
