@@ -1996,7 +1996,8 @@ the cloud firewall; dependency and static analysis in CI.
   (SR-24, `APP_DATABASE_PASSWORD` beside `POSTGRES_PASSWORD`; since M3-4).
 - **Secrets.** No Rails credentials file: every runtime secret is an
   environment variable injected by Kamal from the destination's env file,
-  a mode-600 file of a dedicated operator account on the operator's
+  a mode-600 file of a dedicated operator account, on a VM of its own
+  (ADR-0023), on the operator's
   workstation, separate from the development account (SR-37); the
   rehearsal destination has its own throwaway set in the development
   account. One Console workspace and key per purpose: the production app
@@ -2027,8 +2028,9 @@ the cloud firewall; dependency and static analysis in CI.
   a new one issued by the owner for the production set at M3.
 - **Registry and image provenance.** Kamal's local registry
   (`registry: server: localhost:5556` in the base configuration,
-  `localhost:5555` in `ensaio`, so the two Unix accounts never share a
-  loopback port): the image is built in the deploying account and reaches
+  `localhost:5555` in `ensaio`, so the two accounts' registries never
+  collide; a loopback port is open to every user of one system, so the
+  operator account has a VM of its own, ADR-0023): the image is built in the deploying account and reaches
   the host through an SSH port forward, so TCP forwarding stays enabled on
   the host; accessories pull their public images from Docker Hub directly;
   every deploy procedure ends with `kamal registry remove` (with `-d

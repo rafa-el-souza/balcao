@@ -27,8 +27,9 @@ Two roles appear below. The **development account** is where the code is
 written and from where the MVP host is deployed, on a **workstation** with
 rootless Docker; its cloud project, the **rehearsal project**, holds the MVP
 host until M3 and only rehearsal hosts after it. The **operator account**,
-from M3, deploys production and holds its secrets, and the development
-account can neither read nor enter it (SR-37). "Both accounts" means these
+from M3, deploys production and holds its secrets, on a VM of its own
+(ADR-0023), and the development account can neither read, enter nor reach
+it (SR-37). "Both accounts" means these
 two.
 
 **Reading this file.** Labels such as M3-6, PR-16 or M2-10 name the slice,
@@ -317,22 +318,31 @@ Only a green `main` is deployed to the MVP host.
 ## The operator account (from M3, once; SR-37)
 
 Production is deployed only by the owner, from a separate operating-system
-account on the owner's workstation, the **operator account**, which holds
-production's secrets. The development account, where the code is written
-and where the coding agent runs (threat model T8), can neither read nor
-enter it (SR-37). Set up once, as root at the workstation's own console,
-never from the development account, which has no sudo:
+account, the **operator account**, on a VM of its own on the owner's
+workstation (ADR-0023), which holds production's secrets. The development
+account, where the code is written and where the coding agent runs (threat
+model T8), can neither read nor enter it, nor reach it (SR-37): the VM
+shares no loopback, temporary directory, process or folder with the
+development VM, no port is forwarded to it from the host, and the
+development VM has no hand on the hypervisor. On one system the agent could
+push its own image to the operator's local registry, or answer the host's
+pull on `[::1]`, and reach the clone Kamal builds from (#67's review, C1
+and V1). Set up once, as root at the VM's own console, never from the
+development account, which has no sudo:
 
-1. The account, with a password of its own, entered only through a login
-   of its own (the console or the graphical login), never with `su` or
-   `sudo` from another account. Neither account is in the workstation's
-   `docker` group, which is root-equivalent there.
+1. The VM and the account, with a password of its own, entered only
+   through a login of its own (the VM's console, or SSH from the host),
+   never with `su` or `sudo` from another account. The account is not in
+   the VM's `docker` group, which is root-equivalent there.
 2. Rootless Docker for the operator account, as the development account
    has it: Docker's rootless setup run as the operator, its user service
    enabled, and `loginctl enable-linger <the operator account>` so that the
    service starts at boot without a login. A deploy builds the image and
-   runs Kamal's local registry with it (`localhost:5556` in production, so
-   the two accounts never share a port).
+   runs Kamal's local registry with it (`localhost:5556` in production,
+   which keeps its configuration apart from the rehearsal's `5555`; the VM
+   keeps the accounts apart). Kamal clones the checkout to build it under
+   the temporary directory, so the account has its own, made once:
+   `mkdir -m 700 -p ~/.kamal-tmp`.
 3. Ruby at the version `.tool-versions` names and the pinned Kamal:
    `gem install kamal -v 2.12.0`, then `kamal version` prints `2.12.0`.
    No file of the clone may choose or configure them: if mise manages
@@ -396,8 +406,9 @@ outside the files this checklist reviews: Kamal is the pinned global gem,
 invoked directly, never through `bundle exec` or a `bin/` script, and the
 repository ships no `.kamal/hooks` (CI fails if one appears). Every step
 runs in the operator account's clone, with production's env file loaded in
-the same shell (`set -a; . <the file>; set +a`), never from a shell
-start-up file.
+the same shell, and Kamal's clone kept in the account's own temporary
+directory: `set -a; . <the file>; set +a; export TMPDIR=~/.kamal-tmp`,
+never from a shell start-up file.
 
 1. `git fetch origin`, then read the CI of `origin/main`'s commit:
 
@@ -458,16 +469,29 @@ start-up file.
    host with `-d ensaio` on 2026-11-21.)
 5. `kamal version` prints the pinned version; then `kamal deploy`, or on a
    fresh host `kamal setup`, which boots the database accessory first.
-6. `kamal registry remove`, whether the deploy passed or not, and then
+6. The host runs the image this checkout built (ADR-0023):
+
+   ```
+   BUILT=$(docker image inspect localhost:5556/balcao:$(git rev-parse HEAD) --format '{{.Id}}')
+   kamal server exec "docker ps --filter label=service=balcao --format '{{.Names}}' | xargs docker inspect --format '{{.Name}} {{.Image}}'"
+   ```
+
+   Every running `web` and `job` container prints `$BUILT`. Another image
+   means one built elsewhere ran with production's secrets: `kamal app
+   stop`, then every secret rotated (Rotating a secret, below), before
+   anything else. (Run against the MVP host with `localhost:5555` and
+   `-d ensaio` on 2026-11-21; a change of Docker's image store on either
+   side would print another ID, a false stop and never a false pass.)
+7. `kamal registry remove`, whether the deploy passed or not, and then
    `docker ps -a --filter name=kamal-docker-registry` lists nothing (End
    of a deploy session, below); then `docker volume prune -f`, which
    removes the registry's anonymous volume that Kamal's removal leaves,
    about 158 MB a deploy (since Docker 23 it removes anonymous volumes
-   alone, and this account keeps no other). Production never uses `-P` (`--skip-push`,
-   which deploys an image already there instead of building this
-   checkout).
-7. The smoke of the MVP deploy flow, step 4, on production's commands.
-8. `git rev-parse HEAD > .last-deployed-sha` (the file is gitignored);
+   alone, and this account keeps no other). Production never uses `-P`
+   (`--skip-push`, which deploys an image already there instead of building
+   this checkout).
+8. The smoke of the MVP deploy flow, step 4, on production's commands.
+9. `git rev-parse HEAD > .last-deployed-sha` (the file is gitignored);
    `kamal audit` on the host keeps the same record.
 
 ## Rolling back

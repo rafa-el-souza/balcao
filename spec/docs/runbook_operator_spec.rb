@@ -60,4 +60,18 @@ RSpec.describe "SR-37 SR-38 the operator's account and checklist in the runbook"
     expect(listed).to eq(jobs.sort)
     expect(checklist).to include("check-runs?per_page=100")
   end
+
+  # Review findings C1 and V1 of pull request #67 and ADR-0023: on one
+  # system with the development account, the operator's local registry and
+  # Kamal's clone in the shared temporary directory were within the agent's
+  # reach. The operator account has a VM of its own; besides, its Kamal
+  # clones under a directory of its own, and the checklist reads that the
+  # host runs the very image this checkout built.
+  it "keeps Kamal's clone out of a shared temporary directory and checks the host runs the image this checkout built" do
+    expect(account).to include("a VM of its own", "ADR-0023", "mkdir -m 700 -p ~/.kamal-tmp")
+    expect(checklist).to include("export TMPDIR=~/.kamal-tmp")
+    expect(checklist).to include("docker image inspect localhost:5556/balcao:$(git rev-parse HEAD) --format '{{.Id}}'")
+    expect(checklist.index("export TMPDIR=~/.kamal-tmp")).to be < checklist.index("`kamal deploy`")
+    expect(checklist.index("docker image inspect localhost:5556")).to be > checklist.index("`kamal deploy`")
+  end
 end

@@ -3,7 +3,10 @@
 **Status:** accepted · **Date:** 2026-11-04 (text revised the same night,
 before the first commit, after three independent reviews; amended
 2026-11-09, before the first commit, for the MVP: see the last paragraph of
-the decision) · Supersedes the first consequence of ADR-0006 · Its words
+the decision) · Supersedes the first consequence of ADR-0006 · Its
+operator account lives on a VM of its own since
+[ADR-0023](0023-the-operator-account-on-a-vm-of-its-own.md) (2026-11-21) ·
+Its words
 "the demo number's Meta values" amended by
 [ADR-0016](0016-telegram-bot-api-as-the-messaging-channel.md) on
 2026-11-14: they read the bot token and the webhook secret.
