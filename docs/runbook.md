@@ -477,7 +477,9 @@ never from a shell start-up file.
    host with `-d ensaio` on 2026-11-21.)
 5. `kamal version` prints the pinned version; then `kamal deploy`, or on a
    fresh host `kamal setup`, which boots the database accessory first.
-6. The host runs the image this checkout built (ADR-0023):
+6. The host runs the image this checkout built (ADR-0023), read only after
+   a deploy that passed: a failed one leaves the version before it
+   running, whose image is another, and this step is then skipped:
 
    ```
    BUILT=$(docker image inspect localhost:5556/balcao:$(git rev-parse HEAD) --format '{{.Id}}')

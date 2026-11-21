@@ -74,4 +74,13 @@ RSpec.describe "SR-37 SR-38 the operator's account and checklist in the runbook"
     expect(checklist.index("export TMPDIR=~/.kamal-tmp")).to be < checklist.index("`kamal deploy`")
     expect(checklist.index("docker image inspect localhost:5556")).to be > checklist.index("`kamal deploy`")
   end
+
+  # The fix review's R1 on pull request #67: a failed deploy leaves the
+  # version before it running, so the image check would read a difference
+  # and send the owner to stop production and rotate every secret.
+  it "reads the host's image against the checkout's only after a deploy that passed" do
+    step = checklist[checklist.index("6. The host runs the image")...checklist.index("7. `kamal registry remove`")].squish
+
+    expect(step).to include("only after a deploy that passed")
+  end
 end
