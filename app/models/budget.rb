@@ -24,9 +24,10 @@
 #   threshold, a cap a deploy lowered or raised, the next day or month),
 #   saying which forced mode serves when one wins (review finding S3 of pull
 #   request #29) and that the demo pauses when the gate keeps an economy from
-#   serving (#55's L4). A read that finds the month paused at its cap writes
-#   the operator's alert if it is missing, once a month and cap, and its job
-#   sends it through the bot (OperatorAlert, threat model SR-35).
+#   serving (#55's L4). A read that finds the month paused at its cap, or
+#   an economy the closed gate turned into a pause, writes the operator's
+#   alert if it is missing, once for what it reports, and its job sends it
+#   through the bot (OperatorAlert, threat model SR-35).
 #
 # The gate reads the mode once, when a turn starts: turns already running when
 # the cap is reached finish, so the month may end a few turns past its cap
@@ -67,7 +68,7 @@ module Budget
     wanted = state.forced_mode || automatic.mode
     mode = serving(state.forced_mode, automatic.mode)
     line(state, automatic, at) if mode != wanted && !held?(state, automatic, at)
-    alert(state, automatic) if automatic.cause == "cap"
+    alert(state, automatic, mode, at) if alerting?(state, automatic, mode)
     Status.new(mode:, forced: !state.forced_mode.nil?, daily: mode == "paused" && state.forced_mode.nil? && automatic.cause == "day")
   end
 
@@ -196,22 +197,35 @@ module Budget
     line(state, automatic, at)
   end
 
+  # The operator's alert of each cause (OperatorAlert): the cap, whatever
+  # serves; and the month's economy and the day's slice that ADR-0003's
+  # closed gate turns into pauses, never a pause the operator forced (review
+  # findings C1 = H1 and H4 of pull request #63).
+  ALERTS = { "cap" => "budget_cap", "month" => "budget_month", "day" => "budget_day" }.freeze
+
+  def alerting?(state, automatic, mode)
+    automatic.cause == "cap" || (state.forced_mode.nil? && mode == "paused" && ALERTS.key?(automatic.cause))
+  end
+
   # FR-14: the month at its cap tells the operator, once a month and cap,
-  # through the bot (OperatorAlert, threat model SR-35). Any read while the
-  # cap holds writes the alert if it is missing, not only the read that moved
-  # the month's mode, so a month paused before this code, or by a container
-  # without it in a deploy's window, gets one too (review finding C3 = H11 of
-  # pull request #63); once a process knows it is written, it asks no more.
-  # The mode that serves is the spend's whether or not the alert is written,
-  # so its write never breaks the read, a turn's before its model call among
-  # them: one error line a process and alert names the failure by its class
-  # (SR-30), and a later read tries again (C7 = H7).
-  def alert(state, automatic)
-    kind, key = "budget_cap", OperatorAlert.cap_key(state.month, cap)
+  # through the bot (OperatorAlert, threat model SR-35), and so does a pause
+  # the closed gate makes, once a month and cap or once a day and cap. Any
+  # read while the pause holds writes the alert if it is missing, not only
+  # the read that moved the month's mode, so a month paused before this code,
+  # or by a container without it in a deploy's window, gets one too (review
+  # finding C3 = H11 of pull request #63); once a process knows it is written,
+  # it asks no more. The mode that serves is the spend's whether or not the
+  # alert is written, so its write never breaks the read, a turn's before its
+  # model call among them: one error line a process and alert names the
+  # failure by its class (SR-30), and a later read tries again (C7 = H7).
+  def alert(state, automatic, mode, at)
+    kind = ALERTS.fetch(automatic.cause)
+    key = OperatorAlert.budget_key(kind, month: state.month, day: at.in_time_zone.to_date, cap:)
     return if @alerted&.include?([ kind, key ])
 
     unless OperatorAlert.exists?(kind:, key:)
-      written = OperatorAlert.at_cap!(state, cap:, serving: serving(state.forced_mode, automatic.mode))
+      written = OperatorAlert.budget!(kind, key:, state:, cap:, slice:, day_spent: day_spent(state, at), serving: mode,
+                                            day: at.in_time_zone.to_date)
       written.deliver_later if written.previously_new_record?
     end
     (@alerted ||= Set.new) << [ kind, key ]
@@ -250,5 +264,5 @@ module Budget
     forced = state.forced_mode
     [ state.month, forced, (automatic.cause unless forced), (at.in_time_zone.to_date if forced.nil? && automatic.cause == "day") ]
   end
-  private_class_method :month, :write_usage, :record, :alert, :line, :held?, :held_key, :closed, :day_spent
+  private_class_method :month, :write_usage, :record, :alerting?, :alert, :line, :held?, :held_key, :closed, :day_spent
 end

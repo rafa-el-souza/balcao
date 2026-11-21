@@ -77,14 +77,18 @@ pt-BR:
     daily: "A demo está pausada até a meia-noite (horário de Brasília): chegou ao limite de gasto de hoje."
   # Threat model SR-35: the operator's alerts through the bot, in the
   # language of the operator's app at the link, and the bot's answer to the
-  # link (OperatorChat, OperatorAlert); FR-14's at the cap names the month,
-  # the cap and the spend, never a visitor's words.
+  # link (OperatorChat, OperatorAlert); FR-14's at the cap and of a pause the
+  # closed gate makes name the month or the day, the limit and the spend,
+  # never a visitor's words.
   operator:
     linked: "Este chat está ligado ao Balcão: os alertas do operador chegam aqui."
     test: "Balcão: teste do alerta do operador. Se esta mensagem chegou, os alertas chegam a este chat."
     cap:
       paused: "Balcão: o gasto de %{month} chegou ao teto de US$ %{cap} (US$ %{spent} gastos), e a demo está pausada até o próximo mês. Para retomar antes, suba o teto com um deploy (o runbook diz como)."
       serving: "Balcão: o gasto de %{month} chegou ao teto de US$ %{cap} (US$ %{spent} gastos), mas o modo forçado %{mode} continua servindo, e gastando, até ser liberado."
+    gate:
+      month: "Balcão: o gasto de %{month} passou de 70 % do teto (US$ %{spent} de US$ %{cap}), e o modelo econômico ainda não pode servir, porque o portão das evals está fechado: a demo está pausada até o próximo mês. O runbook diz como retomar antes."
+      day: "Balcão: o gasto de %{day} chegou à fatia do dia (US$ %{day_spent} de US$ %{slice}), e o modelo econômico ainda não pode servir, porque o portão das evals está fechado: a demo está pausada até a meia-noite (horário de Brasília)."
     modes:
       normal: "normal"
       economy: "economia"

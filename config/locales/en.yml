@@ -45,14 +45,18 @@ en:
     daily: "The demo is paused until midnight (Brasília time): it has reached today's spending limit."
   # Threat model SR-35: the operator's alerts through the bot, in the
   # language of the operator's app at the link, and the bot's answer to the
-  # link (OperatorChat, OperatorAlert); FR-14's at the cap names the month,
-  # the cap and the spend, never a visitor's words.
+  # link (OperatorChat, OperatorAlert); FR-14's at the cap and of a pause the
+  # closed gate makes name the month or the day, the limit and the spend,
+  # never a visitor's words.
   operator:
     linked: "This chat is linked to Balcão: the operator's alerts will arrive here."
     test: "Balcão: a test of the operator's alert. If this message arrived, the alerts arrive in this chat."
     cap:
       paused: "Balcão: the spend of %{month} reached its cap of US$ %{cap} (US$ %{spent} spent), and the demo is paused until next month. To resume sooner, raise the cap with a deploy (the runbook says how)."
       serving: "Balcão: the spend of %{month} reached its cap of US$ %{cap} (US$ %{spent} spent), but the forced %{mode} mode goes on serving, and spending, until it is released."
+    gate:
+      month: "Balcão: the spend of %{month} passed 70 % of the cap (US$ %{spent} of US$ %{cap}), and the economy model may not serve yet, since the evals' gate is closed: the demo is paused until next month. The runbook says how to resume sooner."
+      day: "Balcão: the spend of %{day} reached the day's slice (US$ %{day_spent} of US$ %{slice}), and the economy model may not serve yet, since the evals' gate is closed: the demo is paused until midnight (Brasília time)."
     modes:
       normal: "normal"
       economy: "economy"

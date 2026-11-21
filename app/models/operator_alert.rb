@@ -32,22 +32,37 @@ class OperatorAlert < ApplicationRecord
   # it, whatever text it carries (NFR-02).
   def self.record!(kind:, key:, text:) = create_or_find_by!(kind:, key:) { |alert| alert.text = text }
 
-  # FR-14: the month reached its cap, once a month and cap, in the language
-  # of the operator's chat: a cap a deploy raised and the month reaches again
-  # is a new alert. The text says whether the demo paused, or which forced
-  # mode serves past the cap, which the operator chose.
-  def self.at_cap!(state, cap:, serving:)
+  # FR-14's alerts of the budget (Budget.alert), in the language of the
+  # operator's chat: budget_cap, the month reached its cap, its text saying
+  # whether the demo paused or which forced mode serves past the cap, which
+  # the operator chose; budget_month and budget_day, the month's economy and
+  # the day's slice that ADR-0003's closed gate turned into pauses, until the
+  # month ends and until midnight (review findings C1 = H1 and H4 of pull
+  # request #63). None names a visitor or a conversation.
+  def self.budget!(kind, key:, state:, cap:, slice:, day_spent:, serving:, day:)
     language = OperatorChat.language
-    values = { month: state.month, cap: money(cap, language), spent: money(state.spent_usd, language) }
-    text = if serving == "paused" then I18n.t("operator.cap.paused", locale: language, **values)
-    else I18n.t("operator.cap.serving", locale: language, mode: I18n.t("operator.modes.#{serving}", locale: language), **values)
+    values = { month: state.month, day: day.iso8601, cap: money(cap, language), spent: money(state.spent_usd, language),
+               slice: money(slice, language), day_spent: money(day_spent, language) }
+    text = case kind
+    when "budget_month" then I18n.t("operator.gate.month", locale: language, **values)
+    when "budget_day" then I18n.t("operator.gate.day", locale: language, **values)
+    when "budget_cap" then cap_text(serving, language, values)
+    else raise ArgumentError, "#{kind} is no alert of the budget"
     end
-    record!(kind: "budget_cap", key: cap_key(state.month, cap), text:)
+    record!(kind:, key:, text:)
   end
 
-  # The cap alert's key: the month and the cap, so a cap a deploy raised and
-  # the month reaches again is a new alert.
-  def self.cap_key(month, cap) = "#{month}:#{cap.to_d.to_s("F")}"
+  def self.cap_text(serving, language, values)
+    return I18n.t("operator.cap.paused", locale: language, **values) if serving == "paused"
+
+    I18n.t("operator.cap.serving", locale: language, mode: I18n.t("operator.modes.#{serving}", locale: language), **values)
+  end
+  private_class_method :cap_text
+
+  # A budget alert's key: the month and the cap, so a cap a deploy raised and
+  # the month reaches again is a new alert, or for the day's slice the day
+  # and the cap, so each day it pauses is one.
+  def self.budget_key(kind, month:, day:, cap:) = "#{kind == "budget_day" ? day.iso8601 : month}:#{cap.to_d.to_s("F")}"
 
   # The runbook's check of the path, sent at once rather than by the job, so
   # the command shows what became of it.

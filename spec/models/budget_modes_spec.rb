@@ -180,6 +180,53 @@ RSpec.describe "FR-14 SR-02 the budget's automatic modes: economy at 70 %, the d
     end
   end
 
+  # Review findings C1 = H1 and H4 of pull request #63 (dono): with ADR-0003's
+  # gate closed, the month's economy is a pause until the month ends and the
+  # day's slice one until midnight, which visitors cannot tell from the cap's
+  # and no further spend would turn into the cap's alert; the operator hears
+  # of each through the bot, once a month and cap, and once a day and cap.
+  describe "the alert of a pause the closed gate makes" do
+    before { allow(Rails.logger).to receive(:warn) }
+
+    it "tells the operator once when the month's economy pauses the demo until the month ends" do
+      month.update!(spent_usd: BigDecimal("7.10"))
+
+      2.times { expect(Budget.mode).to eq("paused") }
+
+      alert = OperatorAlert.sole
+      expect(alert).to have_attributes(kind: "budget_month", key: "#{month.month}:10.0", status: "pending")
+      expect(alert.text).to eq(I18n.t("operator.gate.month", locale: "pt-BR", month: month.month, spent: "7,10", cap: "10,00"))
+      expect(OperatorAlertJob).to have_been_enqueued.with(alert.id).once
+    end
+
+    it "tells the operator once a day when the day's slice pauses the demo until midnight" do
+      travel_to(Time.zone.local(2026, 11, 21, 10, 0)) do
+        spend(5)
+        2.times { Budget.mode }
+      end
+      travel_to(Time.zone.local(2026, 11, 22, 10, 0)) do
+        spend(5)
+        Budget.mode
+      end
+
+      expect(OperatorAlert.order(:created_at).pluck(:kind, :key))
+        .to eq([ [ "budget_day", "2026-11-21:10.0" ], [ "budget_day", "2026-11-22:10.0" ] ])
+      expect(OperatorAlert.order(:created_at).first.text)
+        .to eq(I18n.t("operator.gate.day", locale: "pt-BR", day: "2026-11-21", day_spent: "0,50", slice: "0,50"))
+    end
+
+    it "holds no word of the conversation that made the spend" do
+      reaching = create(:turn, inbound_message: create(:message, body: "Joana precisa da amoxicilina da receita"))
+      month.update!(spent_usd: BigDecimal("7"))
+      Budget.charge!(reaching, [ dime ])
+
+      Budget.mode
+
+      text = OperatorAlert.sole.text
+      %w[Joana precisa amoxicilina receita].each { |word| expect(text).not_to include(word) }
+    end
+  end
+
   # FR-14: at the cap the operator is notified once, by the bot's alert,
   # which carries no word of a conversation (threat model SR-35).
   describe "the alert at the cap" do
@@ -230,7 +277,7 @@ RSpec.describe "FR-14 SR-02 the budget's automatic modes: economy at 70 %, the d
       expect(OperatorAlert.order(:created_at).pluck(:key)).to eq([ "#{month.month}:10.0", "#{month.month}:20.0" ])
     end
 
-    it "is never written for the month's economy or the day's slice, nor for a forced pause" do
+    it "is never written while the month's economy serves, nor for a pause the operator forced" do
       opened
       month.update!(spent_usd: BigDecimal("7"))
       Budget.mode
@@ -260,7 +307,7 @@ RSpec.describe "FR-14 SR-02 the budget's automatic modes: economy at 70 %, the d
     it "never breaks a read when the alert cannot be written: one error line a process, and a later read writes it" do
       allow(Rails.logger).to receive(:error)
       month.update!(spent_usd: BigDecimal("10"))
-      allow(OperatorAlert).to receive(:at_cap!).and_raise(ActiveRecord::StatementInvalid, "gone")
+      allow(OperatorAlert).to receive(:budget!).and_raise(ActiveRecord::StatementInvalid, "gone")
 
       3.times { expect(Budget.mode).to eq("paused") }
 
@@ -269,7 +316,7 @@ RSpec.describe "FR-14 SR-02 the budget's automatic modes: economy at 70 %, the d
         .with("budget: the operator's alert budget_cap #{month.month}:10.0 not written, ActiveRecord::StatementInvalid; " \
               "a later read tries again").once
 
-      allow(OperatorAlert).to receive(:at_cap!).and_call_original
+      allow(OperatorAlert).to receive(:budget!).and_call_original
       Budget.mode
 
       expect(OperatorAlert.count).to eq(1)
