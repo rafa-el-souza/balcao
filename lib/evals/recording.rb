@@ -162,8 +162,17 @@ module Evals
         response = nxt.call(request)
         response.buffer!
         body = response.body.join
+        parsed = parse(body)
+        # An answer FakeModel could not replay (an edge's HTML 503) goes on to
+        # the SDK as it came, which retries it as in production; the attempt
+        # is left unrecorded (the review of #66, C4).
+        unless parsed
+          @broken ||= "a #{response.status} whose body is not JSON"
+          return response
+        end
+
         kept = HEADERS.filter_map { |name| [ name, response.headers[name] ] if response.headers[name] }.to_h
-        @responses << { "request" => sent, "status" => response.status, "headers" => kept.presence, "body" => JSON.parse(body) }.compact
+        @responses << { "request" => sent, "status" => response.status, "headers" => kept.presence, "body" => parsed }.compact
         @products.merge!(Product.where(id: body.scan(UUID).uniq).pluck(:id, :sku).to_h)
         response
       rescue Anthropic::Errors::APITimeoutError => e
@@ -172,6 +181,14 @@ module Evals
       rescue StandardError => e
         @broken ||= "#{e.class}: #{e.message}"
         raise
+      end
+
+      private
+
+      def parse(body)
+        JSON.parse(body)
+      rescue JSON::ParserError
+        nil
       end
     end
 

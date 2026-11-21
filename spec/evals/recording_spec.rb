@@ -323,6 +323,27 @@ RSpec.describe "NFR-08 SR-29 the recorded fast subset" do
   end
 
   describe Evals::Recording::Recorder do
+    # The review of #66, C4: an answer whose body is not JSON (an edge's HTML
+    # 503) reaches the SDK as production gets it, so it is retried there, and
+    # the attempt is marked unrecordable.
+    it "passes an answer whose body is not JSON on untouched, marking the attempt unrecordable" do
+      answers = [ Anthropic::APIResponse.new(status: 503, headers: { "content-type" => "text/html" }, body: "<html>bad gateway</html>"),
+                  reply("[pt] Oi.") ]
+      network = lambda do |request, _nxt|
+        answer = answers.shift
+        next answer.class.new(status: answer.status, headers: answer.headers, body: answer.body.to_a.join, request:) if answer.is_a?(Anthropic::APIResponse)
+
+        Anthropic::APIResponse.new(status: 200, headers: { "content-type" => "application/json" }, body: JSON.generate(answer[:body]), request:)
+      end
+      recorder = described_class.new
+      client = Anthropic::Client.new(api_key: "fake-model", max_retries: 1, initial_retry_delay: 0, middleware: [ recorder, network ])
+
+      message = client.messages.create(model: "claude-opus-5-5", max_tokens: 10, messages: [ { role: "user", content: "oi" } ])
+
+      expect(message.content.last.text).to eq("[pt] Oi.")
+      expect(recorder.broken).to include("503", "not JSON")
+    end
+
     it "keeps a 529's status, body and retry headers, and a timeout as the fake replays it" do
       overloaded = error(:overloaded).merge(headers: { "retry-after" => "1" })
       network = FakeModel.new([ overloaded, { timeout: true }, { timeout: "open" }, reply("[pt] Oi.") ])
