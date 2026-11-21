@@ -366,24 +366,39 @@ the host around the answer.
   prints `https://t.me/BalcaoDemoBot?start=...`; open it on the phone where
   the operator's Telegram is, within fifteen minutes, and tap Start (or
   Restart). The bot answers in that chat: `Este chat está ligado ao Balcão:
-  os alertas do operador chegam aqui.` Any other answer (the agreement's
-  ask, the greeting) means the link was spent or expired, maybe by someone
-  else: run the command again, which also replaces any link still pending.
+  os alertas do operador chegam aqui.` Any other answer, or none, is read
+  with the "what is linked" line below, never by the answer alone:
+  - `linked_at` set a moment ago: the chat is linked, and the answer was
+    lost or came twice (a link read again after it was made answers with
+    the agreement's ask or the greeting, since its token is spent);
+  - no `linked_at`, or an old one: the link was spent by someone else or
+    expired; run the command again, which also replaces any link still
+    pending;
+  - the limit's line (`limite da demo por agora` or `por hoje`), or nothing:
+    the operator's own Telegram account is over FR-14's per-visitor limits
+    (10 messages a minute, 40 a day), which the link counts in; wait a
+    minute, or the next day, and run the command again.
   The link is a secret for its fifteen minutes; paste it nowhere else.
   What is linked: the same line with
   `'p OperatorChat.current.slice(:linked_at, :language, :link_expires_at)'`.
-  A test of the whole path, which sends a fixed line to the chat and prints
-  what became of it (`status` `sent`, or `failed` with its `error`):
-  `'p OperatorAlert.test!.slice(:status, :error)'`. Unlinking:
+  Linking sends again this month's latest alert of each kind that failed
+  because no chat was linked. A test of the whole path, which sends a fixed
+  line to the chat and prints what became of it: `'p OperatorAlert.test!.slice(:status, :error, :next_attempt_at)'`;
+  `sent` arrived, `failed` names why in `error`, and `pending` with an
+  `error` and a `next_attempt_at` failed on the way and is tried again by
+  then. Unlinking, which also revokes a link still pending:
   `'p OperatorChat.unlink!'`.
-- **The alert at the cap** (FR-14, from M3-1): when the month reaches its
-  cap the bot sends the linked chat one line naming the month, the cap and
-  the spend, once a month and cap (a cap raised and reached again sends
-  another). It is tried three times; one that cannot leave writes an error
-  line, `operator alert <id> (budget_cap): not sent, <why>`, where why is
-  `no operator chat is linked`, `Telegram refused it (403)` (the bot was
-  blocked in that chat) or the way there failing at each attempt. The
-  alerts: `'p OperatorAlert.order(:created_at).last(5).map { |a| a.slice(:kind, :key, :status, :error, :sent_at) }'`.
+- **The budget's alerts** (FR-14, from M3-1): when the month reaches its cap
+  the bot sends the linked chat one line naming the month, the cap and the
+  spend, once a month and cap (a cap raised and reached again sends
+  another); while ADR-0003's gate is closed it also sends one when the
+  month's economy pauses the demo until the month ends (once a month and
+  cap) and when the day's slice pauses it until midnight (once a day). No
+  alert names a visitor or a conversation. Each is tried three times; one
+  that cannot leave writes an error line, `operator alert <id> (<kind>): not
+  sent, <why>`, where why is `no operator chat is linked`, `Telegram refused
+  it (403)` (the bot was blocked in that chat) or the way there failing at
+  each attempt. The alerts: `'p OperatorAlert.order(:created_at).last(5).map { |a| a.slice(:kind, :key, :status, :error, :sent_at) }'`.
 - **The nightly job** runs at 03:00 São Paulo in the `job` container and
   writes one line, `nightly reset: expired N reservations, reset N
   products; deleted ...`. To run it by hand (it is safe to run again):
