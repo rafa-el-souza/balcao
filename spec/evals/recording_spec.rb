@@ -323,10 +323,11 @@ RSpec.describe "NFR-08 SR-29 the recorded fast subset" do
   end
 
   describe Evals::Recording::Recorder do
-    # The review of #66, C4: an answer whose body is not JSON (an edge's HTML
-    # 503) reaches the SDK as production gets it, so it is retried there, and
-    # the attempt is marked unrecordable.
-    it "passes an answer whose body is not JSON on untouched, marking the attempt unrecordable" do
+    # The review of #66, C4 and V3: an answer whose body is not JSON (an
+    # edge's HTML 503) reaches the SDK as production gets it, so it is retried
+    # there, and the recording keeps it as text, which the fake model serves
+    # as it came: the attempt stays recordable, and its replay retries too.
+    it "keeps an answer whose body is not JSON as text, which the SDK retries and the replay serves as it came" do
       answers = [ Anthropic::APIResponse.new(status: 503, headers: { "content-type" => "text/html" }, body: "<html>bad gateway</html>"),
                   reply("[pt] Oi.") ]
       network = lambda do |request, _nxt|
@@ -341,7 +342,15 @@ RSpec.describe "NFR-08 SR-29 the recorded fast subset" do
       message = client.messages.create(model: "claude-opus-5-5", max_tokens: 10, messages: [ { role: "user", content: "oi" } ])
 
       expect(message.content.last.text).to eq("[pt] Oi.")
-      expect(recorder.broken).to include("503", "not JSON")
+      expect(recorder.broken).to be_nil
+      expect(recorder.responses.first).to include("status" => 503, "body_text" => "<html>bad gateway</html>")
+      expect(recorder.responses.first.dig("headers", "content-type")).to eq("text/html")
+
+      replayed = FakeModel.new(recorder.responses)
+      again = FakeModel::Client.new(replayed, api_key: "fake-model", max_retries: 1, initial_retry_delay: 0)
+      expect(again.messages.create(model: "claude-opus-5-5", max_tokens: 10, messages: [ { role: "user", content: "oi" } ]).content.last.text)
+        .to eq("[pt] Oi.")
+      expect(replayed.left).to eq(0)
     end
 
     it "keeps a 529's status, body and retry headers, and a timeout as the fake replays it" do

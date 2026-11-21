@@ -12,6 +12,8 @@
 #
 #   { "responses": [ { "status": 200, "body": { ...a Messages API response... } },
 #                    { "status": 529, "body": { "type": "error", ... } },
+#                    { "status": 503, "headers": { "content-type": "text/html" },
+#                      "body_text": "<html>...</html>" },
 #                    { "timeout": true },
 #                    { "timeout": "open" },
 #                    { "timeout": "body" } ] }
@@ -58,8 +60,8 @@ class FakeModel
 
     Anthropic::APIResponse.new(
       status: response.fetch(:status),
-      headers: { "content-type" => "application/json" }.merge(response.fetch(:headers, {})),
-      body: JSON.generate(response.fetch(:body)),
+      headers: { "content-type" => "application/json" }.merge(response.fetch(:headers, {}).transform_keys(&:to_s)),
+      body: response.key?(:body_text) ? response.fetch(:body_text) : JSON.generate(response.fetch(:body)),
       request:
     )
   end

@@ -138,8 +138,9 @@ module Evals
     def products = data.fetch("products", {})
 
     # The SDK's middleware that keeps each attempt's answer as the API gave
-    # it, in the shape FakeModel replays: the status, the body and the
-    # headers that steer a retry, or a timeout, true once the request was on
+    # it, in the shape FakeModel replays: the status, the body (as text, with
+    # its type, when it is not JSON) and the headers that steer a retry, or a
+    # timeout, true once the request was on
     # its way and "open" when it never was (ModelAttempts.abandoned?), with
     # the digest of the request the answer was for (Recording.request), and
     # the sku of every product an answer names by its id, read in the
@@ -163,15 +164,17 @@ module Evals
         response.buffer!
         body = response.body.join
         parsed = parse(body)
-        # An answer FakeModel could not replay (an edge's HTML 503) goes on to
-        # the SDK as it came, which retries it as in production; the attempt
-        # is left unrecorded (the review of #66, C4).
+        kept = HEADERS.filter_map { |name| [ name, response.headers[name] ] if response.headers[name] }.to_h
+        # An answer whose body is not JSON (an edge's HTML 503) goes on to the
+        # SDK as it came, which retries it as in production, and is kept as
+        # text with its type, which FakeModel serves as it came (the review
+        # of #66, C4 and V3).
         unless parsed
-          @broken ||= "a #{response.status} whose body is not JSON"
+          kept["content-type"] = response.headers["content-type"] if response.headers["content-type"]
+          @responses << { "request" => sent, "status" => response.status, "headers" => kept.presence, "body_text" => body }.compact
           return response
         end
 
-        kept = HEADERS.filter_map { |name| [ name, response.headers[name] ] if response.headers[name] }.to_h
         @responses << { "request" => sent, "status" => response.status, "headers" => kept.presence, "body" => parsed }.compact
         @products.merge!(Product.where(id: body.scan(UUID).uniq).pluck(:id, :sku).to_h)
         response
