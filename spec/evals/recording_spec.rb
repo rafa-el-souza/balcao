@@ -60,7 +60,7 @@ RSpec.describe "NFR-08 SR-29 the recorded fast subset" do
 
       kept = recording(greeting)
       expect(kept["responses"].map { |response| response.except("request") }).to eq(JSON.parse(JSON.generate(api)))
-      expect(kept["responses"].map { |response| response["request"] }).to all(match(/\A\h{16}\z/))
+      expect(kept["responses"].map { |response| response["request"] }).to all(include("messages" => match(/\A\h{16}\z/)))
       expect(kept["digests"]).to eq(Evals::Recording.digests(greeting))
       expect(kept["route"]).to eq("model" => "claude-opus-5-5", "effort" => "low")
       expect(kept["commit"]).to eq("5594ff9")
@@ -242,6 +242,19 @@ RSpec.describe "NFR-08 SR-29 the recorded fast subset" do
         reply("[pt] Pronto, reservei duas caixas. O código está abaixo."), check ]
     end
 
+    # The deadline reaches the model as the tool's result says it, so a rule
+    # of it changed is a request the recording never saw (#66's C1, the
+    # verifier's second step).
+    it "fails when the reservation's deadline the model read changed" do
+      expect(evals("--record", "--case", reservation.id)).to eq(0), out.string + err.string
+      out.truncate(0)
+      out.rewind
+      allow_any_instance_of(StoreSheet).to receive(:pickup_until).and_wrap_original { |original, *args| original.call(*args) + 1.day }
+
+      expect(replay("--case", reservation.id)).to eq(1)
+      expect(out.string).to include("differs from the recording's in its messages")
+    end
+
     it "is made again on the product's id of the replay" do
       expect(evals("--record", "--case", reservation.id)).to eq(0), out.string + err.string
       expect(recording(reservation)["products"].values).to eq([ "dipirona-500mg-10cp" ])
@@ -278,7 +291,7 @@ RSpec.describe "NFR-08 SR-29 the recorded fast subset" do
       end
 
       expect(replay("--case", delivery.id)).to eq(1)
-      expect(out.string).to include("the app sent another request 2 than the recording's")
+      expect(out.string).to include("the app's request 2 differs from the recording's in its messages")
     end
 
     it "passes when only what differs by design differs: the clock, the ids, a reservation's code" do

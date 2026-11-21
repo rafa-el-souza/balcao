@@ -49,15 +49,18 @@ module Evals
     UUID = /\h{8}-\h{4}-\h{4}-\h{4}-\h{12}/
     # What differs from run to run by design in a request the app sends, set
     # aside before its digest: a product's id (drawn anew by every attempt's
-    # seed), the time line the history writes for each visitor message
-    # (AgentRunner::History::SENT), a timestamp (a reservation's
-    # pickup_until), and a reservation's code in a tool's result, drawn at
-    # random. Inside a tool's result, which is JSON in a string, the quotes
-    # come escaped.
+    # seed), the time line the history writes for each visitor message and
+    # inside its notices (AgentRunner::History::SENT), which the replay's one
+    # instant cannot give each turn as it ran, and a reservation's code in a
+    # tool's result, drawn at random, also where a later turn's history gives
+    # the result back as JSON in a string, its quotes escaped. A
+    # reservation's deadline is not set aside: the replay runs at the
+    # recording's time, so the deadline the model read is computed again,
+    # and a rule of it changed fails the case (#66's C1, the verifier's
+    # second step).
     VOLATILE = [
       [ UUID, "<uuid>" ],
       [ /\b(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday), \d{4}-\d{2}-\d{2} \d{2}:\d{2}\b/, "<sent>" ],
-      [ /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})/, "<time>" ],
       [ /(\\*"code\\*":\s*\\*")[^"\\]+/, "\\1<code>" ]
     ].freeze
 
@@ -78,11 +81,15 @@ module Evals
       CatalogueSeed.entries(overlay: (CaseSet::SEEDS.join("#{seed}.yml") unless seed == "default"))
     end
 
-    # A request the app sent, by digest, with VOLATILE set aside.
+    # A request the app sent, by a digest of each of its fields (the system
+    # prompt, the tools, the messages, each parameter), so a replay names the
+    # field that changed, VOLATILE set aside.
     def self.request(body)
-      text = JSON.generate(body)
-      VOLATILE.each { |pattern, mark| text = text.gsub(pattern, mark) }
-      Digest::SHA256.hexdigest(text)[0, 16]
+      body.to_h.to_h do |field, value|
+        text = JSON.generate(value)
+        VOLATILE.each { |pattern, mark| text = text.gsub(pattern, mark) }
+        [ field.to_s, Digest::SHA256.hexdigest(text)[0, 16] ]
+      end
     end
 
     def self.route
@@ -238,10 +245,11 @@ module Evals
     # by its sku, has in the replay's catalogue, read when its request comes,
     # after the attempt's seed. It notes the first request that differs from
     # the one the answer was recorded for (Recording.request), by its
-    # position, and serves the answer all the same, so the run ends and the
-    # replay names it.
+    # position and the fields that differ, and serves the answer all the
+    # same, so the run ends and the replay names it.
     class Replayed < FakeModel
-      # The first request that differed, as "request N", or nil.
+      # The first request that differed, as "request N differs from the
+      # recording's in its messages", or nil.
       attr_reader :differed
 
       def initialize(recording)
@@ -252,14 +260,22 @@ module Evals
 
       def call(request, nxt)
         if @responses.any?
-          recorded = @responses[0][:request]
-          @differed ||= "request #{@requests.size + 1}" if recorded && recorded != Recording.request(request.body)
+          compare(@responses[0][:request], request.body) unless @differed
           @responses[0] = current(@responses[0]) if @products.any?
         end
         super
       end
 
       private
+
+      def compare(recorded, body)
+        return unless recorded
+
+        recorded = recorded.to_h.transform_keys(&:to_s)
+        sent = Recording.request(body)
+        fields = (recorded.keys | sent.keys).reject { |field| recorded[field] == sent[field] }
+        @differed = "request #{@requests.size + 1} differs from the recording's in its #{fields.to_sentence(locale: :en)}" if fields.any?
+      end
 
       def current(response)
         now = Product.where(sku: @products.values).pluck(:sku, :id).to_h
