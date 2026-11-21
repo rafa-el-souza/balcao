@@ -1,6 +1,10 @@
 # The day-1 CI set of design §9.1 (NFR-08): lint, static security analysis,
-# dependency audit, the suites, locale-key parity and the secret scan. CI holds
-# no secret and never deploys (threat model SR-29).
+# dependency audit, the suites, locale-key parity and the secret scan; and M3's
+# CI furniture (design §9.2): actionlint, SR-25's static secrets check and
+# SR-38's hooks check as their own step, the coverage threshold, the recorded
+# fast evals and NFR-10's gate. CI holds no secret and never deploys (threat
+# model SR-29). The jobs keep their names, which the branch protection
+# requires.
 name: CI
 
 on:
@@ -40,6 +44,9 @@ jobs:
 
       - name: bundler-audit (threat model SR-27)
         run: bin/bundler-audit
+
+      - name: actionlint over the workflows, shellcheck inside (design NFR-08)
+        run: bin/actionlint
 
   ruby_test:
     name: "Ruby: RSpec"
