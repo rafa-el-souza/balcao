@@ -372,8 +372,13 @@ development account, which has no sudo:
    `bin/setup` turns on the repository's hooks, which would then run
    repository code in this account at every commit (#1's review, SR-38).
 4. The production key pair, made in this account, never copied out of it,
-   with a passphrase kept in the owner's password manager:
-   `ssh-keygen -t ed25519 -f ~/.ssh/balcao-prod`. Its public half goes into
+   with a long passphrase the owner's password manager generates and keeps:
+   `ssh-keygen -t ed25519 -a 100 -C balcao-prod -f ~/.ssh/balcao-prod`.
+   `-a 100` gives the passphrase's key derivation a hundred rounds where
+   the default is sixteen, so each guess at a stolen file costs about six
+   times as much, and an unlock about 0.6 s (measured on 2026-11-24), once
+   a session; `-C` keeps the account's and the machine's names out of the
+   public half. Its public half goes into
    the temporary copy of `ops/cloud-init.yml` the production host is made
    from (the cut, below). A deploy session holds it in an agent of its own
    for an hour at most (the checklist, below).

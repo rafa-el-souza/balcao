@@ -149,11 +149,12 @@ RSpec.describe "SR-37 SR-38 the operator's account and checklist in the runbook"
     expect(rotation).not_to include("from the operator's Ruby line in production")
   end
 
-  # The production cut (M3-7): the production key has a passphrase, held for
-  # a deploy session by an agent of its own for an hour at most, killed at
-  # the session's end, so no unlocked key outlives the session in the VM.
+  # The production cut (M3-7): the production key has a passphrase, derived
+  # in a hundred rounds, held for a deploy session by an agent of its own for
+  # an hour at most, killed at the session's end, so no unlocked key outlives
+  # the session in the VM.
   it "holds the production key in an agent of the session's own, for an hour at most, killed at its end" do
-    expect(account.squish).to include("with a passphrase")
+    expect(account.squish).to include("with a long passphrase", "`ssh-keygen -t ed25519 -a 100 -C balcao-prod -f ~/.ssh/balcao-prod`")
     expect(checklist).to include('eval "$(ssh-agent -s)" >/dev/null && ssh-add -t 1h ~/.ssh/balcao-prod')
     expect(checklist).to include("`ssh-agent -k`")
   end
