@@ -845,7 +845,9 @@ this order; *owner* marks the steps that are the owner's alone.
    below: a fresh database has none): the link's Start reaches production
    through its webhook alone. Between step 4 and this task, production's
    Telegram watch may tell its heartbeat a failure, the webhook being the
-   MVP host's still; the task's next watch, ten minutes on, brings it up.
+   MVP host's still; the watches after the task bring it up once Telegram's
+   backlog of updates kept meanwhile has drained (the watch reports updates
+   waiting since a delivery error until then).
 8. *Owner:* the smoke on production, and within ten minutes the canary's
    line and the Telegram watch's; in the monitor's console, production's
    two heartbeats up, not pending.
