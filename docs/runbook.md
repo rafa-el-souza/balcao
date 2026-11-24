@@ -172,7 +172,10 @@ host and the rehearsal hosts.
 ## Host checklist (SR-24)
 
 Inside the host, as `deploy`, through
-`kamal server exec -d ensaio '<command>'`:
+`kamal server exec -d ensaio '<command>'` on a rehearsal host, or
+`kamal server exec '<command>'` from the operator account on the production host
+(no destination: `-d ensaio` there renders the rehearsal's file, which stops
+at its missing host; #75's V4):
 
 | Check | Command | Expected |
 |---|---|---|

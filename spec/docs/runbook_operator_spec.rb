@@ -250,4 +250,14 @@ RSpec.describe "SR-37 SR-38 the operator's account and checklist in the runbook"
     expect(outside).to include("a rehearsal host's with `hcloud firewall describe <firewall>`")
     expect(outside).to include("the production host's on the firewall's page of the provider's web console")
   end
+
+  # PR #75's V4 (the verifier, dono): the checklist ran every inside check
+  # with `-d ensaio`, which in the operator account renders the rehearsal's
+  # file and stops at ENSAIO_HOST, while the cut's step 2 runs it on the
+  # production host.
+  it "runs the host checklist's inside checks on production without the rehearsal's destination" do
+    host = section("Host checklist (SR-24)").squish
+
+    expect(host).to include("`kamal server exec '<command>'` from the operator account on the production host")
+  end
 end
