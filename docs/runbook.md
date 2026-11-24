@@ -680,7 +680,12 @@ and the demo's stays with the demo. It runs in the rehearsal's own mode
   beside the real one (#75's C1). The env file every rehearsal command
   loads keeps the two the same; another model is another host, or a deploy
   watched to its end (one that fails can leave the `web` and `job`
-  containers' secrets apart).
+  containers' secrets apart). Before it, read the dev/eval key's month on
+  the model console's usage page: the host's cap is its own ledger, which
+  starts at zero on every host, so the month's spend there plus the host's
+  US$ 10 stays under the key's console limit of US$ 20, which also pays the
+  eval runs, or the console cuts the key for the rest of the month (#75's
+  C2).
 - **noindex on every answer** (`NOINDEX=true`, `X-Robots-Tag: noindex`): its
   name is in the certificate logs within minutes. `robots.txt` lets every
   page be crawled, as on the demo, since a crawler reads noindex only on a
@@ -889,8 +894,9 @@ the host around the answer.
 
 - **The cap** is `BUDGET_CAP_USD` in the destination's `env.clear`: 100 in
   `config/deploy.yml` (production), 10 in `config/deploy.ensaio.yml` (a
-  rehearsal host on the real model, and the MVP host before the cut, whose
-  dev/eval key has a console limit of US$ 20). A new value
+  rehearsal host on the real model, its ledger starting at zero on each
+  host, and the MVP host before the cut, whose dev/eval key has a console
+  limit of US$ 20). A new value
   is a deploy. **Resuming a month the cap paused** (FR-14, from M3-1): a
   raised cap resumes it at once, in normal below 70 % of the new cap and in
   economy above it; but while ADR-0003's gate is closed (below) an economy

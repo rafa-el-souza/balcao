@@ -203,4 +203,16 @@ RSpec.describe "SR-37 SR-38 the operator's account and checklist in the runbook"
     expect(Rails.root.join("config/deploy.ensaio.yml").read).not_to include("for one deploy")
     expect(Rails.root.join(".env.example").read).to match(/^ENSAIO_MODEL_ADAPTER=$/)
   end
+
+  # PR #75's C2 (the verifier: real with conditions, dono): the cap is one
+  # host's ledger, which starts at zero on every rehearsal host, so it fences
+  # no month of the shared dev/eval key; the key's console limit does, read
+  # before a real-model rehearsal.
+  it "says the rehearsal's cap is one host's, and reads the dev/eval key's month before a real-model rehearsal" do
+    flow = section("Rehearsal hosts (from M3): the per-slice flow").squish
+    budget = section("The budget, the nightly job and the logs (from PR-16)").squish
+
+    expect(flow).to include("read the dev/eval key's month on the model console's usage page")
+    expect(budget).to include("its ledger starting at zero on each host")
+  end
 end

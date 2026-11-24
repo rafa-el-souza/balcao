@@ -46,10 +46,13 @@ ssh:
     - <%= ENV.fetch("ENSAIO_SSH_CONFIG") %>
 
 # Every answer says noindex: a rehearsal host's name is in the certificate
-# logs within minutes (design §8). The cap is the dev/eval key's: its console
-# limit of US$ 20 a month also pays the eval runs, so a rehearsal on the real
-# model pauses with its fixed reply at US$ 10 before that limit cuts the key
-# off (FR-14; the owner's decision of 2026-11-14, for the MVP host).
+# logs within minutes (design §8). The cap is one host's: its ledger lives in
+# the host's own database and starts at zero on every rehearsal host, so a
+# real-model host pauses with its fixed reply at US$ 10, half the dev/eval
+# key's console limit of US$ 20 a month, which also pays the eval runs (FR-14;
+# the owner's decision of 2026-11-14, for the MVP host). That console limit is
+# what fences the key's month across hosts, read before a real-model
+# rehearsal (docs/runbook.md, the rehearsal flow).
 #
 # This list replaces the base's (Kamal deep-merges a destination, a list
 # whole), so Kamal injects only these, whatever the rehearsal env file holds:

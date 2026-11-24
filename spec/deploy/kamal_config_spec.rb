@@ -95,10 +95,11 @@ RSpec.describe "SR-38 the rehearsal destination inherits nothing production-spec
 
   # FR-14, ADR-0003: production keeps the design's US$ 100. A rehearsal host
   # on the real model runs on the dev/eval key, whose console limit of US$ 20
-  # a month also pays the eval runs, so its cap is US$ 10 (the owner's
-  # decision of 2026-11-14 for the MVP host, which ran on it): the host pauses
-  # with its fixed reply before the console's limit cuts the key off.
-  it "caps the month's model spend at US$ 100 in production and at US$ 10 on a rehearsal host" do
+  # a month also pays the eval runs; its cap of US$ 10 (the owner's decision
+  # of 2026-11-14 for the MVP host, which ran on it) is its own ledger's,
+  # which starts at zero on every host, so the console limit alone fences the
+  # key's month across hosts (#75's C2).
+  it "caps the month's model spend at US$ 100 in production and each rehearsal host's own ledger at US$ 10" do
     expect(base.dig("env", "clear", "BUDGET_CAP_USD")).to eq "100"
     KamalConfigHelpers::REHEARSAL_MODELS.each do |model|
       expect(rehearsal(model:).dig("env", "clear", "BUDGET_CAP_USD")).to eq("10"), model.inspect
