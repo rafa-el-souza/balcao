@@ -460,7 +460,12 @@ never from a shell start-up file. The production key is held for the
 session by an agent of its own, its passphrase typed once, for an hour at
 most (`ssh-add` again when a command asks for it):
 `eval "$(ssh-agent -s)" >/dev/null && ssh-add -t 1h ~/.ssh/balcao-prod`;
-the session ends with `ssh-agent -k`, after step 9.
+the session ends with `ssh-agent -k`, after step 9. The session's shell
+turns its history expansion off first, `set +H`: several commands below and
+in the budget's section carry a `!` inside double quotes
+(`OperatorChat.link_url!`, `OperatorAlert.test!`, `Budget.force!`), which an
+interactive bash reads as a history reference and refuses with `event not
+found` before anything runs (met at the cut, 2026-11-24).
 
 1. `git fetch origin`, then read the CI of `origin/main`'s commit:
 

@@ -299,4 +299,15 @@ RSpec.describe "SR-37 SR-38 the operator's account and checklist in the runbook"
 
     expect(down).to include("on its own protected primary IP, chosen again instead of a new one so the `A` record stays")
   end
+
+  # The production cut (M3-7, 2026-11-24): in the operator's interactive bash
+  # a `!` inside double quotes is a history reference, and the runbook's
+  # `OperatorChat.link_url!` line stopped at `event not found` before it ran;
+  # the session turns history expansion off first.
+  it "turns off the interactive shell's history expansion, since the runbook's commands carry a bang inside double quotes" do
+    bangs = runbook.scan(/"bin\/rails runner '[^']*![^']*'"/)
+
+    expect(bangs).not_to be_empty
+    expect(checklist).to include("`set +H`")
+  end
 end
