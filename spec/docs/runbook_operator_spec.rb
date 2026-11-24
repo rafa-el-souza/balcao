@@ -270,4 +270,15 @@ RSpec.describe "SR-37 SR-38 the operator's account and checklist in the runbook"
     expect(flow).to include("the owner reads the dev/eval key's month on the model console's usage page")
     expect(flow).to include("plus the eval runs the slice will make on the same key")
   end
+
+  # PR #75's fix review, R2 (dono): the cut's step 9 quoted the rehearsal
+  # model's ERB as it was before C1's fix, under which a blank value stopped
+  # Kamal, where the file now reads it as the fake model.
+  it "says the rehearsal model's rendering in the cut's step 9 as config/deploy.ensaio.yml does it" do
+    step9 = section("The production cut (M3-7)").squish[/9\. The session.*?(?= 10\. )/]
+
+    expect(step9).not_to include('ENV.fetch("ENSAIO_MODEL_ADAPTER", "fake")')
+    expect(step9).to include("the fake model when it is unset or blank")
+    expect(step9).to include("with `ENSAIO_MODEL_ADAPTER` unset, blank and set to `real`")
+  end
 end

@@ -859,14 +859,16 @@ this order; *owner* marks the steps that are the owner's alone.
    owner deletes the MVP host's two heartbeats in the monitor's console;
    the pull request of M3-7 points `config/deploy.ensaio.yml` at
    `ensaio.rafasouza.dev.br`, the proxy's host and `APP_HOST`, with the
-   rehearsal's mode (M3-6b): `MODEL_ADAPTER` read with ERB as
-   `ENV.fetch("ENSAIO_MODEL_ADAPTER", "fake")`, the destination's own
-   `env.secret` list naming `ANTHROPIC_API_KEY` only when that reads `real`
-   (a Kamal destination's list replaces the base's), and `NOINDEX: "true"`;
+   rehearsal's mode (M3-6b): `MODEL_ADAPTER` read with ERB from
+   `ENSAIO_MODEL_ADAPTER`, the fake model when it is unset or blank, the
+   real one when it reads `real`, any other value stopping Kamal at the
+   file; the destination's own `env.secret` list naming `ANTHROPIC_API_KEY`
+   only beside the real model and never the two heartbeat URLs (a Kamal
+   destination's list replaces the base's); and `NOINDEX: "true"`.
    `spec/deploy/kamal_config_spec.rb` holds the destination to the boot's
-   rule, and the cut's pull request has it render the destination both
-   ways, with `ENSAIO_MODEL_ADAPTER` unset and set to `real`, so the
-   real-model rehearsal's lines are read too (#68's finder, its note 7).
+   rule, rendering it each way, with `ENSAIO_MODEL_ADAPTER` unset, blank and
+   set to `real`, so the real-model rehearsal's lines are read too (#68's
+   finder, its note 7; #75's fix review, R2).
    The rehearsal env file drops the two heartbeat URLs and the demo's
    bot token for a throwaway one, and its `TURNSTILE_SECRET_KEY` becomes
    Cloudflare's published test secret.
