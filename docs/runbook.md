@@ -45,8 +45,10 @@ session** is the coding session in the development account.
 **What the commands need.** They run from a checkout of this repository in
 the deploying account, with that account's env file for the destination
 (its place is the account's own, never written in the repository), its SSH
-key and ssh config, the provider's CLI logged in to the account's cloud
-project, and `gh` logged in to GitHub. The outside consoles (the model's,
+key and ssh config, the provider's CLI logged in to the rehearsal project
+(the development account's alone: the production project holds no API
+token, and the operator reads it in the provider's web console), and `gh`
+logged in to GitHub. The outside consoles (the model's,
 the monitor's, the cloud provider's, Cloudflare's, and the Telegram account
 that owns the bot) are the owner's, and the monitor's e-mails reach him;
 without them, someone covering can still pause the demo (The budget, below)
@@ -74,23 +76,30 @@ account, below).
 
 ## The host contract
 
-What every host is, the MVP host now and the production and rehearsal hosts
-from M3.
+What every host is: the MVP host until the cut, and from it the production
+host and the rehearsal hosts.
 
-- **Made from `ops/cloud-init.yml` and nothing else**, with the cloud
-  provider's CLI: a temporary copy outside the repository has the deploying
-  account's public key in place of `<DEPLOY_PUBLIC_KEY>`; Ubuntu 24.04;
-  type CX23 (2 vCPU, 4 GB, 40 GB, x86). The image Kamal builds is amd64, so
-  the type is never an Arm one.
-- **On the reserved IPv4 and behind the cloud firewall.** The reserved IP
-  carries the `A` record, so a new host on it needs no DNS change. The
-  cloud firewall admits TCP 22, 80, 443 and ICMP inbound, nothing else;
+- **Made from `ops/cloud-init.yml` and nothing else:** a temporary copy
+  outside the repository has the deploying account's public key in place
+  of `<DEPLOY_PUBLIC_KEY>`; Ubuntu 24.04; type CX23 (2 vCPU, 4 GB, 40 GB,
+  x86). The image Kamal builds is amd64, so the type is never an Arm one.
+  A rehearsal host, as the MVP host before it, is made with the provider's
+  CLI in the rehearsal project; the production host from the provider's web
+  console in the production project, which holds no API token (The
+  production cut, step 2; #75's C3).
+- **On a primary IPv4 and behind the cloud firewall.** A rehearsal host
+  takes the reserved IP, which carries the `A` record of
+  `ensaio.rafasouza.dev.br` (the MVP host's carried the public name's), so
+  a new host on it needs no DNS change; the production host has a primary
+  IPv4 of its own, protected against deletion, which carries the public
+  name's and outlives a host made again (SR-26). The cloud firewall admits TCP 22, 80, 443 and ICMP inbound, nothing else;
   there is no host firewall (Docker's rules would bypass it). The host has
   no public IPv6: it is created without one (the provider would otherwise
   add a free IPv6 /64 as a second primary IP), because no `AAAA` record
   points at it and an address nobody uses is one door fewer.
-- **The reserved IP belongs to one location**, and a host can use it only
-  in that location. When the type is out of stock there, the owner decides
+- **A primary IP belongs to one location**, and a host can use it only
+  in that location: the reserved IP the rehearsal hosts', production's
+  its own. When the type is out of stock there, the owner decides
   between waiting and moving: a reserved IP in another location is a new
   address, so the `A` record changes and its TTL (one hour) passes before
   the certificate can be issued. ADR-0011: "the location changes, not the
@@ -780,16 +789,17 @@ this order; *owner* marks the steps that are the owner's alone.
    hosts are billed together only for the hours until step 9 (the owner
    chose on 2026-11-23 not to pay for two machines longer). It is made in
    the production project from the provider's web console, which holds no
-   API token, as the MVP host was made: `ops/cloud-init.yml` with the
-   operator account's public key in place of the placeholder (the file is
-   carried from the operator's VM to the browser by its console, and its
-   SHA-256 compared on both sides), CX23, Ubuntu 24.04, no IPv6, a primary
+   API token, from the same file, with the settings listed here:
+   `ops/cloud-init.yml` with the operator account's public key in place of
+   the placeholder (the file is carried from the operator's VM to the
+   browser by its console, and its SHA-256 compared on both sides), CX23, Ubuntu 24.04, no IPv6, a primary
    IPv4 of its own, protected against deletion (it outlives a host made
    again, SR-26), the operator's public key chosen as the server's SSH key
    (so no root password is mailed), a cloud firewall that admits TCP 22
    and ICMP alone until step 5 opens 80 and 443. The provider's stock of
    CX23 comes and goes by the hour: production may take another EU
-   location than the MVP host's (on 2026-11-24 only Falkenstein had it),
+   location than the MVP host's (at 01:30 UTC on 2026-11-24 only
+   Falkenstein had it, and Helsinki again half an hour later),
    its primary IP made in that same location; with none in the EU, the
    cut moves to another day, the demo serving meanwhile. Then its address
    in the operator account's ssh config (above),

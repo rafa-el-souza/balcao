@@ -215,4 +215,20 @@ RSpec.describe "SR-37 SR-38 the operator's account and checklist in the runbook"
     expect(flow).to include("read the dev/eval key's month on the model console's usage page")
     expect(budget).to include("its ledger starting at zero on each host")
   end
+
+  # PR #75's C3 (the verifier: real, dono): the host contract made every host
+  # from M3 with the provider's CLI while the cut's step 2 made production
+  # from the web console "as the MVP host was made", which the CLI made.
+  it "names one way to make each host: a rehearsal host with the CLI, production's from the web console" do
+    contract = section("The host contract").squish
+    step2 = section("The production cut (M3-7)").squish[/2\. \*Owner:\* the production host.*?(?= 3\. )/]
+    needs = runbook[/\*\*What the commands need\.\*\*.*?\n\n/m].squish
+
+    expect(step2).not_to include("as the MVP host was made")
+    expect(step2).to include("from the same file, with the settings listed here")
+    expect(contract).not_to include("and nothing else**, with the cloud provider's CLI")
+    expect(contract).to include("the production host from the provider's web console in the production project, which holds no API token")
+    expect(contract).to include("the production host has a primary IPv4 of its own, protected against deletion")
+    expect(needs).to include("the provider's CLI logged in to the rehearsal project")
+  end
 end
