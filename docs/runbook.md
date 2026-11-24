@@ -763,13 +763,12 @@ and the demo's stays with the demo. It runs in the rehearsal's own mode
    Since M3-6b it reads noindex too: on every answer of a rehearsal host,
    on none of the public name's but the trace page's own.
 6. **Delete it** at the session's end: `kamal registry remove -d ensaio`
-   if `bin/deploy` could not; then `hcloud server poweroff ensaio`,
-   `hcloud primary-ip unassign ensaio` and `hcloud server delete ensaio`.
-   The reserved IP is protected against deletion, and the provider deletes
-   no server that holds a protected primary IP; a primary IP leaves a
-   server only while it is off. Then the resource check of "End of a
-   deploy session" with the server list empty: the reserved IP, unassigned,
-   and the cloud firewall are the only standing items. After a real-model
+   if `bin/deploy` could not, then `hcloud server delete ensaio`. The
+   reserved IP, protected against deletion and never deleted with its
+   server, stays (the cut's step 9 deleted the running MVP host this way on
+   2026-11-24, and the IP stayed, unassigned). Then the resource check of
+   "End of a deploy session" with the server list empty: the reserved IP,
+   unassigned, and the cloud firewall are the only standing items. After a real-model
    rehearsal, its line is deleted, and the rehearsal env file has no
    `ENSAIO_MODEL_ADAPTER=real` line (`grep -c '^ENSAIO_MODEL_ADAPTER=real' <the env file>` prints 0;
    a blank one is the fake model): the next host would otherwise take the
@@ -876,8 +875,7 @@ this order; *owner* marks the steps that are the owner's alone.
    line and the Telegram watch's; in the monitor's console, production's
    two heartbeats up, not pending.
 9. The session, after the name's TTL (an hour) has passed: the MVP host
-   deleted (Rehearsal hosts, step 6: powered off, the reserved IP taken off
-   it, deleted) and the resource check; the
+   deleted (Rehearsal hosts, step 6) and the resource check; the
    owner deletes the MVP host's two heartbeats in the monitor's console;
    the pull request of M3-7 points `config/deploy.ensaio.yml` at
    `ensaio.rafasouza.dev.br`, the proxy's host and `APP_HOST`, with the

@@ -173,16 +173,19 @@ RSpec.describe "SR-37 SR-38 the operator's account and checklist in the runbook"
     expect(link).to be > task
   end
 
-  # The production cut (M3-7): the reserved IP is protected against deletion,
-  # and the provider deletes no server holding a protected primary IP, which
-  # leaves a server only while it is off (#68's session, read on the
-  # provider's FAQ; done at the cut's step 9).
-  it "deletes a rehearsal host only after powering it off and taking the reserved IP off it" do
+  # The production cut (M3-7), measured at its step 9 on 2026-11-24: the
+  # provider deleted the running MVP host with the reserved IP attached, and
+  # the IP, protected against deletion and never auto-deleted, stayed,
+  # unassigned. The runbook had read the provider's FAQ as refusing that
+  # deletion and powered off and unassigned first; the plain deletion is the
+  # step, and the resource check reads the IP left unassigned.
+  it "deletes a rehearsal host by name alone, the reserved IP staying unassigned" do
     delete = section("Rehearsal hosts (from M3): the per-slice flow").squish
-    steps = [ "hcloud server poweroff ensaio", "hcloud primary-ip unassign ensaio", "hcloud server delete ensaio" ].map { |line| delete.index(line) }
+    deletion = delete[delete.index("6. **Delete it**")..]
 
-    expect(steps).to all(be_an(Integer))
-    expect(steps).to eq steps.sort
+    expect(deletion).to include("then `hcloud server delete ensaio`")
+    expect(deletion).not_to include("hcloud server poweroff", "hcloud primary-ip unassign")
+    expect(deletion).to include("the reserved IP, unassigned")
   end
 
   # PR #75's C1 (the verifier: real with conditions, dono): `kamal app exec`
