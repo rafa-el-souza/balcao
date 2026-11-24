@@ -1,33 +1,7 @@
 require "rails_helper"
-require "erb"
-require "yaml"
 
-# The base configuration is production, deployed only by the owner; the
-# destination ensaio is the rehearsal, deployed by bin/deploy (ADR-0011).
-# Kamal deep-merges the destination file over the base, so the destination
-# must replace every production-specific value rather than inherit it.
-module KamalConfigHelpers
-  REHEARSAL_ENV = {
-    "ENSAIO_HOST" => "203.0.113.10",
-    "ENSAIO_SSH_KEY" => "/rehearsal/key",
-    "ENSAIO_SSH_CONFIG" => "/rehearsal/ssh_config"
-  }.freeze
-
-  # Kamal renders each file with ERB against the deploying shell's environment.
-  def load_kamal(file, env = {})
-    saved = env.keys.to_h { |name| [ name, ENV[name] ] }
-    env.each { |name, value| ENV[name] = value }
-    YAML.safe_load(ERB.new(Rails.root.join(file).read, trim_mode: "-").result, aliases: true)
-  ensure
-    saved&.each { |name, value| ENV[name] = value }
-  end
-
-  def base = load_kamal("config/deploy.yml")
-  def rehearsal_file = load_kamal("config/deploy.ensaio.yml", REHEARSAL_ENV)
-  def rehearsal = base.deep_merge(rehearsal_file)
-  def roles(config) = config.fetch("servers")
-end
-
+# KamalConfigHelpers (spec/support/kamal_config.rb) renders the two files as
+# Kamal does.
 RSpec.describe "SR-38 the rehearsal destination inherits nothing production-specific" do
   include KamalConfigHelpers
 
@@ -56,46 +30,81 @@ RSpec.describe "SR-38 the rehearsal destination inherits nothing production-spec
     expect(rehearsal.dig("ssh", "keys_only")).to be true
   end
 
-  it "sets the rehearsal's public name explicitly, the same for the proxy and APP_HOST" do
-    [ base, rehearsal ].each do |config|
-      expect(config.dig("env", "clear", "APP_HOST")).to eq config.dig("proxy", "host")
+  # The production cut (M3-7, ADR-0011): production takes the public name and
+  # the rehearsal destination its own, ensaio.rafasouza.dev.br, the name the
+  # owner's DNS record gives the reserved IP at the cut, whatever its mode.
+  it "puts the rehearsal on its own name, the same for the proxy and APP_HOST, never the public name" do
+    expect(base.dig("proxy", "host")).to eq Balcao::RequiredEnvironment::PUBLIC_HOST
+    expect(base.dig("env", "clear", "APP_HOST")).to eq Balcao::RequiredEnvironment::PUBLIC_HOST
+    KamalConfigHelpers::REHEARSAL_MODELS.each do |model|
+      expect(rehearsal(model:).dig("proxy", "host")).to eq("ensaio.rafasouza.dev.br"), model.inspect
+      expect(rehearsal(model:).dig("env", "clear", "APP_HOST")).to eq("ensaio.rafasouza.dev.br"), model.inspect
     end
-    expect(rehearsal_file.dig("proxy", "host")).to be_present
-    expect(rehearsal_file.dig("env", "clear", "APP_HOST")).to be_present
   end
 
   # Design §8, ADR-0011 (M3-6b): the boot holds the model adapter, the model
-  # key and NOINDEX to the name (config/required_environment.rb), and each
-  # destination's settings pass it: the public name runs the real model with
-  # its key and no NOINDEX; another name, a rehearsal host's, the fake model
-  # by default, no key and NOINDEX=true. So the cut (M3-7), which moves the
-  # rehearsal destination off the public name, brings the rehearsal's mode
-  # with it or fails here. Until then the rehearsal destination is the MVP
-  # host, on the public name with the dev/eval key.
-  it "sets each destination's model adapter, model key and NOINDEX as the boot takes them on its name" do
-    refused = [ base, rehearsal ].filter_map do |config|
-      clear = config.dig("env", "clear").transform_values(&:to_s)
-      named = clear.fetch("APP_HOST") == Balcao::RequiredEnvironment::PUBLIC_HOST ? ProductionEnv.public_name : ProductionEnv.complete
-      env = named.except("MODEL_ADAPTER", "NOINDEX", "ANTHROPIC_API_KEY").merge(clear)
-      env["ANTHROPIC_API_KEY"] = "a-key-of-the-console" if config.dig("env", "secret").include?("ANTHROPIC_API_KEY")
+  # key, NOINDEX and the two heartbeat URLs to the name
+  # (config/required_environment.rb). Kamal injects only the secrets a
+  # destination's env.secret lists, and a destination's list replaces the
+  # base's, so each destination passes the boot whatever its env file holds:
+  # here an env file with every secret set, the model key and production's
+  # heartbeats included, as a careless one might be. The public name runs the
+  # real model with its key, its two heartbeats and no NOINDEX; the rehearsal,
+  # the fake model by default with no key, or the real one with the dev/eval
+  # key when the rehearsal env file holds ENSAIO_MODEL_ADAPTER=real for the
+  # host's life (#75's C1), never a heartbeat, and NOINDEX=true (the
+  # runbook's production cut, step 9: each way rendered, #68's finder, its
+  # note 7).
+  it "sets each destination's model, model key, heartbeats and NOINDEX as the boot takes them on its name, whatever the env file holds" do
+    env_file = ProductionEnv.public_name.slice(*Balcao::RequiredEnvironment::INJECTED)
+    destinations = { "production" => base }.merge(KamalConfigHelpers::REHEARSAL_MODELS.to_h { |model| [ "rehearsal, #{model.inspect}", rehearsal(model:) ] })
+
+    refused = destinations.filter_map do |name, config|
+      env = env_file.slice(*config.dig("env", "secret")).merge(config.dig("env", "clear").transform_values(&:to_s))
       Balcao::RequiredEnvironment.verify!(env)
       nil
     rescue Balcao::RequiredEnvironment::Missing => e
-      "#{clear.fetch("APP_HOST")}: #{e.message}"
+      "#{name}: #{e.message}"
     end
 
     expect(refused).to eq []
     expect(base.dig("env", "clear")).to include("MODEL_ADAPTER" => "real")
     expect(base.dig("env", "clear")).not_to have_key("NOINDEX")
+    expect(rehearsal.dig("env", "clear")).to include("MODEL_ADAPTER" => "fake", "NOINDEX" => "true")
+    expect(rehearsal(model: "").dig("env", "clear")).to include("MODEL_ADAPTER" => "fake")
+    expect(rehearsal(model: "real").dig("env", "clear")).to include("MODEL_ADAPTER" => "real", "NOINDEX" => "true")
   end
 
-  # FR-14, ADR-0003: production keeps the design's US$ 100. The MVP host runs
-  # on the dev/eval key, whose console limit of US$ 20 a month also pays the
-  # eval runs, so its cap is US$ 10 (the owner's decision of 2026-11-14): the
-  # demo pauses with its fixed reply before the console's limit cuts it off.
-  it "caps the month's model spend at US$ 100 in production and at US$ 10 on the MVP host" do
+  # Threat model SR-25, A4b: the rehearsal's list is the base's less what the
+  # boot refuses off the public name, so a heartbeat URL or the model key left
+  # in the rehearsal env file never reaches a rehearsal host on the fake model.
+  it "injects into a rehearsal host the base's secrets less the heartbeats, and the model key only on the real model" do
+    injected = Balcao::RequiredEnvironment::INJECTED - Balcao::RequiredEnvironment::MONITORS
+
+    expect(rehearsal.dig("env", "secret")).to match_array(injected - [ Balcao::RequiredEnvironment::MODEL_KEY ])
+    expect(rehearsal(model: "real").dig("env", "secret")).to match_array(injected)
+    expect(base.dig("env", "secret")).to match_array(Balcao::RequiredEnvironment::INJECTED)
+  end
+
+  # A value other than the two stops Kamal at the file, before it connects,
+  # rather than a host booting the fake model on a typo of "real".
+  it "stops Kamal on a model the rehearsal does not know" do
+    [ "Real", "fake ", "true", " " ].each do |model|
+      expect { rehearsal_file(model:) }.to raise_error(RuntimeError, /ENSAIO_MODEL_ADAPTER must be fake or real/), model.inspect
+    end
+  end
+
+  # FR-14, ADR-0003: production keeps the design's US$ 100. A rehearsal host
+  # on the real model runs on the dev/eval key, whose console limit of US$ 20
+  # a month also pays the eval runs; its cap of US$ 10 (the owner's decision
+  # of 2026-11-14 for the MVP host, which ran on it) is its own ledger's,
+  # which starts at zero on every host, so the console limit alone fences the
+  # key's month across hosts (#75's C2).
+  it "caps the month's model spend at US$ 100 in production and each rehearsal host's own ledger at US$ 10" do
     expect(base.dig("env", "clear", "BUDGET_CAP_USD")).to eq "100"
-    expect(rehearsal.dig("env", "clear", "BUDGET_CAP_USD")).to eq "10"
+    KamalConfigHelpers::REHEARSAL_MODELS.each do |model|
+      expect(rehearsal(model:).dig("env", "clear", "BUDGET_CAP_USD")).to eq("10"), model.inspect
+    end
   end
 
   # Threat model SR-04: the proxy refuses a large body before Puma buffers it.

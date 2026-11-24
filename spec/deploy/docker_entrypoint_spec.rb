@@ -57,8 +57,11 @@ RSpec.describe "NFR-08 the container entrypoint, in Ruby" do
     expect(JSON.parse(cmd).last(2)).to eq([ "./bin/rails", "server" ])
     # The rehearsal's file is deep-merged over the base, so a web cmd in
     # either would replace the image's (the fix review's sister on #65).
-    %w[config/deploy.yml config/deploy.ensaio.yml].each do |file|
-      deploy = YAML.safe_load(Rails.root.join(file).read, aliases: true)
+    # Each is rendered as Kamal renders it (spec/support/kamal_config.rb).
+    helpers = Object.new.extend(KamalConfigHelpers)
+    { "config/deploy.yml" => helpers.base }.merge(KamalConfigHelpers::REHEARSAL_MODELS.to_h { |model|
+      [ "config/deploy.ensaio.yml, #{model.inspect}", helpers.rehearsal_file(model:) ]
+    }).each do |file, deploy|
       expect(deploy.dig("servers", "web")).not_to have_key("cmd"), file
     end
   end

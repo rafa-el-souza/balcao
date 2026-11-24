@@ -2175,7 +2175,9 @@ number, as in the MVP.
 
 *Block 1, what publishing the demo needs (ADR-0022).* M4-1 to M4-4, M4-6a,
 M4-6b, M2-1 to M2-3, M2-3b, M2-4, M2-4b, M2-11a, M2-11a2, M2-11a3, M3-1, M3-2,
-M3-4, M3-5, M3-6 and M3-6b are done (#44, #45, #47, #48, #51 to #56, #58 to #68). The demo is publicised on the day of
+M3-4, M3-5, M3-6, M3-6b and M3-7 are done (#44, #45, #47, #48, #51 to #56, #58 to #68, #75): production has served
+the public name since 2026-11-24, 03:35 UTC, on the owner's host, and M3's
+soak runs from then (seven days, no deploy). The demo is publicised on the day of
 M3-7, and until the console comes in block 2 the operator pauses it or
 forces a mode with the runbook's command; no visitor identity can be
 blocked before M2-7 (threat model R2).

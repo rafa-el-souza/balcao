@@ -86,7 +86,8 @@ Rails.application.configure do
   config.action_mailer.default_url_options = { host: Balcao::RequiredEnvironment.read("APP_HOST") }
   config.x.public_origin = "https://#{Balcao::RequiredEnvironment.read("APP_HOST")}"
   # Each destination's own cap (FR-14), a positive decimal checked at boot
-  # (config/required_environment.rb): 100 for production, 10 for the MVP host.
+  # (config/required_environment.rb): 100 for production, 10 for a rehearsal
+  # host on its own ledger, as for the MVP host before the cut (#75's V3).
   config.x.budget_cap_usd = BigDecimal(ENV.fetch("BUDGET_CAP_USD"))
 
   # What visitors send is encrypted at rest with these keys, which live in the

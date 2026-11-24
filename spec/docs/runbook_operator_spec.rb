@@ -148,4 +148,169 @@ RSpec.describe "SR-37 SR-38 the operator's account and checklist in the runbook"
     expect(rotation).to include("ruby -rsecurerandom -e 'puts SecureRandom.alphanumeric(<its length>)'")
     expect(rotation).not_to include("from the operator's Ruby line in production")
   end
+
+  # The production cut (M3-7): the production key has a passphrase, derived
+  # in a hundred rounds, held for a deploy session by an agent of its own for
+  # an hour at most, killed at the session's end, so no unlocked key outlives
+  # the session in the VM.
+  it "holds the production key in an agent of the session's own, for an hour at most, killed at its end" do
+    expect(account.squish).to include("with a long passphrase", "`ssh-keygen -t ed25519 -a 100 -C balcao-prod -f ~/.ssh/balcao-prod`")
+    expect(checklist).to include('eval "$(ssh-agent -s)" >/dev/null && ssh-add -t 1h ~/.ssh/balcao-prod')
+    expect(checklist).to include("`ssh-agent -k`")
+  end
+
+  # The production cut (M3-7): the operator's chat is linked by a Start that
+  # reaches the host through the bot's webhook, so linking production's
+  # before the bot's task points the webhook at it sends the Start to the MVP
+  # host, or to a refusal.
+  it "links production's operator chat only after the bot's task points the webhook at it" do
+    cut = section("The production cut (M3-7)").squish
+    task = cut.index("the bot's task in production")
+    link = cut.index("the operator's chat linked again")
+
+    expect(task).not_to be_nil
+    expect(link).not_to be_nil
+    expect(link).to be > task
+  end
+
+  # The production cut (M3-7), measured at its step 9 on 2026-11-24: the
+  # provider deleted the running MVP host with the reserved IP attached, and
+  # the IP, protected against deletion and never auto-deleted, stayed,
+  # unassigned. The runbook had read the provider's FAQ as refusing that
+  # deletion and powered off and unassigned first; the plain deletion is the
+  # step, and the resource check reads the IP left unassigned.
+  it "deletes a rehearsal host by name alone, the reserved IP staying unassigned" do
+    delete = section("Rehearsal hosts (from M3): the per-slice flow").squish
+    deletion = delete[delete.index("6. **Delete it**")..]
+
+    expect(deletion).to include("then `hcloud server delete ensaio`")
+    expect(deletion).not_to include("hcloud server poweroff", "hcloud primary-ip unassign")
+    expect(deletion).to include("the reserved IP, unassigned")
+  end
+
+  # PR #75's C1 (the verifier: real with conditions, dono): `kamal app exec`
+  # renders MODEL_ADAPTER from the shell that runs it, beside the env file the
+  # host kept from its last boot, so a model set for one deploy alone made
+  # every later app command refuse to boot (the key beside the fake model, or
+  # none beside the real one), the hand pause among them. The model is the
+  # host's for its life, in the env file every rehearsal command loads, and
+  # the end of the session checks it gone, or the next host would take the
+  # real model and its key without a word.
+  it "keeps a rehearsal host's model in the rehearsal env file for the host's life, checked gone at its deletion" do
+    flow = section("Rehearsal hosts (from M3): the per-slice flow").squish
+    deletion = flow[flow.index("6. **Delete it**")..]
+
+    expect(flow).not_to include("for that deploy alone")
+    expect(flow).to include("appends `ENSAIO_MODEL_ADAPTER=real` to the rehearsal env file before the host's first deploy")
+    expect(deletion).to include("the rehearsal env file has no `ENSAIO_MODEL_ADAPTER=real` line")
+    expect(Rails.root.join("config/deploy.ensaio.yml").read).not_to include("for one deploy")
+    expect(Rails.root.join(".env.example").read).to match(/^ENSAIO_MODEL_ADAPTER=$/)
+  end
+
+  # PR #75's C2 (the verifier: real with conditions, dono): the cap is one
+  # host's ledger, which starts at zero on every rehearsal host, so it fences
+  # no month of the shared dev/eval key; the key's console limit does, read
+  # before a real-model rehearsal.
+  it "says the rehearsal's cap is one host's, and reads the dev/eval key's month before a real-model rehearsal" do
+    flow = section("Rehearsal hosts (from M3): the per-slice flow").squish
+    budget = section("The budget, the nightly job and the logs (from PR-16)").squish
+
+    expect(flow).to include("reads the dev/eval key's month on the model console's usage page")
+    expect(budget).to include("its ledger starting at zero on each host")
+  end
+
+  # PR #75's C3 (the verifier: real, dono): the host contract made every host
+  # from M3 with the provider's CLI while the cut's step 2 made production
+  # from the web console "as the MVP host was made", which the CLI made.
+  it "names one way to make each host: a rehearsal host with the CLI, production's from the web console" do
+    contract = section("The host contract").squish
+    step2 = section("The production cut (M3-7)").squish[/2\. \*Owner:\* the production host.*?(?= 3\. )/]
+    needs = runbook[/\*\*What the commands need\.\*\*.*?\n\n/m].squish
+
+    expect(step2).not_to include("as the MVP host was made")
+    expect(step2).to include("from the same file, with the settings listed here")
+    expect(contract).not_to include("and nothing else**, with the cloud provider's CLI")
+    expect(contract).to include("the production host from the provider's web console in the production project, which holds no API token")
+    expect(contract).to include("the production host has a primary IPv4 of its own, protected against deletion")
+    expect(needs).to include("the provider's CLI logged in to the rehearsal project")
+  end
+
+  # PR #75's V2 (the verifier, dono): SR-26's trace made the production host
+  # with the provider's CLI, which the cut's step 2 makes from the web console.
+  it "traces SR-26 to the way each host is made" do
+    sr26 = YAML.safe_load_file(Rails.root.join("docs/traceability.yml")).dig("steps", "SR-26")
+
+    expect(sr26).not_to include("the production host at the cut and every rehearsal host")
+    expect(sr26).to include("the production host at the cut from the provider's web console")
+  end
+
+  # PR #75's V1 (the verifier, dono): the checklist read the production
+  # host's firewall with the provider's CLI, which the production project,
+  # holding no API token, has no context for.
+  it "reads production's cloud firewall in the provider's web console, a rehearsal host's with the CLI" do
+    outside = section("Host checklist (SR-24)").then { |host| host[host.index("From outside:")..] }.squish
+
+    expect(outside).to include("a rehearsal host's with `hcloud firewall describe <firewall>`")
+    expect(outside).to include("the production host's on the firewall's page of the provider's web console")
+  end
+
+  # PR #75's V4 (the verifier, dono): the checklist ran every inside check
+  # with `-d ensaio`, which in the operator account renders the rehearsal's
+  # file and stops at ENSAIO_HOST, while the cut's step 2 runs it on the
+  # production host.
+  it "runs the host checklist's inside checks on production without the rehearsal's destination" do
+    host = section("Host checklist (SR-24)").squish
+
+    expect(host).to include("`kamal server exec '<command>'` from the operator account on the production host")
+  end
+
+  # PR #75's fix review, R1 (dono): C2's reading left out the eval runs the
+  # same key pays during the slice, and gave the console to the session,
+  # which has none of the outside consoles.
+  it "has the owner read the dev/eval key's month, counting the slice's eval runs, before a real-model rehearsal" do
+    flow = section("Rehearsal hosts (from M3): the per-slice flow").squish
+
+    expect(flow).to include("the owner reads the dev/eval key's month on the model console's usage page")
+    expect(flow).to include("plus the eval runs the slice will make on the same key")
+  end
+
+  # PR #75's fix review, R2 (dono): the cut's step 9 quoted the rehearsal
+  # model's ERB as it was before C1's fix, under which a blank value stopped
+  # Kamal, where the file now reads it as the fake model.
+  it "says the rehearsal model's rendering in the cut's step 9 as config/deploy.ensaio.yml does it" do
+    step9 = section("The production cut (M3-7)").squish[/9\. The session.*?(?= 10\. )/]
+
+    expect(step9).not_to include('ENV.fetch("ENSAIO_MODEL_ADAPTER", "fake")')
+    expect(step9).to include("the fake model when it is unset or blank")
+    expect(step9).to include("with `ENSAIO_MODEL_ADAPTER` unset, blank and set to `real`")
+  end
+
+  # PR #75's fix review, R3 (teorico): the deletion's check counted any
+  # ENSAIO_MODEL_ADAPTER line, a blank one too, which renders the fake model.
+  it "checks at a rehearsal host's deletion for the real model's line alone" do
+    flow = section("Rehearsal hosts (from M3): the per-slice flow").squish
+    deletion = flow[flow.index("6. **Delete it**")..]
+
+    expect(deletion).to include("`grep -c '^ENSAIO_MODEL_ADAPTER=real' <the env file>` prints 0")
+  end
+
+  # PR #75's fix review, a sister of C3: a production host made again after
+  # a loss takes the protected primary IP back, or the public name's `A`
+  # record would have to move, its TTL and the certificate with it (SR-26).
+  it "makes a lost production host again on its own protected primary IP" do
+    down = section("When the monitor says the demo is down").squish
+
+    expect(down).to include("on its own protected primary IP, chosen again instead of a new one so the `A` record stays")
+  end
+
+  # The production cut (M3-7, 2026-11-24): in the operator's interactive bash
+  # a `!` inside double quotes is a history reference, and the runbook's
+  # `OperatorChat.link_url!` line stopped at `event not found` before it ran;
+  # the session turns history expansion off first.
+  it "turns off the interactive shell's history expansion, since the runbook's commands carry a bang inside double quotes" do
+    bangs = runbook.scan(/"bin\/rails runner '[^']*![^']*'"/)
+
+    expect(bangs).not_to be_empty
+    expect(checklist).to include("`set +H`")
+  end
 end

@@ -6,7 +6,7 @@
 
 steps:
   SR-24: "Host checklist in `docs/runbook.md`, run inside every new host and the cloud firewall read from outside; the containers' settings in `spec/deploy/kamal_config_spec.rb`; an external port scan recorded at M3's close."
-  SR-26: "Every host made from `ops/cloud-init.yml` with the provider's CLI: the MVP host once, the production host at the cut and every rehearsal host (`docs/runbook.md`, the rehearsal flow and the production cut)."
+  SR-26: "Every host made from `ops/cloud-init.yml`: the MVP host once and every rehearsal host with the provider's CLI, the production host at the cut from the provider's web console, on a primary IP of its own protected against deletion (`docs/runbook.md`, the host contract, the rehearsal flow and the production cut)."
   SR-33: "Names checked against real businesses before the publication (M3-6; design §10, M3-6's note): the pharmacy's name, street and phone; the Telegram updates in the specs carry invented ids and names."
   SR-37: "The operator account in `docs/runbook.md`, set up and checked by the owner before the first production deploy."
   SR-38: "The operator's checklist in `docs/runbook.md` (the deploy-path review before every production deploy); `bin/deploy` knows one destination (`spec/deploy/bin_deploy_spec.rb`); no Kamal hooks (CI's secrets and hooks step)."
