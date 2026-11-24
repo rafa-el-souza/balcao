@@ -148,4 +148,39 @@ RSpec.describe "SR-37 SR-38 the operator's account and checklist in the runbook"
     expect(rotation).to include("ruby -rsecurerandom -e 'puts SecureRandom.alphanumeric(<its length>)'")
     expect(rotation).not_to include("from the operator's Ruby line in production")
   end
+
+  # The production cut (M3-7): the production key has a passphrase, held for
+  # a deploy session by an agent of its own for an hour at most, killed at
+  # the session's end, so no unlocked key outlives the session in the VM.
+  it "holds the production key in an agent of the session's own, for an hour at most, killed at its end" do
+    expect(account.squish).to include("with a passphrase")
+    expect(checklist).to include('eval "$(ssh-agent -s)" >/dev/null && ssh-add -t 1h ~/.ssh/balcao-prod')
+    expect(checklist).to include("`ssh-agent -k`")
+  end
+
+  # The production cut (M3-7): the operator's chat is linked by a Start that
+  # reaches the host through the bot's webhook, so linking production's
+  # before the bot's task points the webhook at it sends the Start to the MVP
+  # host, or to a refusal.
+  it "links production's operator chat only after the bot's task points the webhook at it" do
+    cut = section("The production cut (M3-7)").squish
+    task = cut.index("the bot's task in production")
+    link = cut.index("the operator's chat linked again")
+
+    expect(task).not_to be_nil
+    expect(link).not_to be_nil
+    expect(link).to be > task
+  end
+
+  # The production cut (M3-7): the reserved IP is protected against deletion,
+  # and the provider deletes no server holding a protected primary IP, which
+  # leaves a server only while it is off (#68's session, read on the
+  # provider's FAQ; done at the cut's step 9).
+  it "deletes a rehearsal host only after powering it off and taking the reserved IP off it" do
+    delete = section("Rehearsal hosts (from M3): the per-slice flow").squish
+    steps = [ "hcloud server poweroff ensaio", "hcloud primary-ip unassign ensaio", "hcloud server delete ensaio" ].map { |line| delete.index(line) }
+
+    expect(steps).to all(be_an(Integer))
+    expect(steps).to eq steps.sort
+  end
 end

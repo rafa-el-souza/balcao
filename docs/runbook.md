@@ -371,10 +371,12 @@ development account, which has no sudo:
    Never `bundle install` in the checkout, and never `bin/setup` there:
    `bin/setup` turns on the repository's hooks, which would then run
    repository code in this account at every commit (#1's review, SR-38).
-4. The production key pair, made in this account, never copied out of it:
+4. The production key pair, made in this account, never copied out of it,
+   with a passphrase kept in the owner's password manager:
    `ssh-keygen -t ed25519 -f ~/.ssh/balcao-prod`. Its public half goes into
    the temporary copy of `ops/cloud-init.yml` the production host is made
-   from (the cut, below).
+   from (the cut, below). A deploy session holds it in an agent of its own
+   for an hour at most (the checklist, below).
 5. The ssh config, which resolves the alias `config/deploy.yml` names:
 
    ```
@@ -430,7 +432,11 @@ repository ships no `.kamal/hooks` (CI fails if one appears). Every step
 runs in the operator account's clone, with production's env file loaded in
 the same shell, and Kamal's clone kept in the account's own temporary
 directory: `set -a; . <the file>; set +a; export TMPDIR=~/.kamal-tmp`,
-never from a shell start-up file.
+never from a shell start-up file. The production key is held for the
+session by an agent of its own, its passphrase typed once, for an hour at
+most (`ssh-add` again when a command asks for it):
+`eval "$(ssh-agent -s)" >/dev/null && ssh-add -t 1h ~/.ssh/balcao-prod`;
+the session ends with `ssh-agent -k`, after step 9.
 
 1. `git fetch origin`, then read the CI of `origin/main`'s commit:
 
@@ -712,9 +718,13 @@ and the demo's stays with the demo. It runs in the rehearsal's own mode
    Since M3-6b it reads noindex too: on every answer of a rehearsal host,
    on none of the public name's but the trace page's own.
 6. **Delete it** at the session's end: `kamal registry remove -d ensaio`
-   if `bin/deploy` could not, then `hcloud server delete ensaio`, then the
-   resource check of "End of a deploy session" with the server list empty:
-   the reserved IP and the cloud firewall are the only standing items.
+   if `bin/deploy` could not; then `hcloud server poweroff ensaio`,
+   `hcloud primary-ip unassign ensaio` and `hcloud server delete ensaio`.
+   The reserved IP is protected against deletion, and the provider deletes
+   no server that holds a protected primary IP; a primary IP leaves a
+   server only while it is off. Then the resource check of "End of a
+   deploy session" with the server list empty: the reserved IP, unassigned,
+   and the cloud firewall are the only standing items.
 
 ## The production cut (M3-7)
 
@@ -743,12 +753,23 @@ this order; *owner* marks the steps that are the owner's alone.
    takes both secrets, so the MVP host goes on making visitors meanwhile).
    If the DNS service lets the name's TTL go below its hour, set it to
    five minutes the day before: step 5 then takes minutes.
-2. *Owner:* the production host, in the production project with the
-   provider's CLI, as the MVP host was made: `ops/cloud-init.yml` with the
-   operator account's public key, CX23, Ubuntu 24.04, no IPv6, a primary
-   IPv4 of its own, a cloud firewall that admits TCP 22 and ICMP alone
-   until step 5 opens 80 and 443; its address
-   in the operator account's ssh config (above); then
+2. *Owner:* the production host, on the day of the cut itself, so the two
+   hosts are billed together only for the hours until step 9 (the owner
+   chose on 2026-11-23 not to pay for two machines longer). It is made in
+   the production project from the provider's web console, which holds no
+   API token, as the MVP host was made: `ops/cloud-init.yml` with the
+   operator account's public key in place of the placeholder (the file is
+   carried from the operator's VM to the browser by its console, and its
+   SHA-256 compared on both sides), CX23, Ubuntu 24.04, no IPv6, a primary
+   IPv4 of its own, protected against deletion (it outlives a host made
+   again, SR-26), the operator's public key chosen as the server's SSH key
+   (so no root password is mailed), a cloud firewall that admits TCP 22
+   and ICMP alone until step 5 opens 80 and 443. The provider's stock of
+   CX23 comes and goes by the hour: production may take another EU
+   location than the MVP host's (on 2026-11-24 only Falkenstein had it),
+   its primary IP made in that same location; with none in the EU, the
+   cut moves to another day, the demo serving meanwhile. Then its address
+   in the operator account's ssh config (above),
    `kamal server exec 'cloud-init status --wait'`, repeated until SSH
    answers, and the host checklist.
 3. The session deploys the `main` to be cut over to the MVP host, and runs
@@ -775,19 +796,23 @@ this order; *owner* marks the steps that are the owner's alone.
    has the new address meets a timeout: the monitor may write once, and
    writes again on recovery.
 6. *Owner:* production's first data: `bin/rails db:seed` (The deploy flow,
-   step 5), the operator's chat linked again (The budget, below: a fresh
-   database has none).
+   step 5).
 7. *Owner:* the bot's task in production (The Telegram bot, below), which
    points the webhook at the name and registers production's secret.
    Telegram reaches the production host once its own cache of the name
    expires; until then its deliveries meet the MVP host, which refuses
    them (its webhook secret is another), and Telegram keeps them and sends
-   them again.
+   them again. Only then the operator's chat linked again (The budget,
+   below: a fresh database has none): the link's Start reaches production
+   through its webhook alone. Between step 4 and this task, production's
+   Telegram watch may tell its heartbeat a failure, the webhook being the
+   MVP host's still; the task's next watch, ten minutes on, brings it up.
 8. *Owner:* the smoke on production, and within ten minutes the canary's
    line and the Telegram watch's; in the monitor's console, production's
    two heartbeats up, not pending.
 9. The session, after the name's TTL (an hour) has passed: the MVP host
-   deleted (`hcloud server delete ensaio`) and the resource check; the
+   deleted (Rehearsal hosts, step 6: powered off, the reserved IP taken off
+   it, deleted) and the resource check; the
    owner deletes the MVP host's two heartbeats in the monitor's console;
    the pull request of M3-7 points `config/deploy.ensaio.yml` at
    `ensaio.rafasouza.dev.br`, the proxy's host and `APP_HOST`, with the
@@ -845,8 +870,9 @@ same call (`set -a; . <env file>; set +a`); Kamal prints its own lines and
 the host around the answer.
 
 - **The cap** is `BUDGET_CAP_USD` in the destination's `env.clear`: 100 in
-  `config/deploy.yml` (production), 10 in `config/deploy.ensaio.yml` (the
-  MVP host, whose dev/eval key has a console limit of US$ 20). A new value
+  `config/deploy.yml` (production), 10 in `config/deploy.ensaio.yml` (a
+  rehearsal host on the real model, and the MVP host before the cut, whose
+  dev/eval key has a console limit of US$ 20). A new value
   is a deploy. **Resuming a month the cap paused** (FR-14, from M3-1): a
   raised cap resumes it at once, in normal below 70 % of the new cap and in
   economy above it; but while ADR-0003's gate is closed (below) an economy
