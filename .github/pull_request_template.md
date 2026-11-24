@@ -34,4 +34,13 @@ agents' reports are kept outside the repository; this section is the record. -->
 
 <!-- One line per teorico finding and per cannot-tell claim settled by a
 green test: id, the finding, the recommendation. Read at the MVP close and
-at milestone closes; the pull request does not wait for it. -->
+at milestone closes; the pull request does not wait for it.
+
+ADR-0024. A finding that stays open and that someone outside the system
+could trigger, with no internal failure first, goes to the private record
+with its scenario; here it is counted under its reach and replaced by one
+line: "One finding an outside party could trigger is kept private until it
+is fixed (ADR-0024)." A dependency's defect is described only after its
+maintainers release a fix. The owner's decisions are written by role and
+date, with the reason, in the third person: no quotation of his words or of
+the options he was shown. -->
