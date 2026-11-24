@@ -2,17 +2,22 @@
 # over config/deploy.yml and deployed only with `bin/deploy -d ensaio` from
 # the development account, with the secrets of .kamal/secrets.ensaio.
 #
-# Until M3 this destination is the MVP host and serves the demo itself at
-# balcao.rafasouza.dev.br (ADR-0011's MVP amendment, design §8). At M3 the
-# production host takes that name and this destination becomes
-# ensaio.rafasouza.dev.br, for throwaway rehearsal hosts, in their own mode:
-# the fake model by default, the model key left out of the secrets unless
-# the real model is wanted, and NOINDEX=true, which the boot requires off the
-# public name (the runbook's production cut, step 9; M3-6b).
+# Since the production cut (M3-7) this destination is ensaio.rafasouza.dev.br,
+# throwaway rehearsal hosts on the reserved IP, made and deleted per slice
+# (docs/runbook.md, the rehearsal flow); production has the public name. Until
+# the cut it was the MVP host, which served the demo itself (ADR-0011's MVP
+# amendment). A rehearsal host runs in its own mode (design §8, M3-6b), which
+# the boot holds to the name (config/required_environment.rb).
 #
 # The host's address, the deploy key and the ssh config (which pins host keys
 # in its own known_hosts) are read from the deploying shell, so no address or
 # path lands in the repository; a missing one stops Kamal before it connects.
+#
+# The model: the fake one, the replies the evals recorded, unless the
+# deploying shell sets ENSAIO_MODEL_ADAPTER=real for one deploy, which runs
+# the real model on the dev/eval key. Any other value stops Kamal here.
+<% model = ENV.fetch("ENSAIO_MODEL_ADAPTER", "fake") -%>
+<% raise "ENSAIO_MODEL_ADAPTER must be fake or real, not #{model.inspect}" unless %w[fake real].include?(model) -%>
 
 servers:
   web:
@@ -23,7 +28,7 @@ servers:
       - <%= ENV.fetch("ENSAIO_HOST") %>
 
 proxy:
-  host: balcao.rafasouza.dev.br
+  host: ensaio.rafasouza.dev.br
 
 registry:
   server: localhost:5555
@@ -35,11 +40,34 @@ ssh:
   config:
     - <%= ENV.fetch("ENSAIO_SSH_CONFIG") %>
 
-# The MVP host runs on the dev/eval key, whose console limit of US$ 20 a month
-# also pays the eval runs: its cap of US$ 10 pauses the demo with its fixed
-# reply before that limit cuts the key off (FR-14; the owner's decision of
-# 2026-11-14).
+# Every answer says noindex: a rehearsal host's name is in the certificate
+# logs within minutes (design §8). The cap is the dev/eval key's: its console
+# limit of US$ 20 a month also pays the eval runs, so a rehearsal on the real
+# model pauses with its fixed reply at US$ 10 before that limit cuts the key
+# off (FR-14; the owner's decision of 2026-11-14, for the MVP host).
+#
+# This list replaces the base's (Kamal deep-merges a destination, a list
+# whole), so Kamal injects only these, whatever the rehearsal env file holds:
+# never the two heartbeat URLs, which the boot refuses off the public name (a
+# rehearsal host has no monitor), and the model key only beside the real
+# model, since the boot refuses it beside the fake one (threat model SR-25).
 env:
   clear:
-    APP_HOST: balcao.rafasouza.dev.br
+    APP_HOST: ensaio.rafasouza.dev.br
+    MODEL_ADAPTER: <%= model %>
+    NOINDEX: "true"
     BUDGET_CAP_USD: "10"
+  secret:
+    - SECRET_KEY_BASE
+    - POSTGRES_PASSWORD
+    - APP_DATABASE_PASSWORD
+<% if model == "real" -%>
+    - ANTHROPIC_API_KEY
+<% end -%>
+    - ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY
+    - ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY
+    - ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT
+    - IDENTITY_PEPPER
+    - TELEGRAM_BOT_TOKEN
+    - TELEGRAM_WEBHOOK_SECRET
+    - TURNSTILE_SECRET_KEY
