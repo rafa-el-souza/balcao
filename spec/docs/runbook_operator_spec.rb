@@ -231,4 +231,13 @@ RSpec.describe "SR-37 SR-38 the operator's account and checklist in the runbook"
     expect(contract).to include("the production host has a primary IPv4 of its own, protected against deletion")
     expect(needs).to include("the provider's CLI logged in to the rehearsal project")
   end
+
+  # PR #75's V2 (the verifier, dono): SR-26's trace made the production host
+  # with the provider's CLI, which the cut's step 2 makes from the web console.
+  it "traces SR-26 to the way each host is made" do
+    sr26 = YAML.safe_load_file(Rails.root.join("docs/traceability.yml")).dig("steps", "SR-26")
+
+    expect(sr26).not_to include("the production host at the cut and every rehearsal host")
+    expect(sr26).to include("the production host at the cut from the provider's web console")
+  end
 end
