@@ -13,10 +13,15 @@
 # in its own known_hosts) are read from the deploying shell, so no address or
 # path lands in the repository; a missing one stops Kamal before it connects.
 #
-# The model: the fake one, the replies the evals recorded, unless the
-# deploying shell sets ENSAIO_MODEL_ADAPTER=real for one deploy, which runs
-# the real model on the dev/eval key. Any other value stops Kamal here.
-<% model = ENV.fetch("ENSAIO_MODEL_ADAPTER", "fake") -%>
+# The model: the fake one, the replies the evals recorded, when
+# ENSAIO_MODEL_ADAPTER is unset or blank (as .env.example lists it), unless
+# the rehearsal env file holds ENSAIO_MODEL_ADAPTER=real, for the host's whole
+# life, which runs the real model on the dev/eval key. Any other value stops
+# Kamal here. Every command renders this file again from its own shell, and
+# `kamal app exec` puts that render's settings beside the secrets the host
+# kept from its last boot, so a shell naming another model than the host's
+# last deploy is refused at boot (docs/runbook.md, the rehearsal flow).
+<% model = ENV["ENSAIO_MODEL_ADAPTER"].to_s.empty? ? "fake" : ENV["ENSAIO_MODEL_ADAPTER"] -%>
 <% raise "ENSAIO_MODEL_ADAPTER must be fake or real, not #{model.inspect}" unless %w[fake real].include?(model) -%>
 
 servers:

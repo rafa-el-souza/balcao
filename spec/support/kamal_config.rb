@@ -14,9 +14,10 @@ module KamalConfigHelpers
   }.freeze
 
   # The rehearsal's two modes (design §8, M3-6b): the fake model unless the
-  # deploying shell sets ENSAIO_MODEL_ADAPTER=real for one deploy. nil renders
-  # the file with the variable unset, whatever the shell running the specs has.
-  REHEARSAL_MODELS = [ nil, "real" ].freeze
+  # rehearsal env file holds ENSAIO_MODEL_ADAPTER=real for the host's life. nil
+  # renders the file with the variable unset, whatever the shell running the
+  # specs has; a blank value, as .env.example lists it, is the fake model too.
+  REHEARSAL_MODELS = [ nil, "", "real" ].freeze
 
   def load_kamal(file, env = {})
     saved = env.keys.to_h { |name| [ name, ENV[name] ] }

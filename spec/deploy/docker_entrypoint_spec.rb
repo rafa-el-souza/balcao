@@ -60,7 +60,7 @@ RSpec.describe "NFR-08 the container entrypoint, in Ruby" do
     # Each is rendered as Kamal renders it (spec/support/kamal_config.rb).
     helpers = Object.new.extend(KamalConfigHelpers)
     { "config/deploy.yml" => helpers.base }.merge(KamalConfigHelpers::REHEARSAL_MODELS.to_h { |model|
-      [ "config/deploy.ensaio.yml, #{model || "unset"}", helpers.rehearsal_file(model:) ]
+      [ "config/deploy.ensaio.yml, #{model.inspect}", helpers.rehearsal_file(model:) ]
     }).each do |file, deploy|
       expect(deploy.dig("servers", "web")).not_to have_key("cmd"), file
     end

@@ -669,9 +669,18 @@ and the demo's stays with the demo. It runs in the rehearsal's own mode
   apology, as a model error, and two such turns alone in half an hour fail
   the canary's look at the visitors' turns, as a dead model would. The
   boot refuses the fake model on the public name and a model key beside it.
-- **A real-model rehearsal** sets `ENSAIO_MODEL_ADAPTER=real` in the
-  deploying shell for that deploy alone: the destination then runs the real
-  model and injects the dev/eval key, never the production one.
+- **A real-model rehearsal** appends `ENSAIO_MODEL_ADAPTER=real` to the
+  rehearsal env file before the host's first deploy: the destination then
+  runs the real model and injects the dev/eval key, never the production
+  one. The model is the host's for its life. Kamal renders the destination
+  from the shell of every command, and `kamal app exec` gives its new
+  container that render's settings beside the secrets the host kept from
+  its last boot, so a command whose shell names another model than the
+  host's last deploy does not boot: the key beside the fake model, or none
+  beside the real one (#75's C1). The env file every rehearsal command
+  loads keeps the two the same; another model is another host, or a deploy
+  watched to its end (one that fails can leave the `web` and `job`
+  containers' secrets apart).
 - **noindex on every answer** (`NOINDEX=true`, `X-Robots-Tag: noindex`): its
   name is in the certificate logs within minutes. `robots.txt` lets every
   page be crawled, as on the demo, since a crawler reads noindex only on a
@@ -729,7 +738,11 @@ and the demo's stays with the demo. It runs in the rehearsal's own mode
    no server that holds a protected primary IP; a primary IP leaves a
    server only while it is off. Then the resource check of "End of a
    deploy session" with the server list empty: the reserved IP, unassigned,
-   and the cloud firewall are the only standing items.
+   and the cloud firewall are the only standing items. After a real-model
+   rehearsal, its line is deleted, and the rehearsal env file has no
+   `ENSAIO_MODEL_ADAPTER` line (`grep -c '^ENSAIO_MODEL_ADAPTER=' <the env
+   file>` prints 0): the next host would otherwise take the real model and
+   its key without a word.
 
 ## The production cut (M3-7)
 

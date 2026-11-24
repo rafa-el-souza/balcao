@@ -56,7 +56,7 @@ RSpec.describe "SR-38 the rehearsal destination inherits nothing production-spec
   # ways rendered, #68's finder, its note 7).
   it "sets each destination's model, model key, heartbeats and NOINDEX as the boot takes them on its name, whatever the env file holds" do
     env_file = ProductionEnv.public_name.slice(*Balcao::RequiredEnvironment::INJECTED)
-    destinations = { "production" => base }.merge(KamalConfigHelpers::REHEARSAL_MODELS.to_h { |model| [ "rehearsal, #{model || "unset"}", rehearsal(model:) ] })
+    destinations = { "production" => base }.merge(KamalConfigHelpers::REHEARSAL_MODELS.to_h { |model| [ "rehearsal, #{model.inspect}", rehearsal(model:) ] })
 
     refused = destinations.filter_map do |name, config|
       env = env_file.slice(*config.dig("env", "secret")).merge(config.dig("env", "clear").transform_values(&:to_s))
@@ -70,6 +70,7 @@ RSpec.describe "SR-38 the rehearsal destination inherits nothing production-spec
     expect(base.dig("env", "clear")).to include("MODEL_ADAPTER" => "real")
     expect(base.dig("env", "clear")).not_to have_key("NOINDEX")
     expect(rehearsal.dig("env", "clear")).to include("MODEL_ADAPTER" => "fake", "NOINDEX" => "true")
+    expect(rehearsal(model: "").dig("env", "clear")).to include("MODEL_ADAPTER" => "fake")
     expect(rehearsal(model: "real").dig("env", "clear")).to include("MODEL_ADAPTER" => "real", "NOINDEX" => "true")
   end
 
@@ -87,7 +88,7 @@ RSpec.describe "SR-38 the rehearsal destination inherits nothing production-spec
   # A value other than the two stops Kamal at the file, before it connects,
   # rather than a host booting the fake model on a typo of "real".
   it "stops Kamal on a model the rehearsal does not know" do
-    [ "", "Real", "fake ", "true" ].each do |model|
+    [ "Real", "fake ", "true", " " ].each do |model|
       expect { rehearsal_file(model:) }.to raise_error(RuntimeError, /ENSAIO_MODEL_ADAPTER must be fake or real/), model.inspect
     end
   end

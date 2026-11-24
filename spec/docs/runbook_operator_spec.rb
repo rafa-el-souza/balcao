@@ -184,4 +184,23 @@ RSpec.describe "SR-37 SR-38 the operator's account and checklist in the runbook"
     expect(steps).to all(be_an(Integer))
     expect(steps).to eq steps.sort
   end
+
+  # PR #75's C1 (the verifier: real with conditions, dono): `kamal app exec`
+  # renders MODEL_ADAPTER from the shell that runs it, beside the env file the
+  # host kept from its last boot, so a model set for one deploy alone made
+  # every later app command refuse to boot (the key beside the fake model, or
+  # none beside the real one), the hand pause among them. The model is the
+  # host's for its life, in the env file every rehearsal command loads, and
+  # the end of the session checks it gone, or the next host would take the
+  # real model and its key without a word.
+  it "keeps a rehearsal host's model in the rehearsal env file for the host's life, checked gone at its deletion" do
+    flow = section("Rehearsal hosts (from M3): the per-slice flow").squish
+    deletion = flow[flow.index("6. **Delete it**")..]
+
+    expect(flow).not_to include("for that deploy alone")
+    expect(flow).to include("appends `ENSAIO_MODEL_ADAPTER=real` to the rehearsal env file before the host's first deploy")
+    expect(deletion).to include("the rehearsal env file has no `ENSAIO_MODEL_ADAPTER` line")
+    expect(Rails.root.join("config/deploy.ensaio.yml").read).not_to include("for one deploy")
+    expect(Rails.root.join(".env.example").read).to match(/^ENSAIO_MODEL_ADAPTER=$/)
+  end
 end
