@@ -1,6 +1,10 @@
 # ADR-0007: Design doc, ADRs, threat model and evals are public
 
-**Status:** accepted · **Date:** 2026-11-02
+**Status:** accepted · **Date:** 2026-11-02 · Extended by
+[ADR-0024](0024-what-the-public-record-holds-back.md) on 2026-11-24: an
+open finding an outside party could trigger, and a third party's issue
+before its fix, wait for the fix; the owner's decisions are attributed,
+not quoted
 
 ## Context
 

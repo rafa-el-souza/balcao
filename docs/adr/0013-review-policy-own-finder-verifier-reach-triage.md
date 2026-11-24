@@ -11,7 +11,10 @@ webhook's and Graph client's place · Extended by
 on 2026-11-15: the method of the review at a close, and four amendments
 (a recommendation carried by its destination, the author's dismissals
 verified, the visual review of a CSS-only pull request, an extra finder at
-a close).
+a close) · Extended by
+[ADR-0024](0024-what-the-public-record-holds-back.md) on 2026-11-24: a
+finding that stays open and that an outside party could trigger leaves the
+Review section for a private record until it is fixed
 
 ## Context
 

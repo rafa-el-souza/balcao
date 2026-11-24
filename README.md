@@ -218,7 +218,10 @@ measurement covers say where in [`docs/traceability.yml`](docs/traceability.yml)
 reviewed before merge by the project's own read-only finder agent, with an
 independent verifier on the risk list; the policy is
 [ADR-0013](docs/adr/0013-review-policy-own-finder-verifier-reach-triage.md)
-and each pull request's Review section is the record.
+and each pull request's Review section is the record, except a finding
+an outside party could trigger, kept private until it is fixed
+([ADR-0024](docs/adr/0024-what-the-public-record-holds-back.md)). To
+report a vulnerability, see [`SECURITY.md`](SECURITY.md).
 
 ## Status
 
