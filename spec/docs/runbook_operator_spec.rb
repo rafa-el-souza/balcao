@@ -290,4 +290,13 @@ RSpec.describe "SR-37 SR-38 the operator's account and checklist in the runbook"
 
     expect(deletion).to include("`grep -c '^ENSAIO_MODEL_ADAPTER=real' <the env file>` prints 0")
   end
+
+  # PR #75's fix review, a sister of C3: a production host made again after
+  # a loss takes the protected primary IP back, or the public name's `A`
+  # record would have to move, its TTL and the certificate with it (SR-26).
+  it "makes a lost production host again on its own protected primary IP" do
+    down = section("When the monitor says the demo is down").squish
+
+    expect(down).to include("on its own protected primary IP, chosen again instead of a new one so the `A` record stays")
+  end
 end

@@ -51,9 +51,10 @@ RSpec.describe "SR-38 the rehearsal destination inherits nothing production-spec
   # heartbeats included, as a careless one might be. The public name runs the
   # real model with its key, its two heartbeats and no NOINDEX; the rehearsal,
   # the fake model by default with no key, or the real one with the dev/eval
-  # key when the deploying shell sets ENSAIO_MODEL_ADAPTER=real, never a
-  # heartbeat, and NOINDEX=true (the runbook's production cut, step 9: both
-  # ways rendered, #68's finder, its note 7).
+  # key when the rehearsal env file holds ENSAIO_MODEL_ADAPTER=real for the
+  # host's life (#75's C1), never a heartbeat, and NOINDEX=true (the
+  # runbook's production cut, step 9: each way rendered, #68's finder, its
+  # note 7).
   it "sets each destination's model, model key, heartbeats and NOINDEX as the boot takes them on its name, whatever the env file holds" do
     env_file = ProductionEnv.public_name.slice(*Balcao::RequiredEnvironment::INJECTED)
     destinations = { "production" => base }.merge(KamalConfigHelpers::REHEARSAL_MODELS.to_h { |model| [ "rehearsal, #{model.inspect}", rehearsal(model:) ] })

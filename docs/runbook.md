@@ -55,9 +55,9 @@ without them, someone covering can still pause the demo (The budget, below)
 and call him.
 
 **Has the cut happened?** It has when `dig +short balcao.rafasouza.dev.br`
-answers another address than the reserved IP's (`hcloud primary-ip list`
-in the rehearsal project) and `dig +short ensaio.rafasouza.dev.br` answers
-the reserved IP's.
+and `dig +short ensaio.rafasouza.dev.br` answer two different addresses,
+the second the reserved IP's (`hcloud primary-ip list` in the rehearsal
+project, for the session; the operator account has no CLI).
 
 **Production's commands.** The Kamal commands below are written for the MVP
 host, with `-d ensaio`. From the cut, production's are the same commands
@@ -183,7 +183,7 @@ at its missing host; #75's V4):
 | sshd as configured | `sudo sshd -T \| grep -E '^(passwordauthentication\|permitrootlogin\|kbdinteractiveauthentication\|allowtcpforwarding) '` | `passwordauthentication no`, `permitrootlogin no`, `kbdinteractiveauthentication no`, `allowtcpforwarding yes` |
 | fail2ban watches sshd | `sudo fail2ban-client status` | `Jail list: sshd` |
 | services up | `systemctl is-active unattended-upgrades docker fail2ban` | `active` three times |
-| listeners | `ss -ltn` | on every address only 22, and after the first deploy 80 and 443; the resolver on 127.0.0.53 and 127.0.0.54; during a deploy, the registry tunnel on 127.0.0.1:5555; never 5432 |
+| listeners | `ss -ltn` | on every address only 22, and after the first deploy 80 and 443; the resolver on 127.0.0.53 and 127.0.0.54; during a deploy, the registry tunnel on 127.0.0.1:5555 (5556 on the production host); never 5432 |
 | containers | `docker ps -q \| xargs docker inspect --format '{{.Name}} user={{.Config.User}} ro={{.HostConfig.ReadonlyRootfs}} published={{json .HostConfig.PortBindings}}'` | `web` and `job`: `user=1000:1000 ro=true published={}`; `balcao-db`: `published={}`; only `kamal-proxy` publishes 80 and 443 |
 | containers' limits | `docker ps -q \| xargs docker inspect --format '{{.Name}} memory={{.HostConfig.Memory}} cpus={{.HostConfig.NanoCpus}}'` | `web`, `job` and `balcao-db`: `memory=1073741824 cpus=1500000000`; `kamal-proxy`: `memory=268435456 cpus=1000000000` (the database's and the proxy's once rebooted after the deploy that changed them; the host contract) |
 
@@ -812,7 +812,8 @@ this order; *owner* marks the steps that are the owner's alone.
    cut moves to another day, the demo serving meanwhile. Then its address
    in the operator account's ssh config (above),
    `kamal server exec 'cloud-init status --wait'`, repeated until SSH
-   answers, and the host checklist.
+   answers (it exits 2, "degraded done", as Creating the MVP host, step 4,
+   says), and the host checklist.
 3. The session deploys the `main` to be cut over to the MVP host, and runs
    `bin/edge-check https://balcao.rafasouza.dev.br` against it: before the
    cut, the MVP host is the rehearsal of production's first deploy.
@@ -1269,8 +1270,11 @@ gives; this section only puts them in the order of a bad day.
    and the cloud provider's console says whether the server runs: a server
    stopped is started there; one that is gone or broken is made again from
    `ops/cloud-init.yml` (Creating the MVP host; from the cut, production as
-   the cut's step 2 made it) and deployed whole, with a fresh database
-   (SR-26: no backup).
+   the cut's step 2 made it, on its own protected primary IP, chosen again
+   instead of a new one so the `A` record stays, and its old host key
+   removed from the operator account's `known_hosts` with `ssh-keygen -R
+   <its IPv4>`) and deployed whole, with a fresh database (SR-26: no
+   backup).
 3. An answer that is an error (the proxy is up and the app behind it is
    not): read `kamal app logs -d ensaio`,
    `kamal proxy logs -d ensaio` and `kamal accessory logs db -d ensaio`
