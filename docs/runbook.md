@@ -762,9 +762,9 @@ and the demo's stays with the demo. It runs in the rehearsal's own mode
    deploy session" with the server list empty: the reserved IP, unassigned,
    and the cloud firewall are the only standing items. After a real-model
    rehearsal, its line is deleted, and the rehearsal env file has no
-   `ENSAIO_MODEL_ADAPTER` line (`grep -c '^ENSAIO_MODEL_ADAPTER=' <the env
-   file>` prints 0): the next host would otherwise take the real model and
-   its key without a word.
+   `ENSAIO_MODEL_ADAPTER=real` line (`grep -c '^ENSAIO_MODEL_ADAPTER=real' <the env file>` prints 0;
+   a blank one is the fake model): the next host would otherwise take the
+   real model and its key without a word.
 
 ## The production cut (M3-7)
 

@@ -199,7 +199,7 @@ RSpec.describe "SR-37 SR-38 the operator's account and checklist in the runbook"
 
     expect(flow).not_to include("for that deploy alone")
     expect(flow).to include("appends `ENSAIO_MODEL_ADAPTER=real` to the rehearsal env file before the host's first deploy")
-    expect(deletion).to include("the rehearsal env file has no `ENSAIO_MODEL_ADAPTER` line")
+    expect(deletion).to include("the rehearsal env file has no `ENSAIO_MODEL_ADAPTER=real` line")
     expect(Rails.root.join("config/deploy.ensaio.yml").read).not_to include("for one deploy")
     expect(Rails.root.join(".env.example").read).to match(/^ENSAIO_MODEL_ADAPTER=$/)
   end
@@ -280,5 +280,14 @@ RSpec.describe "SR-37 SR-38 the operator's account and checklist in the runbook"
     expect(step9).not_to include('ENV.fetch("ENSAIO_MODEL_ADAPTER", "fake")')
     expect(step9).to include("the fake model when it is unset or blank")
     expect(step9).to include("with `ENSAIO_MODEL_ADAPTER` unset, blank and set to `real`")
+  end
+
+  # PR #75's fix review, R3 (teorico): the deletion's check counted any
+  # ENSAIO_MODEL_ADAPTER line, a blank one too, which renders the fake model.
+  it "checks at a rehearsal host's deletion for the real model's line alone" do
+    flow = section("Rehearsal hosts (from M3): the per-slice flow").squish
+    deletion = flow[flow.index("6. **Delete it**")..]
+
+    expect(deletion).to include("`grep -c '^ENSAIO_MODEL_ADAPTER=real' <the env file>` prints 0")
   end
 end
