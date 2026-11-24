@@ -212,7 +212,7 @@ RSpec.describe "SR-37 SR-38 the operator's account and checklist in the runbook"
     flow = section("Rehearsal hosts (from M3): the per-slice flow").squish
     budget = section("The budget, the nightly job and the logs (from PR-16)").squish
 
-    expect(flow).to include("read the dev/eval key's month on the model console's usage page")
+    expect(flow).to include("reads the dev/eval key's month on the model console's usage page")
     expect(budget).to include("its ledger starting at zero on each host")
   end
 
@@ -259,5 +259,15 @@ RSpec.describe "SR-37 SR-38 the operator's account and checklist in the runbook"
     host = section("Host checklist (SR-24)").squish
 
     expect(host).to include("`kamal server exec '<command>'` from the operator account on the production host")
+  end
+
+  # PR #75's fix review, R1 (dono): C2's reading left out the eval runs the
+  # same key pays during the slice, and gave the console to the session,
+  # which has none of the outside consoles.
+  it "has the owner read the dev/eval key's month, counting the slice's eval runs, before a real-model rehearsal" do
+    flow = section("Rehearsal hosts (from M3): the per-slice flow").squish
+
+    expect(flow).to include("the owner reads the dev/eval key's month on the model console's usage page")
+    expect(flow).to include("plus the eval runs the slice will make on the same key")
   end
 end

@@ -695,12 +695,14 @@ and the demo's stays with the demo. It runs in the rehearsal's own mode
   beside the real one (#75's C1). The env file every rehearsal command
   loads keeps the two the same; another model is another host, or a deploy
   watched to its end (one that fails can leave the `web` and `job`
-  containers' secrets apart). Before it, read the dev/eval key's month on
-  the model console's usage page: the host's cap is its own ledger, which
-  starts at zero on every host, so the month's spend there plus the host's
-  US$ 10 stays under the key's console limit of US$ 20, which also pays the
-  eval runs, or the console cuts the key for the rest of the month (#75's
-  C2).
+  containers' secrets apart). Before it, the owner reads the dev/eval key's
+  month on the model console's usage page (the session has no outside
+  console) and says the figure to the session: the host's cap is its own
+  ledger, which starts at zero on every host, so the month's spend there,
+  plus the host's US$ 10, plus the eval runs the slice will make on the same
+  key (a re-recording of the fast subset, a full run), stays under the key's
+  console limit of US$ 20, or the console cuts the key for the rest of the
+  month (#75's C2, and its fix review's R1).
 - **noindex on every answer** (`NOINDEX=true`, `X-Robots-Tag: noindex`): its
   name is in the certificate logs within minutes. `robots.txt` lets every
   page be crawled, as on the demo, since a crawler reads noindex only on a
