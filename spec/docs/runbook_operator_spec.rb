@@ -240,4 +240,14 @@ RSpec.describe "SR-37 SR-38 the operator's account and checklist in the runbook"
     expect(sr26).not_to include("the production host at the cut and every rehearsal host")
     expect(sr26).to include("the production host at the cut from the provider's web console")
   end
+
+  # PR #75's V1 (the verifier, dono): the checklist read the production
+  # host's firewall with the provider's CLI, which the production project,
+  # holding no API token, has no context for.
+  it "reads production's cloud firewall in the provider's web console, a rehearsal host's with the CLI" do
+    outside = section("Host checklist (SR-24)").then { |host| host[host.index("From outside:")..] }.squish
+
+    expect(outside).to include("a rehearsal host's with `hcloud firewall describe <firewall>`")
+    expect(outside).to include("the production host's on the firewall's page of the provider's web console")
+  end
 end
