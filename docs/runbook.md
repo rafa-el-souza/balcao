@@ -375,7 +375,11 @@ development account, which has no sudo:
    which keeps its configuration apart from the rehearsal's `5555`; the VM
    keeps the accounts apart). Kamal clones the checkout to build it under
    the temporary directory, so the account has its own, made once:
-   `mkdir -m 700 -p ~/.kamal-tmp`.
+   `mkdir -m 700 -p ~/.kamal-tmp`. The image's build and Docker's store
+   live in the account's home, so the VM's disk holds 30 GB free or more
+   (40 GB in all): the first production build stopped on a 3.2 GB root
+   filesystem on 2026-11-24, which a Fedora Server image makes by default,
+   leaving the rest of its small disk unallocated.
 3. Ruby at the version `.tool-versions` names and the pinned Kamal:
    `gem install kamal -v 2.12.0`, then `kamal version` prints `2.12.0`;
    `curl` and `jq`, which the checklist's first step reads CI with.
@@ -792,7 +796,9 @@ this order; *owner* marks the steps that are the owner's alone.
    rotation occurs over the course of two hours", during which Cloudflare
    takes both secrets, so the MVP host goes on making visitors meanwhile).
    If the DNS service lets the name's TTL go below its hour, set it to
-   five minutes the day before: step 5 then takes minutes.
+   five minutes the day before: step 5 then takes minutes. (The domain's
+   DNS service showed no TTL field on 2026-11-24, so the cut waited the
+   hour.)
 2. *Owner:* the production host, on the day of the cut itself, so the two
    hosts are billed together only for the hours until step 9 (the owner
    chose on 2026-11-23 not to pay for two machines longer). It is made in
@@ -805,11 +811,16 @@ this order; *owner* marks the steps that are the owner's alone.
    again, SR-26), the operator's public key chosen as the server's SSH key
    (so no root password is mailed), a cloud firewall that admits TCP 22
    and ICMP alone until step 5 opens 80 and 443. The provider's stock of
-   CX23 comes and goes by the hour: production may take another EU
-   location than the MVP host's (at 01:30 UTC on 2026-11-24 only
-   Falkenstein had it, and Helsinki again half an hour later),
-   its primary IP made in that same location; with none in the EU, the
-   cut moves to another day, the demo serving meanwhile. Then its address
+   CX23 comes and goes within minutes (on 2026-11-24 it was in Falkenstein
+   alone at 01:30 UTC, in Helsinki at 02:03, in no EU location at 02:12
+   and in all three at 02:27; the web console's page of a new server shows
+   the stock of when it was opened, so reload it): production may take
+   another EU location than the MVP host's, its primary IP made in that
+   same location; with none in the EU for the evening, the cut moves to
+   another day, the demo serving meanwhile. Another type needs the owner's
+   word: a 1-vCPU one fails the deploy outright (the containers' CPU limits
+   are 1.5 and Docker refuses a limit above the host's CPUs), and a larger
+   disk cannot be shrunk back to a CX23 without making the host again. Then its address
    in the operator account's ssh config (above),
    `kamal server exec 'cloud-init status --wait'`, repeated until SSH
    answers (it exits 2, "degraded done", as Creating the MVP host, step 4,
@@ -824,7 +835,12 @@ this order; *owner* marks the steps that are the owner's alone.
 5. *Owner:* the DNS records: the `A` record of `balcao.rafasouza.dev.br` to
    the production host's address, and a new `A` record of
    `ensaio.rafasouza.dev.br` to the reserved IP. Then wait out the
-   record's TTL (an hour, or the five minutes set the day before): the
+   record's TTL (an hour, or the five minutes set the day before), counted
+   from the moment resolvers that had not asked before answer the new
+   address, not from the save: the DNS service takes a minute or two to
+   bring it to all its servers, and a resolver that asked in between keeps
+   the old answer for the whole TTL (on 2026-11-24 Google's and
+   Cloudflare's did, a minute before the change reached them). The
    first HTTPS request has kamal-proxy ask Let's Encrypt for the
    certificate, whose check resolves the name with Let's Encrypt's own
    resolvers, and a check that still met the MVP host would fail and count
